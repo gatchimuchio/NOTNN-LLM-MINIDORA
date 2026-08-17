@@ -1,0 +1,24 @@
+name: 成果バンドル検証
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 完全成果バンドルを復元
+        run: python 成果バンドル/復元.py
+      - name: ZIPを展開
+        run: unzip NOTNN-LLM-MINIDORA_成果バンドル_20260818.zip -d /tmp/notnn-llm
+      - name: 全参照実装と比較を検証
+        working-directory: /tmp/notnn-llm
+        run: make test-all
