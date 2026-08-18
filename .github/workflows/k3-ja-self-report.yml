@@ -1,0 +1,77 @@
+name: K3日本語命令化版CI結果確定
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '研究/K3命令化非ニューラル実装_v0.3.1_日本語版/src/**'
+      - '研究/K3命令化非ニューラル実装_v0.3.1_日本語版/試験/**'
+      - '研究/K3命令化非ニューラル実装_v0.3.1_日本語版/操作/**'
+      - '研究/K3命令化非ニューラル実装_v0.3.1_日本語版/pyproject.toml'
+      - '.github/workflows/k3-ja-self-report.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: k3-ja-self-report
+  cancel-in-progress: true
+
+jobs:
+  validate-and-record:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 研究/K3命令化非ニューラル実装_v0.3.1_日本語版
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: 研究/K3命令化非ニューラル実装_v0.3.1_日本語版/pyproject.toml
+      - name: 試験依存を導入
+        run: python -m pip install -e . pytest
+      - name: 配布前再検証
+        run: python 操作/配布を検証.py
+      - name: CI合格記録を作成
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import platform
+          from datetime import UTC, datetime
+          from pathlib import Path
+          root = Path.cwd()
+          validation = json.loads((root / '結果/再検証結果_0_3_1.json').read_text(encoding='utf-8'))
+          payload = {
+              '状態': validation['状態'],
+              '版': '0.3.1',
+              '検証時刻UTC': datetime.now(UTC).isoformat().replace('+00:00', 'Z'),
+              '元commit': os.environ['SOURCE_SHA'],
+              'workflow実行番号': os.environ['RUN_ID'],
+              '実行環境': {
+                  'OS': platform.platform(),
+                  'Python': platform.python_version(),
+              },
+              '検査': validation['検査'],
+              '主張境界': validation['主張境界'],
+          }
+          output = root / '結果/GitHub_CI検証結果.json'
+          output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+      - name: 合格記録をmainへ保存
+        working-directory: .
+        run: |
+          git config user.name 'MINIDORA K3 日本語CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add '研究/K3命令化非ニューラル実装_v0.3.1_日本語版/結果/GitHub_CI検証結果.json'
+          git commit -m 'K3日本語命令化版 CI合格記録 [skip ci]'
+          git push origin main
