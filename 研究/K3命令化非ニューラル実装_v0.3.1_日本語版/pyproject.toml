@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "minidora-k3-ja"
+version = "0.3.1"
+description = "Kimi K3公開構造を日本語命令へ射影したミニドラ非ニューラル実行系"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Teppei Ohira"}]
+dependencies = []
+
+[project.scripts]
+minidora-k3 = "minidora_k3.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["試験"]
+pythonpath = ["src"]
+
+[tool.setuptools.package-data]
+"minidora_k3.資料" = ["*.json"]
