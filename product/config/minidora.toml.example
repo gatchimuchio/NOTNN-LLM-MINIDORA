@@ -1,0 +1,18 @@
+[server]
+host = "127.0.0.1"
+port = 8765
+
+[storage]
+database_path = "data/minidora.sqlite3"
+
+[security]
+auth_required = false
+admin_auth_required = true
+allow_unauthenticated_public_bind = false
+api_keys = []
+admin_api_keys = []
+rate_limit_per_minute = 120
+max_request_bytes = 1048576
+
+[logging]
+level = "INFO"
