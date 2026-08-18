@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "notnn-minidora"
+version = "1.0.0rc2"
+description = "日本語優先・HDS統治型の非ニューラル言語Runtime"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [{name = "Teppei Ohira"}]
+dependencies = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.32,<1", "pydantic>=2.10,<3"]
+
+[project.optional-dependencies]
+documents = ["pypdf>=5,<7", "python-docx>=1.1,<2"]
+dev = ["pytest>=8,<10", "pytest-cov>=6,<8", "httpx>=0.27,<1", "ruff>=0.9,<1", "mypy>=1.14,<2"]
+
+[project.scripts]
+minidora = "minidora.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/minidora"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 110
+src = ["src", "tests", "benchmarks", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["minidora"]
