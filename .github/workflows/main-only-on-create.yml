@@ -1,0 +1,42 @@
+name: branch作成時main一本化
+
+on:
+  create:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  delete-created-branch:
+    if: github.event.ref_type == 'branch' && github.event.ref != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 作成されたmain以外のbranchを削除
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+          CREATED_BRANCH: ${{ github.event.ref }}
+        run: |
+          python - <<'PY'
+          import os
+          import urllib.parse
+          import urllib.request
+
+          branch = os.environ["CREATED_BRANCH"]
+          encoded = urllib.parse.quote(branch, safe="")
+          request = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['GH_REPOSITORY']}/git/refs/heads/{encoded}",
+              method="DELETE",
+              headers={
+                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "Accept": "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": "MINIDORA-main-only-create-gate",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              if response.status != 204:
+                  raise SystemExit(f"branch削除失敗: HTTP {response.status}")
+          print(f"削除済み: {branch}")
+          PY
