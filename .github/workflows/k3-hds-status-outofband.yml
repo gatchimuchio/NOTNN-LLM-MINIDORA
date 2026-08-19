@@ -1,0 +1,64 @@
+name: K3 HDS Out-of-band Status
+
+on:
+  push:
+    branches: [chappie/k3-hds-stream-v6]
+    paths:
+      - .github/workflows/k3-hds-status-outofband.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chappie/k3-hds-stream-v6
+          fetch-depth: 1
+      - name: Query latest full payload runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/k3status
+          api="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
+            "${api}/actions/workflows/k3-hds-full-payload.yml/runs?branch=chappie%2Fk3-hds-stream-v6&per_page=3" > /tmp/k3status/runs.json
+          python - <<'PY'
+          import json,os,urllib.request
+          from pathlib import Path
+          runs=json.loads(Path('/tmp/k3status/runs.json').read_text())['workflow_runs']
+          out=[]
+          for r in runs:
+              req=urllib.request.Request(r['jobs_url']+'?per_page=100',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(req) as f: jobs=json.load(f)['jobs']
+              out.append({
+                'id':r['id'],'run_number':r['run_number'],'status':r['status'],'conclusion':r.get('conclusion'),
+                'created_at':r['created_at'],'updated_at':r['updated_at'],'head_sha':r['head_sha'],'html_url':r['html_url'],
+                'jobs':{
+                  'count':len(jobs),
+                  'queued':sum(j['status']=='queued' for j in jobs),
+                  'in_progress':sum(j['status']=='in_progress' for j in jobs),
+                  'completed':sum(j['status']=='completed' for j in jobs),
+                  'success':sum(j.get('conclusion')=='success' for j in jobs),
+                  'failure':sum(j.get('conclusion')=='failure' for j in jobs),
+                  'cancelled':sum(j.get('conclusion')=='cancelled' for j in jobs),
+                  'items':[{'id':j['id'],'name':j['name'],'status':j['status'],'conclusion':j.get('conclusion')} for j in jobs]
+                }
+              })
+          Path('/tmp/k3status/latest.json').write_text(json.dumps({'runs':out},ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps({'runs':[{k:v for k,v in r.items() if k!='jobs'}|{'jobs':{k:v for k,v in r['jobs'].items() if k!='items'}} for r in out]},ensure_ascii=False,indent=2))
+          PY
+      - name: Publish isolated status branch
+        run: |
+          git config user.name 'k3-hds-status-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout --orphan k3-status-out
+          git rm -rf .
+          cp /tmp/k3status/latest.json latest.json
+          git add latest.json
+          git commit -m 'K3 HDS latest full-run status'
+          git push --force origin HEAD:chappie/k3-hds-status-v6
