@@ -10,6 +10,8 @@ EXPECTED_SHARDS = 96
 EXPECTED_PAYLOAD = 1560860324864
 EXPECTED_TENSORS = 497220
 EXPECTED_WEIGHT_FILE_BYTES = 1560936091448
+MOTHER = Path('解析/K3全公開データコンパイル/v6/mother-set/public-artifact-inventory.json')
+NONWEIGHT = Path('解析/K3全公開データコンパイル/v6/nonweight-full/nonweight-full-audit.json')
 
 
 def main() -> int:
@@ -20,6 +22,8 @@ def main() -> int:
     args = ap.parse_args()
 
     hp = json.loads(args.header_probe.read_text(encoding='utf-8'))
+    mother = json.loads(MOTHER.read_text(encoding='utf-8'))
+    nonweight = json.loads(NONWEIGHT.read_text(encoding='utf-8'))
     files = sorted(args.audit_dir.rglob('*.audit.json'))
     rows = [json.loads(p.read_text(encoding='utf-8')) for p in files]
     shard_names = [r.get('source', {}).get('shard') for r in rows]
@@ -49,7 +53,7 @@ def main() -> int:
     expected_tensors_from_header = int(hp.get('tensor_count_from_headers', -1))
     address_closed = bool(hp.get('PASS_住所全数固定'))
 
-    checks = {
+    weight_checks = {
         'shard_audit_files_96': len(rows) == EXPECTED_SHARDS,
         'unique_shards_96': len(unique) == EXPECTED_SHARDS and not duplicate and None not in unique,
         'all_shard_PASS': not nonpass,
@@ -62,7 +66,7 @@ def main() -> int:
         'payload_scanned_all_bytes': total_scanned == EXPECTED_PAYLOAD,
         'tensor_payload_scanned_all_bytes': total_tensor_scanned == EXPECTED_PAYLOAD,
         'header_bytes_scanned_all': total_header_scanned == expected_header_from_probe,
-        'remote_file_bytes_match_mother_set': total_remote_file == EXPECTED_WEIGHT_FILE_BYTES == expected_file_from_header,
+        'remote_file_bytes_match_mother_set': total_remote_file == EXPECTED_WEIGHT_FILE_BYTES == expected_file_from_header == int(mother['weight_file_size']),
         'all_weight_file_bytes_read': total_file_scanned == EXPECTED_WEIGHT_FILE_BYTES,
         'tensor_count_matches_index': tensors_expected == EXPECTED_TENSORS == expected_tensors_from_header,
         'tensor_count_completed_all': tensors_completed == EXPECTED_TENSORS,
@@ -70,43 +74,61 @@ def main() -> int:
         'HDS適合不能_zero': unknown == 0,
         'address_probe_closed': address_closed,
     }
-    passed = all(checks.values())
+    weight_pass = all(weight_checks.values())
+
+    nonweight_bytes = int(nonweight.get('processed_nonweight_bytes', 0))
+    expected_public_bytes = int(mother['total_file_size'])
+    processed_public_bytes = total_file_scanned + nonweight_bytes
+    processed_public_files = len(unique) + int(nonweight.get('processed_nonweight_files', 0))
+    public_checks = {
+        'mother_set_files_114': int(mother['file_count']) == 114,
+        'mother_set_weight_96': int(mother['weight_shard_count']) == 96,
+        'mother_set_nonweight_18': int(mother['nonweight_file_count']) == 18,
+        'weight_full_PASS': weight_pass,
+        'nonweight_full_PASS': bool(nonweight.get('PASS_NONWEIGHT_FULL_COMPILE')),
+        'all_114_files_processed': processed_public_files == int(mother['file_count']) == 114,
+        'all_public_file_bytes_read': processed_public_bytes == expected_public_bytes,
+        'nonweight_unprocessed_bytes_zero': int(nonweight.get('unprocessed_nonweight_bytes', -1)) == 0,
+        'nonweight_HDS適合不能_zero': int(nonweight.get('HDS適合不能artifact数', -1)) == 0,
+    }
+    public_pass = all(public_checks.values())
+
     report = {
-        'kind': 'K3 weight全96ファイル・全byte HDS日本語コンパイル全数監査',
-        'expected': {
-            'shards': EXPECTED_SHARDS,
-            'tensors': EXPECTED_TENSORS,
-            'tensor_payload_bytes': EXPECTED_PAYLOAD,
-            'weight_file_bytes_including_safetensors_headers': EXPECTED_WEIGHT_FILE_BYTES,
+        'kind': 'K3公式公開母集合 全114ファイル・全byte HDS日本語コンパイル全数監査',
+        'mother_set': {
+            'repo': mother['repo'], 'revision': mother['revision'], 'manifest_sha256': mother['manifest_sha256'],
+            'files': mother['file_count'], 'weight_shards': mother['weight_shard_count'], 'nonweight_files': mother['nonweight_file_count'],
+            'all_public_file_bytes': expected_public_bytes,
         },
-        'observed': {
-            'audit_files': len(rows), 'unique_shards': len(unique),
-            'remote_file_bytes_sum': total_remote_file,
-            'header_bytes_scanned_sum': total_header_scanned,
-            'payload_bytes_expected_sum': total_expected,
-            'payload_bytes_scanned_sum': total_scanned,
-            'all_file_bytes_scanned_sum': total_file_scanned,
-            'tensor_payload_bytes_scanned_sum': total_tensor_scanned,
-            'tensor_count_expected_sum': tensors_expected,
-            'tensor_count_completed_sum': tensors_completed,
-            'unassigned_payload_bytes': unassigned,
-            'HDS適合不能tensor数': unknown,
+        'weight': {
+            'expected': {'shards': EXPECTED_SHARDS, 'tensors': EXPECTED_TENSORS, 'tensor_payload_bytes': EXPECTED_PAYLOAD, 'weight_file_bytes_including_headers': EXPECTED_WEIGHT_FILE_BYTES},
+            'observed': {'audit_files': len(rows), 'unique_shards': len(unique), 'remote_file_bytes_sum': total_remote_file, 'header_bytes_scanned_sum': total_header_scanned, 'payload_bytes_scanned_sum': total_scanned, 'all_file_bytes_scanned_sum': total_file_scanned, 'tensor_payload_bytes_scanned_sum': total_tensor_scanned, 'tensor_count_completed_sum': tensors_completed, 'unassigned_payload_bytes': unassigned, 'HDS適合不能tensor数': unknown},
+            'failures': {'duplicate_shards': duplicate, 'nonpass_shards': nonpass, 'partial_shards': partial, 'gap_shards': gap_shards, 'overlap_shards': overlap_shards, 'size_mismatch_shards': size_mismatch, 'missing_complete_file_sha256_shards': missing_file_hash},
+            'checks': weight_checks,
+            'unprocessed_weight_file_bytes': EXPECTED_WEIGHT_FILE_BYTES-total_file_scanned,
+            'unprocessed_weight_payload_bytes': EXPECTED_PAYLOAD-total_tensor_scanned,
+            'unprocessed_weight_tensors': EXPECTED_TENSORS-tensors_completed,
+            'PASS_WEIGHT_FULL_COMPILE': weight_pass,
         },
-        'failures': {
-            'duplicate_shards': duplicate, 'nonpass_shards': nonpass, 'partial_shards': partial,
-            'gap_shards': gap_shards, 'overlap_shards': overlap_shards, 'size_mismatch_shards': size_mismatch,
-            'missing_complete_file_sha256_shards': missing_file_hash,
+        'nonweight': {
+            'processed_files': nonweight.get('processed_nonweight_files'), 'processed_bytes': nonweight_bytes,
+            'unprocessed_files': nonweight.get('unprocessed_nonweight_files'), 'unprocessed_bytes': nonweight.get('unprocessed_nonweight_bytes'),
+            'HDS適合不能artifact数': nonweight.get('HDS適合不能artifact数'), 'structure_records': nonweight.get('structure_records'),
+            'PASS_NONWEIGHT_FULL_COMPILE': nonweight.get('PASS_NONWEIGHT_FULL_COMPILE'),
         },
-        'checks': checks,
-        'unprocessed_weight_file_bytes': EXPECTED_WEIGHT_FILE_BYTES - total_file_scanned,
-        'unprocessed_weight_payload_bytes': EXPECTED_PAYLOAD - total_tensor_scanned,
-        'unprocessed_weight_tensors': EXPECTED_TENSORS - tensors_completed,
-        'PASS_WEIGHT_FULL_COMPILE': passed,
+        'public_total': {
+            'processed_files': processed_public_files, 'expected_files': int(mother['file_count']),
+            'processed_bytes': processed_public_bytes, 'expected_bytes': expected_public_bytes,
+            'unprocessed_items': int(mother['file_count'])-processed_public_files,
+            'unprocessed_bytes': expected_public_bytes-processed_public_bytes,
+            'checks': public_checks,
+            'PASS_PUBLIC_FULL_COMPILE': public_pass,
+        },
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    return 0 if passed else 2
+    return 0 if public_pass else 2
 
 
 if __name__ == '__main__':
