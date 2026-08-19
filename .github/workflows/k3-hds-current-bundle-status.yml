@@ -1,3 +1,4 @@
+# status refresh for current bundle export
 name: K3 HDS Current Bundle Status
 
 on:
