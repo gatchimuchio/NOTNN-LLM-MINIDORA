@@ -1,0 +1,18 @@
+{
+  "source_header_probe_sha256": "a1c5210650ce71d2d3ae9ec5a101ac4afd3cf4b10091be589853437eb967febd",
+  "住所全数固定済み": true,
+  "tensor総数": 497220,
+  "payload総byte": 1560860324864,
+  "HDS適合不能_補完前": 739,
+  "補完原理族別": {
+    "P-KDA-DECAY": 138,
+    "P-KDA-CONV": 207,
+    "P-ATTN-RESIDUAL-MIX": 94,
+    "P-KDA-UPDATE": 69,
+    "P-KDA-DECAY-SIGNAL": 138,
+    "P-ATTN-OUTPUT-GATE": 93
+  },
+  "HDS適合不能_補完後": 0,
+  "残存tensor": [],
+  "PASS_HDS原理族全数付与": true
+}
