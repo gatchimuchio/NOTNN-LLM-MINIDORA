@@ -1,0 +1,46 @@
+name: K3 HDS Current Residual Status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/k3-hds-current-residual-status.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query current residual workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/k3status
+          api="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
+            "${api}/actions/workflows/k3-hds-current-residual-v6_1.yml/runs?branch=main&per_page=5" > /tmp/k3status/runs.json
+          python - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+          rs=json.loads(Path('/tmp/k3status/runs.json').read_text())['workflow_runs']
+          out=[]
+          for r in rs:
+              req=urllib.request.Request(r['jobs_url']+'?per_page=100',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(req) as f: jobs=json.load(f)['jobs']
+              out.append({'id':r['id'],'status':r['status'],'conclusion':r.get('conclusion'),'head_sha':r['head_sha'],'created_at':r['created_at'],'jobs':[{'id':j['id'],'name':j['name'],'status':j['status'],'conclusion':j.get('conclusion'),'steps':[{'name':s['name'],'status':s['status'],'conclusion':s.get('conclusion')} for s in j.get('steps',[])]} for j in jobs]})
+          Path('/tmp/k3status/latest.json').write_text(json.dumps({'runs':out},ensure_ascii=False,indent=2),encoding='utf-8')
+          PY
+      - name: Publish status branch
+        run: |
+          git config user.name 'k3-hds-status-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout --orphan k3-hds-current-status
+          git rm -rf .
+          cp /tmp/k3status/latest.json latest.json
+          git add latest.json
+          git commit -m 'K3 HDS current residual status'
+          git push --force origin HEAD:chappie/k3-hds-v6_1-status
