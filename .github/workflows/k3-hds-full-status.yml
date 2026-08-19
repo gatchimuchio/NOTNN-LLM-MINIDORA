@@ -1,5 +1,5 @@
 name: K3 HDS Full Compile Status Snapshot
-# snapshot-generation: 3
+# snapshot-generation: 4
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: chappie/k3-hds-stream-v6
-      - name: Query full payload run and jobs
+      - name: Query recent full payload runs and jobs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -27,25 +27,24 @@ jobs:
           api="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}"
           curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
             "${api}/actions/workflows/k3-hds-full-payload.yml/runs?branch=chappie%2Fk3-hds-stream-v6&per_page=10" > out/runs.json
-          run_id=$(jq -r '.workflow_runs | sort_by(.created_at) | reverse | .[0].id' out/runs.json)
-          if [ -z "$run_id" ] || [ "$run_id" = null ]; then echo 'no run' >&2; exit 2; fi
-          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
-            "${api}/actions/runs/${run_id}/jobs?per_page=100" > out/jobs.json
-          jq --argjson run_id "$run_id" '
-            . as $j |
-            {
-              run_id:$run_id,
-              job_count:($j.jobs|length),
-              queued:([$j.jobs[]|select(.status=="queued")]|length),
-              in_progress:([$j.jobs[]|select(.status=="in_progress")]|length),
-              completed:([$j.jobs[]|select(.status=="completed")]|length),
-              success:([$j.jobs[]|select(.conclusion=="success")]|length),
-              failure:([$j.jobs[]|select(.conclusion=="failure")]|length),
-              cancelled:([$j.jobs[]|select(.conclusion=="cancelled")]|length),
-              jobs:[$j.jobs[]|{name,status,conclusion,started_at,completed_at}]
-            }' out/jobs.json > out/status.json
-          jq --argjson s "$(cat out/status.json)" '.workflow_runs[0] | {id,status,conclusion,created_at,updated_at,html_url,head_sha} + {jobs:$s}' out/runs.json > out/full-status.json
-          cat out/full-status.json
+          python - <<'PY'
+          import json, os, subprocess, urllib.request
+          from pathlib import Path
+          runs=json.loads(Path('out/runs.json').read_text())['workflow_runs']
+          runs=sorted(runs,key=lambda x:x['created_at'],reverse=True)[:3]
+          token=os.environ['GH_TOKEN']; api=os.environ['GITHUB_API_URL']; repo=os.environ['GITHUB_REPOSITORY']
+          out=[]
+          for r in runs:
+              req=urllib.request.Request(f"{api}/repos/{repo}/actions/runs/{r['id']}/jobs?per_page=100",headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(req) as f: jobs=json.load(f)['jobs']
+              def c(field,val): return sum(1 for j in jobs if j.get(field)==val)
+              out.append({
+                'id':r['id'],'status':r['status'],'conclusion':r.get('conclusion'),'created_at':r['created_at'],'updated_at':r['updated_at'],'head_sha':r['head_sha'],'html_url':r['html_url'],
+                'jobs':{'count':len(jobs),'queued':c('status','queued'),'in_progress':c('status','in_progress'),'completed':c('status','completed'),'success':c('conclusion','success'),'failure':c('conclusion','failure'),'cancelled':c('conclusion','cancelled')}
+              })
+          Path('out/full-status.json').write_text(json.dumps({'runs':out},ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps({'runs':out},ensure_ascii=False,indent=2))
+          PY
       - name: Persist snapshot
         run: |
           dest='解析/K3全公開データコンパイル/v6/full-weight/status'
@@ -54,5 +53,5 @@ jobs:
           git config user.name 'k3-hds-stream-bot'
           git config user.email 'actions@users.noreply.github.com'
           git add "$dest/latest.json"
-          git commit -m 'K3全payload実行状況スナップショットを保存' || true
+          git commit -m 'K3全payload直近run状況を保存' || true
           git push origin HEAD:chappie/k3-hds-stream-v6
