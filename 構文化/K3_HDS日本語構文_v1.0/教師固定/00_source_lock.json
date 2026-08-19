@@ -1,0 +1,39 @@
+{
+  "版": "1.0",
+  "固定日": "2026-08-19",
+  "K3公式GitHub": {
+    "repository": "MoonshotAI/Kimi-K3",
+    "commit": "3cb39dfd32e51c3328e2e4b4af21341247d06c43",
+    "tree": "fc92b6c233e751161a2c532b5753695c5789bccc",
+    "files": [
+      "README.md",
+      "k3_tech_report.pdf",
+      "LICENSE"
+    ]
+  },
+  "K3TechnicalReport": {
+    "title": "Kimi K3: Open Frontier Intelligence",
+    "arxiv": "2607.24653v2",
+    "pages": 47,
+    "url": "https://arxiv.org/pdf/2607.24653"
+  },
+  "HuggingFace": {
+    "model": "moonshotai/Kimi-K3",
+    "artifacts": [
+      "config.json",
+      "generation_config.json",
+      "configuration_kimi_k3.py",
+      "modeling_kimi_linear.py",
+      "modeling_kimi_k3.py",
+      "kimi_k3_processor.py",
+      "kimi_k3_vision_processing.py",
+      "weights / safetensors index"
+    ]
+  },
+  "補助一次資料": [
+    "Kimi K3 Tech Blog",
+    "Kimi Linear: An Expressive, Efficient Attention Architecture",
+    "Attention Residuals"
+  ],
+  "範囲": "K3の公開Technical Report、公式model card/config/reference code、公式Tech Blogに含まれる意味保持情報を教師データとする。著者列・参考文献一覧・画像装飾・コミュニティ投稿は意味系構文化対象外。"
+}
