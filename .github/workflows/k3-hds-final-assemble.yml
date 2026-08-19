@@ -1,0 +1,142 @@
+name: K3 HDS Final Public Corpus Assembly
+
+on:
+  push:
+    branches: [chappie/k3-hds-stream-v6]
+    paths:
+      - tools/k3_hds_final_assemble.py
+      - .github/workflows/k3-hds-final-assemble.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      WEIGHT_RUN_ID: '32261212025'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chappie/k3-hds-stream-v6
+          fetch-depth: 1
+
+      - name: Wait until this exact weight run has all 96 audit and 96 semantic artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, time, urllib.request
+          run_id=os.environ['WEIGHT_RUN_ID']
+          api=os.environ['GITHUB_API_URL']
+          repo=os.environ['GITHUB_REPOSITORY']
+          token=os.environ['GH_TOKEN']
+          headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json'}
+          def all_artifacts():
+              rows=[]
+              page=1
+              while True:
+                  req=urllib.request.Request(f'{api}/repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100&page={page}',headers=headers)
+                  with urllib.request.urlopen(req) as f: d=json.load(f)
+                  batch=d.get('artifacts',[]); rows.extend(batch)
+                  if len(batch)<100: break
+                  page+=1
+              return rows
+          deadline=time.time()+5*60*60
+          while True:
+              arts=all_artifacts()
+              names={a['name'] for a in arts if not a.get('expired')}
+              audits={n for n in names if n.startswith('k3-hds-audit-')}
+              sems={n for n in names if n.startswith('k3-hds-semantic-')}
+              print(json.dumps({'audit_artifacts':len(audits),'semantic_artifacts':len(sems),'total_artifacts':len(names)},ensure_ascii=False),flush=True)
+              if len(audits)==96 and len(sems)==96:
+                  break
+              if time.time()>deadline:
+                  raise SystemExit('weight artifact closure timeout: must be 96/96')
+              time.sleep(30)
+          PY
+
+      - name: Download all 96 weight audits from exact run
+        uses: actions/download-artifact@v4
+        with:
+          pattern: k3-hds-audit-*
+          path: input/weight-audits
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          repository: gatchimuchio/NOTNN-LLM-MINIDORA
+          run-id: 32261212025
+
+      - name: Download all 96 weight Japanese semantic corpora from exact run
+        uses: actions/download-artifact@v4
+        with:
+          pattern: k3-hds-semantic-*
+          path: input/weight-semantics
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          repository: gatchimuchio/NOTNN-LLM-MINIDORA
+          run-id: 32261212025
+
+      - name: Fetch official identity and official-doc corpora from isolated canonical branches
+        run: |
+          mkdir -p input
+          git fetch origin chappie/k3-hf-identity-v6:refs/remotes/origin/k3-hf-identity-v6
+          git show origin/k3-hf-identity-v6:latest.json > input/hf-official-identities.json
+          git fetch origin chappie/k3-official-docs-v6:refs/remotes/origin/k3-official-docs-v6
+          git show origin/k3-official-docs-v6:audit.json > input/official-docs-audit.json
+          git show origin/k3-official-docs-v6:mother-set.json > input/official-docs-mother.json
+          git show origin/k3-official-docs-v6:semantic.jsonl.gz > input/official-docs-semantic.jsonl.gz
+
+      - name: Strict final HDS/public/identity audit and canonical assembly
+        run: |
+          rm -rf final
+          python tools/k3_hds_final_assemble.py \
+            --weight-audits input/weight-audits \
+            --weight-semantics input/weight-semantics \
+            --hf-identity input/hf-official-identities.json \
+            --hf-mother '解析/K3全公開データコンパイル/v6/mother-set/public-artifact-inventory.json' \
+            --nonweight-audit '解析/K3全公開データコンパイル/v6/nonweight-full/nonweight-full-audit.json' \
+            --nonweight-semantic '解析/K3全公開データコンパイル/v6/nonweight-full/nonweight-HDS-日本語意味構文.jsonl.gz' \
+            --docs-audit input/official-docs-audit.json \
+            --docs-mother input/official-docs-mother.json \
+            --docs-semantic input/official-docs-semantic.jsonl.gz \
+            --output-dir final/K3_HDS日本語全公開データコンパイル_v6_0
+
+      - name: Build final user archive without recompressing already-compressed corpora
+        run: |
+          cd final
+          zip -0 -r K3_HDS日本語全公開データコンパイル_v6_0.zip K3_HDS日本語全公開データコンパイル_v6_0
+          sha256sum K3_HDS日本語全公開データコンパイル_v6_0.zip > K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256
+          cat K3_HDS日本語全公開データコンパイル_v6_0/K3_HDS日本語全公開データコンパイル_v6_0 2>/dev/null || true
+          cat K3_HDS日本語全公開データコンパイル_v6_0/00_最終全数監査.json | head -80
+          cat K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256
+
+      - name: Upload final complete v6 corpus
+        uses: actions/upload-artifact@v4
+        with:
+          name: k3-hds-final-v6
+          path: |
+            final/K3_HDS日本語全公開データコンパイル_v6_0.zip
+            final/K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256
+          compression-level: 0
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publish compact final audit to isolated canonical branch
+        run: |
+          cp final/K3_HDS日本語全公開データコンパイル_v6_0/00_最終全数監査.json /tmp/final-audit.json
+          cp final/K3_HDS日本語全公開データコンパイル_v6_0/01_母集合正本.json /tmp/final-mother.json
+          cp final/K3_HDS日本語全公開データコンパイル_v6_0/README.md /tmp/final-readme.md
+          cp final/K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256 /tmp/final-sha256.txt
+          git config user.name 'k3-hds-final-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout --orphan k3-hds-final-out
+          git rm -rf .
+          cp /tmp/final-audit.json audit.json
+          cp /tmp/final-mother.json mother-set.json
+          cp /tmp/final-readme.md README.md
+          cp /tmp/final-sha256.txt archive.sha256
+          git add audit.json mother-set.json README.md archive.sha256
+          git commit -m 'K3 HDS v6 final public corpus audit PASS'
+          git push --force origin HEAD:chappie/k3-hds-final-v6
