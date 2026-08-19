@@ -1,5 +1,5 @@
 name: K3 HDS Final Assembly Status
-# refresh-generation: 3
+# refresh-generation: 4
 
 on:
   push:
