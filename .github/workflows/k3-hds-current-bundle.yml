@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   bundle:
@@ -66,7 +67,7 @@ jobs:
           cp "/tmp/k3bundle/base/$BASE_ASSET.sha256" /tmp/k3bundle/package/base/
           cp -a artifacts/k3-hds/v6.1-current/. /tmp/k3bundle/package/overlay/
           python - <<'PY'
-          import hashlib, json
+          import json
           from pathlib import Path
           root=Path('/tmp/k3bundle/package')
           audit=json.loads(Path('artifacts/k3-hds/v6.1-current/audit.json').read_text(encoding='utf-8'))
@@ -102,6 +103,14 @@ jobs:
           zip -0 -r "/tmp/k3bundle/out/$OUT_ASSET" .
           sha256sum "/tmp/k3bundle/out/$OUT_ASSET" > "/tmp/k3bundle/out/$OUT_ASSET.sha256"
           unzip -t "/tmp/k3bundle/out/$OUT_ASSET"
+
+      - name: Export canonical bundle as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: K3_HDS_JA_CURRENT_CANONICAL_BUNDLE_v6_1
+          path: /tmp/k3bundle/out/*
+          compression-level: 0
+          retention-days: 90
 
       - name: Publish canonical bundle release
         env:
