@@ -1,0 +1,160 @@
+name: Normalize K3 HDS v6 Release Asset Names
+
+on:
+  push:
+    branches: [chappie/k3-hds-stream-v6]
+    paths:
+      - .github/workflows/k3-hds-v6-release-name-fix.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOURCE_ARTIFACT_ID: '9369762013'
+      RELEASE_TAG: 'k3-hds-v6.0-c5d1dd4'
+      ARCHIVE_DIR: 'artifacts/k3-hds/v6.0'
+      SOURCE_ZIP_NAME: 'K3_HDS日本語全公開データコンパイル_v6_0.zip'
+      RELEASE_ZIP_NAME: 'K3_HDS_JA_FULL_PUBLIC_COMPILE_v6_0.zip'
+      RELEASE_SHA_NAME: 'K3_HDS_JA_FULL_PUBLIC_COMPILE_v6_0.zip.sha256'
+      EXPECTED_ZIP_SHA256: '0473757f3d1de7bee7798b81e43356a9c245422bf8a3afaba3178c20ea997fab'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chappie/k3-hds-stream-v6
+          fetch-depth: 1
+
+      - name: Download and verify canonical ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf /tmp/k3-normalize
+          mkdir -p /tmp/k3-normalize/extracted
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H 'Accept: application/vnd.github+json' \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_ARTIFACT_ID}/zip" \
+            -o /tmp/k3-normalize/outer.zip
+          unzip -q /tmp/k3-normalize/outer.zip -d /tmp/k3-normalize/extracted
+          test -f "/tmp/k3-normalize/extracted/${SOURCE_ZIP_NAME}"
+          actual=$(sha256sum "/tmp/k3-normalize/extracted/${SOURCE_ZIP_NAME}" | awk '{print $1}')
+          test "${actual}" = "${EXPECTED_ZIP_SHA256}"
+          cp "/tmp/k3-normalize/extracted/${SOURCE_ZIP_NAME}" "/tmp/k3-normalize/${RELEASE_ZIP_NAME}"
+          printf '%s  %s\n' "${EXPECTED_ZIP_SHA256}" "${RELEASE_ZIP_NAME}" > "/tmp/k3-normalize/${RELEASE_SHA_NAME}"
+          unzip -tq "/tmp/k3-normalize/${RELEASE_ZIP_NAME}" >/dev/null
+
+      - name: Replace release assets with stable ASCII names
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, pathlib, urllib.parse, urllib.request
+          api=os.environ['GITHUB_API_URL']
+          repo=os.environ['GITHUB_REPOSITORY']
+          token=os.environ['GH_TOKEN']
+          tag=os.environ['RELEASE_TAG']
+          zip_name=os.environ['RELEASE_ZIP_NAME']
+          sha_name=os.environ['RELEASE_SHA_NAME']
+          expected=os.environ['EXPECTED_ZIP_SHA256']
+          headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'k3-hds-archive-normalizer/1'}
+          def jreq(method,url,payload=None):
+              data=None; h=dict(headers)
+              if payload is not None:
+                  data=json.dumps(payload,ensure_ascii=False).encode(); h['Content-Type']='application/json'
+              req=urllib.request.Request(url,data=data,headers=h,method=method)
+              with urllib.request.urlopen(req,timeout=300) as f:
+                  raw=f.read(); return json.loads(raw) if raw else None
+          release=jreq('GET',f'{api}/repos/{repo}/releases/tags/{urllib.parse.quote(tag)}')
+          for a in release.get('assets',[]):
+              jreq('DELETE',f"{api}/repos/{repo}/releases/assets/{a['id']}")
+          upload=release['upload_url'].split('{',1)[0]
+          uploaded=[]
+          for name,ctype in ((zip_name,'application/zip'),(sha_name,'text/plain; charset=utf-8')):
+              p=pathlib.Path('/tmp/k3-normalize')/name
+              data=p.read_bytes()
+              h=dict(headers); h['Content-Type']=ctype; h['Content-Length']=str(len(data))
+              req=urllib.request.Request(upload+'?'+urllib.parse.urlencode({'name':name}),data=data,headers=h,method='POST')
+              with urllib.request.urlopen(req,timeout=900) as f: uploaded.append(json.load(f))
+          za=next(a for a in uploaded if a['name']==zip_name)
+          if za.get('digest') and za['digest'] != 'sha256:'+expected:
+              raise SystemExit(f"release asset digest mismatch: {za.get('digest')}")
+          result={'release_id':release['id'],'tag':tag,'html_url':release['html_url'],'assets':[{'name':a['name'],'size':a['size'],'digest':a.get('digest'),'browser_download_url':a['browser_download_url']} for a in uploaded],'expected_zip_sha256':expected,'asset_naming':'stable_ascii'}
+          pathlib.Path('/tmp/k3-normalize/release-result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps(result,ensure_ascii=False,indent=2))
+          PY
+
+      - name: Update permanent archive index on main
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+          cat > "${ARCHIVE_DIR}/README.md" <<'EOF'
+          # K3 HDS日本語全公開データコンパイル v6.0 — 固定スナップショット保存
+
+          このディレクトリは、ミニドラ開発用に実施したK3 HDS日本語コンパイル成果 v6.0 の恒久アーカイブ台帳である。
+
+          ## 完了済み範囲
+
+          - HF: `moonshotai/Kimi-K3`
+          - 固定revision: `c5d1dd4c428bd1ce8b88c5044f3b6ccde9e3b721`
+          - HF files: 114
+          - 公式GitHub/Tech Blog等を加えた公開source item: 126 / 126
+          - 公開source byte: 1,561,002,449,957 / 1,561,002,449,957
+          - weight shard: 96 / 96
+          - tensor: 497,220 / 497,220
+          - tensor HDS日本語意味構文: 497,220 / 497,220
+          - 未処理item: 0
+          - 未処理byte: 0
+          - weight identity mismatch: 0
+          - 当該固定母集合の最終判定: PASS
+
+          ## 重要な境界
+
+          これは上記HF revisionを固定母集合とした完全成果であり、Hugging Faceの可変`main`を永久に代表するものではない。
+          v6.0作成後にHF側へ追加されたcommit・評価資料等は、このv6.0には含まれない。
+          したがって名称上の「全公開データ」は**固定した母集合に対する全数完遂**を意味する。
+
+          ## 恒久保存
+
+          大容量ZIPはgit履歴へ直置きせず、同一リポジトリのRelease `k3-hds-v6.0-c5d1dd4` に保存する。
+
+          - `audit.json`: 最終全数監査
+          - `mother-set.json`: 母集合正本
+          - `K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256`: 作成時の原SHA sidecar
+          - `release.json`: Release境界情報
+          - `release-result.json`: 実際に保存されたRelease assetとGitHub digest
+          - Release asset `K3_HDS_JA_FULL_PUBLIC_COMPILE_v6_0.zip`: 成果正本ZIP
+          - Release asset `K3_HDS_JA_FULL_PUBLIC_COMPILE_v6_0.zip.sha256`: Release名対応sidecar
+
+          正本ZIP SHA-256:
+          `0473757f3d1de7bee7798b81e43356a9c245422bf8a3afaba3178c20ea997fab`
+          EOF
+          cat > "${ARCHIVE_DIR}/release.json" <<EOF
+          {
+            "release_tag": "${RELEASE_TAG}",
+            "release_asset": "${RELEASE_ZIP_NAME}",
+            "release_sidecar": "${RELEASE_SHA_NAME}",
+            "sha256": "${EXPECTED_ZIP_SHA256}",
+            "HF_revision": "c5d1dd4c428bd1ce8b88c5044f3b6ccde9e3b721",
+            "live_hf_main_complete": false,
+            "pinned_mother_set_complete": true
+          }
+          EOF
+          cp /tmp/k3-normalize/release-result.json "${ARCHIVE_DIR}/release-result.json"
+          git config user.name 'k3-hds-archive-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add "${ARCHIVE_DIR}/README.md" "${ARCHIVE_DIR}/release.json" "${ARCHIVE_DIR}/release-result.json"
+          if ! git diff --cached --quiet; then
+            git commit -m 'Normalize K3 HDS v6 archive asset names'
+            git push origin main
+          fi
+
+      - name: Verify permanent save
+        run: |
+          git fetch origin main
+          git show "origin/main:${ARCHIVE_DIR}/release-result.json" | grep -F "sha256:${EXPECTED_ZIP_SHA256}"
+          git show "origin/main:${ARCHIVE_DIR}/release.json" | grep -F "${RELEASE_ZIP_NAME}"
+          echo 'K3_HDS_V6_PERMANENT_SAVE_PASS=true'
