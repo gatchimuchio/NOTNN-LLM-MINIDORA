@@ -30,17 +30,18 @@ jobs:
           rm -rf input/weight-audits input/weight-semantics
           mkdir -p input/weight-audits input/weight-semantics
           python - <<'PY'
-          import io, json, os, re, time, urllib.request, zipfile
+          import io, json, os, time, urllib.error, urllib.request, zipfile
           from pathlib import Path
 
           run_id=os.environ['WEIGHT_RUN_ID']
           api=os.environ['GITHUB_API_URL']
           repo=os.environ['GITHUB_REPOSITORY']
           token=os.environ['GH_TOKEN']
-          headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json','User-Agent':'k3-hds-final-assembler/6'}
+          api_headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json','User-Agent':'k3-hds-final-assembler/6'}
+          blob_headers={'User-Agent':'k3-hds-final-assembler/6'}
 
           def api_json(url):
-              req=urllib.request.Request(url,headers=headers)
+              req=urllib.request.Request(url,headers=api_headers)
               with urllib.request.urlopen(req,timeout=120) as f:
                   return json.load(f)
 
@@ -77,11 +78,35 @@ jobs:
                   raise SystemExit({'missing_audit':sorted(expected_audit-present_audit),'missing_semantic':sorted(expected_sem-present_sem),'duplicates':sorted(set(dup))})
               time.sleep(30)
 
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          api_no_redirect=urllib.request.build_opener(NoRedirect)
+
           def download_zip(artifact):
+              # GitHub APIへの認証と、302で返る署名付きAzure Blob URLの取得を分離する。
+              # Blob側へAuthorizationを渡すとSAS認証と衝突して401になるため、二段目は無認証。
               url=f"{api}/repos/{repo}/actions/artifacts/{artifact['id']}/zip"
-              req=urllib.request.Request(url,headers=headers)
-              with urllib.request.urlopen(req,timeout=300) as f:
-                  return f.read()
+              req=urllib.request.Request(url,headers=api_headers)
+              location=None
+              try:
+                  with api_no_redirect.open(req,timeout=120) as f:
+                      if f.status==200:
+                          return f.read()
+                      location=f.headers.get('Location')
+              except urllib.error.HTTPError as e:
+                  if e.code not in (301,302,303,307,308):
+                      raise
+                  location=e.headers.get('Location')
+              if not location:
+                  raise RuntimeError(f"artifact redirect missing: {artifact['name']} id={artifact['id']}")
+              req2=urllib.request.Request(location,headers=blob_headers)
+              with urllib.request.urlopen(req2,timeout=300) as f:
+                  raw=f.read()
+              if not raw.startswith(b'PK'):
+                  raise RuntimeError(f"artifact is not zip: {artifact['name']} bytes={len(raw)}")
+              return raw
 
           def safe_extract(raw,target):
               target=target.resolve()
