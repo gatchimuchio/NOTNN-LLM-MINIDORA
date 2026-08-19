@@ -1,0 +1,141 @@
+name: K3 HDS Current Canonical Bundle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/k3-hds-current-bundle.yml
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE_TAG: k3-hds-v6.0-c5d1dd4
+      BASE_ASSET: K3_HDS_JA_FULL_PUBLIC_COMPILE_v6_0.zip
+      BASE_SHA256: 0473757f3d1de7bee7798b81e43356a9c245422bf8a3afaba3178c20ea997fab
+      TARGET_REV: 9f62e4e9fffbd0a83ddd60e1c209d828994b3569
+      OUT_TAG: k3-hds-v6.1-current-9f62e4e
+      OUT_ASSET: K3_HDS_JA_CURRENT_CANONICAL_BUNDLE_v6_1.zip
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download immutable v6.0 base archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/k3bundle/base
+          gh release download "$BASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$BASE_ASSET" --dir /tmp/k3bundle/base
+          got="$(sha256sum "/tmp/k3bundle/base/$BASE_ASSET" | awk '{print $1}')"
+          test "$got" = "$BASE_SHA256"
+          printf '%s  %s\n' "$got" "$BASE_ASSET" > "/tmp/k3bundle/base/$BASE_ASSET.sha256"
+
+      - name: Validate current overlay closure
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('artifacts/k3-hds/v6.1-current/audit.json')
+          a=json.loads(p.read_text(encoding='utf-8'))
+          assert a['target_revision'] == '9f62e4e9fffbd0a83ddd60e1c209d828994b3569'
+          assert a['live_main_at_final_check'] == a['target_revision']
+          assert a['head_stable'] is True
+          assert a['v6_base_complete'] is True
+          d=a['delta']
+          assert d['processed_items'] == d['expected_items'] == 5
+          assert d['processed_bytes'] == d['expected_bytes'] == 45865
+          assert d['unprocessed_items'] == 0
+          assert d['unprocessed_bytes'] == 0
+          assert d['HDS_gap'] == 0
+          cur=a['current_public_overlay']
+          assert cur['unprocessed_items'] == 0
+          assert cur['unprocessed_bytes'] == 0
+          assert cur['PASS_CURRENT_PUBLIC_OVERLAY'] is True
+          print(json.dumps({'PASS':True,'target_revision':a['target_revision'],'source_items':cur['source_items'],'source_bytes':cur['source_bytes']},ensure_ascii=False))
+          PY
+
+      - name: Assemble one canonical bundle
+        run: |
+          mkdir -p /tmp/k3bundle/package/base /tmp/k3bundle/package/overlay /tmp/k3bundle/out
+          cp "/tmp/k3bundle/base/$BASE_ASSET" /tmp/k3bundle/package/base/
+          cp "/tmp/k3bundle/base/$BASE_ASSET.sha256" /tmp/k3bundle/package/base/
+          cp -a artifacts/k3-hds/v6.1-current/. /tmp/k3bundle/package/overlay/
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path('/tmp/k3bundle/package')
+          audit=json.loads(Path('artifacts/k3-hds/v6.1-current/audit.json').read_text(encoding='utf-8'))
+          manifest={
+            'name':'K3_HDS_JA_CURRENT_CANONICAL_BUNDLE_v6.1',
+            'base':{
+              'HF_revision':'c5d1dd4c428bd1ce8b88c5044f3b6ccde9e3b721',
+              'archive':'base/K3_HDS_JA_FULL_PUBLIC_COMPILE_v6_0.zip',
+              'sha256':'0473757f3d1de7bee7798b81e43356a9c245422bf8a3afaba3178c20ea997fab',
+              'complete':True,
+            },
+            'overlay':{
+              'target_HF_revision':audit['target_revision'],
+              'delta_items':audit['delta']['processed_items'],
+              'delta_bytes':audit['delta']['processed_bytes'],
+              'unprocessed_items':audit['current_public_overlay']['unprocessed_items'],
+              'unprocessed_bytes':audit['current_public_overlay']['unprocessed_bytes'],
+              'PASS':audit['current_public_overlay']['PASS_CURRENT_PUBLIC_OVERLAY'],
+            },
+            'combined':{
+              'source_items':audit['current_public_overlay']['source_items'],
+              'source_bytes':audit['current_public_overlay']['source_bytes'],
+              'HF_files':audit['current_HF']['files'],
+              'completion':'base v6.0 + identity-verified current delta overlay',
+            },
+            'rule':'The v6.0 base archive remains byte-identical; v6.1 is an overlay for the fixed target revision. No mutable live-main claim is made beyond that target revision.'
+          }
+          (root/'bundle-manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
+          readme=f'''# K3 HDS 現行統合正本 v6.1\n\nこのbundleは、K3 HDS日本語コンパイルのv6.0完全成果と、その後の現行HF差分v6.1を一つに束ねた正本。\n\n- 基底HF revision: `c5d1dd4c428bd1ce8b88c5044f3b6ccde9e3b721`\n- 差分適用先HF revision: `{audit['target_revision']}`\n- 現行HF file: {audit['current_HF']['files']}\n- 統合source item: {audit['current_public_overlay']['source_items']}\n- 統合source byte: {audit['current_public_overlay']['source_bytes']}\n- 未処理item: {audit['current_public_overlay']['unprocessed_items']}\n- 未処理byte: {audit['current_public_overlay']['unprocessed_bytes']}\n- 判定: PASS\n\n`base/` はv6.0正本ZIPをbyte-identicalで保持し、`overlay/` はv6.1差分のHDS日本語意味構文・監査・母集合を保持する。\n'''
+          (root/'README.md').write_text(readme,encoding='utf-8')
+          PY
+          cd /tmp/k3bundle/package
+          zip -0 -r "/tmp/k3bundle/out/$OUT_ASSET" .
+          sha256sum "/tmp/k3bundle/out/$OUT_ASSET" > "/tmp/k3bundle/out/$OUT_ASSET.sha256"
+          unzip -t "/tmp/k3bundle/out/$OUT_ASSET"
+
+      - name: Publish canonical bundle release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$OUT_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$OUT_TAG" "/tmp/k3bundle/out/$OUT_ASSET" "/tmp/k3bundle/out/$OUT_ASSET.sha256" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$OUT_TAG" "/tmp/k3bundle/out/$OUT_ASSET" "/tmp/k3bundle/out/$OUT_ASSET.sha256" \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title 'K3 HDS Japanese Current Canonical Bundle v6.1' \
+              --notes 'v6.0 complete base plus v6.1 fixed-current HF residual overlay.'
+          fi
+
+      - name: Persist canonical index on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/k3-hds/current
+          cp /tmp/k3bundle/package/README.md artifacts/k3-hds/current/README.md
+          cp /tmp/k3bundle/package/bundle-manifest.json artifacts/k3-hds/current/bundle-manifest.json
+          cp "/tmp/k3bundle/out/$OUT_ASSET.sha256" artifacts/k3-hds/current/bundle.sha256
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          tag=os.environ['OUT_TAG']; asset=os.environ['OUT_ASSET']; repo=os.environ['GITHUB_REPOSITORY']
+          data=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/releases/tags/{tag}'],text=True))
+          wanted=[a for a in data['assets'] if a['name'] in {asset,asset+'.sha256'}]
+          out={'tag':tag,'html_url':data['html_url'],'assets':[{'name':a['name'],'size':a['size'],'digest':a.get('digest'),'browser_download_url':a['browser_download_url']} for a in wanted]}
+          Path('artifacts/k3-hds/current/release.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8')
+          PY
+          git config user.name 'k3-hds-current-bundle-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add artifacts/k3-hds/current
+          git diff --cached --quiet && exit 0
+          git commit -m 'Bundle K3 HDS current canonical corpus'
+          git push origin HEAD:main
