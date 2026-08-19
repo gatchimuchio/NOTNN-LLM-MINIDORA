@@ -1,0 +1,39 @@
+name: K3 Public Artifact Inventory
+
+on:
+  push:
+    branches:
+      - chappie/k3-hds-stream-v6
+    paths:
+      - tools/k3_public_artifact_inventory.py
+      - .github/workflows/k3-public-artifact-inventory.yml
+
+permissions:
+  contents: write
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chappie/k3-hds-stream-v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check huggingface_hub
+      - name: Enumerate official pinned revision recursively
+        run: |
+          mkdir -p out
+          python tools/k3_public_artifact_inventory.py --out out/public-artifact-inventory.json
+      - name: Persist inventory
+        run: |
+          dest='解析/K3全公開データコンパイル/v6/mother-set'
+          mkdir -p "$dest"
+          cp out/public-artifact-inventory.json "$dest/"
+          git config user.name 'k3-hds-stream-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add "$dest"
+          git commit -m 'K3公式公開artifact母集合を固定'
+          git push origin HEAD:chappie/k3-hds-stream-v6
