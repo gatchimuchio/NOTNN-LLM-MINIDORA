@@ -1,5 +1,5 @@
 name: K3 HDS Full Compile Status Snapshot
-# snapshot-generation: 2
+# snapshot-generation: 3
 
 on:
   push:
