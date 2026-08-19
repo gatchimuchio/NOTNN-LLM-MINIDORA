@@ -1,0 +1,41 @@
+name: K3 HDS Current Residual v6.1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - tools/k3_hds_current_residual_v6_1.py
+      - .github/workflows/k3-hds-current-residual-v6_1.yml
+
+permissions:
+  contents: write
+
+jobs:
+  translate-current-residual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install HF reader
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install 'huggingface_hub>=0.35,<1.0'
+
+      - name: Compile all remaining current HF artifacts through HDS Japanese syntax
+        run: |
+          python tools/k3_hds_current_residual_v6_1.py
+
+      - name: Commit canonical v6.1 current overlay
+        run: |
+          git config user.name 'k3-hds-current-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add artifacts/k3-hds/v6.1-current
+          if git diff --cached --quiet; then
+            echo 'No generated diff.'
+          else
+            git commit -m 'Complete K3 current HF residual HDS translation'
+            git push origin HEAD:main
+          fi
