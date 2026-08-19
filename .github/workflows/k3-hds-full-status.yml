@@ -1,0 +1,57 @@
+name: K3 HDS Full Compile Status Snapshot
+
+on:
+  push:
+    branches:
+      - chappie/k3-hds-stream-v6
+    paths:
+      - .github/workflows/k3-hds-full-status.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chappie/k3-hds-stream-v6
+      - name: Query full payload run and jobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p out
+          api="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
+            "${api}/actions/workflows/k3-hds-full-payload.yml/runs?branch=chappie%2Fk3-hds-stream-v6&per_page=10" > out/runs.json
+          run_id=$(jq -r '.workflow_runs | sort_by(.created_at) | reverse | .[0].id' out/runs.json)
+          if [ -z "$run_id" ] || [ "$run_id" = null ]; then echo 'no run' >&2; exit 2; fi
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
+            "${api}/actions/runs/${run_id}/jobs?per_page=100" > out/jobs.json
+          jq --argjson run_id "$run_id" '
+            . as $j |
+            {
+              run_id:$run_id,
+              job_count:($j.jobs|length),
+              queued:([$j.jobs[]|select(.status=="queued")]|length),
+              in_progress:([$j.jobs[]|select(.status=="in_progress")]|length),
+              completed:([$j.jobs[]|select(.status=="completed")]|length),
+              success:([$j.jobs[]|select(.conclusion=="success")]|length),
+              failure:([$j.jobs[]|select(.conclusion=="failure")]|length),
+              cancelled:([$j.jobs[]|select(.conclusion=="cancelled")]|length),
+              jobs:[$j.jobs[]|{name,status,conclusion,started_at,completed_at}]
+            }' out/jobs.json > out/status.json
+          jq --argjson s "$(cat out/status.json)" '.workflow_runs[0] | {id,status,conclusion,created_at,updated_at,html_url,head_sha} + {jobs:$s}' out/runs.json > out/full-status.json
+          cat out/full-status.json
+      - name: Persist snapshot
+        run: |
+          dest='解析/K3全公開データコンパイル/v6/full-weight/status'
+          mkdir -p "$dest"
+          cp out/full-status.json "$dest/latest.json"
+          git config user.name 'k3-hds-stream-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add "$dest/latest.json"
+          git commit -m 'K3全payload実行状況スナップショットを保存' || true
+          git push origin HEAD:chappie/k3-hds-stream-v6
