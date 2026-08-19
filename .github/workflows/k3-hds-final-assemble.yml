@@ -11,6 +11,10 @@ permissions:
   actions: read
   contents: write
 
+concurrency:
+  group: k3-hds-final-assembly-v6
+  cancel-in-progress: true
+
 jobs:
   assemble:
     runs-on: ubuntu-latest
@@ -31,6 +35,7 @@ jobs:
           mkdir -p input/weight-audits input/weight-semantics
           python - <<'PY'
           import io, json, os, time, urllib.error, urllib.request, zipfile
+          from concurrent.futures import ThreadPoolExecutor, as_completed
           from pathlib import Path
 
           run_id=os.environ['WEIGHT_RUN_ID']
@@ -46,14 +51,11 @@ jobs:
                   return json.load(f)
 
           def all_artifacts():
-              rows=[]
-              page=1
+              rows=[]; page=1
               while True:
                   d=api_json(f'{api}/repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100&page={page}')
-                  batch=d.get('artifacts',[])
-                  rows.extend(batch)
-                  if len(batch)<100:
-                      break
+                  batch=d.get('artifacts',[]); rows.extend(batch)
+                  if len(batch)<100: break
                   page+=1
               return rows
 
@@ -62,84 +64,66 @@ jobs:
           deadline=time.time()+5*60*60
           while True:
               arts=[a for a in all_artifacts() if not a.get('expired')]
-              by_name={}
-              dup=[]
+              by_name={}; dup=[]
               for a in arts:
                   n=a['name']
-                  if n in by_name:
-                      dup.append(n)
+                  if n in by_name: dup.append(n)
                   by_name[n]=a
-              present_audit=expected_audit & set(by_name)
-              present_sem=expected_sem & set(by_name)
-              print(json.dumps({'audit':len(present_audit),'semantic':len(present_sem),'duplicates':sorted(set(dup))},ensure_ascii=False),flush=True)
-              if not dup and present_audit==expected_audit and present_sem==expected_sem:
-                  break
+              pa=expected_audit & set(by_name); ps=expected_sem & set(by_name)
+              print(json.dumps({'audit':len(pa),'semantic':len(ps),'duplicates':sorted(set(dup))},ensure_ascii=False),flush=True)
+              if not dup and pa==expected_audit and ps==expected_sem: break
               if time.time()>deadline:
-                  raise SystemExit({'missing_audit':sorted(expected_audit-present_audit),'missing_semantic':sorted(expected_sem-present_sem),'duplicates':sorted(set(dup))})
+                  raise SystemExit({'missing_audit':sorted(expected_audit-pa),'missing_semantic':sorted(expected_sem-ps),'duplicates':sorted(set(dup))})
               time.sleep(30)
 
           class NoRedirect(urllib.request.HTTPRedirectHandler):
-              def redirect_request(self, req, fp, code, msg, headers, newurl):
-                  return None
-
-          api_no_redirect=urllib.request.build_opener(NoRedirect)
+              def redirect_request(self, req, fp, code, msg, headers, newurl): return None
 
           def download_zip(artifact):
-              # GitHub APIへの認証と、302で返る署名付きAzure Blob URLの取得を分離する。
-              # Blob側へAuthorizationを渡すとSAS認証と衝突して401になるため、二段目は無認証。
+              opener=urllib.request.build_opener(NoRedirect)
               url=f"{api}/repos/{repo}/actions/artifacts/{artifact['id']}/zip"
-              req=urllib.request.Request(url,headers=api_headers)
-              location=None
+              req=urllib.request.Request(url,headers=api_headers); location=None
               try:
-                  with api_no_redirect.open(req,timeout=120) as f:
-                      if f.status==200:
-                          return f.read()
+                  with opener.open(req,timeout=120) as f:
+                      if f.status==200: return f.read()
                       location=f.headers.get('Location')
               except urllib.error.HTTPError as e:
-                  if e.code not in (301,302,303,307,308):
-                      raise
+                  if e.code not in (301,302,303,307,308): raise
                   location=e.headers.get('Location')
-              if not location:
-                  raise RuntimeError(f"artifact redirect missing: {artifact['name']} id={artifact['id']}")
+              if not location: raise RuntimeError(f"artifact redirect missing: {artifact['name']}")
               req2=urllib.request.Request(location,headers=blob_headers)
-              with urllib.request.urlopen(req2,timeout=300) as f:
-                  raw=f.read()
-              if not raw.startswith(b'PK'):
-                  raise RuntimeError(f"artifact is not zip: {artifact['name']} bytes={len(raw)}")
+              with urllib.request.urlopen(req2,timeout=300) as f: raw=f.read()
+              if not raw.startswith(b'PK'): raise RuntimeError(f"artifact not zip: {artifact['name']}")
               return raw
 
-          def safe_extract(raw,target):
-              target=target.resolve()
+          def extract_one(name,target):
+              raw=download_zip(by_name[name]); target=target.resolve()
               with zipfile.ZipFile(io.BytesIO(raw)) as z:
                   for info in z.infolist():
                       dest=(target/info.filename).resolve()
-                      if target not in dest.parents and dest!=target:
-                          raise RuntimeError(f'zip path escape: {info.filename}')
+                      if target not in dest.parents and dest!=target: raise RuntimeError(f'zip path escape: {info.filename}')
                   z.extractall(target)
+              return name,len(raw)
 
-          for i in range(1,97):
-              n=f'k3-hds-audit-{i}'
-              raw=download_zip(by_name[n])
-              safe_extract(raw,Path('input/weight-audits'))
-              print(f'downloaded {n}: {len(raw)} zip bytes',flush=True)
-
-          for i in range(1,97):
-              n=f'k3-hds-semantic-{i}'
-              raw=download_zip(by_name[n])
-              safe_extract(raw,Path('input/weight-semantics'))
-              print(f'downloaded {n}: {len(raw)} zip bytes',flush=True)
+          tasks=[]
+          with ThreadPoolExecutor(max_workers=16,thread_name_prefix='artifact') as ex:
+              for i in range(1,97): tasks.append(ex.submit(extract_one,f'k3-hds-audit-{i}',Path('input/weight-audits')))
+              for i in range(1,97): tasks.append(ex.submit(extract_one,f'k3-hds-semantic-{i}',Path('input/weight-semantics')))
+              done=0
+              for fut in as_completed(tasks):
+                  name,nbytes=fut.result(); done+=1
+                  if done%16==0 or done==192: print(json.dumps({'downloaded':done,'of':192,'last':name,'zip_bytes':nbytes}),flush=True)
 
           audits=sorted(Path('input/weight-audits').rglob('*.audit.json'))
           sems=sorted(Path('input/weight-semantics').rglob('*.jsonl.gz'))
-          audit_names={p.name for p in audits}
-          sem_names={p.name for p in sems}
+          audit_names={p.name for p in audits}; sem_names={p.name for p in sems}
           expected_audit_files={f'shard-{i:03d}.audit.json' for i in range(1,97)}
           expected_sem_files={f'shard-{i:03d}.jsonl.gz' for i in range(1,97)}
           if len(audits)!=96 or audit_names!=expected_audit_files:
               raise SystemExit({'audit_files':len(audits),'missing':sorted(expected_audit_files-audit_names),'extra':sorted(audit_names-expected_audit_files)})
           if len(sems)!=96 or sem_names!=expected_sem_files:
               raise SystemExit({'semantic_files':len(sems),'missing':sorted(expected_sem_files-sem_names),'extra':sorted(sem_names-expected_sem_files)})
-          print(json.dumps({'LOCAL_AUDIT_FILES':len(audits),'LOCAL_SEMANTIC_FILES':len(sems),'PASS':True},ensure_ascii=False),flush=True)
+          print(json.dumps({'LOCAL_AUDIT_FILES':96,'LOCAL_SEMANTIC_FILES':96,'PASS':True},ensure_ascii=False),flush=True)
           PY
 
       - name: Fetch official identity and official-doc corpora from isolated canonical branches
