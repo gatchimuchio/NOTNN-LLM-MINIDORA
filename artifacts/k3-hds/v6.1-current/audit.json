@@ -1,0 +1,122 @@
+{
+  "name": "K3_HDS日本語全公開データコンパイル_v6.1-current-overlay",
+  "repo": "moonshotai/Kimi-K3",
+  "base_revision": "c5d1dd4c428bd1ce8b88c5044f3b6ccde9e3b721",
+  "target_revision": "9f62e4e9fffbd0a83ddd60e1c209d828994b3569",
+  "live_main_at_final_check": "9f62e4e9fffbd0a83ddd60e1c209d828994b3569",
+  "head_stable": true,
+  "v6_base_complete": true,
+  "delta": {
+    "expected_items": 5,
+    "processed_items": 5,
+    "expected_bytes": 45865,
+    "processed_bytes": 45865,
+    "unprocessed_items": 0,
+    "unprocessed_bytes": 0,
+    "HDS_gap": 0,
+    "added": [
+      ".eval_results/apex-agents.yaml",
+      ".eval_results/deep-swe.yaml",
+      ".eval_results/gpqa.yaml",
+      ".eval_results/hle.yaml"
+    ],
+    "modified": [
+      "README.md"
+    ],
+    "deleted": [],
+    "unchanged_verified_by_identity": 113,
+    "files": [
+      {
+        "path": ".eval_results/apex-agents.yaml",
+        "change": "added",
+        "bytes": 157,
+        "sha256": "576ccc93fc22aeffcf0bb7346a864b931d75894f0897119ce1d66de671021072",
+        "identity": {
+          "kind": "git_blob",
+          "id": "bc4f27631a8da7e36ff6fc19906a759627627c57",
+          "size": 157
+        },
+        "semantic_records": 7,
+        "semantic_covered_bytes": 157,
+        "HDS_gap": 0,
+        "PASS": true
+      },
+      {
+        "path": ".eval_results/deep-swe.yaml",
+        "change": "added",
+        "bytes": 156,
+        "sha256": "59728f597c5bc12bf87513b905508bcd0ddc5689d819972007610f43bfc533b3",
+        "identity": {
+          "kind": "git_blob",
+          "id": "1a85439360bfda9807159f61eef5810eeaa4ca7d",
+          "size": 156
+        },
+        "semantic_records": 7,
+        "semantic_covered_bytes": 156,
+        "HDS_gap": 0,
+        "PASS": true
+      },
+      {
+        "path": ".eval_results/gpqa.yaml",
+        "change": "added",
+        "bytes": 152,
+        "sha256": "65870556e2ef9004d72a966cfba1ca9639b99f1825d9812060a13d3809dbfe6e",
+        "identity": {
+          "kind": "git_blob",
+          "id": "9d85a8b366b3f83c95c5b23890ef25601dfbbeb9",
+          "size": 152
+        },
+        "semantic_records": 7,
+        "semantic_covered_bytes": 152,
+        "HDS_gap": 0,
+        "PASS": true
+      },
+      {
+        "path": ".eval_results/hle.yaml",
+        "change": "added",
+        "bytes": 139,
+        "sha256": "2b6c92d5f91476d1ebcbebd7f7e77a1ce042e5d77a544ccab1cc42dec149e703",
+        "identity": {
+          "kind": "git_blob",
+          "id": "5583f56cad45958f9dcb39274bc507fc51258530",
+          "size": 139
+        },
+        "semantic_records": 7,
+        "semantic_covered_bytes": 139,
+        "HDS_gap": 0,
+        "PASS": true
+      },
+      {
+        "path": "README.md",
+        "change": "modified",
+        "bytes": 45261,
+        "sha256": "57de265b5842dfa465c6e73b368b0e15a89b8793b5450528dad577da202cc6fe",
+        "identity": {
+          "kind": "git_blob",
+          "id": "10466db3bd36b1eb9b14a099d9d8d77130247712",
+          "size": 45261
+        },
+        "semantic_records": 680,
+        "semantic_covered_bytes": 45261,
+        "HDS_gap": 0,
+        "PASS": true
+      }
+    ]
+  },
+  "current_HF": {
+    "files": 118,
+    "bytes": 1560998984390,
+    "reused_v6_identity_unchanged_files": 113,
+    "translated_current_delta_files": 5
+  },
+  "current_public_overlay": {
+    "source_items": 130,
+    "source_bytes": 1561002450726,
+    "HF_files": 118,
+    "official_docs_snapshot_items_reused": 12,
+    "unprocessed_items": 0,
+    "unprocessed_bytes": 0,
+    "PASS_CURRENT_PUBLIC_OVERLAY": true
+  },
+  "completion_rule": "v6.0完全成果をidentity不変artifactにのみ再利用し、現行HEADとの差分artifactを全byte実読・HDS日本語意味構文化し、unprocessed_items=0 AND unprocessed_bytes=0 AND HDS_gap=0 AND live main HEAD unchanged の場合のみPASS"
+}
