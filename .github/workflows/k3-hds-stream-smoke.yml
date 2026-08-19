@@ -1,0 +1,44 @@
+name: K3 HDS Stream Smoke
+
+on:
+  push:
+    branches:
+      - chappie/k3-hds-stream-v6
+    paths:
+      - tools/k3_hds_stream_compile.py
+      - .github/workflows/k3-hds-stream-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check numpy requests
+      - name: Stream-read K3 shard 1 without storing it
+        run: |
+          mkdir -p out
+          python tools/k3_hds_stream_compile.py \
+            --shard 1 \
+            --max-payload-bytes 33554432 \
+            --allow-partial \
+            --block-size 8388608 \
+            --out out/shard-001-smoke.jsonl.gz \
+            --audit out/shard-001-smoke.audit.json
+      - name: Show audit
+        if: always()
+        run: cat out/shard-001-smoke.audit.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k3-hds-stream-smoke
+          path: out/
+          if-no-files-found: error
+          retention-days: 7
