@@ -1,0 +1,53 @@
+name: K3 Official GitHub and Blog Full HDS Compile
+
+on:
+  push:
+    branches: [chappie/k3-hds-stream-v6]
+    paths:
+      - tools/k3_official_docs_compile.py
+      - .github/workflows/k3-official-docs-full.yml
+
+permissions:
+  contents: write
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chappie/k3-hds-stream-v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check requests beautifulsoup4 pillow pymupdf
+      - name: Compile pinned official GitHub and current official K3 Tech Blog
+        run: |
+          mkdir -p out
+          python tools/k3_official_docs_compile.py \
+            --out out/official-docs-HDS-日本語意味構文.jsonl \
+            --audit out/official-docs-full-audit.json \
+            --mother out/official-docs-mother-set.json
+          gzip -9 out/official-docs-HDS-日本語意味構文.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k3-official-docs-hds-full
+          path: out/
+          compression-level: 0
+          retention-days: 30
+      - name: Persist audit, mother set, and semantic corpus
+        if: success()
+        run: |
+          dest='解析/K3全公開データコンパイル/v6/official-docs'
+          mkdir -p "$dest"
+          cp out/official-docs-full-audit.json "$dest/"
+          cp out/official-docs-mother-set.json "$dest/"
+          cp out/official-docs-HDS-日本語意味構文.jsonl.gz "$dest/"
+          git config user.name 'k3-hds-stream-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git pull --rebase origin chappie/k3-hds-stream-v6
+          git add "$dest"
+          git commit -m 'K3公式GitHub・Tech Blog全byte HDSコンパイル結果を保存' || true
+          git push origin HEAD:chappie/k3-hds-stream-v6
