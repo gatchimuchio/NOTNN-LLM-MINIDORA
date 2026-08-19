@@ -1,0 +1,8 @@
+{
+  "design_rule":"Capability / 処理原理 → P, Knowledge/Data → R",
+  "this_bundle_runtime_knowledge_status":"未抽出",
+  "reason":"入力はK3公開構造・実装・評価のHDS日本語翻訳であり、学習済みweight内部の世界Knowledgeを復元した素材ではない。",
+  "standard_R_record_fields":["識別子","供給器","取得時刻","対象","内容","由来","信頼境界","改変有無"],
+  "normalization_fields":["実体","属性","値","関係","状態","時刻","条件","出典","不確実性"],
+  "prohibition":"外部取得文をそのまま最終回答へ昇格させない"
+}

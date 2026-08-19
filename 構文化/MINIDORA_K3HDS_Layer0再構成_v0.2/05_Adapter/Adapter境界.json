@@ -1,0 +1,6 @@
+{
+  "token_address_table":"token住所互換表.jsonl.gz",
+  "status":"互換資料",
+  "rule":"特定tokenizer/token rankはLayer-0責任へ固定しない。外部表現↔内部住所の互換Adapterとして保持する。",
+  "multimodal":"視覚/媒体固有実装はAdapter側に隔離し、Layer-0へK3固有実装名を持ち込まない。"
+}
