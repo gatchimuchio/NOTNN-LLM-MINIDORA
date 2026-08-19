@@ -9,7 +9,7 @@ on:
       - .github/workflows/k3-hds-stream-smoke.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   smoke:
@@ -17,6 +17,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: chappie/k3-hds-stream-v6
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -42,3 +44,15 @@ jobs:
           path: out/
           if-no-files-found: error
           retention-days: 7
+      - name: Persist smoke audit to dedicated branch
+        if: success()
+        run: |
+          dest='解析/K3全公開データコンパイル/v6/smoke'
+          mkdir -p "$dest"
+          cp out/shard-001-smoke.audit.json "$dest/"
+          cp out/shard-001-smoke.jsonl.gz "$dest/"
+          git config user.name 'k3-hds-stream-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add "$dest"
+          git commit -m 'K3 shard 1 Range smoke 実測結果を保存'
+          git push origin HEAD:chappie/k3-hds-stream-v6
