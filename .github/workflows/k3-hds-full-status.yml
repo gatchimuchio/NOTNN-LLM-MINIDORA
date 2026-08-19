@@ -1,5 +1,5 @@
 name: K3 HDS Full Compile Status Snapshot
-# snapshot-generation: 4
+# snapshot-generation: 5
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
           curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
             "${api}/actions/workflows/k3-hds-full-payload.yml/runs?branch=chappie%2Fk3-hds-stream-v6&per_page=10" > out/runs.json
           python - <<'PY'
-          import json, os, subprocess, urllib.request
+          import json, os, urllib.request
           from pathlib import Path
           runs=json.loads(Path('out/runs.json').read_text())['workflow_runs']
           runs=sorted(runs,key=lambda x:x['created_at'],reverse=True)[:3]
@@ -38,10 +38,7 @@ jobs:
               req=urllib.request.Request(f"{api}/repos/{repo}/actions/runs/{r['id']}/jobs?per_page=100",headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json'})
               with urllib.request.urlopen(req) as f: jobs=json.load(f)['jobs']
               def c(field,val): return sum(1 for j in jobs if j.get(field)==val)
-              out.append({
-                'id':r['id'],'status':r['status'],'conclusion':r.get('conclusion'),'created_at':r['created_at'],'updated_at':r['updated_at'],'head_sha':r['head_sha'],'html_url':r['html_url'],
-                'jobs':{'count':len(jobs),'queued':c('status','queued'),'in_progress':c('status','in_progress'),'completed':c('status','completed'),'success':c('conclusion','success'),'failure':c('conclusion','failure'),'cancelled':c('conclusion','cancelled')}
-              })
+              out.append({'id':r['id'],'status':r['status'],'conclusion':r.get('conclusion'),'created_at':r['created_at'],'updated_at':r['updated_at'],'head_sha':r['head_sha'],'html_url':r['html_url'],'jobs':{'count':len(jobs),'queued':c('status','queued'),'in_progress':c('status','in_progress'),'completed':c('status','completed'),'success':c('conclusion','success'),'failure':c('conclusion','failure'),'cancelled':c('conclusion','cancelled')}})
           Path('out/full-status.json').write_text(json.dumps({'runs':out},ensure_ascii=False,indent=2),encoding='utf-8')
           print(json.dumps({'runs':out},ensure_ascii=False,indent=2))
           PY
