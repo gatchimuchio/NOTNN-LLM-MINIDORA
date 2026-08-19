@@ -1,0 +1,18 @@
+{
+  "tag": "k3-hds-v6.1-current-9f62e4e",
+  "html_url": "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA/releases/tag/k3-hds-v6.1-current-9f62e4e",
+  "assets": [
+    {
+      "name": "K3_HDS_JA_CURRENT_CANONICAL_BUNDLE_v6_1.zip",
+      "size": 95235956,
+      "digest": "sha256:a862f4a65ff0c09a5c31c3790958b5d90acfa46fc6d90fea18e691e44175d7f3",
+      "browser_download_url": "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA/releases/download/k3-hds-v6.1-current-9f62e4e/K3_HDS_JA_CURRENT_CANONICAL_BUNDLE_v6_1.zip"
+    },
+    {
+      "name": "K3_HDS_JA_CURRENT_CANONICAL_BUNDLE_v6_1.zip.sha256",
+      "size": 128,
+      "digest": "sha256:d084ccd18082cfb035345e0446ff3ab740bf15371f728b9746ac254b3ce72d4a",
+      "browser_download_url": "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA/releases/download/k3-hds-v6.1-current-9f62e4e/K3_HDS_JA_CURRENT_CANONICAL_BUNDLE_v6_1.zip.sha256"
+    }
+  ]
+}
