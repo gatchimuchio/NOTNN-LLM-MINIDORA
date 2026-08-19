@@ -1,0 +1,53 @@
+name: K3 HDS Full Compile Status Snapshot
+# snapshot-generation: 7
+
+on:
+  push:
+    branches:
+      - chappie/k3-hds-stream-v6
+    paths:
+      - .github/workflows/k3-hds-full-status.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chappie/k3-hds-stream-v6
+      - name: Snapshot latest K3 full runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p out
+          api="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' \
+            "${api}/actions/workflows/k3-hds-full-payload.yml/runs?branch=chappie%2Fk3-hds-stream-v6&per_page=3" > out/runs.json
+          python - <<'PY'
+          import json,os,urllib.request
+          from pathlib import Path
+          runs=json.loads(Path('out/runs.json').read_text())['workflow_runs']
+          result=[]
+          for r in runs:
+              req=urllib.request.Request(r['jobs_url']+'?per_page=100',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(req) as f: jobs=json.load(f)['jobs']
+              result.append({'id':r['id'],'run_number':r['run_number'],'status':r['status'],'conclusion':r.get('conclusion'),'created_at':r['created_at'],'updated_at':r['updated_at'],'head_sha':r['head_sha'],'html_url':r['html_url'],'jobs':{'count':len(jobs),'queued':sum(j['status']=='queued' for j in jobs),'in_progress':sum(j['status']=='in_progress' for j in jobs),'completed':sum(j['status']=='completed' for j in jobs),'success':sum(j.get('conclusion')=='success' for j in jobs),'failure':sum(j.get('conclusion')=='failure' for j in jobs),'cancelled':sum(j.get('conclusion')=='cancelled' for j in jobs)}})
+          Path('out/latest.json').write_text(json.dumps({'runs':result},ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps({'runs':result},ensure_ascii=False,indent=2))
+          PY
+      - name: Persist snapshot
+        run: |
+          dest='解析/K3全公開データコンパイル/v6/full-weight/status'
+          mkdir -p "$dest"
+          cp out/latest.json "$dest/latest.json"
+          git config user.name 'k3-hds-stream-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git pull --rebase origin chappie/k3-hds-stream-v6
+          git add "$dest/latest.json"
+          git commit -m 'K3高速全payload最新run状況を保存' || true
+          git push origin HEAD:chappie/k3-hds-stream-v6

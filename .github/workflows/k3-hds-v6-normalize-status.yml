@@ -1,0 +1,52 @@
+name: K3 HDS v6 Archive Status Probe
+
+on:
+  push:
+    branches: [chappie/k3-hds-stream-v6]
+    paths:
+      - .github/workflows/k3-hds-v6-normalize-status.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chappie/k3-hds-stream-v6
+      - name: Capture normalize workflow status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/k3-status
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H 'Accept: application/vnd.github+json' \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/workflows/k3-hds-v6-release-name-fix.yml/runs?branch=chappie%2Fk3-hds-stream-v6&per_page=5" \
+            > /tmp/k3-status/runs.json
+          python - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+          d=json.loads(Path('/tmp/k3-status/runs.json').read_text())
+          out=[]
+          for r in d.get('workflow_runs',[])[:5]:
+              req=urllib.request.Request(r['jobs_url']+'?per_page=100',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(req) as f: jobs=json.load(f).get('jobs',[])
+              out.append({'id':r['id'],'status':r['status'],'conclusion':r.get('conclusion'),'head_sha':r['head_sha'],'created_at':r['created_at'],'updated_at':r['updated_at'],'jobs':[{'id':j['id'],'name':j['name'],'status':j['status'],'conclusion':j.get('conclusion'),'steps':[{'name':s['name'],'status':s['status'],'conclusion':s.get('conclusion')} for s in j.get('steps',[])]} for j in jobs]})
+          Path('/tmp/k3-status/latest.json').write_text(json.dumps({'runs':out},ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps({'runs':out},ensure_ascii=False,indent=2))
+          PY
+      - name: Publish isolated status branch
+        run: |
+          git config user.name 'k3-hds-status-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout --orphan k3-status-out
+          git rm -rf .
+          cp /tmp/k3-status/latest.json latest.json
+          git add latest.json
+          git commit -m 'K3 HDS v6 archive normalize status'
+          git push --force origin HEAD:chappie/k3-hds-v6-normalize-status

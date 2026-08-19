@@ -1,0 +1,189 @@
+name: K3 HDS Final Public Corpus Assembly
+
+on:
+  push:
+    branches: [chappie/k3-hds-stream-v6]
+    paths:
+      - tools/k3_hds_final_assemble.py
+      - .github/workflows/k3-hds-final-assemble.yml
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: k3-hds-final-assembly-v6
+  cancel-in-progress: true
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      WEIGHT_RUN_ID: '32261212025'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chappie/k3-hds-stream-v6
+          fetch-depth: 1
+
+      - name: Download exact 96 audit + 96 semantic artifacts through paginated REST
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf input/weight-audits input/weight-semantics
+          mkdir -p input/weight-audits input/weight-semantics
+          python - <<'PY'
+          import io, json, os, time, urllib.error, urllib.request, zipfile
+          from concurrent.futures import ThreadPoolExecutor, as_completed
+          from pathlib import Path
+
+          run_id=os.environ['WEIGHT_RUN_ID']
+          api=os.environ['GITHUB_API_URL']
+          repo=os.environ['GITHUB_REPOSITORY']
+          token=os.environ['GH_TOKEN']
+          api_headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json','User-Agent':'k3-hds-final-assembler/6'}
+          blob_headers={'User-Agent':'k3-hds-final-assembler/6'}
+
+          def api_json(url):
+              req=urllib.request.Request(url,headers=api_headers)
+              with urllib.request.urlopen(req,timeout=120) as f:
+                  return json.load(f)
+
+          def all_artifacts():
+              rows=[]; page=1
+              while True:
+                  d=api_json(f'{api}/repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100&page={page}')
+                  batch=d.get('artifacts',[]); rows.extend(batch)
+                  if len(batch)<100: break
+                  page+=1
+              return rows
+
+          expected_audit={f'k3-hds-audit-{i}' for i in range(1,97)}
+          expected_sem={f'k3-hds-semantic-{i}' for i in range(1,97)}
+          deadline=time.time()+5*60*60
+          while True:
+              arts=[a for a in all_artifacts() if not a.get('expired')]
+              by_name={}; dup=[]
+              for a in arts:
+                  n=a['name']
+                  if n in by_name: dup.append(n)
+                  by_name[n]=a
+              pa=expected_audit & set(by_name); ps=expected_sem & set(by_name)
+              print(json.dumps({'audit':len(pa),'semantic':len(ps),'duplicates':sorted(set(dup))},ensure_ascii=False),flush=True)
+              if not dup and pa==expected_audit and ps==expected_sem: break
+              if time.time()>deadline:
+                  raise SystemExit({'missing_audit':sorted(expected_audit-pa),'missing_semantic':sorted(expected_sem-ps),'duplicates':sorted(set(dup))})
+              time.sleep(30)
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl): return None
+
+          def download_zip(artifact):
+              opener=urllib.request.build_opener(NoRedirect)
+              url=f"{api}/repos/{repo}/actions/artifacts/{artifact['id']}/zip"
+              req=urllib.request.Request(url,headers=api_headers); location=None
+              try:
+                  with opener.open(req,timeout=120) as f:
+                      if f.status==200: return f.read()
+                      location=f.headers.get('Location')
+              except urllib.error.HTTPError as e:
+                  if e.code not in (301,302,303,307,308): raise
+                  location=e.headers.get('Location')
+              if not location: raise RuntimeError(f"artifact redirect missing: {artifact['name']}")
+              req2=urllib.request.Request(location,headers=blob_headers)
+              with urllib.request.urlopen(req2,timeout=300) as f: raw=f.read()
+              if not raw.startswith(b'PK'): raise RuntimeError(f"artifact not zip: {artifact['name']}")
+              return raw
+
+          def extract_one(name,target):
+              raw=download_zip(by_name[name]); target=target.resolve()
+              with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                  for info in z.infolist():
+                      dest=(target/info.filename).resolve()
+                      if target not in dest.parents and dest!=target: raise RuntimeError(f'zip path escape: {info.filename}')
+                  z.extractall(target)
+              return name,len(raw)
+
+          tasks=[]
+          with ThreadPoolExecutor(max_workers=16,thread_name_prefix='artifact') as ex:
+              for i in range(1,97): tasks.append(ex.submit(extract_one,f'k3-hds-audit-{i}',Path('input/weight-audits')))
+              for i in range(1,97): tasks.append(ex.submit(extract_one,f'k3-hds-semantic-{i}',Path('input/weight-semantics')))
+              done=0
+              for fut in as_completed(tasks):
+                  name,nbytes=fut.result(); done+=1
+                  if done%16==0 or done==192: print(json.dumps({'downloaded':done,'of':192,'last':name,'zip_bytes':nbytes}),flush=True)
+
+          audits=sorted(Path('input/weight-audits').rglob('*.audit.json'))
+          sems=sorted(Path('input/weight-semantics').rglob('*.jsonl.gz'))
+          audit_names={p.name for p in audits}; sem_names={p.name for p in sems}
+          expected_audit_files={f'shard-{i:03d}.audit.json' for i in range(1,97)}
+          expected_sem_files={f'shard-{i:03d}.jsonl.gz' for i in range(1,97)}
+          if len(audits)!=96 or audit_names!=expected_audit_files:
+              raise SystemExit({'audit_files':len(audits),'missing':sorted(expected_audit_files-audit_names),'extra':sorted(audit_names-expected_audit_files)})
+          if len(sems)!=96 or sem_names!=expected_sem_files:
+              raise SystemExit({'semantic_files':len(sems),'missing':sorted(expected_sem_files-sem_names),'extra':sorted(sem_names-expected_sem_files)})
+          print(json.dumps({'LOCAL_AUDIT_FILES':96,'LOCAL_SEMANTIC_FILES':96,'PASS':True},ensure_ascii=False),flush=True)
+          PY
+
+      - name: Fetch official identity and official-doc corpora from isolated canonical branches
+        run: |
+          mkdir -p input
+          git fetch origin chappie/k3-hf-identity-v6:refs/remotes/origin/k3-hf-identity-v6
+          git show origin/k3-hf-identity-v6:latest.json > input/hf-official-identities.json
+          git fetch origin chappie/k3-official-docs-v6:refs/remotes/origin/k3-official-docs-v6
+          git show origin/k3-official-docs-v6:audit.json > input/official-docs-audit.json
+          git show origin/k3-official-docs-v6:mother-set.json > input/official-docs-mother.json
+          git show origin/k3-official-docs-v6:semantic.jsonl.gz > input/official-docs-semantic.jsonl.gz
+
+      - name: Strict final HDS/public/identity audit and canonical assembly
+        run: |
+          rm -rf final
+          python tools/k3_hds_final_assemble.py \
+            --weight-audits input/weight-audits \
+            --weight-semantics input/weight-semantics \
+            --hf-identity input/hf-official-identities.json \
+            --hf-mother '解析/K3全公開データコンパイル/v6/mother-set/public-artifact-inventory.json' \
+            --nonweight-audit '解析/K3全公開データコンパイル/v6/nonweight-full/nonweight-full-audit.json' \
+            --nonweight-semantic '解析/K3全公開データコンパイル/v6/nonweight-full/nonweight-HDS-日本語意味構文.jsonl.gz' \
+            --docs-audit input/official-docs-audit.json \
+            --docs-mother input/official-docs-mother.json \
+            --docs-semantic input/official-docs-semantic.jsonl.gz \
+            --output-dir final/K3_HDS日本語全公開データコンパイル_v6_0
+
+      - name: Build final user archive
+        run: |
+          cd final
+          zip -0 -r K3_HDS日本語全公開データコンパイル_v6_0.zip K3_HDS日本語全公開データコンパイル_v6_0
+          sha256sum K3_HDS日本語全公開データコンパイル_v6_0.zip > K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256
+          cat K3_HDS日本語全公開データコンパイル_v6_0/00_最終全数監査.json | head -100
+          cat K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256
+
+      - name: Upload final complete v6 corpus
+        uses: actions/upload-artifact@v4
+        with:
+          name: k3-hds-final-v6
+          path: |
+            final/K3_HDS日本語全公開データコンパイル_v6_0.zip
+            final/K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256
+          compression-level: 0
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publish compact final audit to isolated canonical branch
+        run: |
+          cp final/K3_HDS日本語全公開データコンパイル_v6_0/00_最終全数監査.json /tmp/final-audit.json
+          cp final/K3_HDS日本語全公開データコンパイル_v6_0/01_母集合正本.json /tmp/final-mother.json
+          cp final/K3_HDS日本語全公開データコンパイル_v6_0/README.md /tmp/final-readme.md
+          cp final/K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256 /tmp/final-sha256.txt
+          git config user.name 'k3-hds-final-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout --orphan k3-hds-final-out
+          git rm -rf .
+          cp /tmp/final-audit.json audit.json
+          cp /tmp/final-mother.json mother-set.json
+          cp /tmp/final-readme.md README.md
+          cp /tmp/final-sha256.txt archive.sha256
+          git add audit.json mother-set.json README.md archive.sha256
+          git commit -m 'K3 HDS v6 final public corpus audit PASS'
+          git push --force origin HEAD:chappie/k3-hds-final-v6

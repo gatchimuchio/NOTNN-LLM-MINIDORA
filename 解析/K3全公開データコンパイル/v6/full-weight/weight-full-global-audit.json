@@ -1,0 +1,106 @@
+{
+  "kind": "K3公式公開母集合 全114ファイル・全byte・公式identity HDS日本語コンパイル全数監査",
+  "mother_set": {
+    "repo": "moonshotai/Kimi-K3",
+    "revision": "c5d1dd4c428bd1ce8b88c5044f3b6ccde9e3b721",
+    "manifest_sha256": "03d9e336643d6ef9cfde13bcce5ac96a622ba24e2c861fe3e9e3c25f3b7108e3",
+    "files": 114,
+    "weight_shards": 96,
+    "nonweight_files": 18,
+    "all_public_file_bytes": 1560998983621
+  },
+  "weight": {
+    "expected": {
+      "shards": 96,
+      "tensors": 497220,
+      "tensor_payload_bytes": 1560860324864,
+      "weight_file_bytes_including_headers": 1560936091448
+    },
+    "observed": {
+      "audit_files": 96,
+      "unique_shards": 96,
+      "remote_file_bytes_sum": 1560936091448,
+      "header_bytes_scanned_sum": 75766584,
+      "payload_bytes_scanned_sum": 1560860324864,
+      "all_file_bytes_scanned_sum": 1560936091448,
+      "tensor_payload_bytes_scanned_sum": 1560860324864,
+      "tensor_count_completed_sum": 497220,
+      "unassigned_payload_bytes": 0,
+      "HDS適合不能tensor数": 0
+    },
+    "identity": {
+      "missing_official_shards": [],
+      "unexpected_shards": [],
+      "official_LFS_SHA256_mismatch": [],
+      "official_per_file_size_mismatch": []
+    },
+    "failures": {
+      "duplicate_shards": [],
+      "nonpass_shards": [],
+      "partial_shards": [],
+      "gap_shards": [],
+      "overlap_shards": [],
+      "size_mismatch_shards": [],
+      "missing_complete_file_sha256_shards": []
+    },
+    "checks": {
+      "shard_audit_files_96": true,
+      "unique_shards_96": true,
+      "official_weight_mother_set_96": true,
+      "no_missing_official_shards": true,
+      "no_unexpected_shards": true,
+      "official_LFS_SHA256_match_96": true,
+      "official_per_file_size_match_96": true,
+      "all_shard_PASS": true,
+      "no_partial": true,
+      "no_gaps": true,
+      "no_overlaps": true,
+      "no_size_mismatch": true,
+      "full_file_sha256_present_96": true,
+      "payload_expected_matches_official_index": true,
+      "payload_scanned_all_bytes": true,
+      "tensor_payload_scanned_all_bytes": true,
+      "header_bytes_scanned_all": true,
+      "remote_file_bytes_match_mother_set": true,
+      "all_weight_file_bytes_read": true,
+      "tensor_count_matches_index": true,
+      "tensor_count_completed_all": true,
+      "unassigned_payload_zero": true,
+      "HDS適合不能_zero": true,
+      "address_probe_closed": true
+    },
+    "unprocessed_weight_file_bytes": 0,
+    "unprocessed_weight_payload_bytes": 0,
+    "unprocessed_weight_tensors": 0,
+    "PASS_WEIGHT_FULL_COMPILE": true
+  },
+  "nonweight": {
+    "processed_files": 18,
+    "processed_bytes": 62892173,
+    "unprocessed_files": [],
+    "unprocessed_bytes": 0,
+    "HDS適合不能artifact数": 0,
+    "structure_records": 692258,
+    "PASS_NONWEIGHT_FULL_COMPILE": true
+  },
+  "public_total": {
+    "processed_files": 114,
+    "expected_files": 114,
+    "processed_bytes": 1560998983621,
+    "expected_bytes": 1560998983621,
+    "unprocessed_items": 0,
+    "unprocessed_bytes": 0,
+    "checks": {
+      "mother_set_files_114": true,
+      "mother_set_weight_96": true,
+      "mother_set_nonweight_18": true,
+      "weight_full_PASS": true,
+      "nonweight_full_PASS": true,
+      "all_114_files_processed": true,
+      "all_public_file_bytes_read": true,
+      "nonweight_unprocessed_bytes_zero": true,
+      "nonweight_HDS適合不能_zero": true
+    },
+    "PASS_PUBLIC_FULL_COMPILE": true
+  }
+}

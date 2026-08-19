@@ -1,0 +1,29 @@
+name: K3 HDS Unknown Signature Report
+
+on:
+  push:
+    branches:
+      - chappie/k3-hds-stream-v6
+    paths:
+      - tools/k3_hds_unknown_report.py
+      - .github/workflows/k3-hds-unknown-report.yml
+
+permissions:
+  contents: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chappie/k3-hds-stream-v6
+      - name: Aggregate unresolved tensor signatures
+        run: python tools/k3_hds_unknown_report.py
+      - name: Persist report
+        run: |
+          git config user.name 'k3-hds-stream-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add '解析/K3全公開データコンパイル/v6/header-probe/HDS適合不能シグネチャ.json'
+          git commit -m 'K3 HDS未確定tensor名称シグネチャを保存'
+          git push origin HEAD:chappie/k3-hds-stream-v6

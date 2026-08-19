@@ -1,0 +1,40 @@
+{
+  "runs": [
+    {
+      "id": 32260280496,
+      "status": "queued",
+      "conclusion": null,
+      "created_at": "2026-08-19T13:49:05Z",
+      "updated_at": "2026-08-19T13:50:20Z",
+      "head_sha": "d7ac63391075a0a92af718dca36c6148c686fa95",
+      "html_url": "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA/actions/runs/32260280496",
+      "jobs": {
+        "count": 96,
+        "queued": 76,
+        "in_progress": 19,
+        "completed": 1,
+        "success": 1,
+        "failure": 0,
+        "cancelled": 0
+      }
+    },
+    {
+      "id": 32259359270,
+      "status": "completed",
+      "conclusion": "cancelled",
+      "created_at": "2026-08-19T13:39:42Z",
+      "updated_at": "2026-08-19T13:50:19Z",
+      "head_sha": "6fee115968b6b104bd4b6ff615c933257d8b25e0",
+      "html_url": "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA/actions/runs/32259359270",
+      "jobs": {
+        "count": 97,
+        "queued": 0,
+        "in_progress": 0,
+        "completed": 97,
+        "success": 1,
+        "failure": 1,
+        "cancelled": 95
+      }
+    }
+  ]
+}

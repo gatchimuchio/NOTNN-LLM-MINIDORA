@@ -1,0 +1,133 @@
+{
+  "sources": {
+    "github": {
+      "repo": "MoonshotAI/Kimi-K3",
+      "commit": "3cb39dfd32e51c3328e2e4b4af21341247d06c43",
+      "files": [
+        {
+          "path": "LICENSE",
+          "bytes": 3065,
+          "git_blob_sha1": "0de9f0698195e20305982b95f47246bfd85602e5",
+          "sha256": "f45c677fa7f42405512b67f9b18b4ccd6927c6787492867763d80368631b7c54",
+          "HDS原理族": "P-RELEASE-LICENSE",
+          "detail": {
+            "records": 53,
+            "lines": 52
+          }
+        },
+        {
+          "path": "README.md",
+          "bytes": 45004,
+          "git_blob_sha1": "21fe1f27c13dd41d8e45da6ea628e98abc105b60",
+          "sha256": "849a303d849486aac61d1f0c253e3a1148ca59e801be807151c2dc3cce57ccb2",
+          "HDS原理族": "P-RELEASE-DOC",
+          "detail": {
+            "records": 671,
+            "lines": 670
+          }
+        },
+        {
+          "path": "assets/kimi-logo.png",
+          "bytes": 87988,
+          "git_blob_sha1": "870b8be6e07cc2c46f7173e800fbaff8af0af5d1",
+          "sha256": "4a80f64242bf907940765adc7bcf340c28dd83334b07c5503792a26495d1933b",
+          "HDS原理族": "P-RELEASE-VISUAL",
+          "detail": {
+            "records": 1,
+            "format": "PNG",
+            "width": 1097,
+            "height": 400,
+            "mode": "RGBA"
+          }
+        },
+        {
+          "path": "k3_tech_report.pdf",
+          "bytes": 1795670,
+          "git_blob_sha1": "a869c3eba43ba7055f367761330252abcbac66db",
+          "sha256": "86fb82a63ced501f0c3f4f404c0c6fa88a7a6cfac17aae81fd1a8f455998067c",
+          "HDS原理族": "P-REPORT-OVERVIEW",
+          "detail": {
+            "pages": 47,
+            "embedded_images": 4,
+            "records": 1547
+          }
+        }
+      ],
+      "file_count": 4,
+      "bytes": 1931727
+    },
+    "tech_blog": {
+      "source_id": "kimi-blog:current:https://www.kimi.com/blog/kimi-k3",
+      "bytes": 308245,
+      "sha256": "441791bdf2fa74399779940bbfaeace11eda6f784901ec271b05a214c5a6912c",
+      "text_units": 87,
+      "media_count": 7,
+      "media": [
+        {
+          "url": "https://kimi-file.kimi.ai/prod-chat-kimi/kfs/4/2/2026-07-17/d9cs7176rtp4tqfofnsg?x-tos-process=image%2Fauto-orient%2C1%2Fstrip%2Fignore-error%2C1",
+          "bytes": 74466,
+          "sha256": "c60ee85839e2666a1dd8919a31df1dbb4ec658eb750c9ce9ea01cdeb0520c28a",
+          "format": "WEBP",
+          "width": 1920,
+          "height": 879,
+          "mode": "RGB"
+        },
+        {
+          "url": "https://kimi-file.kimi.ai/prod-chat-kimi/kfs/4/2/2026-07-16/1d9chlgn6rtp4tqfnnmjg?x-tos-process=image%2Fauto-orient%2C1%2Fstrip%2Fignore-error%2C1",
+          "bytes": 303795,
+          "sha256": "ab5c72377768f50f79545ee3e315dcfedc6b72ce6a115383ec30b82125a7740c",
+          "format": "PNG",
+          "width": 7110,
+          "height": 4242,
+          "mode": "P"
+        },
+        {
+          "url": "https://kimi-file.kimi.ai/prod-chat-kimi/kfs/4/2/2026-07-16/1d9chlbnf2ena6205244g?x-tos-process=image%2Fauto-orient%2C1%2Fstrip%2Fignore-error%2C1",
+          "bytes": 392807,
+          "sha256": "8c434294072b1bed529e93773e22db4c36afc88353ef264c6a454dbb0bea6a89",
+          "format": "PNG",
+          "width": 7110,
+          "height": 5722,
+          "mode": "P"
+        },
+        {
+          "url": "https://kimi-file.kimi.ai/prod-chat-kimi/kfs/4/2/2026-07-17/1d9cv7rt3v89kkemm3860?x-tos-process=image%2Fauto-orient%2C1%2Fstrip%2Fignore-error%2C1",
+          "bytes": 219383,
+          "sha256": "b9b4c67ec0d8340622c8b128ee93c6f96112281ff25c3f21e35a01c6c1277431",
+          "format": "JPEG",
+          "width": 1500,
+          "height": 960,
+          "mode": "RGB"
+        },
+        {
+          "url": "https://kimi-file.kimi.ai/prod-chat-kimi/kfs/4/2/2026-07-17/d9cs73f6rtp4tqfofo7g?x-tos-process=image%2Fauto-orient%2C1%2Fstrip%2Fignore-error%2C1",
+          "bytes": 35040,
+          "sha256": "2b40784af070487554448d99bc1b3c1cc4967ce3cbae3252685a351c2453d5d2",
+          "format": "WEBP",
+          "width": 1500,
+          "height": 960,
+          "mode": "RGB"
+        },
+        {
+          "url": "https://www.kimi.com/landing-ui/assets/blog-assets/kimi-k3/roofline_cuda_core_dark.svg",
+          "bytes": 171255,
+          "sha256": "e34d70fc447d5e24afbdad2e0ce176b94f244ecb5f67da63754c9587d6f1855d",
+          "decode_error": "UnidentifiedImageError('cannot identify image file <_io.BytesIO object at 0x7f182e5ea570>')"
+        },
+        {
+          "url": "https://kimi-file.kimi.ai/prod-chat-kimi/kfs/4/2/2026-07-17/d9cs71f6rtp4tqfofntg?x-tos-process=image%2Fauto-orient%2C1%2Fstrip%2Fignore-error%2C1",
+          "bytes": 29618,
+          "sha256": "e20f42696ef0f14022a91de8fbeb99ddb039b20eaaee0c896bb69bb235570245",
+          "format": "WEBP",
+          "width": 1280,
+          "height": 915,
+          "mode": "RGB"
+        }
+      ],
+      "records": 95,
+      "retrieved_at_unix": 1787148848.3236861
+    }
+  },
+  "logical_scope": "K3公式GitHub pinned commit全file + README直結K3 Tech Blog本文HTML + 本文直結Kimi/Moonshot画像媒体",
+  "generated_at_unix": 1787148848.323776
+}
