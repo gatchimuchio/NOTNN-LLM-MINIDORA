@@ -1,3 +1,4 @@
+# export trigger: current K3 HDS canonical bundle
 name: Export K3 HDS current bundle for chat
 
 on:
