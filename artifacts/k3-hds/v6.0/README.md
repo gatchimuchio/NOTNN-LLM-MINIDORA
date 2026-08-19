@@ -23,15 +23,17 @@
 v6.0作成後にHF側へ追加されたcommit・評価資料等は、このv6.0には含まれない。
 したがって名称上の「全公開データ」は**固定した母集合に対する全数完遂**を意味する。
 
-## 成果物
+## 恒久保存
 
-大容量の正本ZIPはgit履歴へ直置きせず、同一GitHubリポジトリのRelease
-`k3-hds-v6.0-c5d1dd4` に恒久保存する。
+大容量ZIPはgit履歴へ直置きせず、同一リポジトリのRelease `k3-hds-v6.0-c5d1dd4` に保存する。
 
 - `audit.json`: 最終全数監査
 - `mother-set.json`: 母集合正本
-- `K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256`: 正本ZIP SHA-256
-- Release asset `K3_HDS日本語全公開データコンパイル_v6_0.zip`: HDS日本語意味構文を含む成果正本
+- `K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256`: 作成時の原SHA sidecar
+- `release.json`: Release境界情報
+- `release-result.json`: 実際に保存されたRelease assetとGitHub digest
+- Release asset `K3_HDS_JA_FULL_PUBLIC_COMPILE_v6_0.zip`: 成果正本ZIP
+- Release asset `K3_HDS_JA_FULL_PUBLIC_COMPILE_v6_0.zip.sha256`: Release名対応sidecar
 
-ZIP SHA-256:
+正本ZIP SHA-256:
 `0473757f3d1de7bee7798b81e43356a9c245422bf8a3afaba3178c20ea997fab`
