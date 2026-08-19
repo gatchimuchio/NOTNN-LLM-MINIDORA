@@ -23,60 +23,99 @@ jobs:
           ref: chappie/k3-hds-stream-v6
           fetch-depth: 1
 
-      - name: Wait until this exact weight run has all 96 audit and 96 semantic artifacts
+      - name: Download exact 96 audit + 96 semantic artifacts through paginated REST
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          rm -rf input/weight-audits input/weight-semantics
+          mkdir -p input/weight-audits input/weight-semantics
           python - <<'PY'
-          import json, os, time, urllib.request
+          import io, json, os, re, time, urllib.request, zipfile
+          from pathlib import Path
+
           run_id=os.environ['WEIGHT_RUN_ID']
           api=os.environ['GITHUB_API_URL']
           repo=os.environ['GITHUB_REPOSITORY']
           token=os.environ['GH_TOKEN']
-          headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json'}
+          headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json','User-Agent':'k3-hds-final-assembler/6'}
+
+          def api_json(url):
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=120) as f:
+                  return json.load(f)
+
           def all_artifacts():
               rows=[]
               page=1
               while True:
-                  req=urllib.request.Request(f'{api}/repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100&page={page}',headers=headers)
-                  with urllib.request.urlopen(req) as f: d=json.load(f)
-                  batch=d.get('artifacts',[]); rows.extend(batch)
-                  if len(batch)<100: break
+                  d=api_json(f'{api}/repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100&page={page}')
+                  batch=d.get('artifacts',[])
+                  rows.extend(batch)
+                  if len(batch)<100:
+                      break
                   page+=1
               return rows
+
+          expected_audit={f'k3-hds-audit-{i}' for i in range(1,97)}
+          expected_sem={f'k3-hds-semantic-{i}' for i in range(1,97)}
           deadline=time.time()+5*60*60
           while True:
-              arts=all_artifacts()
-              names={a['name'] for a in arts if not a.get('expired')}
-              audits={n for n in names if n.startswith('k3-hds-audit-')}
-              sems={n for n in names if n.startswith('k3-hds-semantic-')}
-              print(json.dumps({'audit_artifacts':len(audits),'semantic_artifacts':len(sems),'total_artifacts':len(names)},ensure_ascii=False),flush=True)
-              if len(audits)==96 and len(sems)==96:
+              arts=[a for a in all_artifacts() if not a.get('expired')]
+              by_name={}
+              dup=[]
+              for a in arts:
+                  n=a['name']
+                  if n in by_name:
+                      dup.append(n)
+                  by_name[n]=a
+              present_audit=expected_audit & set(by_name)
+              present_sem=expected_sem & set(by_name)
+              print(json.dumps({'audit':len(present_audit),'semantic':len(present_sem),'duplicates':sorted(set(dup))},ensure_ascii=False),flush=True)
+              if not dup and present_audit==expected_audit and present_sem==expected_sem:
                   break
               if time.time()>deadline:
-                  raise SystemExit('weight artifact closure timeout: must be 96/96')
+                  raise SystemExit({'missing_audit':sorted(expected_audit-present_audit),'missing_semantic':sorted(expected_sem-present_sem),'duplicates':sorted(set(dup))})
               time.sleep(30)
+
+          def download_zip(artifact):
+              url=f"{api}/repos/{repo}/actions/artifacts/{artifact['id']}/zip"
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=300) as f:
+                  return f.read()
+
+          def safe_extract(raw,target):
+              target=target.resolve()
+              with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                  for info in z.infolist():
+                      dest=(target/info.filename).resolve()
+                      if target not in dest.parents and dest!=target:
+                          raise RuntimeError(f'zip path escape: {info.filename}')
+                  z.extractall(target)
+
+          for i in range(1,97):
+              n=f'k3-hds-audit-{i}'
+              raw=download_zip(by_name[n])
+              safe_extract(raw,Path('input/weight-audits'))
+              print(f'downloaded {n}: {len(raw)} zip bytes',flush=True)
+
+          for i in range(1,97):
+              n=f'k3-hds-semantic-{i}'
+              raw=download_zip(by_name[n])
+              safe_extract(raw,Path('input/weight-semantics'))
+              print(f'downloaded {n}: {len(raw)} zip bytes',flush=True)
+
+          audits=sorted(Path('input/weight-audits').rglob('*.audit.json'))
+          sems=sorted(Path('input/weight-semantics').rglob('*.jsonl.gz'))
+          audit_names={p.name for p in audits}
+          sem_names={p.name for p in sems}
+          expected_audit_files={f'shard-{i:03d}.audit.json' for i in range(1,97)}
+          expected_sem_files={f'shard-{i:03d}.jsonl.gz' for i in range(1,97)}
+          if len(audits)!=96 or audit_names!=expected_audit_files:
+              raise SystemExit({'audit_files':len(audits),'missing':sorted(expected_audit_files-audit_names),'extra':sorted(audit_names-expected_audit_files)})
+          if len(sems)!=96 or sem_names!=expected_sem_files:
+              raise SystemExit({'semantic_files':len(sems),'missing':sorted(expected_sem_files-sem_names),'extra':sorted(sem_names-expected_sem_files)})
+          print(json.dumps({'LOCAL_AUDIT_FILES':len(audits),'LOCAL_SEMANTIC_FILES':len(sems),'PASS':True},ensure_ascii=False),flush=True)
           PY
-
-      - name: Download all 96 weight audits from exact run
-        uses: actions/download-artifact@v4
-        with:
-          pattern: k3-hds-audit-*
-          path: input/weight-audits
-          merge-multiple: true
-          github-token: ${{ github.token }}
-          repository: gatchimuchio/NOTNN-LLM-MINIDORA
-          run-id: 32261212025
-
-      - name: Download all 96 weight Japanese semantic corpora from exact run
-        uses: actions/download-artifact@v4
-        with:
-          pattern: k3-hds-semantic-*
-          path: input/weight-semantics
-          merge-multiple: true
-          github-token: ${{ github.token }}
-          repository: gatchimuchio/NOTNN-LLM-MINIDORA
-          run-id: 32261212025
 
       - name: Fetch official identity and official-doc corpora from isolated canonical branches
         run: |
@@ -103,13 +142,12 @@ jobs:
             --docs-semantic input/official-docs-semantic.jsonl.gz \
             --output-dir final/K3_HDS日本語全公開データコンパイル_v6_0
 
-      - name: Build final user archive without recompressing already-compressed corpora
+      - name: Build final user archive
         run: |
           cd final
           zip -0 -r K3_HDS日本語全公開データコンパイル_v6_0.zip K3_HDS日本語全公開データコンパイル_v6_0
           sha256sum K3_HDS日本語全公開データコンパイル_v6_0.zip > K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256
-          cat K3_HDS日本語全公開データコンパイル_v6_0/K3_HDS日本語全公開データコンパイル_v6_0 2>/dev/null || true
-          cat K3_HDS日本語全公開データコンパイル_v6_0/00_最終全数監査.json | head -80
+          cat K3_HDS日本語全公開データコンパイル_v6_0/00_最終全数監査.json | head -100
           cat K3_HDS日本語全公開データコンパイル_v6_0.zip.sha256
 
       - name: Upload final complete v6 corpus
