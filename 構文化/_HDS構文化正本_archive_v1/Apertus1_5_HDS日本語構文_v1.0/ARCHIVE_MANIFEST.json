@@ -1,0 +1,1 @@
+{"版":"1.0","model":"Apertus1_5_HDS日本語構文_v1.0","encoding":"ZIP -> base64 -> ordered text parts","zip_bytes":45624,"zip_sha256":"583234d474a7b08960580f6ba6d8c4ae80e3a53edd4553d19c2a8361a0ebc442","parts":["part01.b64","part02.b64","part03.b64","part04.b64"],"復元":"partsを順に連結→base64 decode→ZIP展開"}

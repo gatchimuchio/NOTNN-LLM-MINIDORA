@@ -1,0 +1,24 @@
+{
+  "版": "1.0",
+  "固定日": "2026-08-20",
+  "対象": "Olmo 3 7B/32B Base・Instruct・Think",
+  "目的": "公開情報をHDSで日本語基底の教師観測へ翻訳・構文化する。Layer-0化、最小化、P形成、Adapter化、ミニドラ実装写像、他モデル比較は行わない。",
+  "一次資料": {
+    "S01": {"名称":"Olmo 3 Technical Report","種別":"一次論文","arxiv":"2512.13961v2","url":"https://arxiv.org/pdf/2512.13961","観測状態":"確認済み"},
+    "S02": {"名称":"Ai2 official: Olmo 3: Charting a path through the model flow","種別":"一次公式記事","url":"https://allenai.org/blog/olmo3","観測状態":"確認済み"},
+    "S03": {"名称":"allenai/OLMo-core OLMo3 official training README","種別":"一次公式文書","commit":"b7e9671d7ea48af94838c4f124703c3ae36f0c70","sha":"4233f7798ba00c3102945a27c70ea63d64acdec8","url":"https://github.com/allenai/OLMo-core/blob/main/src/scripts/official/OLMo3/README.md","観測状態":"確認済み"},
+    "S04": {"名称":"OLMo 3 7B pretrain part1","種別":"一次公式実装","sha":"96bb51120ef29db485e15b2328814bef0b9234b8","url":"https://github.com/allenai/OLMo-core/blob/main/src/scripts/official/OLMo3/OLMo-3-1025-7B-pretrain-1.py","観測状態":"確認済み"},
+    "S05": {"名称":"OLMo 3 7B pretrain part2","種別":"一次公式実装","sha":"0961ec3781a6f07689768049ef833b27c3692fbc","url":"https://github.com/allenai/OLMo-core/blob/main/src/scripts/official/OLMo3/OLMo-3-1025-7B-pretrain-2.py","観測状態":"確認済み"},
+    "S06": {"名称":"OLMo 3 32B pretrain","種別":"一次公式実装","sha":"0edd0576f399a22efa48614fad562c556db1197c","url":"https://github.com/allenai/OLMo-core/blob/main/src/scripts/official/OLMo3/OLMo-3-1025-32B-pretrain.py","観測状態":"確認済み"},
+    "S07": {"名称":"OLMo 3 32B long-context","種別":"一次公式実装","sha":"4cca05767922c206dffcde8007c00a57f299f255","url":"https://github.com/allenai/OLMo-core/blob/main/src/scripts/official/OLMo3/OLMo-3-1025-32B-long-context.py","観測状態":"確認済み"},
+    "S08": {"名称":"allenai/dolma3","種別":"一次データ再現資材","url":"https://github.com/allenai/dolma3","観測状態":"確認済み"},
+    "S09": {"名称":"allenai/open-instruct","種別":"一次post-training実装","url":"https://github.com/allenai/open-instruct","観測状態":"確認済み"},
+    "S10": {"名称":"allenai/olmes","種別":"一次評価実装","url":"https://github.com/allenai/olmes","観測状態":"確認済み"},
+    "S11": {"名称":"OLMo 3 Hugging Face model/checkpoint repositories","種別":"一次配布面","url":"https://huggingface.co/allenai","観測状態":"公開参照確認済み"}
+  },
+  "境界": {
+    "対象境界": "Olmo 3公式familyを対象。Hybrid等の後続別系列は混入させない。",
+    "公開と観測": "公開されていても本セッションで全量取得していないtensor/log/token順序は未観測。",
+    "禁止": "Layer-0/P/Adapter/最小化/他モデル比較へ進めない。"
+  }
+}

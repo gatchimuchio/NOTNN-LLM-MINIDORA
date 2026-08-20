@@ -1,0 +1,83 @@
+{
+  "版": "1.0",
+  "生成日": "2026-08-20",
+  "teacher_records": 225,
+  "note": "MANIFEST.json自身のsha256は自己参照を避けてfiles一覧に含めない。",
+  "files": [
+    {
+      "path": "HDS/00_HDS全量構文化報告.md",
+      "bytes": 9494,
+      "sha256": "d1fcb22acf17e03cefda8e6e6294e383cdfe9caf7f445752096aa03a5623f506"
+    },
+    {
+      "path": "HDS/01_成立関係群.json",
+      "bytes": 7000,
+      "sha256": "d9ded4d7b4c13948df33cf76b51a17b2ccac1edea10b1b81f37e92bbdea61a43"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1359,
+      "sha256": "17851251cb5d2bf45a1f336ade8719390d4cdfee06d0997449388f4b1e4b9718"
+    },
+    {
+      "path": "教師固定/00_source_lock.json",
+      "bytes": 4615,
+      "sha256": "92000eb99b5b91130dd22bfae0cfac4ac2183dbf3df3bc72b6c97d3db9e89571"
+    },
+    {
+      "path": "教師固定/教師_0001_0025.jsonl",
+      "bytes": 28243,
+      "sha256": "1edd46694083a3be1d46c2b0e8618029fc02a1466b05d27340aabe7b796f5aaa"
+    },
+    {
+      "path": "教師固定/教師_0026_0050.jsonl",
+      "bytes": 26961,
+      "sha256": "5750efafe10cadba0df14cd3f2a91c9ec2dee2d176a46ff7375697da32c9e906"
+    },
+    {
+      "path": "教師固定/教師_0051_0075.jsonl",
+      "bytes": 26759,
+      "sha256": "c7b1eddf65d2cf4c6882ed79fe0c1b413670b32f1cb5279a9965417773032946"
+    },
+    {
+      "path": "教師固定/教師_0076_0100.jsonl",
+      "bytes": 26676,
+      "sha256": "a5ebc021b8cb127df21b03ddfc2e91b0ba4501938973f06b15530f403ee1fcf3"
+    },
+    {
+      "path": "教師固定/教師_0101_0125.jsonl",
+      "bytes": 27468,
+      "sha256": "b5c0a5f67b6e448de1febe3721bfb81be0d43642706e185cf91439cb97e0600c"
+    },
+    {
+      "path": "教師固定/教師_0126_0150.jsonl",
+      "bytes": 27454,
+      "sha256": "83fa28e51344983338fbeb788bb3b1285e22efb053387bad88aa6f4a084c7e2b"
+    },
+    {
+      "path": "教師固定/教師_0151_0175.jsonl",
+      "bytes": 28336,
+      "sha256": "ae420e0dff163a66055474613e5c7afc8101e9aada683477ebc3b1da30bb7a35"
+    },
+    {
+      "path": "教師固定/教師_0176_0200.jsonl",
+      "bytes": 26812,
+      "sha256": "a798fd51b61f6fec5d39b5a63a4d28ba793c48c228e09659d6ad24a514ad26b4"
+    },
+    {
+      "path": "教師固定/教師_0201_0225.jsonl",
+      "bytes": 27285,
+      "sha256": "0d22e559e82a89ae14250fe8a4edbc911e51e5ae15d0305697c01493c6fe6966"
+    },
+    {
+      "path": "監査/HDS適合監査.md",
+      "bytes": 3094,
+      "sha256": "708847d9f884cca4dd75b6c76f858cc0666174cdb1197f3fa5cd0302cc02350a"
+    },
+    {
+      "path": "監査/未解残差.json",
+      "bytes": 1404,
+      "sha256": "90ee17b5a34df1c5d6112ced779c8f13eadc0441f31d803eb1df804c9f1c8693"
+    }
+  ]
+}
