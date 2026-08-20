@@ -1,0 +1,11 @@
+{
+  "model": "OLMo3_HDS日本語構文_v1.0",
+  "teacher_records": 242,
+  "relations": 22,
+  "residuals": 10,
+  "zip_bytes": 39380,
+  "zip_sha256": "3f4d38c97d0b09fd631f2ee6783bab4a57ea96cfa889e229721e08ea2bb01d78",
+  "encoding": "base64 split, concatenate part01..part09 then decode",
+  "parts": 9,
+  "scope": "構文化のみ。Layer-0/P/Adapter/P形成/最小化/実装写像/比較なし"
+}
