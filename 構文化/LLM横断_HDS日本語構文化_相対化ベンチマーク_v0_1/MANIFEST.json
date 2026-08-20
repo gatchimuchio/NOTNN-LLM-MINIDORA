@@ -1,0 +1,61 @@
+{
+  "date": "2026-08-21",
+  "files": {
+    "00_統合報告.md": {
+      "bytes": 21101,
+      "sha256": "5872ff37f4ef6b9c5500347413063c2aec7f2c6af099f42fdd0647896e912fc4"
+    },
+    "01_OpenAI_GPT-5_6_Sol.md": {
+      "bytes": 1371,
+      "sha256": "26fd74833138f3fc72e09799dfb8008f141826330fc3700f5faf8241f37c8090"
+    },
+    "02_Claude_Fable_5___Mythos_5.md": {
+      "bytes": 1271,
+      "sha256": "756120731d0edbae14c1e398d278fd8077855c917315e5f11f6c16c2ae8a0211"
+    },
+    "03_Google_Gemini_3_7_Flash___3_1_Pro.md": {
+      "bytes": 1296,
+      "sha256": "ddf235f691d83b7bdcf5818154fed97211846062ca778d213fb1ef056403da68"
+    },
+    "04_DeepSeek_V4.md": {
+      "bytes": 1569,
+      "sha256": "8e5e7cda598d30701f7baffb00e1d30ec52cff71a1b35d57f6719a82246f6c39"
+    },
+    "05_Qwen3_6-35B-A3B.md": {
+      "bytes": 1671,
+      "sha256": "7bb9ffa03ad36e225b882c08617d5e63809a6964cf0108535157920771de1c14"
+    },
+    "06_Grok_4_6.md": {
+      "bytes": 1343,
+      "sha256": "3808804697db03f12fd10fe734facf75f198eea317a5c9a60d23c3e607d01387"
+    },
+    "07_Llama_3_70B_(2024-04).md": {
+      "bytes": 1177,
+      "sha256": "78512453ce1f5db7c10a8865d42ad75d691686d5629fa0688ebfcf5313c2ca6b"
+    },
+    "08_OLMo_3.md": {
+      "bytes": 1206,
+      "sha256": "7597783072a8d61af3fbf2ffc59169e456e98ad415141a294a68da3b8c275e22"
+    },
+    "09_Apertus_1_5_70B.md": {
+      "bytes": 1349,
+      "sha256": "332a77bedd287c3c855346361e952c9808990ae77d83f84a43bef1cbd608bb67"
+    },
+    "10_K2-V2_70B.md": {
+      "bytes": 1029,
+      "sha256": "2047f1ce247dcf91708267f6f7f428f80aae54cf8848f07ade3ca973559237fb"
+    },
+    "11_K3_v2_full-weight.md": {
+      "bytes": 1372,
+      "sha256": "c64197e8cf93ee809dfabea2b3e01fdfc45aef9c823b37a0a0a8a40e28cafa9a"
+    },
+    "12_HDS更新差分.md": {
+      "bytes": 2143,
+      "sha256": "54a8f46cc017600ef78b5cfcf071ad75af62413ec4fbceb5135a882114bd4e8d"
+    },
+    "HDS_LLM相対座標_v0_1.json": {
+      "bytes": 19131,
+      "sha256": "ca7d3d0ac5948c4a8da8333c6f8e852fe539c81431b2c801563e0fedea2b999d"
+    }
+  }
+}
