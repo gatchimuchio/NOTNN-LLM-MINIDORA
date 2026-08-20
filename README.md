@@ -42,7 +42,6 @@ DataはRとして計算主体から分離する。
 - [`設計/05_完成判定関門.md`](設計/05_完成判定関門.md)
 - [`構文化/MINIDORA_v0.2/`](構文化/MINIDORA_v0.2/) — 公開可能な再構成成果
 - [`構文化/Llama3_HDS日本語構文_v1.0/`](構文化/Llama3_HDS日本語構文_v1.0/) — Llama 3 HDS構文化
-- [`artifacts/K3_HF公開物固定_v6/latest.json`](artifacts/K3_HF公開物固定_v6/latest.json) — Kimi K3 Hugging Face公開物固定スナップショット
 - [`評価/2026-08-20/`](評価/2026-08-20/) — MINIDORA性能記録
 
 ## Git運用
