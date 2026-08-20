@@ -1,8 +1,8 @@
 __pycache__/
-*.py[cod]
-.venv/
-build/
-dist/
-*.egg-info/
+*.pyc
 .pytest_cache/
-.coverage
+.venv/
+dist/
+build/
+*.egg-info/
+.DS_Store
