@@ -1,9 +1,0 @@
-{
-  "release_tag": "k3-hds-v6.0-c5d1dd4",
-  "release_asset": "K3_HDS_JA_FULL_PUBLIC_COMPILE_v6_0.zip",
-  "release_sidecar": "K3_HDS_JA_FULL_PUBLIC_COMPILE_v6_0.zip.sha256",
-  "sha256": "0473757f3d1de7bee7798b81e43356a9c245422bf8a3afaba3178c20ea997fab",
-  "HF_revision": "c5d1dd4c428bd1ce8b88c5044f3b6ccde9e3b721",
-  "live_hf_main_complete": false,
-  "pinned_mother_set_complete": true
-}

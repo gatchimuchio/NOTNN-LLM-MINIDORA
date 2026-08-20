@@ -1,0 +1,32 @@
+{
+  "date": "2026-08-20",
+  "environment": {
+    "python": "3.13.5",
+    "arch": "x86_64",
+    "cpu": "AMD EPYC 9V74",
+    "allocated_cpu": 5,
+    "ram_gb_approx": 6.2,
+    "gpu_used": false
+  },
+  "r_benchmark": {
+    "1000": {"r_bytes": 214000, "load_s": 0.003346, "known_p50_ms": 0.3751, "known_p95_ms": 0.4101, "known_correct": "200/200", "unknown_hold": "50/50"},
+    "10000": {"r_bytes": 2140000, "load_s": 0.04355, "known_p50_ms": 3.908, "known_p95_ms": 4.276, "known_correct": "200/200", "unknown_hold": "50/50"},
+    "50000": {"r_bytes": 10700000, "load_s": 0.23375, "known_p50_ms": 20.893, "known_p95_ms": 21.817, "known_correct": "200/200", "unknown_hold": "50/50"}
+  },
+  "indexed_provider_50000": {
+    "index_build_ms": 15.3,
+    "known_correct": "10000/10000",
+    "known_mean_ms": 0.004246,
+    "known_p50_ms": 0.004126,
+    "known_p95_ms": 0.004737,
+    "unknown_hold": "2000/2000",
+    "unknown_p50_ms": 0.001893,
+    "p50_speedup_vs_linear": 5064
+  },
+  "contradiction_retention": "PASS",
+  "aa_lcr_q19_regression": {
+    "result": "PASS",
+    "answer": "-76%, -42%",
+    "layer0_ms_approx": 0.035
+  }
+}
