@@ -1,0 +1,27 @@
+{
+  "版": "1.0",
+  "固定日": "2026-08-20",
+  "対象": "Meta Llama 3 8B/70B（2024-04-18公開のPretrained / Instruct）",
+  "目的": "公開情報をHDSで日本語基底の教師観測へ翻訳・構文化する。Layer-0化、最小化、P形成、Adapter化、ミニドラ実装写像は行わない。",
+  "一次資料": {
+    "S01": {"名称": "Meta公式公開記事: Introducing Meta Llama 3", "種別": "一次公式記事", "日付": "2024-04-18", "url": "https://ai.meta.com/blog/meta-llama-3/", "対象": "元Llama 3 8B/70B公開時点", "観測状態": "確認済み"},
+    "S02": {"名称": "Meta公式責任記事: Our responsible approach to Meta AI and Meta Llama 3", "種別": "一次公式記事", "日付": "2024-04-18", "url": "https://ai.meta.com/blog/meta-llama-3-meta-ai-responsibility/", "対象": "元Llama 3公開時点の学習・安全・運用境界", "観測状態": "確認済み"},
+    "S03": {"名称": "meta-llama/llama3 MODEL_CARD.md", "種別": "一次公式文書", "url": "https://github.com/meta-llama/llama3/blob/main/MODEL_CARD.md", "sha": "ff24fb154837bbf7a4fdbab02c0d5dbf603f0a18", "対象": "元Llama 3 8B/70B", "観測状態": "確認済み"},
+    "S04": {"名称": "meta-llama/llama3 README.md", "種別": "一次公式文書", "url": "https://github.com/meta-llama/llama3/blob/main/README.md", "sha": "4a1512e6a9fae03311b6466cc62ae5cd437a8e3f", "対象": "元Llama 3配布・実行契約", "観測状態": "確認済み"},
+    "S05": {"名称": "meta-llama/llama3 eval_details.md", "種別": "一次公式文書", "url": "https://github.com/meta-llama/llama3/blob/main/eval_details.md", "sha": "38c6984957b5b4dfd9ae4b786eda0c9977be7dec", "対象": "元Llama 3評価条件", "観測状態": "確認済み"},
+    "S06": {"名称": "meta-llama/llama3 llama/model.py", "種別": "一次公式実装", "url": "https://github.com/meta-llama/llama3/blob/main/llama/model.py", "sha": "e388c0387ccc3e99629a42ecc50227a7a4c7c58c", "対象": "元Llama 3参照推論実装", "観測状態": "確認済み"},
+    "S07": {"名称": "meta-llama/llama3 llama/tokenizer.py", "種別": "一次公式実装", "url": "https://github.com/meta-llama/llama3/blob/main/llama/tokenizer.py", "sha": "e691beb6ade41e498ee53655c372be575d9c00ce", "対象": "元Llama 3トークン化・会話形式", "観測状態": "確認済み"},
+    "S08": {"名称": "meta-llama/llama3 llama/generation.py", "種別": "一次公式実装", "url": "https://github.com/meta-llama/llama3/blob/main/llama/generation.py", "sha": "96be4b291b869bff9ccf2e5d098dd7f01c7f32cc", "対象": "元Llama 3生成手順", "観測状態": "確認済み"},
+    "S09": {"名称": "The Llama 3 Herd of Models", "種別": "Meta著者一次論文・後発系列証拠", "日付": "2024-07-23", "arxiv": "2407.21783v3", "url": "https://arxiv.org/pdf/2407.21783", "対象": "論文中の結果はLlama 3.1。元Llama 3への遡及は明示された共通項・系列説明に限定", "観測状態": "確認済み・時点分離必須"},
+    "S10": {"名称": "Hugging Face meta-llama/Meta-Llama-3-* 公開リポジトリ", "種別": "公式配布面・ライセンスゲート", "url": "https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct/tree/main", "対象": "config/tokenizer/weights等の配布物", "観測状態": "ファイル一覧確認済み、ゲート内ファイル本文は本セッション未観測"}
+  },
+  "後発資料の境界": {
+    "規則": "The Llama 3 Herd of Modelsは本文自身が全結果をLlama 3.1と明記するため、元Llama 3の直接証拠と混同しない。",
+    "採用": "元Llama 3 8B/70Bにも明示的に関係する系列構造・後発説明は『後発系列証拠』として保持。",
+    "禁止": "128K文脈、405B、tool use、多言語post-training等のLlama 3.1固有事項を元Llama 3の性質として扱わない。"
+  },
+  "除外": {
+    "非意味系": "著者一覧、参考文献一覧、装飾画像、コミュニティ議論を教師観測の主系から除外。",
+    "未観測": "ライセンスゲート内の重みテンソル実値と、直接取得不能なHFファイル本文は観測済みと扱わない。"
+  }
+}
