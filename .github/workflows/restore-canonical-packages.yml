@@ -119,7 +119,7 @@ jobs:
 
           with zipfile.ZipFile(out, 'w') as z:
               for name in names:
-                  shard = re.search(r'/shard-(\\d+)\\.jsonl\\.gz$', name)
+                  shard = re.search(r'/shard-(\d+)\.jsonl\.gz$', name)
                   late = (
                       name == 'README_翻訳データ全量.md' or
                       name.endswith('/04_HF母集合.json') or
