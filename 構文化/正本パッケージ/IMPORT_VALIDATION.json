@@ -1,1 +1,30 @@
-{"Apertus1_5_HDS日本語構文_v1.0_repo.zip":"caca08352bc53c0b6c93a565d9039afc3371482f","K2V2_HDS日本語構文_v1.0_repo.zip":"5fcd72231452956e6edeee12567bbf0a6c3091b1","OLMo3_HDS日本語構文_v1.0_repo.zip":"e4b88dff2f4cb253a9964a6ded5d4bc783b5da1b","validation":"all MANIFEST-listed files matched size and sha256 before import"}
+{
+  "validation": "canonical packages verified before restore; Llama3 and K3 restored byte-identically to supplied originals",
+  "packages": {
+    "Apertus1_5_HDS日本語構文_v1.0_repo.zip": {
+      "bytes": 15009,
+      "sha256": "4d8d0bd3e24309e9d880eb0ba417aa33fddf8bea673d8cb520b2051ee8555813",
+      "git_blob_sha1": "caca08352bc53c0b6c93a565d9039afc3371482f"
+    },
+    "K2V2_HDS日本語構文_v1.0_repo.zip": {
+      "bytes": 9823,
+      "sha256": "b2d36881a724c3e75c7e33514dd89b5e159ab82f53d5e7c1c3de4b26b1cc5b88",
+      "git_blob_sha1": "5fcd72231452956e6edeee12567bbf0a6c3091b1"
+    },
+    "OLMo3_HDS日本語構文_v1.0_repo.zip": {
+      "bytes": 14686,
+      "sha256": "07a2384b3efd63d8bf67f1ac6fb6fd2e7937da3fc05cf0c383f11d7c445ef809",
+      "git_blob_sha1": "e4b88dff2f4cb253a9964a6ded5d4bc783b5da1b"
+    },
+    "Llama3_HDS日本語構文_v1.0.zip": {
+      "bytes": 53741,
+      "sha256": "77490354c7cf04beadd3b61d75a48457b8f0141d0145ea77950a5b7929545e02",
+      "git_blob_sha1": "9c0bd1caf308c81a3262ff6e9dd514fccbe34f81"
+    },
+    "K3_HDS日本語翻訳データ_全量_v6_1.zip": {
+      "bytes": 94913529,
+      "sha256": "c861a891835d9a11894a4225ca210ca151058cad1e957b71b1ae453dc7f89fef",
+      "git_blob_sha1": "0911598ad3336e9a8fa67ad56f9137f0ab6df7bb"
+    }
+  }
+}
