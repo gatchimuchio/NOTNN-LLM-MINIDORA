@@ -5,8 +5,28 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "minidora-notnn"
 version = "0.1.0"
-description = "HDS→Layer-0→日本語命令P→外部参照Rで再構成する非ニューラルLLM研究実装"
+description = "日本語基底の非ニューラルネットワークLLM研究実装"
+readme = "README.md"
 requires-python = ">=3.11"
+authors = [
+  { name = "がっちむち♂" },
+]
+license = { file = "LICENSE" }
+keywords = [
+  "LLM",
+  "non-neural",
+  "NOTNN",
+  "MINIDORA",
+  "Layer-0",
+  "Japanese",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: Apache Software License",
+  "Natural Language :: Japanese",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+]
 dependencies = []
 
 [tool.setuptools]
