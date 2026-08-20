@@ -1,0 +1,22 @@
+{
+  "版": "1.0",
+  "対象": "Olmo 3 7B/32B Base・Instruct・Think",
+  "files": [
+    {"path":"HDS/00_HDS全量構文化報告.md","bytes":1538,"sha256":"fdf38f806ca74e2f9587333f89068e97091a16828a38bc1a1c5e882f5dffa366"},
+    {"path":"HDS/01_成立関係群.json","bytes":7332,"sha256":"82756f671827d681a618cdeedf227907393e306623cb2be1d97342f295f62014"},
+    {"path":"README.md","bytes":406,"sha256":"7f4a19ead99d7f05945cdb3c6ae3bbbeac58402ad2e2c0d040d0dac6df3f511e"},
+    {"path":"教師固定/00_source_lock.json","bytes":3529,"sha256":"758dc990097da10db8ffd02e75fa679505ae2a3b851f5688872ce29c58b408f7"},
+    {"path":"教師固定/教師_0001_0025.jsonl","bytes":24254,"sha256":"900d28c771162c0cdb164cf5247e9758f5ba49aae8574f0e1669560c21363d56"},
+    {"path":"教師固定/教師_0026_0050.jsonl","bytes":24393,"sha256":"3f398f45036ecdc3ec20719e354e05154adb0c0a225cb5b9b933790a99008e5d"},
+    {"path":"教師固定/教師_0051_0075.jsonl","bytes":23573,"sha256":"9a458013693c09c682b65fd0381a250b3293c1f2e16bd55bffed281edbf3dad6"},
+    {"path":"教師固定/教師_0076_0100.jsonl","bytes":23483,"sha256":"d421439439be45e1ae8f645bb7ca8c540ced1672a80f45c901c300b391379b48"},
+    {"path":"教師固定/教師_0101_0125.jsonl","bytes":26016,"sha256":"b4cffe71a5932ccf3919994ba8a878db161fc2e9701d6060fbc0364158691a18"},
+    {"path":"教師固定/教師_0126_0150.jsonl","bytes":25697,"sha256":"2b30e4a119046d89922324a3c9838f1fa0f3cad4c338f3068983a5dc24932069"},
+    {"path":"教師固定/教師_0151_0175.jsonl","bytes":24787,"sha256":"14474c9b19d3f182240f424d5563ed1e9fd4d40855829d1ce8681123de173889"},
+    {"path":"教師固定/教師_0176_0200.jsonl","bytes":25158,"sha256":"576bef48fb45e0f99d0458c6bc2e090c533c17fd62a4da4682c4196da8c1c092"},
+    {"path":"教師固定/教師_0201_0225.jsonl","bytes":24945,"sha256":"0f91345c2ae43d83aae206fd538da50dcc771aafe87b3fa0b8b8aef37fed0888"},
+    {"path":"教師固定/教師_0226_0242.jsonl","bytes":17108,"sha256":"df1c77b804eac6613163a359349730781d0fa8cfc333ff6e26f879cb2e00154f"},
+    {"path":"監査/HDS適合監査.md","bytes":963,"sha256":"4b933c6ce72d24aadfd1b72967debba169c0fdbc801b45e2b4fb026fc96b8763"},
+    {"path":"監査/未解残差.json","bytes":2083,"sha256":"b68aae49ad1ea8817b5fdd85728e07a6dee5a4d0db939301e62d36e3b5421b4d"}
+  ]
+}
