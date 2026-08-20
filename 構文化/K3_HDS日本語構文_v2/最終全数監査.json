@@ -1,0 +1,47 @@
+{
+  "kind": "K3 HDS日本語構文 v2 full-weight 最終全数監査",
+  "source": {
+    "repo": "moonshotai/Kimi-K3",
+    "revision": "c5d1dd4c428bd1ce8b88c5044f3b6ccde9e3b721"
+  },
+  "expected": {
+    "shards": 96,
+    "tensors": 497220,
+    "payload_bytes": 1560860324864
+  },
+  "observed": {
+    "shards": 96,
+    "tensors": 497220,
+    "payload_bytes_from_audits": 1560860324864,
+    "payload_bytes_from_semantics": 1560860324864,
+    "payload_hash_records": 497220,
+    "residual_records": 69,
+    "A_log_records": 69,
+    "A_log_positional_probes": 68,
+    "A_log_aggregate_fullread_probes": 1,
+    "A_log_tail32_all_zero_positional": 68
+  },
+  "checks": {
+    "shards_96": true,
+    "all_PASS": true,
+    "all_byte_read": true,
+    "no_partial": true,
+    "no_gaps": true,
+    "no_overlaps": true,
+    "no_unassigned": true,
+    "no_size_mismatch": true,
+    "single_frozen_revision": true,
+    "payload_exact": true,
+    "tensor_exact": true,
+    "semantic_tensor_records_exact": true,
+    "semantic_payload_exact": true,
+    "payload_hash_every_tensor": true,
+    "semantic_version_all_v2": true,
+    "semantic_revision_exact": true,
+    "A_log_records_69": true,
+    "A_log_probe_coverage": true
+  },
+  "PASS_FULL_WEIGHT_V2": true,
+  "bad_version_sample": [],
+  "bad_revision_sample": []
+}
