@@ -1,0 +1,50 @@
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import unittest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _env() -> dict[str, str]:
+    env = dict(os.environ)
+    src = str(ROOT / "src")
+    env["PYTHONPATH"] = src if not env.get("PYTHONPATH") else src + os.pathsep + env["PYTHONPATH"]
+    return env
+
+
+class CLI試験(unittest.TestCase):
+    def test_python_m_minidoraで即時実行できる(self):
+        completed = subprocess.run(
+            [sys.executable, "-m", "minidora", "2+3"],
+            cwd=ROOT,
+            env=_env(),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout.strip(), "5です。")
+
+    def test_json出力は採否境界を機械可読で返す(self):
+        completed = subprocess.run(
+            [sys.executable, "-m", "minidora", "--json", "2+3"],
+            cwd=ROOT,
+            env=_env(),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["value"], 5)
+        self.assertEqual(payload["status"], "合格")
+        self.assertEqual(payload["plan"], "算術")
+        self.assertFalse(payload["hds_ir"])
+
+
+if __name__ == "__main__":
+    unittest.main()
