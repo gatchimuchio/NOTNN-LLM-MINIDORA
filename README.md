@@ -4,16 +4,59 @@
 
 - 基底言語: **日本語**
 - 正本ブランチ: **`main`**
-- 現行実装候補: **MINIDORA v0.3**
-- プロトタイプ状態: **COMPLETE — 2026-08-22**
+- 現行Runtime: **MINIDORA v0.3**
+- プロトタイプ状態: **PROTOTYPE COMPLETE — 2026-08-22**
 - Layer-0: **v4.0-provisional**
 - ライセンス: **Apache License 2.0**
 - 著作: **がっちむち♂**
 - 実装言語: Python 3.11+
 
+## 最初に読む — 論理基盤と正本階層
+
+MINIDORAはLayer-0の意味を本リポジトリ内で独自再定義しない。
+
+LLM機能責任の**論理上位契約**は、外部Repository:
+[gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification](https://github.com/gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification)
+を参照する。
+
+- 現行仕様: `v4.0-provisional`
+- MINIDORA参照commit: `4adf86d13d7beb99fe5eaa9e240b22996ba3d3bc`
+- 現行5責任: 言語アドレス化 / 文脈束縛状態 / 変換・合成中核 / 文脈依存結果形成 / 結果表面
+
+MINIDORA側の [`設計/02_Layer0責任契約.md`](設計/02_Layer0責任契約.md) は、上位Layer-0契約をMINIDORAへ写像する局所契約である。`src/minidora/layer0.py` はその実装であり、Layer-0そのものの代替正本ではない。
+
+```text
+外部Layer-0正本
+  ↓ 論理上位契約
+設計/02_Layer0責任契約.md
+  ↓ MINIDORA局所写像
+src/minidora/layer0.py + Runtime
+  ↓ 実装
+ tests/ + 評価/
+  ↓ 検証
+```
+
+外部参照の位置づけ・更新規則・優先順位は [`REFERENCES.md`](REFERENCES.md) を正本とする。
+
+## 状態の読み方
+
+`PROTOTYPE COMPLETE` と製品・最終完成は別状態である。
+
+```text
+PROTOTYPE COMPLETE
+= 正規アーキテクチャ経路が閉じ、外部未知問題で測定可能な非ゼロ能力を発生
+
+PROTOTYPE COMPLETE
+!= K3級性能
+!= 製品・最終完成
+!= 将来のスケーリング上限確定
+```
+
+プロトタイプ完成記録は [`評価/PROTOTYPE_COMPLETION_2026-08-22.md`](評価/PROTOTYPE_COMPLETION_2026-08-22.md)、製品・最終完成の関門は [`設計/05_完成判定関門.md`](設計/05_完成判定関門.md) を参照する。
+
 ## 30秒で確認する
 
-MINIDORAの公開Runtimeは、HDS Compilerを用意しなくてもLegacy互換経路を使って即時実行できる。
+公開Runtimeは、HDS Compilerを用意しなくてもLegacy互換経路を使って即時実行できる。
 
 ```bash
 python -m pip install -e .
@@ -36,41 +79,26 @@ python -m minidora --json "2+3"
 
 ### 実装上の非ニューラル境界
 
-現行の公開Runtimeについて、非ニューラル性は名称だけでなく実装依存として確認できる。
+現行の公開Runtimeについて、非ニューラル性は名称ではなく実行依存として確認できる。
 
 - `pyproject.toml` のRuntime依存パッケージは **0**
 - `torch` / `transformers` / `numpy` をRuntime依存として要求しない
-- K3 / Llama 3 は構文化・比較・設計上の参照基盤であり、公開Runtimeがそれらのニューラルモデル推論を呼び出すことを成立条件としない
+- K3 / Llama 3は構文化・比較・設計上の観測基盤であり、公開Runtimeがそれらのニューラルモデル推論を呼び出すことを成立条件としない
 - HDS Compiler内部実装は公開Runtimeから分離され、公開側はHDS-IR受入契約だけを持つ
-
-この境界により、「非ニューラル」という主張と、公開Runtimeが実際に必要とする実行依存を分離して第三者が確認できる。
-
-## プロトタイプ完成 — 2026-08-22
-
-MINIDORAは2026-08-22、**非ニューラル／非Transformerの言語計算系として、問題・4候補・外部DataをすべてHDSへコンパイルし、K/Jを通して外部未知ベンチに正答を発生させる一連の経路が閉じた**ことをもって、プロトタイプ完成と判定した。
-
-完成時の固定基準値は **GPQA Diamond 8 / 198 = 4.0404040%**。比較基準のKimi K3公開値は93.5%。この記録はK3級性能の達成を意味しない。重要なのは、MINIDORAの正規アーキテクチャから**測定可能な非ゼロの一般問題解決能力が実際に発生したこと**である。
-
-固定runでは、4候補 **792/792**、取得Data **875/875** をHDS Compilerへ通し、Dataを生文字列FactとしてKへ直入れしていない。取得DataからはHDS座標87,434、HDS関係140,450、K構造Fact 200,568を形成した。
-
-この値は**プロトタイプ完成時点の不変baseline**として保持し、将来の改善値で上書きしない。
-
-- 完成判定・評価条件・解釈境界: [`評価/PROTOTYPE_COMPLETION_2026-08-22.md`](評価/PROTOTYPE_COMPLETION_2026-08-22.md)
-- 機械可読baseline: [`評価/GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json`](評価/GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json)
 
 ## 現在の設計軸
 
 MINIDORA v0.3は次の非対称構造を採る。
 
 ```text
-K3                  = 主基盤
+Layer-0 v4          = LLM機能責任の論理上位契約
+K3                  = 主たる能力・状態関係の観測基盤
 Llama 3             = 自己一貫性の対抗基準
-その他LLM           = K3/Llama3差分の補助観測点
-Layer-0 v4          = 実装非依存の機能責任契約
+その他LLM           = K3 / Llama 3差分の補助観測点
 HDS / 日本語構文化  = 上流の分別・再射影手段
 ```
 
-目標は **K3をベースに、Llama 3で観測した自己一貫性を主体主幹として内包したMINIDORA** である。
+現行Runtimeでは、K3由来の能力構造とLlama 3で観測した自己一貫性の成立関係を分離し、主体主幹・P・R・HDS-IR・Trinity文脈へ外在化する。
 
 ## 通常利用入口
 
@@ -104,9 +132,9 @@ HDS-IRはHDS Nativeそのものではなく有限Projectionである。固定し
 
 `P = どう処理するか`、`Data = 何を意味し、何について処理するか` を分離する。言い換え表現や属性・時点・範囲などの意味情報を、新しいPとして増殖させない。
 
-HDS Compilerは `HDSコンパイラProtocol` を満たす外部実装として差替え可能であり、Runtimeは直前結果と過去のHDS-IR履歴をCompilerへ帰還できる。HDS Compilerが接続されていない場合は、既存の決定論的 `自然言語器` を互換経路として利用する。
+HDS Compilerは `HDSコンパイラProtocol` を満たす外部実装として差替え可能であり、Runtimeは直前結果と過去のHDS-IR履歴をCompilerへ帰還できる。HDS Compilerが接続されていない場合は、決定論的 `自然言語器` をLegacy互換経路として利用する。
 
-詳細は `設計/07_HDS_IR入力契約.md` を参照する。
+詳細は [`設計/07_HDS_IR入力契約.md`](設計/07_HDS_IR入力契約.md) を参照する。
 
 ## Layer-0 v4 Functional Core
 
@@ -124,7 +152,7 @@ HDS Compilerは `HDSコンパイラProtocol` を満たす外部実装として�
 
 `主体主幹` は第6責任ではない。主に **文脈束縛状態 × 文脈依存結果形成** を担うMINIDORA固有機構である。
 
-Layer-0正本は `gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification` を参照する。
+Layer-0の意味・適合状態・negative controlは外部正本を優先し、MINIDORA固有写像は [`設計/02_Layer0責任契約.md`](設計/02_Layer0責任契約.md) に閉じる。
 
 ## MINIDORA v0.3 実行構造
 
@@ -166,7 +194,7 @@ K3基盤由来の能力処理       │
 
 ## 外部参照R
 
-参照Dataは従来の文字列Dataに加え、必要に応じて次の意味メタデータを保持できる。
+参照Dataは文字列Dataに加え、必要に応じて次の意味メタデータを保持できる。
 
 - 意味キー
 - 値
@@ -176,6 +204,8 @@ K3基盤由来の能力処理       │
 - 意味確定状態
 
 同一対象・同一意味キー・同一時点・同一範囲・同一条件であることがData側で確定した場合だけ、値の競合を矛盾として扱う。意味同一性が未確定な文字列同士へRuntimeが勝手に意味を補わない。
+
+詳細は [`設計/04_外部参照R仕様.md`](設計/04_外部参照R仕様.md) を参照する。
 
 ## 主体主幹
 
@@ -194,66 +224,80 @@ assistant住所
 
 MINIDORAではこの性質を明示状態へ外在化する。
 
-主体状態は次を保持する。
+主体状態は、主体ID・現在目的・判断基準・立場・選好・約束・仮説・未解残差・版を保持する。実差分は理由を必須とし、理由なし反転は保留する。理由付き自己訂正は許可し、旧版・新版・差分・理由・根拠を監査履歴へ残す。
 
-- 主体ID
-- 現在目的
-- 判断基準
-- 立場
-- 選好
-- 約束
-- 仮説
-- 未解残差
-- 版
+詳細は [`設計/06_主体主幹仕様.md`](設計/06_主体主幹仕様.md) を参照する。
 
-実差分は理由を必須とし、理由なし反転は保留する。理由付き自己訂正は許可し、旧版・新版・差分・理由・根拠を監査履歴へ残す。
+## プロトタイプ完成 — 2026-08-22
 
-## 構成要素
+MINIDORAは2026-08-22、**非ニューラル／非Transformerの言語計算系として、問題・4候補・外部DataをすべてHDSへコンパイルし、K/Jを通して外部未知ベンチに正答を発生させる一連の経路が閉じた**ことをもって、プロトタイプ完成と判定した。
 
-- **HDS-IR境界**: HDS意味Projectionを公開Runtimeへ接続する契約
-- **Layer-0**: v4の5機能責任に適合する実装非依存核
-- **P**: 日本語で保持する実行可能な命令形
-- **R**: Data / Knowledge を供給する交換可能な外部参照層
-- **主体主幹**: turnを跨ぐ主体状態と主体整合Gate
-- **Runtime**: HDS-IR / Legacy入口・P・R・Layer-0・主体主幹を接続し、結果と採否を返す
+完成時の固定基準値は **GPQA Diamond 8 / 198 = 4.0404040%**。比較基準のKimi K3公開値は93.5%。この記録はK3級性能の達成を意味しない。重要なのは、MINIDORAの正規アーキテクチャから測定可能な非ゼロの一般問題解決能力が実際に発生したことである。
+
+固定runでは、4候補 **792/792**、取得Data **875/875** をHDS Compilerへ通し、Dataを生文字列FactとしてKへ直入れしていない。取得DataからはHDS座標87,434、HDS関係140,450、K構造Fact 200,568を形成した。
+
+この値は**プロトタイプ完成時点の不変baseline**として保持し、将来の改善値で上書きしない。
+
+- 完成判定・評価条件・解釈境界: [`評価/PROTOTYPE_COMPLETION_2026-08-22.md`](評価/PROTOTYPE_COMPLETION_2026-08-22.md)
+- 機械可読baseline: [`評価/GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json`](評価/GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json)
+- 評価ディレクトリの読み方: [`評価/README.md`](評価/README.md)
 
 ## リポジトリ構成
 
-```text
-src/minidora/                  MINIDORA実装
-設計/                           Layer-0 / P / R / HDS-IR / 主体主幹 / 完成判定仕様
-構文化/MINIDORA_v0.2/          旧公開再構成成果（Legacy）
-構文化/MINIDORA_v0.3/          現行公開再構成成果
-構文化/K3_HDS日本語構文_v2/    K3 full-weight基盤成果
-構文化/Llama3_自己一貫性_HDS再構文化_v2/  Llama3自己一貫性差分成果
-構文化/LLM横断_HDS日本語構文化_相対化ベンチマーク_v0_1/  補助差分観測
-評価/                           適合・性能・回帰記録
-tests/                          単体・negative control試験
-```
+| Path | 役割 | 正本性 |
+|---|---|---|
+| `REFERENCES.md` | 外部参照正本・Layer-0優先順位 | 参照階層の正本 |
+| `設計/` | Layer-0局所写像、P、R、主体、HDS-IR、Trinity、完成関門 | 現行MINIDORA設計正本 |
+| `src/minidora/` | Runtime実装 | 実装 |
+| `tests/` | 単体・negative control・回帰 | 検証 |
+| `評価/` | 適合・性能・baseline・完成判定の実測 | 評価記録 |
+| `構文化/` | K3 / Llama 3 / その他LLM / MINIDORAの観測・再構成成果 | 観測・再構成 |
+| `docs/` | 個別実装・接続経路の補助説明 | 補助文書 |
+| `artifacts/` | 固定取得物・接続検証成果・派生物 | 固定成果物 |
+| `tools/` | inventory・整合性監査等の開発補助 | 開発・監査用 |
 
-主要入口:
+各ディレクトリの境界は、それぞれのREADMEを参照する。
 
+### 推奨する読む順番
+
+1. [`REFERENCES.md`](REFERENCES.md)
+2. [`設計/README.md`](設計/README.md)
+3. [`設計/02_Layer0責任契約.md`](設計/02_Layer0責任契約.md)
+4. [`設計/07_HDS_IR入力契約.md`](設計/07_HDS_IR入力契約.md)
+5. [`設計/06_主体主幹仕様.md`](設計/06_主体主幹仕様.md)
+6. `src/minidora/runtime.py`
+7. `tests/`
+8. [`評価/README.md`](評価/README.md)
+9. [`構文化/README.md`](構文化/README.md)
+
+## 主要実装入口
+
+- `src/minidora/layer0.py` — Layer-0 v4参照情報とMINIDORA命令実行器
 - `src/minidora/hds_ir.py` — 公開HDS-IR Record契約
 - `src/minidora/hds_adapter.py` — 外部HDS Compiler接続Protocol
 - `src/minidora/runtime.py` — HDS-IR / Layer-0 / P / R / 主体主幹の統合
 - `src/minidora/言語.py` — HDS Compiler未接続時のLegacy互換入口
 - `src/minidora/主体.py` — 主体状態・理由付き更新・主体整合Gate
 - `src/minidora/__main__.py` — 即時実行CLI / JSON採否出力
-- `設計/07_HDS_IR入力契約.md`
-- `設計/02_Layer0責任契約.md`
-- `設計/06_主体主幹仕様.md`
-- `設計/05_完成判定関門.md`
 
-## 実行と試験
+## 実行・試験・整合性監査
 
 Python 3.11以上を使用する。
 
 ```bash
 python -m pip install -e .
+python tools/repository_consistency_check.py
 python -m unittest discover -s tests -v
 ```
 
-CIではLinux / Windows上のPython 3.11・3.12・3.13・3.14で、パッケージ導入・構文確認・単体試験・`python -m minidora` と `minidora` の両CLI smoke testを行う。
+CIではLinux / Windows上のPython 3.11・3.12・3.13・3.14で、次を実行する。
+
+- editable install
+- リポジトリ正本整合性監査
+- `src / tests / tools` の構文確認
+- 全単体試験
+- `python -m minidora` smoke test
+- `minidora` console script smoke test
 
 ## 日本語基底
 
@@ -270,7 +314,7 @@ API、規格名、コード識別子、固有名詞、原文確認が必要な�
 
 ## 公開境界
 
-公開対象はMINIDORA実装、HDS-IR入出力契約、P / R / Layer-0 / 主体主幹の境界、検証結果、公開可能な構文化成果である。
+公開対象はMINIDORA実装、HDS-IR入出力契約、P / R / Layer-0局所写像 / 主体主幹の境界、検証結果、公開可能な構文化成果である。
 
 **HDS Compilerの内部実装および上流HDSの内部解析方法そのものは公開対象外とする。**
 
