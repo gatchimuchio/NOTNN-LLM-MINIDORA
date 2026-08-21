@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from .hds_adapter import HDS独立コンパイル
 from .hds_data_k import HDSIR知識Adapter
 from .hds_ir import HDSIR, 値状態
 from .k3_functional import K3相当能力核
@@ -56,6 +57,15 @@ def _suspend(reason: str, *, candidate_count: int = 0, data_fail: int = 0) -> HD
     )
 
 
+def _独立コンパイル入口(compile_fn: HDSコンパイル関数) -> HDSコンパイル関数:
+    """Runtime bound methodなら実Compilerを取り出して中立文脈へ切り替える。"""
+    owner = getattr(compile_fn, "__self__", None)
+    compiler = getattr(owner, "HDSコンパイラ", None)
+    if compiler is None:
+        return compile_fn
+    return lambda text: HDS独立コンパイル(compiler, text)
+
+
 def HDS選択推論実行(
     question_ir: HDSIR,
     references: tuple[参照記録, ...],
@@ -68,7 +78,7 @@ def HDS選択推論実行(
 
     問題IRに実行手順が無くても、確定choice集合を持つ場合はK3 Native choice reasoningを
     実行核として利用できる。Data生文字列をKへ直入れせず、使用するDataは必ずCompilerを
-    通す。Dataコンパイル失敗はそのDataを証拠から除外し、残りの確定証拠だけでJが判断する。
+    通す。候補と外部Dataは会話Trinity文脈から切離して独立コンパイルする。
     """
     choices = _choices(question_ir)
     if len(choices) < 2:
@@ -81,10 +91,11 @@ def HDS選択推論実行(
     if any(residual.種別 == "semantic_loss" for residual in question_ir.残差):
         return _suspend("HDS_QUESTION_SEMANTIC_LOSS")
 
+    compile_isolated = _独立コンパイル入口(コンパイル)
     candidate_irs: dict[str, HDSIR] = {}
     for label, content, _ in choices:
         try:
-            candidate_ir = コンパイル(content)
+            candidate_ir = compile_isolated(content)
         except Exception:
             return _suspend("HDS_CHOICE_COMPILE_FAILED", candidate_count=len(candidate_irs))
         if any(residual.種別 == "semantic_loss" for residual in candidate_ir.残差):
@@ -100,7 +111,7 @@ def HDS選択推論実行(
     blocked = 0
     for record in references:
         try:
-            data_ir = コンパイル(record.内容)
+            data_ir = compile_isolated(record.内容)
         except Exception:
             data_failed += 1
             continue
