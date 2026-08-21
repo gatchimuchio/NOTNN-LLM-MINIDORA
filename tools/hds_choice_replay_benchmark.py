@@ -57,20 +57,51 @@ def _run_case(row: dict[str, Any], *, effort: str | None) -> tuple[dict[str, Any
         evidence_fact_count += result.証拠事実数
 
     result = HDSIRネイティブAdapter(core).実行(question, 候補IR=choices, 努力=effort)
-    candidate_rows = [
+    diagnosis_by_label = {item.候補: item for item in result.候補診断}
+    candidate_rows = []
+    for candidate in result.候補:
+        diagnosis = diagnosis_by_label.get(candidate.answer)
+        candidate_rows.append(
+            {
+                "answer": candidate.answer,
+                "confidence": candidate.confidence,
+                "expert": candidate.expert,
+                "proof_fact_count": len(candidate.proof_fact_ids),
+                "provenance": list(candidate.provenance),
+                "score": diagnosis.合計得点 if diagnosis else None,
+                "evidence_score": diagnosis.証拠得点 if diagnosis else None,
+                "graph_score": diagnosis.graph得点 if diagnosis else None,
+                "graph_factor": diagnosis.graph補正係数 if diagnosis else None,
+                "independent_sources": diagnosis.独立出典数 if diagnosis else None,
+                "selected_evidence": diagnosis.採用証拠数 if diagnosis else None,
+                "graph_depth": diagnosis.graph深さ if diagnosis else None,
+            }
+        )
+
+    diagnostic_rows = [
         {
-            "answer": candidate.answer,
-            "confidence": candidate.confidence,
-            "expert": candidate.expert,
-            "proof_fact_count": len(candidate.proof_fact_ids),
-            "provenance": list(candidate.provenance),
+            "answer": item.候補,
+            "score": item.合計得点,
+            "evidence_score": item.証拠得点,
+            "graph_score": item.graph得点,
+            "graph_factor": item.graph補正係数,
+            "independent_sources": item.独立出典数,
+            "selected_evidence": item.採用証拠数,
+            "graph_depth": item.graph深さ,
+            "proof_fact_count": item.根拠事実数,
         }
-        for candidate in result.候補
+        for item in result.候補診断
     ]
+
     confidence_margin = None
     if candidate_rows:
         ordered = sorted((row["confidence"] for row in candidate_rows), reverse=True)
         confidence_margin = ordered[0] - ordered[1] if len(ordered) > 1 else ordered[0]
+
+    score_margin = None
+    if diagnostic_rows:
+        ordered_scores = sorted((float(row["score"]) for row in diagnostic_rows), reverse=True)
+        score_margin = ordered_scores[0] - ordered_scores[1] if len(ordered_scores) > 1 else ordered_scores[0]
 
     detail = {
         "id": case_id,
@@ -85,7 +116,9 @@ def _run_case(row: dict[str, Any], *, effort: str | None) -> tuple[dict[str, Any
         "k_facts_added": data_fact_count,
         "evidence_facts": evidence_fact_count,
         "candidate_confidence_margin": confidence_margin,
+        "candidate_score_margin": score_margin,
         "candidates": candidate_rows,
+        "candidate_diagnostics": diagnostic_rows,
     }
     return detail, (str(gold) if gold is not None else None)
 
