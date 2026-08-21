@@ -6,6 +6,10 @@ from typing import Any, Mapping
 from .命令 import 作用, 命令, 手順
 
 
+# MINIDORAはLayer-0の意味をこのリポジトリ内で独自再定義しない。
+# 下記外部リポジトリを論理上位契約とし、参照commitは現行実装の再現用pinである。
+LAYER0正本リポジトリ = "https://github.com/gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification"
+LAYER0参照コミット = "4adf86d13d7beb99fe5eaa9e240b22996ba3d3bc"
 LAYER0仕様版 = "v4.0-provisional"
 LAYER0機能責任 = (
     "LINGUISTIC_ADDRESSABILITY",
@@ -24,7 +28,12 @@ class 実行文脈:
 
 
 class Layer0:
-    """実装非依存の最小命令実行機構。特定モデル固有構造を責任として持たない。"""
+    """Layer-0 v4上位契約をMINIDORAへ実装する最小命令実行機構。
+
+    機能責任の意味は ``LAYER0正本リポジトリ`` を正本とする。
+    このクラスはMINIDORA固有の実装であり、特定モデルの物理構造を
+    Layer-0責任そのものへ昇格させない。
+    """
 
     def 実行(self, 手順_: 手順, 初期状態: dict[str, Any] | None = None) -> 実行文脈:
         文脈 = 実行文脈(dict(初期状態 or {}))

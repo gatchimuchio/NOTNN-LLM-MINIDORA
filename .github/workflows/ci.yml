@@ -21,8 +21,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: パッケージ導入
         run: python -m pip install -e .
+      - name: リポジトリ整合性監査
+        run: python tools/repository_consistency_check.py
       - name: 構文確認
-        run: python -m compileall -q src tests
+        run: python -m compileall -q src tests tools
       - name: 単体試験
         run: python -m unittest discover -s tests -v
       - name: module CLI smoke test
