@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from .hds_adapter import HDS独立コンパイル
@@ -28,14 +29,11 @@ class HDS選択実行結果:
     K追加事実数: int
     K証拠事実数: int
     K証拠阻害事実数: int
+    コンパイル並列: bool = False
+    コンパイル最大並列: int = 1
 
 
 def HDS選択問題(ir: HDSIR) -> bool:
-    """Native choice reasoningへ入る構造IRか判定する。
-
-    Compilerが明示的なLayer-0手順を返した場合は、その既存契約を最優先する。
-    Native pathは「choice集合は確定したが手順を持たない」構造IRだけを補完する。
-    """
     if ir.手順 is not None:
         return False
     return sum(1 for coord in ir.座標 if coord.座標ID.startswith("choice:")) >= 2
@@ -50,19 +48,61 @@ def _choices(ir: HDSIR) -> tuple[tuple[str, str, 値状態], ...]:
     return tuple(sorted(rows, key=lambda item: item[0]))
 
 
-def _suspend(reason: str, *, candidate_count: int = 0, data_fail: int = 0) -> HDS選択実行結果:
+def _suspend(
+    reason: str,
+    *,
+    candidate_count: int = 0,
+    data_fail: int = 0,
+    parallel: bool = False,
+    workers: int = 1,
+) -> HDS選択実行結果:
     return HDS選択実行結果(
         "SUSPEND", None, None, (reason,), None,
         candidate_count, 0, data_fail, 0, 0, 0,
+        parallel, workers,
     )
 
 
-def _独立コンパイル入口(compile_fn: HDSコンパイル関数) -> HDSコンパイル関数:
+def _独立コンパイル入口(compile_fn: HDSコンパイル関数) -> tuple[HDSコンパイル関数, bool]:
     owner = getattr(compile_fn, "__self__", None)
     compiler = getattr(owner, "HDSコンパイラ", None)
     if compiler is None:
-        return compile_fn
-    return lambda text: HDS独立コンパイル(compiler, text)
+        return compile_fn, bool(getattr(compile_fn, "並列安全", False))
+    return (
+        lambda text: HDS独立コンパイル(compiler, text),
+        bool(getattr(compiler, "並列安全", False)),
+    )
+
+
+def _一括コンパイル(
+    compile_fn: HDSコンパイル関数,
+    texts: Sequence[str],
+    *,
+    parallel: bool,
+    max_workers: int,
+) -> tuple[HDSIR | Exception, ...]:
+    if not texts:
+        return ()
+    if not parallel or len(texts) <= 1 or max_workers <= 1:
+        out: list[HDSIR | Exception] = []
+        for text in texts:
+            try:
+                out.append(compile_fn(text))
+            except Exception as exc:
+                out.append(exc)
+        return tuple(out)
+
+    workers = min(max(1, int(max_workers)), len(texts))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="minidora-hds") as executor:
+        futures = [executor.submit(compile_fn, text) for text in texts]
+        out: list[HDSIR | Exception] = []
+        # 完了順ではなく入力順で回収し、choice label/Data順の決定性を維持する。
+        for future in futures:
+            try:
+                out.append(future.result())
+            except Exception as exc:
+                out.append(exc)
+        return tuple(out)
 
 
 def HDS選択推論実行(
@@ -72,6 +112,7 @@ def HDS選択推論実行(
     コンパイル: HDSコンパイル関数,
     基礎能力核: K3相当能力核,
     努力: str | None = None,
+    最大コンパイル並列: int = 4,
 ) -> HDS選択実行結果:
     """HDS choice問題を `候補/Data→HDS-IR→K→J` の正規経路で実行する。"""
     choices = _choices(question_ir)
@@ -85,16 +126,32 @@ def HDS選択推論実行(
     if any(residual.種別 == "semantic_loss" for residual in question_ir.残差):
         return _suspend("HDS_QUESTION_SEMANTIC_LOSS")
 
-    compile_isolated = _独立コンパイル入口(コンパイル)
+    compile_isolated, parallel_safe = _独立コンパイル入口(コンパイル)
+    worker_count = min(max(1, int(最大コンパイル並列)), max(1, len(choices), len(references))) if parallel_safe else 1
+
+    choice_payloads = _一括コンパイル(
+        compile_isolated,
+        [content for _, content, _ in choices],
+        parallel=parallel_safe,
+        max_workers=worker_count,
+    )
     candidate_irs: dict[str, HDSIR] = {}
-    for label, content, _ in choices:
-        try:
-            candidate_ir = compile_isolated(content)
-        except Exception:
-            return _suspend("HDS_CHOICE_COMPILE_FAILED", candidate_count=len(candidate_irs))
-        if any(residual.種別 == "semantic_loss" for residual in candidate_ir.残差):
-            return _suspend("HDS_CHOICE_SEMANTIC_LOSS", candidate_count=len(candidate_irs) + 1)
-        candidate_irs[label] = candidate_ir
+    for (label, _, _), compiled in zip(choices, choice_payloads):
+        if isinstance(compiled, Exception):
+            return _suspend(
+                "HDS_CHOICE_COMPILE_FAILED",
+                candidate_count=len(candidate_irs),
+                parallel=parallel_safe,
+                workers=worker_count,
+            )
+        if any(residual.種別 == "semantic_loss" for residual in compiled.残差):
+            return _suspend(
+                "HDS_CHOICE_SEMANTIC_LOSS",
+                candidate_count=len(candidate_irs) + 1,
+                parallel=parallel_safe,
+                workers=worker_count,
+            )
+        candidate_irs[label] = compiled
 
     working = 基礎能力核.clone()
     HDS証拠状態複製(基礎能力核, working)
@@ -104,14 +161,19 @@ def HDS選択推論実行(
     added = 0
     evidence = 0
     blocked = 0
-    for record in references:
-        try:
-            data_ir = compile_isolated(record.内容)
-        except Exception:
+
+    data_payloads = _一括コンパイル(
+        compile_isolated,
+        [record.内容 for record in references],
+        parallel=parallel_safe,
+        max_workers=worker_count,
+    )
+    for record, compiled in zip(references, data_payloads):
+        if isinstance(compiled, Exception):
             data_failed += 1
             continue
         result = ingest.投入(
-            data_ir,
+            compiled,
             provenance=(record.供給器, record.由来, record.識別子),
         )
         data_compiled += 1
@@ -141,6 +203,8 @@ def HDS選択推論実行(
         added,
         evidence,
         blocked,
+        parallel_safe,
+        worker_count,
     )
 
 
