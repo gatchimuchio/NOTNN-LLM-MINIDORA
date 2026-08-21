@@ -5,6 +5,7 @@ import math
 import re
 from typing import Mapping
 
+from .hds_graph_reasoning import HDS意味経路探索
 from .hds_ir import HDSIR
 from .k3_functional import Candidate, HDSJudge, JudgeDecision, K3相当能力核, SemanticFrame
 
@@ -123,11 +124,6 @@ def _意味署名(ir: HDSIR, *, fallback_text: str = "") -> HDS意味署名:
 
 
 def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
-    """Kは意味Fact集合なので、provenance文書ではなくFact単位で評価する。
-
-    同一意味Factが複数文書に現れてもKnowledgeBaseは重複除去するため、文書groupingすると
-    最初のprovenanceへ偏る。Fact単位ならData取得順に依存しない。
-    """
     result: list[_証拠群] = []
     for fact in _facts(core):
         predicate = str(getattr(fact, "predicate", ""))
@@ -220,9 +216,9 @@ class HDSK3結果:
 class HDSIRネイティブAdapter:
     """HDS-IRをK3相当能力核へ直接接続する一般Adapter。
 
-    問い・候補・DataのHDS意味署名を比較する。ベンチ名・正解情報には依存しない。
-    Kへ入った意味Fact単位で意味原子・関係種別・座標種別を照合し、根拠が無い場合や
-    一意差が無い場合はJ/HDSが保留する。
+    問い・候補・DataのHDS意味署名を比較し、単一Fact一致に加えてK内のHDS関係を
+    最大4段辿る。ベンチ名・正解情報には依存せず、根拠が無い場合や一意差が無い場合は
+    J/HDSが保留する。
     """
 
     def __init__(self, core: K3相当能力核 | None = None, judge: HDSJudge | None = None) -> None:
@@ -273,6 +269,19 @@ class HDSIRネイティブAdapter:
                     if fid not in proof_ids:
                         proof_ids.append(fid)
 
+            path = HDS意味経路探索(
+                self.core,
+                question_signature.語,
+                candidate_signature.語,
+                question_signature.関係種別 | candidate_signature.関係種別,
+                最大深さ=4,
+            )
+            if path.得点 > 0:
+                aggregate += 2.5 * path.得点
+                for fid in path.事実ID:
+                    if fid not in proof_ids:
+                        proof_ids.append(fid)
+
             if proof_ids and aggregate > 0:
                 confidence = min(0.999, 0.50 + aggregate / (20.0 + aggregate))
                 scored.append(
@@ -282,9 +291,9 @@ class HDSIRネイティブAdapter:
                             answer=label,
                             relation="HDS_choice_selection",
                             confidence=confidence,
-                            expert="HDS_IR_structural",
+                            expert="HDS_IR_structural_graph",
                             proof_fact_ids=tuple(proof_ids),
-                            provenance=("HDS-IR", "K", "STRUCTURAL_MATCH"),
+                            provenance=("HDS-IR", "K", "STRUCTURAL_GRAPH_MATCH"),
                         ),
                     )
                 )
@@ -310,7 +319,7 @@ class HDSIRネイティブAdapter:
             raw=ir.原文,
             predicate="HDS_choice_selection",
             args=(None,),
-            tags=("HDS-IR", "choice", "structural"),
+            tags=("HDS-IR", "choice", "structural_graph"),
             language=getattr(ir, "入力言語", "en") or "en",
         )
         decision = self.judge.decide(frame, (top_candidate,))
