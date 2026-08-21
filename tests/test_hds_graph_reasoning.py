@@ -4,12 +4,12 @@ import unittest
 
 from minidora.hds_data_k import HDSIR知識Adapter
 from minidora.hds_graph_reasoning import HDS意味Graph索引構築, HDS意味経路探索
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係
+from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差
 from minidora.k3_functional import K3相当能力核
 from minidora.semantic_tokens import 意味語
 
 
-def _relation_ir(target: str) -> HDSIR:
+def _relation_ir(target: str, residuals: tuple[HDS残差, ...] = ()) -> HDSIR:
     return HDSIR(
         原文=f"Alpha relates to {target}.",
         正規化文=f"Alpha relates to {target}.",
@@ -19,7 +19,7 @@ def _relation_ir(target: str) -> HDSIR:
             HDS座標("target", "対象.実体", target, 原文範囲=(18, 18 + len(target))),
         ),
         関係=(HDS関係("r", ("alpha",), ("target",), "作用"),),
-        残差=(),
+        残差=residuals,
         意味作用履歴=(),
         実行核=HDS実行核("意味構造転送"),
         種別="意味構造",
@@ -81,6 +81,31 @@ class HDSGraph単純路試験(unittest.TestCase):
         self.assertIsNot(first, third)
         self.assertGreater(third.revision, first.revision)
         self.assertGreaterEqual(third.関係Fact数, first.関係Fact数)
+
+    def test_残差sourceと健全sourceの投入順でgraph可用性が変わらない(self) -> None:
+        blocked = _relation_ir(
+            "engine",
+            (HDS残差("loss", "semantic_loss", "Alpha relates to engine", "意味損失"),),
+        )
+        good = _relation_ir("engine")
+
+        for order in ((blocked, good), (good, blocked)):
+            core = K3相当能力核()
+            adapter = HDSIR知識Adapter(core)
+            adapter.投入(order[0], provenance=("fixture", "doc:first"))
+            adapter.投入(order[1], provenance=("fixture", "doc:second"))
+
+            graph = HDS意味Graph索引構築(core)
+            result = HDS意味経路探索(
+                core,
+                意味語("Alpha"),
+                意味語("engine"),
+                最大深さ=2,
+                索引=graph,
+            )
+            self.assertGreater(result.得点, 0.0)
+            self.assertEqual(result.深さ, 1)
+            self.assertEqual(graph.関係Fact数, 1)
 
 
 if __name__ == "__main__":
