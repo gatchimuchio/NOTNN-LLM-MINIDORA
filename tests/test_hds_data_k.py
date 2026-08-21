@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_data_k import HDSIR知識Adapter
+from minidora.hds_data_k import HDSIR知識Adapter, HDS証拠事実
 from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差
 from minidora.k3_functional import K3相当能力核
 
@@ -37,11 +37,39 @@ class HDSDataK試験(unittest.TestCase):
         self.assertEqual(result.関係事実数, 2)
         self.assertEqual(result.座標事実数, 3)
         self.assertGreaterEqual(result.追加事実数, 5)
+        self.assertGreaterEqual(result.証拠事実数, 5)
         facts = tuple(core.K._facts.values())
         self.assertTrue(any(f.predicate == "hds_relation_条件" and "Baz is absent" in f.args for f in facts))
         self.assertTrue(any(f.predicate == "hds_relation_作用" and "Foo" in f.args and "Bar" in f.args for f in facts))
         self.assertFalse(any(f.predicate == "retrieved_document" for f in facts))
         self.assertFalse(any(f.predicate == "hds_coordinate" and f.args[0] in {"source_text", "対象.原文保持"} for f in facts))
+
+    def test_同一意味Factでも独立source証拠を潰さない(self) -> None:
+        ir = HDSIR(
+            原文="Alpha is catalytic.",
+            正規化文="Alpha is catalytic.",
+            認知世界ID="cw:test",
+            座標=(HDS座標("alpha", "対象.実体", "Alpha"),),
+            関係=(),
+            残差=(),
+            意味作用履歴=(),
+            実行核=HDS実行核(),
+            種別="意味構造",
+            閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
+            入力言語="en",
+        )
+        core = K3相当能力核()
+        adapter = HDSIR知識Adapter(core)
+        adapter.投入(ir, provenance=("web", "doc:1"))
+        adapter.投入(ir, provenance=("web", "doc:2"))
+
+        # Kの意味Factはcanonical化したまま、証拠台帳だけsource別に保持する。
+        self.assertEqual(len(core.K.find("hds_coordinate", ("対象.実体", "Alpha"))), 1)
+        evidence = [f for f in HDS証拠事実(core) if f.predicate == "hds_coordinate"]
+        self.assertEqual(len(evidence), 2)
+        self.assertEqual(len({f.fact_id for f in evidence}), 2)
+        self.assertTrue(any("doc:1" in f.provenance for f in evidence))
+        self.assertTrue(any("doc:2" in f.provenance for f in evidence))
 
     def test_残差も捨てずKへ保持する(self) -> None:
         ir = HDSIR(
