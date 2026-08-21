@@ -108,6 +108,7 @@ class _証拠群:
     事実ID: tuple[str, ...]
     信頼度: float
     範囲: str = "fact"
+    関係阻害: bool = False
 
 
 def _意味署名(ir: HDSIR, *, fallback_text: str = "") -> HDS意味署名:
@@ -177,11 +178,19 @@ def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
     document_kinds: dict[str, set[str]] = {}
     document_fact_ids: dict[str, list[str]] = {}
     document_confidences: dict[str, list[float]] = {}
+    document_blocked_relations: set[str] = set()
 
     for fact in _facts(core):
         predicate = str(getattr(fact, "predicate", ""))
-        if predicate == "hds_residual" or _fact_blocked(fact):
+        if predicate == "hds_residual":
             continue
+
+        group_id = _document_group_id(fact)
+        if _fact_blocked(fact):
+            if group_id is not None and _relation_name_from_predicate(predicate) is not None:
+                document_blocked_relations.add(group_id)
+            continue
+
         fid = str(getattr(fact, "fact_id", ""))
         confidence = float(getattr(fact, "confidence", 1.0))
         terms, relations, kinds = _fact_signature(core, fact)
@@ -199,7 +208,6 @@ def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
                 )
             )
 
-        group_id = _document_group_id(fact)
         if group_id is None or not (terms or relations or kinds):
             continue
         document_terms.setdefault(group_id, set()).update(terms)
@@ -215,16 +223,21 @@ def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
         ids = tuple(document_fact_ids.get(group_id, ()))
         if len(ids) < 2:
             continue
+        relations = frozenset(document_relations.get(group_id, set()))
+        # 明示された関係が未確定等で、確定関係が一つもない文書は、
+        # 座標の共起だけで関係を確定させない。
+        relation_blocked = group_id in document_blocked_relations and not relations
         confidences = document_confidences.get(group_id, [1.0])
         result.append(
             _証拠群(
                 group_id,
                 frozenset(document_terms[group_id]),
-                frozenset(document_relations.get(group_id, set())),
+                relations,
                 frozenset(document_kinds.get(group_id, set())),
                 ids,
                 sum(confidences) / len(confidences),
                 "document",
+                relation_blocked,
             )
         )
     return tuple(result)
@@ -249,6 +262,9 @@ def _kind_similarity(query: frozenset[str], evidence: frozenset[str]) -> float:
 
 
 def _group_score(question: HDS意味署名, candidate: HDS意味署名, evidence: _証拠群) -> float:
+    if evidence.関係阻害:
+        return 0.0
+
     candidate_coverage = _coverage(candidate.語, evidence.語)
     if candidate_coverage <= 0:
         return 0.0
