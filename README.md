@@ -11,6 +11,41 @@
 - 著作: **がっちむち♂**
 - 実装言語: Python 3.11+
 
+## 30秒で確認する
+
+MINIDORAの公開Runtimeは、HDS Compilerを用意しなくてもLegacy互換経路を使って即時実行できる。
+
+```bash
+python -m venv .venv
+python -m pip install -e .
+python -m minidora "2+3"
+```
+
+出力:
+
+```text
+5です。
+```
+
+採否境界まで機械可読で確認する場合:
+
+```bash
+python -m minidora --json "2+3"
+```
+
+インストール後は `minidora "2+3"` でも同じ入口を利用できる。引数を省略すると対話入力になる。
+
+### 実装上の非ニューラル境界
+
+現行の公開Runtimeについて、非ニューラル性は名称だけでなく実装依存として確認できる。
+
+- `pyproject.toml` のRuntime依存パッケージは **0**
+- `torch` / `transformers` / `numpy` をRuntime依存として要求しない
+- K3 / Llama 3 は構文化・比較・設計上の参照基盤であり、公開Runtimeがそれらのニューラルモデル推論を呼び出すことを成立条件としない
+- HDS Compiler内部実装は公開Runtimeから分離され、公開側はHDS-IR受入契約だけを持つ
+
+この境界により、「非ニューラル」という主張と、公開Runtimeが実際に必要とする実行依存を分離して第三者が確認できる。
+
 ## プロトタイプ完成 — 2026-08-22
 
 MINIDORAは2026-08-22、**非ニューラル／非Transformerの言語計算系として、問題・4候補・外部DataをすべてHDSへコンパイルし、K/Jを通して外部未知ベンチに正答を発生させる一連の経路が閉じた**ことをもって、プロトタイプ完成と判定した。
@@ -128,7 +163,7 @@ K3基盤由来の能力処理       │
 - `HDS意味作用` — 意味Projectionにおける変換・保持・損失・検証履歴
 - `HDS実行核` — 現行Layer-0で実行可能になった局所閉包
 
-`HDSIR.実行可能` が偽の場合、RuntimeはPを捏造せず保留し、IRを履歴へ残す。
+`HDSIR.実行可能` が偽の場合、RuntimeはPを捏造せず保留し、IRを履歴へ残す。実行核が参照する入力座標についても、未確定・未観測・矛盾・留保、または座標欠落があれば実行へ昇格させない。
 
 ## 外部参照R
 
@@ -204,6 +239,7 @@ tests/                          単体・negative control試験
 - `src/minidora/runtime.py` — HDS-IR / Layer-0 / P / R / 主体主幹の統合
 - `src/minidora/言語.py` — HDS Compiler未接続時のLegacy互換入口
 - `src/minidora/主体.py` — 主体状態・理由付き更新・主体整合Gate
+- `src/minidora/__main__.py` — 即時実行CLI / JSON採否出力
 - `設計/07_HDS_IR入力契約.md`
 - `設計/02_Layer0責任契約.md`
 - `設計/06_主体主幹仕様.md`
@@ -218,6 +254,8 @@ python -m venv .venv
 python -m pip install -e .
 python -m unittest discover -s tests -v
 ```
+
+CIではLinux / Windows上のPython 3.11・3.12・3.14で、パッケージ導入・構文確認・単体試験・CLI smoke testを行う。
 
 ## 日本語基底
 
