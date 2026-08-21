@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import heapq
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from .k3_functional import K3相当能力核
 from .semantic_tokens import 意味語
@@ -33,6 +33,13 @@ class _辺:
     逆向き: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class HDS意味Graph索引:
+    隣接: Mapping[str, tuple[_辺, ...]]
+    node_terms: Mapping[str, frozenset[str]]
+    関係Fact数: int
+
+
 def _relation(predicate: str) -> str | None:
     prefix = "hds_relation_"
     if not predicate.startswith(prefix):
@@ -55,31 +62,16 @@ def _fact_blocked(fact: object) -> bool:
     return bool(provenance & _BLOCKING_PROVENANCE)
 
 
-def HDS意味経路探索(
-    core: K3相当能力核,
-    問い語: frozenset[str],
-    候補語: frozenset[str],
-    優先関係: Iterable[str] = (),
-    *,
-    最大深さ: int = 4,
-) -> HDS意味経路結果:
-    """KのHDS方向付き関係を辿り、問い意味から候補意味までの単純路を探す。
+def HDS意味Graph索引構築(core: K3相当能力核) -> HDS意味Graph索引:
+    """現時点のKからHDS方向付き関係索引を一度だけ構築する。
 
-    文書やベンチ形式には依存しない。複数Factを跨ぐ関係連鎖を一つの根拠としてJへ返す。
-    逆向き探索は可到達性確認のため許すが、方向保持のため減点する。
-
-    問い・候補・graph nodeは ``semantic_tokens.意味語`` を共有し、表層屈折差で
-    経路の始点・終点が切れないようにする。未確定・未観測・矛盾・留保のHDS関係は
-    Kに保持されていても確定推論経路へ昇格させない。
-
-    同一路内のnode再訪を禁止する。これにより `A→B→A→C` のような循環を
-    新しい推論深度として加点せず、独立sourceの増加が逆候補の循環scoreを押し上げる
-    ことを防ぐ。
+    1回の候補判定中はKを変更しないため、4候補やeffort追加探索で同じ索引を共有できる。
+    Kが更新された後の別判定では新しい索引を作る。永続cacheではないためstale化しない。
     """
     store = getattr(core.K, "_facts", {})
     adjacency: dict[str, list[_辺]] = {}
     node_terms: dict[str, frozenset[str]] = {}
-    preferred = {str(x) for x in 優先関係}
+    relation_fact_count = 0
 
     for fact in store.values():
         if _fact_blocked(fact):
@@ -96,6 +88,7 @@ def HDS意味経路探索(
         ends = [x for x in args[split + 1:] if x]
         if not starts or not ends:
             continue
+        relation_fact_count += 1
         confidence = float(getattr(fact, "confidence", 1.0))
         fid = str(getattr(fact, "fact_id", ""))
         for start in starts:
@@ -106,6 +99,39 @@ def HDS意味経路探索(
                 node_terms.setdefault(ek, 意味語(end))
                 adjacency.setdefault(sk, []).append(_辺(ek, relation, confidence, fid, False))
                 adjacency.setdefault(ek, []).append(_辺(sk, relation, confidence * 0.82, fid, True))
+
+    frozen_adjacency = {node: tuple(edges) for node, edges in adjacency.items()}
+    return HDS意味Graph索引(frozen_adjacency, dict(node_terms), relation_fact_count)
+
+
+def HDS意味経路探索(
+    core: K3相当能力核,
+    問い語: frozenset[str],
+    候補語: frozenset[str],
+    優先関係: Iterable[str] = (),
+    *,
+    最大深さ: int = 4,
+    索引: HDS意味Graph索引 | None = None,
+) -> HDS意味経路結果:
+    """KのHDS方向付き関係を辿り、問い意味から候補意味までの単純路を探す。
+
+    文書やベンチ形式には依存しない。複数Factを跨ぐ関係連鎖を一つの根拠としてJへ返す。
+    逆向き探索は可到達性確認のため許すが、方向保持のため減点する。
+
+    問い・候補・graph nodeは ``semantic_tokens.意味語`` を共有し、表層屈折差で
+    経路の始点・終点が切れないようにする。未確定・未観測・矛盾・留保のHDS関係は
+    Kに保持されていても確定推論経路へ昇格させない。
+
+    同一路内のnode再訪を禁止する。これにより `A→B→A→C` のような循環を
+    新しい推論深度として加点せず、独立sourceの増加が逆候補の循環scoreを押し上げる
+    ことを防ぐ。
+
+    ``索引`` が渡された場合、K全件走査を再実行せず同一索引を利用する。
+    """
+    graph = 索引 or HDS意味Graph索引構築(core)
+    adjacency = graph.隣接
+    node_terms = graph.node_terms
+    preferred = {str(x) for x in 優先関係}
 
     if not adjacency or not 問い語 or not 候補語:
         return HDS意味経路結果(0.0, (), None)
@@ -162,4 +188,9 @@ def HDS意味経路探索(
     return best_goal
 
 
-__all__ = ["HDS意味経路結果", "HDS意味経路探索"]
+__all__ = [
+    "HDS意味経路結果",
+    "HDS意味Graph索引",
+    "HDS意味Graph索引構築",
+    "HDS意味経路探索",
+]
