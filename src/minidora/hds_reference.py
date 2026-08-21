@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor
 
 from .hds_ir import HDSIR, 値状態
 from .参照 import 参照供給器, 参照記録
@@ -77,17 +78,7 @@ def _役割語群(ir: HDSIR) -> tuple[dict[str, tuple[str, ...]], tuple[tuple[st
 
 
 def HDS参照問合せ候補(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[str, ...]:
-    """HDS-IRの役割構造から、外部参照Rへ渡す対称な検索query群を作る。
-
-    優先順位:
-    1. 正規化表面文
-    2. `対象 → 関係/作用 → 状態/属性 → 条件/文脈 → 焦点` のHDS構造query
-    3. 構造query + 各choice（全候補を同条件で扱う）
-
-    4択等では全choice用queryの枠を先に予約する。未確定・未観測・矛盾・留保した
-    座標は検索queryへ昇格しない。表層同義語を推測で補わず、Compilerが明示した
-    HDS役割と内容だけを使う。
-    """
+    """HDS-IRの役割構造から、外部参照Rへ渡す対称な検索query群を作る。"""
     groups, choices = _役割語群(ir)
     base = " ".join(str(ir.正規化文 or ir.原文).split()).strip()
 
@@ -104,16 +95,33 @@ def HDS参照問合せ候補(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[st
     entity_only = " ".join(groups["対象"])
     anchor = structured or entity_relation or entity_only or base
 
-    # choice対称性を優先する。既定4択では base/structured + 4 choice = 最大6 query。
     budget = max(int(最大候補数), len(choices))
     nonchoice_slots = max(0, budget - len(choices))
     nonchoice = _unique((base, structured, entity_relation, entity_only))[:nonchoice_slots]
-
-    choice_queries = tuple(
-        f"{anchor} {choice}" if anchor else choice
-        for _, choice in choices
-    )
+    choice_queries = tuple(f"{anchor} {choice}" if anchor else choice for _, choice in choices)
     return _unique((*nonchoice, *choice_queries))
+
+
+def _query_pools(
+    provider: 参照供給器,
+    queries: tuple[str, ...],
+    per_query_limit: int,
+    *,
+    max_parallel: int,
+) -> list[tuple[参照記録, ...]]:
+    """Providerが並列安全を宣言した場合だけquery I/Oを並列化する。
+
+    futureは完了順ではなく元query順で回収するため、検索結果の決定性は維持する。
+    未知のcustom Providerは従来どおり逐次実行する。
+    """
+    parallel_safe = bool(getattr(provider, "並列安全", False))
+    if not parallel_safe or len(queries) <= 1 or max_parallel <= 1:
+        return [tuple(provider.検索(query, per_query_limit)) for query in queries]
+
+    workers = min(max(1, int(max_parallel)), len(queries))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="minidora-rq") as executor:
+        futures = [executor.submit(provider.検索, query, per_query_limit) for query in queries]
+        return [tuple(future.result()) for future in futures]
 
 
 def HDS参照検索(
@@ -122,13 +130,14 @@ def HDS参照検索(
     *,
     上限: int = 8,
     一問合せ上限: int = 4,
+    最大問合せ並列: int = 4,
 ) -> tuple[参照記録, ...]:
-    """複数HDS queryの結果をround-robin統合し、先頭queryへの偏りを抑える。"""
+    """複数HDS queryを安全なら並列取得し、元query順round-robinで統合する。"""
     queries = HDS参照問合せ候補(ir)
     if not queries:
         return ()
 
-    pools = [tuple(provider.検索(query, 一問合せ上限)) for query in queries]
+    pools = _query_pools(provider, queries, 一問合せ上限, max_parallel=最大問合せ並列)
     result: list[参照記録] = []
     seen: set[str] = set()
     depth = 0
