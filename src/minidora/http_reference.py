@@ -9,6 +9,7 @@ from typing import Any
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
+from .semantic_tokens import 意味語
 from .参照 import 参照記録
 
 
@@ -77,22 +78,67 @@ def _html_text(raw: object) -> str:
         return " ".join(str(raw or "").split())
 
 
-class OpenAlex参照供給器:
-    """OpenAlex Works検索をMINIDORA外部参照Rへ接続する。"""
+def _Wikipedia本文選択(
+    *,
+    query: str,
+    title: str,
+    description: str,
+    excerpt: str,
+    full_text: str,
+    limit: int,
+) -> str:
+    """検索意味に近い段落を優先し、長文の先頭切捨てによるrelevant fact損失を抑える。"""
+    q_terms = 意味語(query)
+    paragraphs = [line.strip() for line in full_text.splitlines() if line.strip()]
+    scored: list[tuple[int, int, str]] = []
+    for index, paragraph in enumerate(paragraphs):
+        p_terms = 意味語(paragraph)
+        overlap = len(q_terms & p_terms) if q_terms else 0
+        scored.append((overlap, index, paragraph))
 
+    matched = [(score, index, paragraph) for score, index, paragraph in scored if score > 0]
+    if matched:
+        matched.sort(key=lambda item: (-item[0], item[1]))
+        # 強い段落を選んだ後、本文順へ戻して局所文脈を維持する。
+        selected_indices = {index for _, index, _ in matched[:12]}
+        selected = [paragraph for _, index, paragraph in scored if index in selected_indices]
+    else:
+        selected = paragraphs
+
+    pieces: list[str] = []
+    seen: set[str] = set()
+    for value in (title, description, excerpt, *selected):
+        normalized = " ".join(str(value).split()).strip()
+        if not normalized:
+            continue
+        key = normalized.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        pieces.append(normalized)
+
+    out: list[str] = []
+    used = 0
+    for piece in pieces:
+        extra = len(piece) + (1 if out else 0)
+        if out and used + extra > limit:
+            continue
+        if not out and len(piece) > limit:
+            out.append(piece[:limit])
+            break
+        out.append(piece)
+        used += extra
+        if used >= limit:
+            break
+    return "\n".join(out).strip()
+
+
+class OpenAlex参照供給器:
     名称 = "OpenAlex"
     BASE_URL = "https://api.openalex.org/works"
     並列安全 = True
 
-    def __init__(
-        self,
-        api_key: str,
-        *,
-        timeout: float = 12.0,
-        user_agent: str = "MINIDORA/0.4 (OpenAlex reference provider)",
-        JSON取得: JSON取得器 | None = None,
-        最大本文文字数: int = 12000,
-    ) -> None:
+    def __init__(self, api_key: str, *, timeout: float = 12.0, user_agent: str = "MINIDORA/0.4 (OpenAlex reference provider)", JSON取得: JSON取得器 | None = None, 最大本文文字数: int = 12000) -> None:
         if not str(api_key).strip():
             raise ValueError("OpenAlex API keyが必要")
         self.api_key = str(api_key).strip()
@@ -111,12 +157,7 @@ class OpenAlex参照供給器:
         query = " ".join(str(問合せ).split()).strip()
         if not query or 上限 <= 0:
             return ()
-        params = {
-            "search": query,
-            "per_page": str(min(max(1, int(上限)), 100)),
-            "select": "id,doi,display_name,publication_year,abstract_inverted_index,is_retracted,relevance_score",
-            "api_key": self.api_key,
-        }
+        params = {"search": query, "per_page": str(min(max(1, int(上限)), 100)), "select": "id,doi,display_name,publication_year,abstract_inverted_index,is_retracted,relevance_score", "api_key": self.api_key}
         url = self.BASE_URL + "?" + urlencode(params)
         try:
             payload = self._get_json(url, {"User-Agent": self.user_agent, "Accept": "application/json"}, self.timeout)
@@ -124,7 +165,6 @@ class OpenAlex参照供給器:
         except Exception as exc:
             self._error(f"{type(exc).__name__}: {exc}")
             return ()
-
         rows = payload.get("results", ())
         if not isinstance(rows, list):
             return ()
@@ -140,36 +180,16 @@ class OpenAlex参照供給器:
                 continue
             year = row.get("publication_year")
             doi = str(row.get("doi") or "").strip()
-            records.append(
-                参照記録(
-                    識別子="openalex:" + work_id.rsplit("/", 1)[-1],
-                    対象=title or work_id,
-                    内容=content[: self.最大本文文字数],
-                    由来=doi or work_id,
-                    供給器=self.名称,
-                    信頼=1.0,
-                    時点=str(year) if year is not None else None,
-                )
-            )
+            records.append(参照記録("openalex:" + work_id.rsplit("/", 1)[-1], title or work_id, content[: self.最大本文文字数], doi or work_id, self.名称, 1.0, 時点=str(year) if year is not None else None))
             if len(records) >= 上限:
                 break
         return tuple(records)
 
 
 class Wikipedia参照供給器:
-    """MediaWiki REST APIの検索＋page HTMLを外部参照Rへ接続する。"""
-
     並列安全 = True
 
-    def __init__(
-        self,
-        *,
-        言語: str = "en",
-        timeout: float = 12.0,
-        user_agent: str = "MINIDORA/0.4 (Wikipedia reference provider)",
-        JSON取得: JSON取得器 | None = None,
-        最大本文文字数: int = 12000,
-    ) -> None:
+    def __init__(self, *, 言語: str = "en", timeout: float = 12.0, user_agent: str = "MINIDORA/0.4 (Wikipedia reference provider)", JSON取得: JSON取得器 | None = None, 最大本文文字数: int = 12000) -> None:
         language = str(言語).strip().casefold()
         if not language or not language.replace("-", "").isalnum():
             raise ValueError("Wikipedia言語コードが不正")
@@ -210,8 +230,7 @@ class Wikipedia参照供給器:
         with self._cache_lock:
             if key in self._page_cache:
                 return self._page_cache[key]
-        key_lock = self._key_lock(key)
-        with key_lock:
+        with self._key_lock(key):
             with self._cache_lock:
                 if key in self._page_cache:
                     return self._page_cache[key]
@@ -237,7 +256,6 @@ class Wikipedia参照供給器:
         except Exception as exc:
             self._error(f"{type(exc).__name__}: {exc}")
             return ()
-
         pages = payload.get("pages", ())
         if not isinstance(pages, list):
             return ()
@@ -248,25 +266,22 @@ class Wikipedia参照供給器:
             key = str(row.get("key") or row.get("title") or "").strip()
             title = str(row.get("title") or key).strip()
             page_id = str(row.get("id") or key).strip()
+            description = str(row.get("description") or "").strip()
+            excerpt = _html_text(row.get("excerpt"))
             detail = self._page(key) if key else None
             full_text = _html_text(detail.get("html")) if isinstance(detail, Mapping) else ""
-            if not full_text:
-                excerpt = _html_text(row.get("excerpt"))
-                description = str(row.get("description") or "").strip()
-                full_text = "\n".join(value for value in (title, description, excerpt) if value).strip()
-            if not full_text:
+            content = _Wikipedia本文選択(
+                query=query,
+                title=title,
+                description=description,
+                excerpt=excerpt,
+                full_text=full_text,
+                limit=self.最大本文文字数,
+            )
+            if not content:
                 continue
             source_url = f"https://{self.言語}.wikipedia.org/wiki/{quote(key.replace(' ', '_'), safe='')}"
-            records.append(
-                参照記録(
-                    識別子=f"wikipedia:{self.言語}:{page_id}",
-                    対象=title or key,
-                    内容=full_text[: self.最大本文文字数],
-                    由来=source_url,
-                    供給器=self.名称,
-                    信頼=1.0,
-                )
-            )
+            records.append(参照記録(f"wikipedia:{self.言語}:{page_id}", title or key, content, source_url, self.名称, 1.0))
             if len(records) >= 上限:
                 break
         return tuple(records)
