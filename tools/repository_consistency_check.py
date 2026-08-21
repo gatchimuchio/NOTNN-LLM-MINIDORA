@@ -38,6 +38,7 @@ REQUIRED_PATHS = (
     "REFERENCES.md",
     "AGENTS.md",
     "pyproject.toml",
+    ".github/workflows/ci.yml",
     "設計/README.md",
     "設計/02_Layer0責任契約.md",
     "設計/03_日本語命令形P仕様.md",
@@ -54,6 +55,7 @@ REQUIRED_PATHS = (
     "docs/README.md",
     "artifacts/README.md",
     "tools/README.md",
+    "tests/README.md",
     "src/minidora/layer0.py",
 )
 
@@ -70,6 +72,7 @@ CORE_MARKDOWN = (
     "docs/README.md",
     "artifacts/README.md",
     "tools/README.md",
+    "tests/README.md",
 )
 
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
@@ -97,6 +100,16 @@ def _check_local_links(path: str, errors: list[str]) -> None:
             continue
         if not resolved.exists():
             errors.append(f"{path}: 壊れた相対リンク: {raw_target}")
+
+
+def _check_workflows(errors: list[str]) -> None:
+    workflow_dir = ROOT / ".github" / "workflows"
+    for path in sorted(workflow_dir.glob("*.y*ml")):
+        text = path.read_text(encoding="utf-8")
+        if "chappie/" in text:
+            errors.append(
+                f"{path.relative_to(ROOT)}: 正本main方針に反する旧作業ブランチ参照"
+            )
 
 
 def main() -> int:
@@ -163,6 +176,7 @@ def main() -> int:
 
     for path in CORE_MARKDOWN:
         _check_local_links(path, errors)
+    _check_workflows(errors)
 
     if errors:
         print("REPOSITORY_CONSISTENCY=FAIL")
@@ -175,6 +189,7 @@ def main() -> int:
     print(f"LAYER0_VERSION={LAYER0仕様版}")
     print(f"LAYER0_REFERENCE_COMMIT={LAYER0参照コミット}")
     print(f"CHECKED_MARKDOWN={len(CORE_MARKDOWN)}")
+    print("WORKFLOW_BRANCH_POLICY=PASS")
     return 0
 
 
