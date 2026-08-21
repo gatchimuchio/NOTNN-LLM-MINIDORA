@@ -30,6 +30,13 @@ class HDS選択実行結果:
 
 
 def HDS選択問題(ir: HDSIR) -> bool:
+    """Native choice reasoningへ入る構造IRか判定する。
+
+    Compilerが明示的なLayer-0手順を返した場合は、その既存契約を最優先する。
+    Native pathは「choice集合は確定したが手順を持たない」構造IRだけを補完する。
+    """
+    if ir.手順 is not None:
+        return False
     return sum(1 for coord in ir.座標 if coord.座標ID.startswith("choice:")) >= 2
 
 
