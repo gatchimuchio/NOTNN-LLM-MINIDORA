@@ -96,19 +96,41 @@ class 固定参照供給器:
 
 
 class 複合参照供給器:
+    """複数Providerの結果を公平に統合する参照供給器。
+
+    先頭Providerが上限件数を返しても後続Providerを切り捨てず、各Providerの順位を
+    保ったround-robinで統合する。これにより単一source偏重を避け、独立証拠をJ/Kへ
+    渡せる余地を保持する。
+    """
+
     def __init__(self, *供給器群: 参照供給器, 名称: str = "複合参照") -> None:
         self.名称 = 名称
         self._供給器群 = tuple(供給器群)
 
     def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]:
-        結果: list[参照記録] = []
-        既出: set[str] = set()
-        for 供給器 in self._供給器群:
-            for 記録 in 供給器.検索(問合せ, 上限):
-                if 記録.識別子 in 既出:
+        if 上限 <= 0 or not self._供給器群:
+            return ()
+
+        pools = [tuple(provider.検索(問合せ, 上限)) for provider in self._供給器群]
+        result: list[参照記録] = []
+        seen: set[str] = set()
+        depth = 0
+
+        while len(result) < 上限:
+            progressed = False
+            for pool in pools:
+                if depth >= len(pool):
                     continue
-                既出.add(記録.識別子)
-                結果.append(記録)
-                if len(結果) >= 上限:
-                    return tuple(結果)
-        return tuple(結果)
+                progressed = True
+                record = pool[depth]
+                if record.識別子 in seen:
+                    continue
+                seen.add(record.識別子)
+                result.append(record)
+                if len(result) >= 上限:
+                    break
+            if not progressed:
+                break
+            depth += 1
+
+        return tuple(result)
