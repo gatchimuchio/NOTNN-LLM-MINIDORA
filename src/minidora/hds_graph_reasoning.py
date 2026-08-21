@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import heapq
 from typing import Iterable, Mapping
 
+from .hds_data_k import HDS証拠事実
 from .k3_functional import K3相当能力核
 from .semantic_tokens import 意味語
 
@@ -67,18 +68,32 @@ def _fact_blocked(fact: object) -> bool:
     return any(item.startswith("residual_blocked:") for item in provenance)
 
 
+def _graph_facts(core: K3相当能力核) -> tuple[object, ...]:
+    """HDS関係は独立source証拠台帳を優先し、canonical投入順依存を除く。"""
+    store = getattr(core.K, "_facts", {})
+    evidence = HDS証拠事実(core)
+    if not evidence:
+        return tuple(store.values())
+
+    canonical_non_hds: list[object] = []
+    for fact in store.values():
+        provenance = tuple(str(x) for x in getattr(fact, "provenance", ()))
+        if "HDS-IR" not in provenance:
+            canonical_non_hds.append(fact)
+    return tuple(canonical_non_hds) + tuple(evidence)
+
+
 def HDS意味Graph索引構築(core: K3相当能力核) -> HDS意味Graph索引:
     revision = int(getattr(core.K, _GRAPH_REVISION_ATTR, 0))
     cached = getattr(core.K, _GRAPH_CACHE_ATTR, None)
     if cached is not None and cached.revision == revision:
         return cached
 
-    store = getattr(core.K, "_facts", {})
     adjacency: dict[str, list[_辺]] = {}
     node_terms: dict[str, frozenset[str]] = {}
     relation_fact_count = 0
 
-    for fact in store.values():
+    for fact in _graph_facts(core):
         if _fact_blocked(fact):
             continue
         predicate = str(getattr(fact, "predicate", ""))
