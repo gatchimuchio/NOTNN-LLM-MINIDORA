@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from .hds_adapter import HDS独立コンパイル
-from .hds_data_k import HDSIR知識Adapter
+from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
 from .hds_ir import HDSIR, 値状態
 from .k3_functional import K3相当能力核
 from .k3_hds_native import HDSK3結果, HDSIRネイティブAdapter
@@ -58,7 +58,6 @@ def _suspend(reason: str, *, candidate_count: int = 0, data_fail: int = 0) -> HD
 
 
 def _独立コンパイル入口(compile_fn: HDSコンパイル関数) -> HDSコンパイル関数:
-    """Runtime bound methodなら実Compilerを取り出して中立文脈へ切り替える。"""
     owner = getattr(compile_fn, "__self__", None)
     compiler = getattr(owner, "HDSコンパイラ", None)
     if compiler is None:
@@ -74,12 +73,7 @@ def HDS選択推論実行(
     基礎能力核: K3相当能力核,
     努力: str | None = None,
 ) -> HDS選択実行結果:
-    """HDS choice問題を `候補/Data→HDS-IR→K→J` の正規経路で実行する。
-
-    問題IRに実行手順が無くても、確定choice集合を持つ場合はK3 Native choice reasoningを
-    実行核として利用できる。Data生文字列をKへ直入れせず、使用するDataは必ずCompilerを
-    通す。候補と外部Dataは会話Trinity文脈から切離して独立コンパイルする。
-    """
+    """HDS choice問題を `候補/Data→HDS-IR→K→J` の正規経路で実行する。"""
     choices = _choices(question_ir)
     if len(choices) < 2:
         return _suspend("HDS_CHOICE_SET_INCOMPLETE")
@@ -103,6 +97,7 @@ def HDS選択推論実行(
         candidate_irs[label] = candidate_ir
 
     working = 基礎能力核.clone()
+    HDS証拠状態複製(基礎能力核, working)
     ingest = HDSIR知識Adapter(working)
     data_compiled = 0
     data_failed = 0
