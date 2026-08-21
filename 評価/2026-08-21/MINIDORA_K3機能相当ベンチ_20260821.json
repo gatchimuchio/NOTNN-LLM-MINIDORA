@@ -1,0 +1,33 @@
+{
+  "schema_version": "MINIDORA-K3-FUNCTIONAL-EQUIVALENCE-1.0",
+  "date": "2026-08-21",
+  "status": "PASS",
+  "pass_count": 47,
+  "fail_count": 0,
+  "total_count": 47,
+  "runtime": {
+    "elapsed_seconds": 0.6353403609999972,
+    "peak_tracemalloc_mib": 4.487577438354492,
+    "peak_rss_mib": 30.375,
+    "python": "3.12.14",
+    "os": "Ubuntu 24.04"
+  },
+  "fit_metrics": {
+    "before_nll": 2.9444389791664407,
+    "after_nll": 0.22472425695178358,
+    "parameter_count": 3697,
+    "sample_count": 328,
+    "vocabulary_size": 19
+  },
+  "components": {
+    "R": "PASS",
+    "K": "PASS",
+    "M": "PASS",
+    "P": "PASS",
+    "J": "PASS",
+    "G": "PASS",
+    "Layer-0-six-roles": "PASS"
+  },
+  "minidora_runtime_reachable": true,
+  "claim": "K3公開構造に対する機能形式・統合循環の相当。K3の重み・規模・世界知識・一般ベンチマーク・frontier性能の同等性は主張しない。"
+}
