@@ -13,6 +13,7 @@ def _env() -> dict[str, str]:
     env = dict(os.environ)
     src = str(ROOT / "src")
     env["PYTHONPATH"] = src if not env.get("PYTHONPATH") else src + os.pathsep + env["PYTHONPATH"]
+    env["PYTHONIOENCODING"] = "cp1252"
     return env
 
 
@@ -23,6 +24,7 @@ class CLI試験(unittest.TestCase):
             cwd=ROOT,
             env=_env(),
             text=True,
+            encoding="utf-8",
             capture_output=True,
             check=False,
         )
@@ -35,6 +37,7 @@ class CLI試験(unittest.TestCase):
             cwd=ROOT,
             env=_env(),
             text=True,
+            encoding="utf-8",
             capture_output=True,
             check=False,
         )
