@@ -1,5 +1,5 @@
 {
-  "validation": "canonical packages verified before restore; Llama3 and K3 restored byte-identically to supplied originals",
+  "validation": "canonical packages verified; repository packages are content-verified against their manifests before packaging",
   "packages": {
     "Apertus1_5_HDS日本語構文_v1.0_repo.zip": {
       "bytes": 15009,
@@ -25,6 +25,13 @@
       "bytes": 94913529,
       "sha256": "c861a891835d9a11894a4225ca210ca151058cad1e957b71b1ae453dc7f89fef",
       "git_blob_sha1": "0911598ad3336e9a8fa67ad56f9137f0ab6df7bb"
+    },
+    "Llama3_自己一貫性_HDS再構文化_v2_repo.zip": {
+      "bytes": 16262,
+      "sha256": "79ee4e020915b8f488265323f1085b60ed66d56c175facecce825dd470f2af09",
+      "git_blob_sha1": "0b57defa9258b01e2c275bad39712b6f17f46f89",
+      "source_manifest": "構文化/Llama3_自己一貫性_HDS再構文化_v2/MANIFEST.json",
+      "package_kind": "deterministic repository package"
     }
   }
 }
