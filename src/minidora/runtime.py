@@ -3,9 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from .hds_adapter import HDSコンパイラProtocol
+from .hds_adapter import HDSコンパイラProtocol, HDS文脈
 from .hds_ir import HDSIR
 from .layer0 import Layer0
+from .multilingual_surface import 表面化 as 多言語表面化
+from .trinity_context import Trinity文脈系
 from .主体 import 主体主幹, 主体状態, 主体更新提案, 主体整合結果, 主体更新記録
 from .参照 import 参照供給器, 参照記録, 参照矛盾数
 from .命令 import 手順
@@ -40,7 +42,7 @@ class 結果:
 
 
 class ミニドラ:
-    """HDS-IR入力境界、Layer-0・P・R・主体主幹を接続する非ニューラル実行系。"""
+    """HDS-IR入力境界、Trinity J/C/M、Layer-0・P・R・主体主幹を接続する非ニューラル実行系。"""
 
     def __init__(
         self,
@@ -49,14 +51,14 @@ class ミニドラ:
         主体主幹_: 主体主幹 | None = None,
         自然言語器_: 自然言語器 | None = None,
         HDSコンパイラ_: HDSコンパイラProtocol | None = None,
+        Trinity文脈_: Trinity文脈系 | None = None,
     ) -> None:
         self.参照供給器 = 参照供給器_
         self.layer0 = layer0 or Layer0()
         self.主体主幹 = 主体主幹_ or 主体主幹()
         self.自然言語器 = 自然言語器_ or 自然言語器()
         self.HDSコンパイラ = HDSコンパイラ_
-        self._HDS履歴: list[HDSIR] = []
-        self._直前結果: Any = None
+        self.Trinity文脈 = Trinity文脈_ or Trinity文脈系()
 
     @property
     def 主体状態(self) -> 主体状態:
@@ -64,7 +66,11 @@ class ミニドラ:
 
     @property
     def HDS履歴(self) -> tuple[HDSIR, ...]:
-        return tuple(self._HDS履歴)
+        return self.Trinity文脈.記憶主体.IR履歴
+
+    @property
+    def HDS文脈(self) -> HDS文脈:
+        return self.Trinity文脈.判断主体.文脈()
 
     def _主体更新提案(self, 文脈状態: Mapping[str, Any], 要求_: 要求) -> 主体更新提案 | None:
         候補 = 文脈状態.get("主体更新提案", 要求_.主体更新提案)
@@ -87,11 +93,9 @@ class ミニドラ:
             return 採否結果(実行状態.失敗, 基礎.理由 + 主体.理由)
         return 採否結果(実行状態.保留, 基礎.理由 + 主体.理由)
 
-    def _帰還(self, result: 結果, 自動計画: bool) -> 結果:
+    def _帰還(self, result: 結果) -> 結果:
         if result.HDS_IR is not None:
-            self._HDS履歴.append(result.HDS_IR)
-        if 自動計画 and result.採否.状態 == 実行状態.合格 and result.値 is not None:
-            self._直前結果 = result.値
+            self.Trinity文脈.帰還(result.採否, result.値, result.HDS_IR)
         return result
 
     def _HDS未閉包(self, 要求_: 要求, ir: HDSIR, 理由: tuple[str, ...]) -> 結果:
@@ -108,9 +112,13 @@ class ミニドラ:
                 self.主体主幹.履歴,
                 "HDS_IR",
                 ir,
-            ),
-            True,
+            )
         )
+
+    def コンパイル(self, 問合せ: str) -> HDSIR:
+        if self.HDSコンパイラ is None:
+            raise RuntimeError("HDS Compilerが接続されていない")
+        return self.Trinity文脈.コンパイル(self.HDSコンパイラ, 問合せ)
 
     def 実行(self, 要求_: 要求) -> 結果:
         自動計画 = 要求_.手順 is None
@@ -121,11 +129,7 @@ class ミニドラ:
 
         if 自動計画 and self.HDSコンパイラ is not None:
             try:
-                hds_ir = self.HDSコンパイラ.コンパイル(
-                    要求_.問合せ,
-                    前回結果=self._直前結果,
-                    HDS履歴=tuple(self._HDS履歴),
-                )
+                hds_ir = self.コンパイル(要求_.問合せ)
             except (ValueError, TypeError) as exc:
                 主体整合 = self.主体主幹.非適用結果("HDS Compiler実行失敗")
                 return 結果(
@@ -169,26 +173,26 @@ class ミニドラ:
         if 参照必須 and not 参照:
             判定 = 採否(根拠数=0)
             主体整合 = self.主体主幹.非適用結果("参照不足のため主体更新未実行")
-            return self._帰還(
-                結果(
-                    None,
-                    dict(要求_.初期状態),
-                    (),
-                    (),
-                    判定,
-                    self.主体主幹.現在,
-                    主体整合,
-                    self.主体主幹.履歴,
-                    plan_name,
-                    hds_ir,
-                ),
-                自動計画,
+            result = 結果(
+                None,
+                dict(要求_.初期状態),
+                (),
+                (),
+                判定,
+                self.主体主幹.現在,
+                主体整合,
+                self.主体主幹.履歴,
+                plan_name,
+                hds_ir,
             )
+            return self._帰還(result) if hds_ir is not None else result
 
         初期 = dict(要求_.初期状態)
         初期.update(initial_from_plan)
         初期["参照"] = 参照
         初期["主体状態"] = self.主体主幹.状態辞書()
+        if hds_ir is not None:
+            初期["HDS文脈"] = self.HDS文脈
 
         try:
             文脈 = self.layer0.実行(手順_, 初期)
@@ -196,21 +200,19 @@ class ミニドラ:
             if not 自動計画:
                 raise
             主体整合 = self.主体主幹.非適用結果("自動計画の実行失敗")
-            return self._帰還(
-                結果(
-                    None,
-                    初期,
-                    tuple(参照),
-                    (),
-                    採否結果(実行状態.失敗, ("自動計画実行失敗", str(exc))),
-                    self.主体主幹.現在,
-                    主体整合,
-                    self.主体主幹.履歴,
-                    plan_name,
-                    hds_ir,
-                ),
-                自動計画,
+            result = 結果(
+                None,
+                初期,
+                tuple(参照),
+                (),
+                採否結果(実行状態.失敗, ("自動計画実行失敗", str(exc))),
+                self.主体主幹.現在,
+                主体整合,
+                self.主体主幹.履歴,
+                plan_name,
+                hds_ir,
             )
+            return self._帰還(result) if hds_ir is not None else result
 
         値 = 文脈.状態.get("結果")
         提案 = self._主体更新提案(文脈.状態, 要求_)
@@ -225,26 +227,27 @@ class ミニドラ:
         if 要求_.主体整合必須 and 判定.状態 in {実行状態.保留, 実行状態.失敗}:
             値 = None
 
-        return self._帰還(
-            結果(
-                値,
-                dict(文脈.状態),
-                tuple(参照),
-                tuple(文脈.履歴),
-                判定,
-                self.主体主幹.現在,
-                主体整合,
-                self.主体主幹.履歴,
-                plan_name,
-                hds_ir,
-            ),
-            自動計画,
+        result = 結果(
+            値,
+            dict(文脈.状態),
+            tuple(参照),
+            tuple(文脈.履歴),
+            判定,
+            self.主体主幹.現在,
+            主体整合,
+            self.主体主幹.履歴,
+            plan_name,
+            hds_ir,
         )
+        return self._帰還(result) if hds_ir is not None else result
 
     def 応答(self, 問合せ: str) -> str:
-        """通常利用入口。HDS Compilerが注入済みならHDS-IR経路を優先する。"""
+        """通常利用入口。HDS Compiler経路ではIRが指定した表層言語へ戻す。"""
 
         result = self.実行(要求(問合せ))
+        if result.HDS_IR is not None:
+            language = result.HDS_IR.出力言語 or result.HDS_IR.入力言語
+            return 多言語表面化(result.値, result.採否.状態.value, result.採否.理由, language)
         return self.自然言語器.表面化(
             result.値,
             result.採否.状態.value,
