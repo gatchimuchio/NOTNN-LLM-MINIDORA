@@ -108,7 +108,6 @@ def _意味署名(ir: HDSIR, *, fallback_text: str = "") -> HDS意味署名:
         kind = str(coord.種別)
         if kind in _SURFACE_ONLY_KINDS or coord.座標ID.startswith("choice:"):
             continue
-        # HDSが補った定型値ではなく、原文に接地した意味座標を主証拠にする。
         if coord.原文範囲 is not None:
             terms.update(_tokens(coord.内容))
             kinds.add(kind)
@@ -123,65 +122,46 @@ def _意味署名(ir: HDSIR, *, fallback_text: str = "") -> HDS意味署名:
     return HDS意味署名(frozenset(terms), frozenset(relations), frozenset(kinds))
 
 
-def _group_key(fact: object) -> str:
-    provenance = tuple(str(x) for x in getattr(fact, "provenance", ()))
-    if len(provenance) >= 2 and provenance[0] not in {"HDS-IR", "R:text", "R:text:ja"}:
-        return provenance[0] + "|" + provenance[1]
-    return str(getattr(fact, "fact_id", id(fact)))
-
-
 def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
-    grouped: dict[str, list[object]] = {}
-    for fact in _facts(core):
-        grouped.setdefault(_group_key(fact), []).append(fact)
+    """Kは意味Fact集合なので、provenance文書ではなくFact単位で評価する。
 
+    同一意味Factが複数文書に現れてもKnowledgeBaseは重複除去するため、文書groupingすると
+    最初のprovenanceへ偏る。Fact単位ならData取得順に依存しない。
+    """
     result: list[_証拠群] = []
-    for group_id, facts in grouped.items():
+    for fact in _facts(core):
+        predicate = str(getattr(fact, "predicate", ""))
+        args = tuple(str(x) for x in getattr(fact, "args", ()))
+        fid = str(getattr(fact, "fact_id", ""))
+        confidence = float(getattr(fact, "confidence", 1.0))
         terms: set[str] = set()
         relations: set[str] = set()
         kinds: set[str] = set()
-        ids: list[str] = []
-        confidences: list[float] = []
 
-        for fact in facts:
-            predicate = str(getattr(fact, "predicate", ""))
-            args = tuple(str(x) for x in getattr(fact, "args", ()))
-            fid = str(getattr(fact, "fact_id", ""))
-            if fid:
-                ids.append(fid)
-            confidences.append(float(getattr(fact, "confidence", 1.0)))
-
-            relation = _relation_name_from_predicate(predicate)
-            if relation is not None:
-                if relation not in _GENERIC_RELATIONS:
-                    relations.add(relation)
-                terms.update(_tokens(" ".join(x for x in args if x != "→")))
-                continue
-
-            if predicate == "hds_coordinate" and len(args) >= 2:
-                kind = args[0]
-                if kind not in _SURFACE_ONLY_KINDS:
-                    kinds.add(kind)
-                    terms.update(_tokens(args[1]))
-                continue
-
-            if predicate == "hds_residual":
-                # 未解残差は保持されるが、正答を支持する正の証拠にはしない。
-                continue
-
-            # 既存Kの構造Factとの後方互換。
+        relation = _relation_name_from_predicate(predicate)
+        if relation is not None:
+            if relation not in _GENERIC_RELATIONS:
+                relations.add(relation)
+            terms.update(_tokens(" ".join(x for x in args if x != "→")))
+        elif predicate == "hds_coordinate" and len(args) >= 2:
+            kind = args[0]
+            if kind not in _SURFACE_ONLY_KINDS:
+                kinds.add(kind)
+                terms.update(_tokens(args[1]))
+        elif predicate == "hds_residual":
+            continue
+        else:
             terms.update(_tokens(_fact_text(core, fact)))
             relations.add(predicate)
 
         if terms or relations or kinds:
-            confidence = sum(confidences) / len(confidences) if confidences else 1.0
             result.append(
                 _証拠群(
-                    group_id,
+                    fid or str(id(fact)),
                     frozenset(terms),
                     frozenset(relations),
                     frozenset(kinds),
-                    tuple(dict.fromkeys(ids)),
+                    (fid,) if fid else (),
                     confidence,
                 )
             )
@@ -223,8 +203,6 @@ def _group_score(question: HDS意味署名, candidate: HDS意味署名, evidence
         _kind_similarity(question.座標種別, evidence.座標種別),
         _kind_similarity(candidate.座標種別, evidence.座標種別),
     )
-
-    # 語一致は「意味原子の接続条件」、HDS関係/座標一致は構造整合の増幅項。
     structural_multiplier = 1.0 + 1.5 * relation_match + 0.5 * kind_match
     return evidence.信頼度 * (4.0 * candidate_coverage + 2.0 * question_coverage) * structural_multiplier
 
@@ -243,8 +221,8 @@ class HDSIRネイティブAdapter:
     """HDS-IRをK3相当能力核へ直接接続する一般Adapter。
 
     問い・候補・DataのHDS意味署名を比較する。ベンチ名・正解情報には依存しない。
-    DataがHDS構造FactとしてKへ入っている場合は、文書単位の意味原子・関係種別・
-    座標種別を照合する。根拠が無い場合や一意差が無い場合はJ/HDSが保留する。
+    Kへ入った意味Fact単位で意味原子・関係種別・座標種別を照合し、根拠が無い場合や
+    一意差が無い場合はJ/HDSが保留する。
     """
 
     def __init__(self, core: K3相当能力核 | None = None, judge: HDSJudge | None = None) -> None:
@@ -269,9 +247,8 @@ class HDSIRネイティブAdapter:
                 else HDS意味署名(_tokens(option), frozenset(), frozenset())
             )
             proof_ids: list[str] = []
-            source_scores: list[tuple[float, _証拠群]] = []
+            evidence_scores: list[tuple[float, _証拠群]] = []
 
-            # 既存の明示Factとの完全一致は最優先で維持する。
             parsed = self.core.R.parse(option)
             parsed_fact = getattr(parsed, "fact", None)
             direct_score = 0.0
@@ -283,16 +260,16 @@ class HDSIRネイティブAdapter:
                         proof_ids.append(fid)
                     direct_score += 8.0 * float(fact.confidence)
 
-            for group in evidence_groups:
-                score = _group_score(question_signature, candidate_signature, group)
+            for evidence in evidence_groups:
+                score = _group_score(question_signature, candidate_signature, evidence)
                 if score > 0:
-                    source_scores.append((score, group))
+                    evidence_scores.append((score, evidence))
 
-            source_scores.sort(key=lambda item: (-item[0], item[1].群ID))
+            evidence_scores.sort(key=lambda item: (-item[0], item[1].群ID))
             aggregate = direct_score
-            for weight, (score, group) in zip((1.0, 0.35, 0.15), source_scores[:3]):
+            for weight, (score, evidence) in zip((1.0, 0.35, 0.15), evidence_scores[:3]):
                 aggregate += weight * score
-                for fid in group.事実ID:
+                for fid in evidence.事実ID:
                     if fid not in proof_ids:
                         proof_ids.append(fid)
 
