@@ -5,6 +5,7 @@ import math
 from typing import Mapping
 
 from .hds_data_k import HDS証拠事実
+from .hds_effort import HDS探索方針選択
 from .hds_graph_reasoning import HDS意味経路探索
 from .hds_ir import HDSIR, 値状態
 from .k3_functional import Candidate, HDSJudge, JudgeDecision, K3相当能力核, SemanticFrame
@@ -304,13 +305,18 @@ class HDSK3結果:
     候補: tuple[Candidate, ...]
     根拠事実数: int
     理由: tuple[str, ...]
+    努力水準: str = "low"
+    探索深さ上限: int = 6
+    証拠上限: int = 3
 
 
 class HDSIRネイティブAdapter:
     """HDS-IRをK3相当能力核へ直接接続する一般Adapter。
 
     問い・候補・DataのHDS意味署名、独立source証拠、同一文書内の意味共起、K内の
-    方向付きHDS関係を統合する。通常4段、未到達時のみ6段まで関係探索する。
+    方向付きHDS関係を統合する。K3側のeffort controllerをHDS構造量へ接続し、
+    難度に応じて証拠採用幅と追加graph探索深さを変える。
+
     ベンチ名・正解情報には依存せず、根拠が無い場合や一意差が無い場合はJ/HDSが保留する。
     """
 
@@ -318,12 +324,24 @@ class HDSIRネイティブAdapter:
         self.core = core or K3相当能力核()
         self.judge = judge or self.core.J
 
-    def 実行(self, ir: HDSIR, *, 候補IR: Mapping[str, HDSIR] | None = None) -> HDSK3結果:
+    def 実行(
+        self,
+        ir: HDSIR,
+        *,
+        候補IR: Mapping[str, HDSIR] | None = None,
+        努力: str | None = None,
+    ) -> HDSK3結果:
         choices = _choices(ir)
         if not choices:
             decision = JudgeDecision("SUSPEND", None, ("HDS_NO_CHOICE_SET",))
             return HDSK3結果("SUSPEND", None, decision, (), 0, decision.reason_codes)
 
+        探索方針 = HDS探索方針選択(
+            ir,
+            候補IR,
+            指定水準=努力,
+            controller=self.core.policy_controller,
+        )
         question_signature = _意味署名(ir, fallback_text=ir.原文)
         evidence_groups = _証拠群を作る(self.core)
         scored: list[tuple[float, Candidate]] = []
@@ -356,7 +374,10 @@ class HDSIRネイティブAdapter:
 
             evidence_scores.sort(key=lambda item: (-item[0], item[1].範囲, item[1].群ID))
             aggregate = direct_score
-            for weight, (score, evidence) in zip((1.0, 0.35, 0.15), evidence_scores[:3]):
+            for weight, (score, evidence) in zip(
+                探索方針.証拠重み,
+                evidence_scores[:探索方針.証拠上限],
+            ):
                 aggregate += weight * score
                 for fid in evidence.事実ID:
                     if fid not in proof_ids:
@@ -370,13 +391,13 @@ class HDSIRネイティブAdapter:
                 preferred_relations,
                 最大深さ=4,
             )
-            if path.得点 <= 0:
+            if path.得点 <= 0 and 探索方針.graph深さ上限 > 4:
                 path = HDS意味経路探索(
                     self.core,
                     question_signature.語,
                     candidate_signature.語,
                     preferred_relations,
-                    最大深さ=6,
+                    最大深さ=探索方針.graph深さ上限,
                 )
             if path.得点 > 0:
                 aggregate += 2.5 * path.得点
@@ -395,14 +416,29 @@ class HDSIRネイティブAdapter:
                             confidence=confidence,
                             expert="HDS_IR_structural_graph",
                             proof_fact_ids=tuple(proof_ids),
-                            provenance=("HDS-IR", "K", "STRUCTURAL_GRAPH_MATCH"),
+                            provenance=(
+                                "HDS-IR",
+                                "K",
+                                "STRUCTURAL_GRAPH_MATCH",
+                                "effort:" + 探索方針.水準,
+                            ),
                         ),
                     )
                 )
 
         if not scored:
             decision = JudgeDecision("SUSPEND", None, ("NO_KNOWLEDGE_EVIDENCE", "NO_GUESS"))
-            return HDSK3結果("SUSPEND", None, decision, (), 0, decision.reason_codes)
+            return HDSK3結果(
+                "SUSPEND",
+                None,
+                decision,
+                (),
+                0,
+                decision.reason_codes,
+                探索方針.水準,
+                探索方針.graph深さ上限,
+                探索方針.証拠上限,
+            )
 
         scored.sort(key=lambda item: (-item[0], -item[1].confidence, item[1].answer))
         candidates = tuple(candidate for _, candidate in scored)
@@ -413,7 +449,17 @@ class HDSIRネイティブAdapter:
             if margin <= max(0.12, top_score * 0.02):
                 decision = JudgeDecision("SUSPEND", None, ("AMBIGUOUS_EVIDENCE", "NO_GUESS"))
                 proof_count = len({fid for candidate in candidates for fid in candidate.proof_fact_ids})
-                return HDSK3結果("SUSPEND", None, decision, candidates, proof_count, decision.reason_codes)
+                return HDSK3結果(
+                    "SUSPEND",
+                    None,
+                    decision,
+                    candidates,
+                    proof_count,
+                    decision.reason_codes,
+                    探索方針.水準,
+                    探索方針.graph深さ上限,
+                    探索方針.証拠上限,
+                )
 
         frame = SemanticFrame(
             kind="question",
@@ -427,7 +473,17 @@ class HDSIRネイティブAdapter:
         decision = self.judge.decide(frame, (top_candidate,))
         selected = decision.selected_candidate.answer if decision.selected_candidate else None
         proof_count = len({fid for candidate in candidates for fid in candidate.proof_fact_ids})
-        return HDSK3結果(decision.status, selected, decision, candidates, proof_count, decision.reason_codes)
+        return HDSK3結果(
+            decision.status,
+            selected,
+            decision,
+            candidates,
+            proof_count,
+            decision.reason_codes,
+            探索方針.水準,
+            探索方針.graph深さ上限,
+            探索方針.証拠上限,
+        )
 
 
 __all__ = ["HDS意味署名", "HDSK3結果", "HDSIRネイティブAdapter"]
