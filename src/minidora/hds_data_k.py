@@ -8,7 +8,6 @@ from .hds_ir import HDSIR, 値状態
 from .k3_functional import Fact, K3相当能力核
 
 
-_SAFE = re.compile(r"[^0-9A-Za-z_一-龥ぁ-んァ-ヶー]+")
 _SURFACE_ONLY_KINDS = {
     "source_text",
     "language.input",
@@ -22,7 +21,12 @@ _GRAPH_CACHE_ATTR = "_hds_graph_index_cache"
 
 
 def _predicate(kind: str) -> str:
-    normalized = _SAFE.sub("_", str(kind)).strip("_").casefold()
+    """HDS関係種別を可逆にK predicateへ写す。
+
+    `記述→問い` を `記述_問い` へ潰すと、問いIR側の生関係ラベルと再照合できなくなる。
+    Fact predicateは識別子制約を持たないため、空白だけ正規化して関係記号を保持する。
+    """
+    normalized = re.sub(r"\s+", " ", str(kind)).strip()
     return "hds_relation_" + (normalized or "unknown")
 
 
@@ -82,7 +86,6 @@ def _残差marker(source_blocked: bool, kinds: Iterable[str]) -> tuple[str, ...]
     blocked = source_blocked or bool(kinds_tuple)
     markers: list[str] = []
     if blocked:
-        # 既存HDS状態語へ接続し、確定回答根拠ではなく留保扱いにする。
         markers.append("value_state:留保")
     if source_blocked:
         markers.append("residual_blocked:semantic_loss")
