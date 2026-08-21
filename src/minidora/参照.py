@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterable, Protocol
 
 
@@ -14,6 +14,7 @@ class 参照記録:
     由来: str
     供給器: str
     信頼: float = 1.0
+    意味: tuple[tuple[str, object], ...] = field(default_factory=tuple)
 
 
 class 参照供給器(Protocol):
