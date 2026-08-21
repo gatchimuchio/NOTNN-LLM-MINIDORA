@@ -5,6 +5,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from .hds_adapter import HDSコンパイラProtocol, HDS文脈
 from .hds_ir import HDSIR
+from .hds_reference import HDS参照検索
 from .k3_functional import K3相当能力核, SystemResult as K3能力結果
 from .layer0 import Layer0
 from .multilingual_surface import 表面化 as 多言語表面化
@@ -187,8 +188,10 @@ class ミニドラ:
 
         参照 = ()
         if self.参照供給器 is not None:
-            検索問合せ = hds_ir.正規化文 if hds_ir is not None else 要求_.問合せ
-            参照 = self.参照供給器.検索(検索問合せ)
+            if hds_ir is not None:
+                参照 = HDS参照検索(self.参照供給器, hds_ir)
+            else:
+                参照 = self.参照供給器.検索(要求_.問合せ)
         if 参照必須 and not 参照:
             判定 = 採否(根拠数=0)
             主体整合 = self.主体主幹.非適用結果("参照不足のため主体更新未実行")
