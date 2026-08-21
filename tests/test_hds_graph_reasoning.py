@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from minidora.hds_data_k import HDSIR知識Adapter
-from minidora.hds_graph_reasoning import HDS意味経路探索
+from minidora.hds_graph_reasoning import HDS意味Graph索引構築, HDS意味経路探索
 from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係
 from minidora.k3_functional import K3相当能力核
 from minidora.semantic_tokens import 意味語
@@ -35,12 +35,7 @@ class HDSGraph単純路試験(unittest.TestCase):
         adapter.投入(_relation_ir("engine"), provenance=("fixture", "doc:engine"))
         adapter.投入(_relation_ir("stone"), provenance=("fixture", "doc:stone"))
 
-        result = HDS意味経路探索(
-            core,
-            意味語("Alpha"),
-            意味語("stone"),
-            最大深さ=4,
-        )
+        result = HDS意味経路探索(core, 意味語("Alpha"), 意味語("stone"), 最大深さ=4)
         self.assertGreater(result.得点, 0.0)
         self.assertEqual(result.深さ, 1)
         self.assertEqual(len(result.事実ID), 1)
@@ -67,15 +62,25 @@ class HDSGraph単純路試験(unittest.TestCase):
         )
         adapter.投入(second, provenance=("fixture", "doc:2"))
 
-        result = HDS意味経路探索(
-            core,
-            意味語("Alpha"),
-            意味語("Engine"),
-            最大深さ=4,
-        )
+        result = HDS意味経路探索(core, 意味語("Alpha"), 意味語("Engine"), 最大深さ=4)
         self.assertGreater(result.得点, 0.0)
         self.assertEqual(result.深さ, 2)
         self.assertGreaterEqual(len(result.事実ID), 2)
+
+    def test_graph索引はK更新まで再利用し投入後に無効化する(self) -> None:
+        core = K3相当能力核()
+        adapter = HDSIR知識Adapter(core)
+        adapter.投入(_relation_ir("engine"), provenance=("fixture", "doc:1"))
+
+        first = HDS意味Graph索引構築(core)
+        second = HDS意味Graph索引構築(core)
+        self.assertIs(first, second)
+
+        adapter.投入(_relation_ir("stone"), provenance=("fixture", "doc:2"))
+        third = HDS意味Graph索引構築(core)
+        self.assertIsNot(first, third)
+        self.assertGreater(third.revision, first.revision)
+        self.assertGreaterEqual(third.関係Fact数, first.関係Fact数)
 
 
 if __name__ == "__main__":
