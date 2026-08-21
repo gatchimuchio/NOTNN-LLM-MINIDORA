@@ -93,6 +93,9 @@ class HDSIR:
     保持状態: str = "FULL_FIELD_ACTIVE"
     暫定性状態: str = "PROVISIONAL_BY_DEFAULT"
     手順: 手順 | None = None
+    入力言語: str = "ja"
+    出力言語: str | None = None
+    文脈引用: tuple[str, ...] = ()
 
     def 座標辞書(self) -> dict[str, HDS座標]:
         return {item.座標ID: item for item in self.座標}

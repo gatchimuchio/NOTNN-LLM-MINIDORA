@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from .hds_ir import HDSIR
+
+
+@dataclass(frozen=True, slots=True)
+class HDS文脈:
+    """Trinityの記憶主体Mから判断主体JがCompilerへ引用する現在文脈。"""
+
+    記憶版: int = 0
+    現在焦点: Any = None
+    直前結果: Any = None
+    直前IR: HDSIR | None = None
+    未解残差: tuple[tuple[str, str], ...] = ()
+    記憶引用: tuple[str, ...] = ()
 
 
 class HDSコンパイラProtocol(Protocol):
@@ -14,7 +27,8 @@ class HDSコンパイラProtocol(Protocol):
         *,
         前回結果: Any = None,
         HDS履歴: tuple[HDSIR, ...] = (),
+        文脈: HDS文脈 | None = None,
     ) -> HDSIR: ...
 
 
-__all__ = ["HDSコンパイラProtocol"]
+__all__ = ["HDS文脈", "HDSコンパイラProtocol"]
