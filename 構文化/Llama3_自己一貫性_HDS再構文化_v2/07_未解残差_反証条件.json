@@ -1,0 +1,44 @@
+[
+  {
+    "id": "RS-01",
+    "type": "causal_attribution",
+    "description": "Dense FFN / 全層共通経路が自己一貫性へどれだけ因果寄与するかは単独で分離できていない。",
+    "next_probe": "同一data/post-training条件でDense↔MoEだけを変えた対照、または近似ablation。",
+    "status": "OPEN"
+  },
+  {
+    "id": "RS-02",
+    "type": "posttraining_confound",
+    "description": "自己一貫性が主にpreference training由来であり、architecture差が二次的である可能性。",
+    "next_probe": "Llama3 Base vs Instructの長期一貫性比較。",
+    "status": "OPEN"
+  },
+  {
+    "id": "RS-03",
+    "type": "history_confound",
+    "description": "観測される自己一貫性の多くが、単に過去assistant出力をpromptへ再入力することだけで成立する可能性。",
+    "next_probe": "同一modelでassistant履歴を保持/除去/要約して比較。",
+    "status": "OPEN"
+  },
+  {
+    "id": "RS-04",
+    "type": "weight_level_unknown",
+    "description": "自己一貫性に関わるweight局所帰属は未観測。Llama3 70B weight全量HDS解析は未実施。",
+    "next_probe": "weight accessが可能なら全量または層横断統計でDense共通性と表現安定性を観測。",
+    "status": "OPEN"
+  },
+  {
+    "id": "RS-05",
+    "type": "perception",
+    "description": "『自己がある』という知覚の一部が言語スタイル・一人称・応答傾向による観測者側Projectionである可能性。",
+    "next_probe": "一人称表現を除去しても判断履歴・選好・訂正の一貫性が残るか評価。",
+    "status": "OPEN"
+  },
+  {
+    "id": "RS-06",
+    "type": "k3_shared_path",
+    "description": "K3にはshared full-width pathがあるため、MoE routingだけでLlama3との差を説明するのは不十分。",
+    "next_probe": "K3内でshared pathとrouted pathの寄与を分離し、主体主幹候補の配置点を再評価。",
+    "status": "OPEN"
+  }
+]

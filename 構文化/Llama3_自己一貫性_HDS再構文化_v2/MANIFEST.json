@@ -1,0 +1,52 @@
+{
+  "artifact": "Llama3_自己一貫性_HDS再構文化_v2",
+  "date": "2026-08-21",
+  "framework": "HDS rev4.1",
+  "files": [
+    {
+      "path": "00_統合結論.md",
+      "bytes": 3090,
+      "sha256": "f702e203a737629eb07ae38e080c44d89a7cc4a44377eb244aaca02cf38f555f"
+    },
+    {
+      "path": "01_HDS_Case.json",
+      "bytes": 2835,
+      "sha256": "671a767084f4b79ef98f599db3d548d8411c6a1229cd5346085dadf31fb1c6ee"
+    },
+    {
+      "path": "02_観測台帳.jsonl",
+      "bytes": 6011,
+      "sha256": "643d890fa199a8a7cd82f4ff89096e0a9fd3c297441e7163e548a7dfaa6e6f4b"
+    },
+    {
+      "path": "03_成立関係_自己一貫性.json",
+      "bytes": 4414,
+      "sha256": "445c7149425b1b1c64a3a04631960dd79e5cd9f4c8c2e53b67a7d2a81bbf720d"
+    },
+    {
+      "path": "04_K3差分.md",
+      "bytes": 2532,
+      "sha256": "181f9c27263e9c57d95ab938c5d5de3254764b81409708f35d1ad49fe45cbc84"
+    },
+    {
+      "path": "05_ミニドラ_主体主幹移植仕様候補.md",
+      "bytes": 3417,
+      "sha256": "58ec8b8bf48ed09e5cd6775f56ec7713a6c120b509fd59b45fa03264bb8ff080"
+    },
+    {
+      "path": "06_旧Llama3_v1との差分.md",
+      "bytes": 2741,
+      "sha256": "59642964bd22d558f23e0c57f4fe996a584299be22e53c8aa40488b29b2942ab"
+    },
+    {
+      "path": "07_未解残差_反証条件.json",
+      "bytes": 2016,
+      "sha256": "27f4dc01d0d93ddde65e67be48d9c002d3336e755fd56e4ef73d81c33e7f0d0c"
+    },
+    {
+      "path": "08_HDS監査.md",
+      "bytes": 1124,
+      "sha256": "39d02c78d962714747060c42694d20998bd8423fe3db4be43edd95b71e9c8ada"
+    }
+  ]
+}

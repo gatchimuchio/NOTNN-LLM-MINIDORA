@@ -4,7 +4,10 @@
     "name": "主体住所の系列内固定",
     "state": "LOCAL_MECHANISM",
     "relation": "system/user/assistantを明示し、生成開始位置をassistantへ固定することで、毎turnの出力主体を同じ系列住所へ再配置する。",
-    "evidence": ["O01", "O02"],
+    "evidence": [
+      "O01",
+      "O02"
+    ],
     "k3_diff": "K3にも会話系列化はあるため、これ単独はLlama3固有差ではない。"
   },
   {
@@ -12,7 +15,10 @@
     "name": "自己出力の再帰的再入力",
     "state": "LOCAL_MECHANISM",
     "relation": "前turnのassistant出力が次turnの入力系列へ戻り、現在のassistant出力を条件付ける。自己連続性は隠れた永続自我ではなく、自己出力の再入力ループとして成立できる。",
-    "evidence": ["O03", "O04"],
+    "evidence": [
+      "O03",
+      "O04"
+    ],
     "k3_diff": "K3にも系列履歴はあるが、KDAでは履歴保持/減衰という別の状態更新が介在する。"
   },
   {
@@ -20,7 +26,11 @@
     "name": "全履歴の直接参照可能性",
     "state": "LOCAL_MECHANISM",
     "relation": "文脈内の過去assistant発話は、全層global causal attentionから直接参照可能な位置付き履歴として残る。",
-    "evidence": ["O04", "O05", "O08"],
+    "evidence": [
+      "O04",
+      "O05",
+      "O08"
+    ],
     "k3_diff": "K3はKDAのrecurrent stateとMLA global interactionを併用し、履歴利用の表現形式が非一様。"
   },
   {
@@ -28,7 +38,11 @@
     "name": "全token共通Dense変換主幹",
     "state": "MECHANISM_CANDIDATE",
     "relation": "各tokenがrouterによるexpert分岐なしに各層の同一Dense FFN経路を通るため、入力内容が違っても変換主体のparameter場は経路上で不変に保たれる。",
-    "evidence": ["O06", "O09", "O15"],
+    "evidence": [
+      "O06",
+      "O09",
+      "O15"
+    ],
     "k3_diff": "K3はLatentMoEでtoken依存のexpert選択が入る。ただしshared full-width pathがあるため、MoEだけを一貫性差の単独原因とはしない。"
   },
   {
@@ -36,7 +50,9 @@
     "name": "逐次残差による深さ方向連続性",
     "state": "MECHANISM_CANDIDATE",
     "relation": "各層は直前状態を主幹としてattention/FFN差分を加えるため、深さ方向の状態更新が一本の逐次系列として保持される。",
-    "evidence": ["O07"],
+    "evidence": [
+      "O07"
+    ],
     "k3_diff": "K3 AttnResは先行block表現を選択参照するため、深さ方向の情報流がLlama3より選択的・非一様。"
   },
   {
@@ -44,7 +60,10 @@
     "name": "生成可能集合と自己選択傾向の分離",
     "state": "LOCAL_MECHANISM",
     "relation": "生成可能な候補の存在と、最終的にどれを選ぶかは別であり、preference trainingが後者を整形する。『同じ主体らしい答えを選び続ける』性質は選択層に帰属し得る。",
-    "evidence": ["O10", "O11"],
+    "evidence": [
+      "O10",
+      "O11"
+    ],
     "k3_diff": "K3はdomain×effortのspecialized RL expertsを統合する形成経路を持つため、選択傾向の形成経路がより複合。"
   },
   {
@@ -52,8 +71,23 @@
     "name": "自己の再構成型連続性",
     "state": "PRINCIPLE_CANDIDATE",
     "relation": "Llama3の自己一貫性は、永続的な内在自己を保存するより、主体住所・過去自己出力・固定parameter場・逐次残差・選択傾向を毎turn再結合して『同じ主体』を再構成することで成立する可能性が高い。",
-    "evidence": ["O01", "O02", "O03", "O04", "O06", "O07", "O09", "O10", "O13"],
-    "countermodels": ["post-training単独説", "prompt/history単独説", "scale/data単独説", "ユーザー知覚による擬似一貫性説"],
+    "evidence": [
+      "O01",
+      "O02",
+      "O03",
+      "O04",
+      "O06",
+      "O07",
+      "O09",
+      "O10",
+      "O13"
+    ],
+    "countermodels": [
+      "post-training単独説",
+      "prompt/history単独説",
+      "scale/data単独説",
+      "ユーザー知覚による擬似一貫性説"
+    ],
     "falsification": "Dense経路を維持しても一貫性が消える、またはMoE化のみで一貫性が維持される統制比較が得られ、他要因で十分説明できる場合は再開放。"
   },
   {
@@ -61,7 +95,11 @@
     "name": "自己一貫性の境界",
     "state": "LOCAL_MECHANISM",
     "relation": "文脈切断、sampling増大、system/role変更、preference境界の変更により一貫性は崩れ得る。従ってLlama3の『自己』は無条件永続実体ではない。",
-    "evidence": ["O12", "O13", "O14"],
+    "evidence": [
+      "O12",
+      "O13",
+      "O14"
+    ],
     "k3_diff": "ミニドラではこの弱点を明示的な主体状態正本で補う余地がある。"
   }
 ]
