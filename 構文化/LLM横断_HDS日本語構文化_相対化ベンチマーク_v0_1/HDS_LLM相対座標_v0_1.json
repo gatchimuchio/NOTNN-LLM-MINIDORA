@@ -1,0 +1,365 @@
+{
+  "schema": "HDS-LLM-relative-coordinate-v0.1",
+  "date": "2026-08-21",
+  "principle": "単一尺度の点数順位ではなく、同一の日本語HDS座標へ複数対象を置き、共通項・差分・未観測を保持する。相対化で新軸が出た場合はHDS観測軸を更新し、必要な対象を再投影する。",
+  "observation_levels": {
+    "D4": "weight全payload実読＋tensor全数監査＋公開設定/構造を照合",
+    "D3": "公開weight/config/codeがあり、今回config/構造を直接観測。weight全量実読は未実施",
+    "D2": "開発元の公式model/system card・engineering文書・公開挙動まで。内部weight/configは未観測",
+    "D1": "製品/API挙動中心。内部構造への確定は行わない"
+  },
+  "axes": [
+    {
+      "id": "A0",
+      "name": "観測深度",
+      "definition": "対象ごとの証拠密度を座標の一部として保持する。D4/D3/D2/D1を同一確度として扱わない。"
+    },
+    {
+      "id": "A1",
+      "name": "成立物境界",
+      "definition": "モデル本体 / 推論runtime / agent harness / safety classifier・router / product tool integrationを分離する。"
+    },
+    {
+      "id": "A2",
+      "name": "系列方向の情報流",
+      "definition": "全系列attention / 局所window / recurrent・linear状態更新 / 圧縮長距離参照 / sparse選択を別作用として保持する。"
+    },
+    {
+      "id": "A3",
+      "name": "深さ方向の情報流",
+      "definition": "通常residual / AttnRes / mHC等を系列attentionから独立させる。"
+    },
+    {
+      "id": "A4",
+      "name": "幅方向の情報流",
+      "definition": "Dense FFN / routed expert / shared expertを独立軸化する。MoEをattentionの一種にしない。"
+    },
+    {
+      "id": "A5",
+      "name": "未来方向・予測補助",
+      "definition": "MTPやdraft/speculatorを主自己回帰出力と分離する。training補助とserving補助も分ける。"
+    },
+    {
+      "id": "A6",
+      "name": "入力表象・モダリティ前段",
+      "definition": "text decoder本体とvision/audio encoder・tokenizer・adapterを分離する。"
+    },
+    {
+      "id": "A7",
+      "name": "形成過程",
+      "definition": "pretraining / continued pretraining / SFT / preference / RL / agentic trajectory学習をruntime機構と分離する。"
+    },
+    {
+      "id": "A8",
+      "name": "展開後制御",
+      "definition": "fallback、classifier、routing、tool orchestration、cache、approval等をモデル能力から分離する。"
+    },
+    {
+      "id": "A9",
+      "name": "版・時間境界",
+      "definition": "同名familyでも版を跨いで逆流させない。新情報は系列証拠として保持し、対象版へ無条件遡及しない。"
+    }
+  ],
+  "hds_updates": [
+    {
+      "rev": "R0",
+      "trigger": "旧Llama3/OLMo3等の単体構文化",
+      "change": "記号化・系列変換・形成・実行時選択・評価・安全を分離。"
+    },
+    {
+      "rev": "R1",
+      "trigger": "公開weight系と非公開frontier系を同一場へ置いた",
+      "change": "A0 観測深度を追加。未知を性能差として扱わない。"
+    },
+    {
+      "rev": "R2",
+      "trigger": "OpenAI GPT-5.6 / Claude Fable-Mythos",
+      "change": "A1/A8。モデル本体・推論runtime・agent harness・classifier/fallbackを分離。"
+    },
+    {
+      "rev": "R3",
+      "trigger": "OLMo3 vs Qwen3.6",
+      "change": "A2を「局所/全体」だけでなく「配置周期」と「局所作用子」に分解。window参照とrecurrent状態更新を別物化。"
+    },
+    {
+      "rev": "R4",
+      "trigger": "DeepSeek V4 vs K3",
+      "change": "A3。系列方向と深さ方向の情報輸送を直交軸化。mHC/AttnResをattentionへ潰さない。"
+    },
+    {
+      "rev": "R5",
+      "trigger": "Qwen/DeepSeek/K3 MoE比較",
+      "change": "A4。幅方向の専門経路選択を系列・深さ方向の選択から分離。"
+    },
+    {
+      "rev": "R6",
+      "trigger": "Qwen MTP / OpenAI speculative draft",
+      "change": "A5。未来予測補助を主モデル因果列から分離し、training/servingの位置も保持。"
+    },
+    {
+      "rev": "R7",
+      "trigger": "Apertus1.0→1.5、Gemini/Qwen multimodal",
+      "change": "A6。モダリティ前段の追加と中央decoder再設計を同一視しない。"
+    },
+    {
+      "rev": "R8",
+      "trigger": "Grok4.6のmulti-harness SFT/RL、各社deployment差",
+      "change": "A7/A8。形成時に使ったharnessと展開時harnessを分離し、能力成立の因果を保持。"
+    }
+  ],
+  "models": [
+    {
+      "name": "OpenAI GPT-5.6 Sol",
+      "group": "frontier closed",
+      "obs": "D2",
+      "core": "内部weight/configは非公開。内部architectureを推定しない。",
+      "sequence": "未確定",
+      "depth": "未確定",
+      "width": "未確定",
+      "future": "serving側にdraft/speculatorを公式説明。主モデル内部機構とは分離。",
+      "modality": "製品/API能力は多様だが本稿ではcore内部実装へ遡及しない。",
+      "formation": "task successとefficiency双方をtrainingで最適化すると公式説明。",
+      "deployment": "公式に model / inference / agentic harness を分離。inferenceはrouting・scheduling・kernels・caching・speculative decoding等。harnessはRust orchestrationでmodels/tools/user environmentを接続。",
+      "hds": "最重要点は「ChatGPT/Codexの観測性能 ≠ model weight単体」。システム成立物を三層以上に切る基準点。",
+      "unresolved": [
+        "core architecture",
+        "parameter geometry",
+        "内部のsequence/depth/width機構"
+      ]
+    },
+    {
+      "name": "Claude Fable 5 / Mythos 5",
+      "group": "frontier closed / natural experiment",
+      "obs": "D2",
+      "core": "AnthropicがFable 5とMythos 5を同じunderlying modelと明示。",
+      "sequence": "未確定",
+      "depth": "未確定",
+      "width": "未確定",
+      "future": "未確定",
+      "modality": "公開サービス能力としてvision等あり。内部統合方式は未確定。",
+      "formation": "内部詳細は限定公開。",
+      "deployment": "Fableは外部classifier/safeguardを伴い、flagged queryをOpusへfallback/reroute。Mythosは同じunderlying modelで一部safeguardを外す。",
+      "hds": "同一core modelでも展開後制御だけで「別名サービス」「別の可観測挙動」が成立する自然実験。A1/A8を強く確定。",
+      "unresolved": [
+        "underlying architecture",
+        "weight geometry",
+        "classifier内部詳細の全量"
+      ]
+    },
+    {
+      "name": "Google Gemini 3.7 Flash / 3.1 Pro",
+      "group": "frontier closed multimodal",
+      "obs": "D2",
+      "core": "3.7 Flashは3.6 Flash依存、3.1 Proは3 Pro依存と公式cardに明示。詳細weight geometryは非公開。",
+      "sequence": "未確定",
+      "depth": "未確定",
+      "width": "未確定",
+      "future": "customizable thinking configurationを持つが内部実装へは遡及しない。",
+      "modality": "text/image/audio/video、1M context。tool useはfunction calling/search/computer use等のproduct/API境界として観測。",
+      "formation": "版依存関係は明示されるが内部recipeの確定範囲は限定。",
+      "deployment": "Gemini App/API/Vertex等複数channel。tool capabilityをcore weight属性と同一視しない。",
+      "hds": "「natively multimodal」という機能表現と、内部のモダリティ接続方式は別。非公開系では能力名から部品を逆推定しない基準点。",
+      "unresolved": [
+        "internal architecture details",
+        "modality integration topology",
+        "thinking internal mechanism"
+      ]
+    },
+    {
+      "name": "DeepSeek V4",
+      "group": "frontier architecture-public",
+      "obs": "D3",
+      "core": "V4はV3のMLAをhybrid local + long-range attentionへ置換し、residualをmHCへ置換する公開実装仕様。",
+      "sequence": "三系統: sliding-window、CSA（低圧縮＋indexer top-k）、HCA（高圧縮＋全compressed entry参照）。さらにlong-range branchとlocal sliding branchを併置。",
+      "depth": "Manifold-Constrained Hyper-Connections (mHC)。系列attentionとは別軸。",
+      "width": "MoE。詳細はV4系config/implementationに依存し、今回weight全量は未実読。",
+      "future": "V4 paper系列の補助機構は別軸で扱う。今回、未確認部分を一般論で埋めない。",
+      "modality": "本稿対象はlanguage model core。",
+      "formation": "advanced optimization techniquesをpaperが報告。",
+      "deployment": "Transformers実装まで観測。production harnessは別。",
+      "hds": "K3のAttnResと並べることで「系列方向の参照」と「深さ方向の輸送」が直交することを強く相対化。CSA/HCAはさらに圧縮率・選択有無を別軸化。",
+      "unresolved": [
+        "全weight意味分布",
+        "expert固有意味",
+        "production routing/harness"
+      ]
+    },
+    {
+      "name": "Qwen3.6-35B-A3B",
+      "group": "frontier open-weight multimodal MoE",
+      "obs": "D3",
+      "core": "config直接観測: hidden 2048、40 layers、full_attention_interval=4。26 safetensors shardが公開。",
+      "sequence": "layer_typesは linear ×3 → full ×1 の反復。linear側とglobal full attentionを周期配置。",
+      "depth": "通常block depthとして観測。K3 AttnRes/mHC型の独立深さ輸送は今回configから確定しない。",
+      "width": "256 experts、tokenあたり8 routed、shared expertあり。sequence作用と独立。",
+      "future": "mtp_num_hidden_layers=1。主出力経路とは別の予測補助として保持。",
+      "modality": "vision_configを別に持ち、vision depth 27、out_hidden_size 2048。text coreとvision前段を分離して記述可能。",
+      "formation": "post-trained model weights/configが公開。",
+      "deployment": "vLLM/SGLang等で可搬。productのQwen Plusとこのopen-weight個体を同一視しない。",
+      "hds": "OLMo3との比較が決定的。同じ「3局所系＋1全体」の周期でも、Qwenはlinear/recurrent状態更新、OLMoはsliding window明示参照。配置周期と作用子を分離する必要が出た。",
+      "unresolved": [
+        "全26 shardのpayload意味解析",
+        "各expertの意味",
+        "Qwen3.6 Plusとの内部同一性"
+      ]
+    },
+    {
+      "name": "Grok 4.6",
+      "group": "frontier closed agentic",
+      "obs": "D2",
+      "core": "4.5を基盤にlong-running agent/visual-interactive workを強化。内部weight architectureは非公開として保持。",
+      "sequence": "未確定",
+      "depth": "未確定",
+      "width": "未確定",
+      "future": "未確定",
+      "modality": "visual/interactive projectsを強化するが内部接続方式は未確定。",
+      "formation": "長いsupplemental training、model-generated reasoning/technical data、高品質engineering data、改善optimizer/recipe。その後4.5でSFT trajectoryをreasoning efforts・agent harnesses・複数domainに渡って再生成し、agentic RLを多種environmentで実施。",
+      "deployment": "Cursor、Grok Build、API等。Build workflowsは多agent orchestrationを別product層として持つ。",
+      "hds": "「harness」は展開時だけでなく形成時教師軌跡にも入る。形成harnessと展開harnessを分ける必要を示す基準点。",
+      "unresolved": [
+        "core architecture",
+        "weight geometry",
+        "training environment全量"
+      ]
+    },
+    {
+      "name": "Llama 3 70B (2024-04)",
+      "group": "dense anchor",
+      "obs": "D3",
+      "core": "decoder-only dense Llama。hidden 8192、FFN 28672、80 layers、64 Q heads / 8 KV heads、context 8192、vocab 128256。",
+      "sequence": "全層global causal attention + GQA。局所/全体周期なし。",
+      "depth": "標準residual stack。",
+      "width": "dense FFN。MoEなし。",
+      "future": "主構造上なし。",
+      "modality": "text。",
+      "formation": "pretraining/posttrainingをcore geometryから分離。旧HDSでも生成可能集合と選択傾向を分けていた。",
+      "deployment": "runtime guard等はcore外。",
+      "hds": "Dense・uniform global-attentionの基準点。K2V2との幾何類似により、能力差をarchitecture差だけへ押し込めない。",
+      "unresolved": [
+        "weight全量意味解析",
+        "2024-04個体の非公開training raw data"
+      ]
+    },
+    {
+      "name": "OLMo 3",
+      "group": "dense hybrid-attention anchor",
+      "obs": "D3",
+      "core": "7B: hidden4096/32 layers/Q32-KV32。32B: hidden5120/64 layers（公開config）。",
+      "sequence": "3×sliding_attention + 1×full_attentionを反復。sliding window=4096、context=65536。",
+      "depth": "標準residual系。",
+      "width": "dense FFN。",
+      "future": "model variantごとのtraining/posttrainingと分ける。",
+      "modality": "text。",
+      "formation": "Base/Instruct/Thinkで形成差を持つがcore layer scheduleは共通に近い。",
+      "deployment": "open code/checkpoint。",
+      "hds": "Qwen3.6との相対化により「3:1の周期」という見た目の同型と「局所作用子」の非同型を分離できた。",
+      "unresolved": [
+        "weight全量意味解析",
+        "variant間posttraining因果の完全分解"
+      ]
+    },
+    {
+      "name": "Apertus 1.5 70B",
+      "group": "dense multimodal natural experiment",
+      "obs": "D3",
+      "core": "1.0からcontinued pretraining。公式に同じdecoder-only transformer architecture（xIELU）を維持すると説明。元70Bはhidden8192/80 layers/Q64-KV8。",
+      "sequence": "中央text decoderはdense global attention系。",
+      "depth": "標準residual系。",
+      "width": "dense FFN。",
+      "future": "thinking modeはposttraining/serving modeとして中央decoder geometryと分離。",
+      "modality": "1.5はimage/audio/text input。repoにはcore model 3 shardsに加えvision_tokenizerとwavtokenizerのweightが別ファイルで存在。",
+      "formation": "continued pretraining（multimodal mix）＋posttraining改善。",
+      "deployment": "tool callingとthinking modeは同時利用制約もあり、runtime mode境界を持つ。",
+      "hds": "中央decoderを維持したままモダリティとreasoning/tool capabilityが拡張。能力追加＝中央architecture刷新、ではない自然実験。",
+      "unresolved": [
+        "1.5全weight意味解析",
+        "前段tokenizer→decoder接続の全詳細"
+      ]
+    },
+    {
+      "name": "K2-V2 70B",
+      "group": "dense long-context anchor",
+      "obs": "D3",
+      "core": "LlamaForCausalLM。hidden8192、FFN28672、80 layers、Q64/KV8、no experts、vocab250112、max_position524288。",
+      "sequence": "dense GQA系。局所/全体周期やMoEなし。",
+      "depth": "標準residual stack。",
+      "width": "dense。",
+      "future": "未確定/主configにMTPなし。",
+      "modality": "text。",
+      "formation": "長context・posttraining等をcore geometryから分離。",
+      "deployment": "open model artifact。",
+      "hds": "Llama3とhidden/layers/Q-KV/FFNがほぼ同型なのにcontext/vocab/position/training historyが大きく違う。core geometryと形成・運用の因果を切る強い基準点。",
+      "unresolved": [
+        "weight全量意味解析",
+        "training raw data全量"
+      ]
+    },
+    {
+      "name": "K3 v2 full-weight",
+      "group": "highest-depth MoE anchor",
+      "obs": "D4",
+      "core": "固定revision c5d1dd4c428bd1ce8b88c5044f3b6ccde9e3b721。96/96 shard、497,220/497,220 tensor、payload 1,560,860,324,864 byteを実読。",
+      "sequence": "KDA/MLA等を名称だけで同一視せずlayer配置・作用で分離。",
+      "depth": "AttnResをattention内部へ潰さず、深さ方向の選択参照/輸送として独立。",
+      "width": "Stable LatentMoE等の専門経路制御を系列参照と分離。",
+      "future": "MOPD等は独立制御として保持し、未確定機能を未来予測へ勝手に寄せない。",
+      "modality": "今回のfullweight対象範囲に従う。",
+      "formation": "旧v6.1意味構文を教師として使わずblind-primary-v2で再観測。",
+      "deployment": "weight構造と外部runtimeを分離。",
+      "hds": "今回の最高解像度基準点。DeepSeek V4/Qwen/OLMo/Llama等を相対化した後に再配置すると、系列・深さ・幅の独立性がより明確になる。",
+      "unresolved": [
+        "shard1 zero位置の位置帰属は当時保持されず推測しない",
+        "非公開training/deployment情報"
+      ]
+    }
+  ],
+  "stop_condition": "新しい異質モデルを追加しても既存座標へ矛盾なく配置でき、新規独立軸が出ず、既存対象の再分類も要求しなくなった時点で打ち止め。",
+  "scope_exclusions": [
+    "Llama4等の追加familyは今回の第一巡では未実施。必要なら新軸候補として次巡へ。",
+    "非公開weight/configは推定で補完しない。"
+  ],
+  "sources": {
+    "OpenAI GPT-5.6 Sol": [
+      "https://openai.com/index/gpt-5-6-frontier-intelligence-efficiency/",
+      "https://openai.com/index/previewing-gpt-5-6-sol/"
+    ],
+    "Claude Fable 5 / Mythos 5": [
+      "https://www.anthropic.com/news/claude-fable-5-mythos-5",
+      "https://www.anthropic.com/transparency/model-report",
+      "https://www.anthropic.com/news/redeploying-fable-5"
+    ],
+    "Gemini 3.7 Flash / 3.1 Pro": [
+      "https://deepmind.google/models/model-cards/gemini-3-7-flash/",
+      "https://deepmind.google/models/model-cards/gemini-3-1-pro/"
+    ],
+    "DeepSeek V4": [
+      "https://huggingface.co/papers/2606.19348",
+      "https://huggingface.co/docs/transformers/en/model_doc/deepseek_v4"
+    ],
+    "Qwen3.6-35B-A3B": [
+      "https://huggingface.co/Qwen/Qwen3.6-35B-A3B",
+      "https://huggingface.co/Qwen/Qwen3.6-35B-A3B/blob/main/config.json"
+    ],
+    "Grok 4.6": [
+      "https://x.ai/news/grok-4-6"
+    ],
+    "Llama 3 70B": [
+      "https://huggingface.co/NousResearch/Meta-Llama-3-70B/blob/main/config.json"
+    ],
+    "OLMo 3": [
+      "https://huggingface.co/allenai/Olmo-3-7B-Instruct/blob/main/config.json",
+      "https://huggingface.co/allenai/Olmo-3-1125-32B/blob/main/config.json"
+    ],
+    "Apertus 1.5": [
+      "https://huggingface.co/swiss-ai/Apertus-v1.5-70B",
+      "https://huggingface.co/swiss-ai/Apertus-v1.5-70B/tree/main",
+      "https://huggingface.co/swiss-ai/Apertus-70B-2509/blob/main/config.json"
+    ],
+    "K2-V2": [
+      "https://huggingface.co/LLM360/K2-V2-Instruct/blob/main/config.json"
+    ],
+    "K3 v2": [
+      "https://huggingface.co/moonshotai/Kimi-K3"
+    ]
+  }
+}
