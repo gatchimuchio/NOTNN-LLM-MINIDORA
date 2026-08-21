@@ -9,6 +9,12 @@ from .semantic_tokens import 意味語
 
 
 _GENERIC = {"意味原子→節", "談話順序", "節→述語"}
+_BLOCKING_PROVENANCE = {
+    "value_state:未確定",
+    "value_state:未観測",
+    "value_state:矛盾",
+    "value_state:留保",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +50,11 @@ def _coverage(query: frozenset[str], node_terms: frozenset[str]) -> float:
     return len(query & node_terms) / len(query)
 
 
+def _fact_blocked(fact: object) -> bool:
+    provenance = {str(x) for x in getattr(fact, "provenance", ())}
+    return bool(provenance & _BLOCKING_PROVENANCE)
+
+
 def HDS意味経路探索(
     core: K3相当能力核,
     問い語: frozenset[str],
@@ -58,7 +69,8 @@ def HDS意味経路探索(
     逆向き探索は可到達性確認のため許すが、方向保持のため減点する。
 
     問い・候補・graph nodeは ``semantic_tokens.意味語`` を共有し、表層屈折差で
-    経路の始点・終点が切れないようにする。
+    経路の始点・終点が切れないようにする。未確定・未観測・矛盾・留保のHDS関係は
+    Kに保持されていても確定推論経路へ昇格させない。
     """
     store = getattr(core.K, "_facts", {})
     adjacency: dict[str, list[_辺]] = {}
@@ -66,6 +78,8 @@ def HDS意味経路探索(
     preferred = {str(x) for x in 優先関係}
 
     for fact in store.values():
+        if _fact_blocked(fact):
+            continue
         predicate = str(getattr(fact, "predicate", ""))
         relation = _relation(predicate)
         if relation is None:
