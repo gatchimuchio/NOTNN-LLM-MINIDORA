@@ -49,6 +49,7 @@ REQUIRED_PATHS = (
     "設計/07_HDS_IR入力契約.md",
     "設計/08_多言語_Trinity文脈契約.md",
     "構文化/README.md",
+    "構文化/MINIDORA_v0.2/README.md",
     "構文化/MINIDORA_v0.3/README.md",
     "評価/README.md",
     "評価/PROTOTYPE_COMPLETION_2026-08-22.md",
@@ -69,6 +70,7 @@ CORE_MARKDOWN = (
     "設計/02_Layer0責任契約.md",
     "設計/05_完成判定関門.md",
     "構文化/README.md",
+    "構文化/MINIDORA_v0.2/README.md",
     "構文化/MINIDORA_v0.3/README.md",
     "評価/README.md",
     "docs/README.md",
@@ -152,6 +154,7 @@ def main() -> int:
         "設計/README.md",
         "設計/02_Layer0責任契約.md",
         "構文化/README.md",
+        "構文化/MINIDORA_v0.2/README.md",
         "構文化/MINIDORA_v0.3/README.md",
     )
     for path in reference_documents:
@@ -184,6 +187,10 @@ def main() -> int:
     if "PROTOTYPE COMPLETE" not in evaluation or "製品・最終完成" not in evaluation:
         errors.append("評価/README.md: プロトタイプ完成と最終完成の分離が欠落")
 
+    legacy = _text("構文化/MINIDORA_v0.2/README.md")
+    if "LEGACY" not in legacy or "現行MINIDORAはv0.3" not in legacy:
+        errors.append("構文化/MINIDORA_v0.2/README.md: Legacy境界が不明確")
+
     for path in CORE_MARKDOWN:
         _check_local_links(path, errors)
     _check_workflows(errors)
@@ -200,6 +207,7 @@ def main() -> int:
     print(f"LAYER0_REFERENCE_COMMIT={LAYER0参照コミット}")
     print(f"CHECKED_MARKDOWN={len(CORE_MARKDOWN)}")
     print("WORKFLOW_BRANCH_POLICY=PASS")
+    print("LEGACY_BOUNDARY=PASS")
     return 0
 
 
