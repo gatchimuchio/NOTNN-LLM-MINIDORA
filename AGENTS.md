@@ -24,7 +24,7 @@ Layer-0以外の領域へこの優先順位を機械的に一般化しない。�
 
 ## Layer-0参照規則
 
-- MINIDORAにおけるLLM機能責任の論理上位契約は `gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification` とする。
+- MINIDORAにおけるLLM機能責任の論理上位契約は `https://github.com/gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification` とする。
 - 現行仕様は `v4.0-provisional`、現行参照commitは `4adf86d13d7beb99fe5eaa9e240b22996ba3d3bc` とする。
 - `設計/02_Layer0責任契約.md` はMINIDORAへの局所写像であり、Layer-0そのものを再定義しない。
 - Layer-0責任の意味を変更するときは、先に外部正本を確認する。
