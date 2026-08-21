@@ -17,6 +17,31 @@ class 参照試験(unittest.TestCase):
         p = 複合参照供給器(固定参照供給器((r,)), 固定参照供給器((r,)))
         self.assertEqual(len(p.検索("K3")), 1)
 
+    def test_複合参照は先頭Providerだけで上限を埋めない(self):
+        p1 = 固定参照供給器(
+            tuple(
+                参照記録(f"a{i}", "Alpha", f"Alpha source {i}", f"fixture://a/{i}", "A")
+                for i in range(8)
+            ),
+            名称="A",
+        )
+        p2 = 固定参照供給器(
+            tuple(
+                参照記録(f"b{i}", "Alpha", f"Alpha independent {i}", f"fixture://b/{i}", "B")
+                for i in range(8)
+            ),
+            名称="B",
+        )
+        result = 複合参照供給器(p1, p2).検索("Alpha", 上限=4)
+        self.assertEqual([r.識別子 for r in result], ["a0", "b0", "a1", "b1"])
+        self.assertEqual({r.供給器 for r in result}, {"A", "B"})
+
+    def test_空Providerがあっても他Providerを取得する(self):
+        empty = 固定参照供給器((), 名称="empty")
+        record = 参照記録("b", "Alpha", "Alpha evidence", "fixture://b", "B")
+        result = 複合参照供給器(empty, 固定参照供給器((record,), 名称="B")).検索("Alpha")
+        self.assertEqual(result, (record,))
+
 
 if __name__ == "__main__":
     unittest.main()
