@@ -70,11 +70,13 @@ def HDS探索方針選択(
     )
     base = (controller or DistilledEffortPolicyController()).select(frame, level)
 
+    # graphはまず4段で探索し、未到達時のみここで定めた上限へ拡張する。
+    # K3側のlow/high/maxを、候補証拠幅と追加探索深さの両方へ反映する。
     if base.name == "max":
-        return HDS探索方針(base.name, base, 8, 8, (1.0, 0.55, 0.35, 0.24, 0.16, 0.11, 0.08, 0.05))
+        return HDS探索方針(base.name, base, 8, 10, (1.0, 0.55, 0.35, 0.24, 0.16, 0.11, 0.08, 0.05))
     if base.name == "high":
-        return HDS探索方針(base.name, base, 5, 6, (1.0, 0.45, 0.25, 0.14, 0.08))
-    return HDS探索方針(base.name, base, 3, 4, (1.0, 0.35, 0.15))
+        return HDS探索方針(base.name, base, 5, 8, (1.0, 0.45, 0.25, 0.14, 0.08))
+    return HDS探索方針(base.name, base, 3, 6, (1.0, 0.35, 0.15))
 
 
 __all__ = ["HDS探索方針", "HDS努力水準", "HDS探索方針選択"]
