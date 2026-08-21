@@ -19,6 +19,7 @@ from minidora.layer0 import (  # noqa: E402
 )
 
 
+EXPECTED_REPOSITORY = "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA"
 EXPECTED_LAYER0_REPO = (
     "https://github.com/gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification"
 )
@@ -53,6 +54,7 @@ REQUIRED_PATHS = (
     "評価/PROTOTYPE_COMPLETION_2026-08-22.md",
     "評価/GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json",
     "docs/README.md",
+    "docs/HDS_IR_NATIVE_K3.md",
     "artifacts/README.md",
     "tools/README.md",
     "tests/README.md",
@@ -70,6 +72,7 @@ CORE_MARKDOWN = (
     "構文化/MINIDORA_v0.3/README.md",
     "評価/README.md",
     "docs/README.md",
+    "docs/HDS_IR_NATIVE_K3.md",
     "artifacts/README.md",
     "tools/README.md",
     "tests/README.md",
@@ -120,11 +123,18 @@ def main() -> int:
             errors.append(f"必須path欠落: {path}")
 
     pyproject = tomllib.loads(_text("pyproject.toml"))
-    version = pyproject.get("project", {}).get("version")
+    project = pyproject.get("project", {})
+    version = project.get("version")
     if version != EXPECTED_MINIDORA_VERSION:
         errors.append(
             f"MINIDORA version不整合: pyproject={version!r}, expected={EXPECTED_MINIDORA_VERSION!r}"
         )
+
+    urls = project.get("urls", {})
+    if urls.get("Repository") != EXPECTED_REPOSITORY:
+        errors.append("pyproject.toml: Repository URLが期待値と不一致")
+    if urls.get("Layer-0 Reference") != EXPECTED_LAYER0_REPO:
+        errors.append("pyproject.toml: Layer-0 Reference URLが期待値と不一致")
 
     if LAYER0正本リポジトリ != EXPECTED_LAYER0_REPO:
         errors.append("Layer-0正本Repository定数が期待値と不一致")
