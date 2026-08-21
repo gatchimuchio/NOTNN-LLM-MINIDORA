@@ -63,7 +63,7 @@ def HDS意味経路探索(
     *,
     最大深さ: int = 4,
 ) -> HDS意味経路結果:
-    """KのHDS方向付き関係を辿り、問い意味から候補意味までの経路を探す。
+    """KのHDS方向付き関係を辿り、問い意味から候補意味までの単純路を探す。
 
     文書やベンチ形式には依存しない。複数Factを跨ぐ関係連鎖を一つの根拠としてJへ返す。
     逆向き探索は可到達性確認のため許すが、方向保持のため減点する。
@@ -71,6 +71,10 @@ def HDS意味経路探索(
     問い・候補・graph nodeは ``semantic_tokens.意味語`` を共有し、表層屈折差で
     経路の始点・終点が切れないようにする。未確定・未観測・矛盾・留保のHDS関係は
     Kに保持されていても確定推論経路へ昇格させない。
+
+    同一路内のnode再訪を禁止する。これにより `A→B→A→C` のような循環を
+    新しい推論深度として加点せず、独立sourceの増加が逆候補の循環scoreを押し上げる
+    ことを防ぐ。
     """
     store = getattr(core.K, "_facts", {})
     adjacency: dict[str, list[_辺]] = {}
@@ -114,17 +118,17 @@ def HDS意味経路探索(
     if not starts:
         return HDS意味経路結果(0.0, (), None)
 
-    # max-heap: -score, depth, node, proof tuple
-    heap: list[tuple[float, int, str, tuple[str, ...]]] = []
+    # max-heap: -score, depth, node, proof tuple, visited node tuple
+    heap: list[tuple[float, int, str, tuple[str, ...], tuple[str, ...]]] = []
     best_state: dict[tuple[str, int], float] = {}
     for qcov, node in starts:
         score = 2.0 * qcov
-        heapq.heappush(heap, (-score, 0, node, ()))
+        heapq.heappush(heap, (-score, 0, node, (), (node,)))
         best_state[(node, 0)] = score
 
     best_goal = HDS意味経路結果(0.0, (), None)
     while heap:
-        neg_score, depth, node, proof = heapq.heappop(heap)
+        neg_score, depth, node, proof, visited = heapq.heappop(heap)
         score = -neg_score
         candidate_cov = _coverage(候補語, node_terms.get(node, frozenset()))
         if candidate_cov > 0 and proof:
@@ -135,6 +139,8 @@ def HDS意味経路探索(
             continue
 
         for edge in adjacency.get(node, ()):
+            if edge.行先 in visited:
+                continue
             relation_bonus = 0.0
             if edge.関係 in preferred:
                 relation_bonus = 0.8
@@ -148,7 +154,10 @@ def HDS意味経路探索(
                 continue
             best_state[state] = new_score
             new_proof = proof + ((edge.事実ID,) if edge.事実ID and edge.事実ID not in proof else ())
-            heapq.heappush(heap, (-new_score, depth + 1, edge.行先, new_proof))
+            heapq.heappush(
+                heap,
+                (-new_score, depth + 1, edge.行先, new_proof, visited + (edge.行先,)),
+            )
 
     return best_goal
 
