@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Sequence
 
 from .hds_adapter import HDSコンパイラProtocol, HDS文脈
+from .hds_choice_runtime import HDS選択実行結果, HDS選択問題, HDS選択推論実行
 from .hds_ir import HDSIR
 from .hds_reference import HDS参照検索
 from .k3_functional import K3相当能力核, SystemResult as K3能力結果
@@ -78,7 +79,6 @@ class ミニドラ:
 
     @property
     def K3能力核(self) -> K3相当能力核:
-        """K3機能相当能力を使う時だけ非ニューラル能力核を初期化する。"""
         if self._K3能力核 is None:
             self._K3能力核 = K3相当能力核()
         return self._K3能力核
@@ -135,6 +135,99 @@ class ミニドラ:
             )
         )
 
+    def _HDS選択結果(
+        self,
+        要求_: 要求,
+        ir: HDSIR,
+        参照: tuple[参照記録, ...],
+        選択: HDS選択実行結果,
+    ) -> 結果:
+        value = 選択.回答内容 if 選択.状態 == "APPROVE" else None
+        reasons = list(選択.理由)
+        conflict_count = 要求_.矛盾数 + 参照矛盾数(参照)
+        if 要求_.境界違反:
+            base = 採否結果(実行状態.失敗, tuple(reasons + ["境界違反"]))
+            value = None
+        elif conflict_count:
+            base = 採否結果(実行状態.保留, tuple(reasons + ["未解消矛盾"]))
+            value = None
+        elif 選択.状態 == "APPROVE" and value is not None:
+            base = 採否結果(実行状態.合格, tuple(reasons))
+        else:
+            base = 採否結果(実行状態.保留, tuple(reasons or ["HDS_CHOICE_SUSPEND"]))
+            value = None
+
+        state: dict[str, Any] = dict(要求_.初期状態)
+        state.update(
+            {
+                "結果": value,
+                "参照": 参照,
+                "主体状態": self.主体主幹.状態辞書(),
+                "HDS文脈": self.HDS文脈,
+                "HDS候補ラベル": 選択.回答ラベル,
+                "HDS候補コンパイル数": 選択.候補コンパイル数,
+                "HDS_Dataコンパイル数": 選択.Dataコンパイル数,
+                "HDS_Dataコンパイル失敗数": 選択.Dataコンパイル失敗数,
+                "K追加事実数": 選択.K追加事実数,
+                "K証拠事実数": 選択.K証拠事実数,
+                "K証拠阻害事実数": 選択.K証拠阻害事実数,
+            }
+        )
+        if 選択.K3結果 is not None:
+            state["K3努力水準"] = 選択.K3結果.努力水準
+            state["K3探索深さ上限"] = 選択.K3結果.探索深さ上限
+            state["K3証拠上限"] = 選択.K3結果.証拠上限
+            state["K3候補診断"] = tuple(
+                {
+                    "候補": item.候補,
+                    "合計得点": item.合計得点,
+                    "証拠得点": item.証拠得点,
+                    "graph得点": item.graph得点,
+                    "独立出典数": item.独立出典数,
+                    "graph深さ": item.graph深さ,
+                }
+                for item in 選択.K3結果.候補診断
+            )
+
+        proposal = self._主体更新提案(state, 要求_)
+        subject = self.主体主幹.評価更新(proposal)
+        decision = self._採否合成(base, subject, 要求_.主体整合必須)
+        if 要求_.主体整合必須 and decision.状態 in {実行状態.保留, 実行状態.失敗}:
+            value = None
+            state["結果"] = None
+
+        history = (
+            {
+                "op": "HDS_CHOICE_NATIVE",
+                "status": 選択.状態,
+                "answer_label": 選択.回答ラベル,
+                "candidate_compiled": 選択.候補コンパイル数,
+            },
+            {
+                "op": "R_TO_HDS_TO_K",
+                "reference_count": len(参照),
+                "data_compiled": 選択.Dataコンパイル数,
+                "data_compile_failed": 選択.Dataコンパイル失敗数,
+                "k_facts_added": 選択.K追加事実数,
+                "evidence_facts": 選択.K証拠事実数,
+                "blocked_evidence_facts": 選択.K証拠阻害事実数,
+            },
+        )
+        return self._帰還(
+            結果(
+                value,
+                state,
+                参照,
+                history,
+                decision,
+                self.主体主幹.現在,
+                subject,
+                self.主体主幹.履歴,
+                "HDS_CHOICE_NATIVE",
+                ir,
+            )
+        )
+
     def コンパイル(self, 問合せ: str) -> HDSIR:
         if self.HDSコンパイラ is None:
             raise RuntimeError("HDS Compilerが接続されていない")
@@ -143,9 +236,11 @@ class ミニドラ:
     def 実行(self, 要求_: 要求) -> 結果:
         自動計画 = 要求_.手順 is None
         hds_ir: HDSIR | None = None
+        hds_choice = False
         plan_name: str | None = None
         initial_from_plan: dict[str, Any] = {}
         reference_from_plan = False
+        手順_: 手順 | None = 要求_.手順
 
         if 自動計画 and self.HDSコンパイラ is not None:
             try:
@@ -164,29 +259,34 @@ class ミニドラ:
                     "HDS_IR",
                     None,
                 )
-            if not hds_ir.実行可能:
-                理由 = ["HDS_IR未閉包", *hds_ir.実行阻害理由]
-                if hds_ir.残差:
-                    理由.extend(f"残差:{item.理由}" for item in hds_ir.残差)
-                return self._HDS未閉包(要求_, hds_ir, tuple(理由))
-            手順_ = hds_ir.手順
-            initial_from_plan = dict(hds_ir.初期状態)
-            reference_from_plan = hds_ir.参照必須
-            plan_name = hds_ir.種別 or "HDS_IR"
+            hds_choice = HDS選択問題(hds_ir)
+            if hds_choice:
+                手順_ = None
+                initial_from_plan = dict(hds_ir.初期状態)
+                reference_from_plan = hds_ir.参照必須
+                plan_name = "HDS_CHOICE_NATIVE"
+            else:
+                if not hds_ir.実行可能:
+                    理由 = ["HDS_IR未閉包", *hds_ir.実行阻害理由]
+                    if hds_ir.残差:
+                        理由.extend(f"残差:{item.理由}" for item in hds_ir.残差)
+                    return self._HDS未閉包(要求_, hds_ir, tuple(理由))
+                手順_ = hds_ir.手順
+                initial_from_plan = dict(hds_ir.初期状態)
+                reference_from_plan = hds_ir.参照必須
+                plan_name = hds_ir.種別 or "HDS_IR"
         elif 自動計画:
             計画 = self.自然言語器.計画(要求_.問合せ)
             手順_ = 計画.手順
             initial_from_plan = dict(計画.初期状態)
             reference_from_plan = 計画.参照必須
             plan_name = 計画.種別
-        else:
-            手順_ = 要求_.手順
 
-        if 手順_ is None:
+        if 手順_ is None and not hds_choice:
             raise ValueError("実行手順が確定していない")
         参照必須 = 要求_.参照必須 or reference_from_plan
 
-        参照 = ()
+        参照: tuple[参照記録, ...] = ()
         if self.参照供給器 is not None:
             if hds_ir is not None:
                 参照 = HDS参照検索(self.参照供給器, hds_ir)
@@ -209,6 +309,15 @@ class ミニドラ:
             )
             return self._帰還(result) if hds_ir is not None else result
 
+        if hds_choice and hds_ir is not None:
+            selected = HDS選択推論実行(
+                hds_ir,
+                参照,
+                コンパイル=self.コンパイル,
+                基礎能力核=self.K3能力核,
+            )
+            return self._HDS選択結果(要求_, hds_ir, 参照, selected)
+
         初期 = dict(要求_.初期状態)
         初期.update(initial_from_plan)
         初期["参照"] = 参照
@@ -216,6 +325,7 @@ class ミニドラ:
         if hds_ir is not None:
             初期["HDS文脈"] = self.HDS文脈
 
+        assert 手順_ is not None
         try:
             文脈 = self.layer0.実行(手順_, 初期)
         except (ValueError, TypeError, ZeroDivisionError) as exc:
@@ -225,7 +335,7 @@ class ミニドラ:
             result = 結果(
                 None,
                 初期,
-                tuple(参照),
+                参照,
                 (),
                 採否結果(実行状態.失敗, ("自動計画実行失敗", str(exc))),
                 self.主体主幹.現在,
@@ -252,7 +362,7 @@ class ミニドラ:
         result = 結果(
             値,
             dict(文脈.状態),
-            tuple(参照),
+            参照,
             tuple(文脈.履歴),
             判定,
             self.主体主幹.現在,
