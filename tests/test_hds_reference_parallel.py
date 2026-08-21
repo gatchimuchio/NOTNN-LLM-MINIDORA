@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from threading import Barrier, get_ident
+from threading import Barrier, Lock, get_ident
 import unittest
 
 from minidora import HDSIR, HDS実行核, HDS座標, 参照記録
@@ -35,11 +35,18 @@ class _ParallelSafeProvider:
         self.barrier = barrier
         self.thread_ids: set[int] = set()
         self.calls: list[str] = []
+        self._lock = Lock()
+        self._call_count = 0
 
     def 検索(self, query: str, limit: int = 8):
-        self.thread_ids.add(get_ident())
-        self.calls.append(query)
-        self.barrier.wait(timeout=1.0)
+        with self._lock:
+            self._call_count += 1
+            call_no = self._call_count
+            self.thread_ids.add(get_ident())
+            self.calls.append(query)
+        # 最初の2 callだけ同期し、奇数個の後続queryを単独Barrier待ちにしない。
+        if call_no <= 2:
+            self.barrier.wait(timeout=1.0)
         token = str(abs(hash(query)))
         return (参照記録(token, query, query, "fixture://" + token, self.名称),)
 
@@ -57,7 +64,6 @@ class _SequentialOnlyProvider:
 
 class HDS参照Query並列試験(unittest.TestCase):
     def test_並列安全Providerではqueryを同時開始する(self) -> None:
-        # 2択IRは既定で複数queryを作る。先頭2 workerがBarrierで合流できれば並列開始済み。
         provider = _ParallelSafeProvider(Barrier(2))
         records = HDS参照検索(provider, _ir(), 上限=4, 最大問合せ並列=2)
         self.assertTrue(records)
