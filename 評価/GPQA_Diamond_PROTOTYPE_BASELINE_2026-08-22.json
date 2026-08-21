@@ -1,0 +1,90 @@
+{
+  "schema": "minidora.prototype.baseline.v1",
+  "milestone": {
+    "name": "MINIDORA prototype completion",
+    "status": "PROTOTYPE_COMPLETE",
+    "date_jst": "2026-08-22",
+    "scope": "prototype"
+  },
+  "claim_boundary": {
+    "demonstrated": "A non-neural/non-Transformer MINIDORA pipeline produced non-zero correct answers on an external GPQA Diamond benchmark after compiling the question, all four choices, and every retrieved external Data item through HDS into HDS-IR before K/J processing.",
+    "not_claimed": [
+      "Kimi K3-class capability equivalence",
+      "Kimi K3-class GPQA performance",
+      "production completion",
+      "measured upper bound of future scaling"
+    ]
+  },
+  "benchmark": {
+    "name": "GPQA Diamond",
+    "n": 198,
+    "comparison_reference": {
+      "model": "Kimi K3",
+      "score_percent": 93.5
+    },
+    "minidora": {
+      "correct": 8,
+      "score_percent": 4.040404040404041,
+      "answered": 27,
+      "suspended": 171,
+      "k3_score_ratio_percent": 4.321287743747638
+    }
+  },
+  "pipeline": [
+    "question -> HDS Compiler -> question HDS-IR",
+    "four choices -> HDS Compiler individually -> choice HDS-IR",
+    "general external Data retrieval",
+    "every retrieved Data item -> HDS Compiler -> Data HDS-IR",
+    "Data HDS-IR -> semantic coordinates / directed relations / residuals -> K structural facts",
+    "question HDS-IR + choice HDS-IR + Data semantic facts -> HDS structural matching",
+    "J/HDS decision -> answer or SUSPEND"
+  ],
+  "coverage": {
+    "question_semantic_transfer": {
+      "passed": 198,
+      "total": 198
+    },
+    "choices_compiled": {
+      "passed": 792,
+      "total": 792
+    },
+    "documents_retrieved": 875,
+    "documents_compiled": 875,
+    "document_compile_rate_percent": 100.0,
+    "document_semantic_loss": 1,
+    "retrieval_empty_questions": 98,
+    "k_structural_facts_added": 200568,
+    "data_hds_coordinates": 87434,
+    "data_hds_relations": 140450
+  },
+  "data_sources": {
+    "OpenAlex": 817,
+    "Wikipedia": 58
+  },
+  "evidence_policy": {
+    "raw_data_direct_to_k": false,
+    "raw_surface_coordinates_used_as_answer_evidence": false,
+    "gold_label_available_to_compiler_k_j": false,
+    "gold_label_used_only_by_scorer": true,
+    "gpqa_specific_rules": false,
+    "guessing_when_evidence_is_missing": false
+  },
+  "question_structure_audit": {
+    "question_and_four_choices_preserved": "198/198",
+    "hds_semantic_transfer_closed": "198/198",
+    "semantic_loss": 0,
+    "unresolved_coreference": 0,
+    "false_arithmetic_reduction": 0
+  },
+  "invalidated_prior_results": [
+    {
+      "score": "5/198",
+      "score_percent": 2.525252525252525,
+      "reason": "External retrieval Data was injected into K as raw retrieved_document string Facts without the required external Data -> HDS Compiler -> HDS-IR -> K path. This result is diagnostic only and is not a valid MINIDORA benchmark baseline."
+    }
+  ],
+  "public_runtime_reference": {
+    "merge_commit": "eb251f5a1d553e59cf4488c7df1a7a0f74bc47b3"
+  },
+  "baseline_policy": "Immutable prototype-completion baseline. Future benchmark results must be appended as new dated baselines and must not overwrite this record."
+}
