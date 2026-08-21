@@ -48,6 +48,20 @@ class CLI試験(unittest.TestCase):
         self.assertEqual(payload["plan"], "算術")
         self.assertFalse(payload["hds_ir"])
 
+    def test_非UTF8ロケールでも日本語標準入力を処理できる(self):
+        completed = subprocess.run(
+            [sys.executable, "-m", "minidora"],
+            cwd=ROOT,
+            env=_env(),
+            input="2と3を足して\n",
+            text=True,
+            encoding="utf-8",
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("5です。", completed.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
