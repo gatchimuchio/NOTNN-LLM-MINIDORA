@@ -4,6 +4,7 @@ from collections.abc import Callable, Mapping
 from html.parser import HTMLParser
 import html
 import json
+from threading import Lock
 from typing import Any
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
@@ -81,6 +82,7 @@ class OpenAlex参照供給器:
 
     名称 = "OpenAlex"
     BASE_URL = "https://api.openalex.org/works"
+    並列安全 = True
 
     def __init__(
         self,
@@ -99,6 +101,11 @@ class OpenAlex参照供給器:
         self._get_json = JSON取得 or _JSON取得
         self.最大本文文字数 = int(最大本文文字数)
         self.最後のエラー: str | None = None
+        self._error_lock = Lock()
+
+    def _error(self, value: str | None) -> None:
+        with self._error_lock:
+            self.最後のエラー = value
 
     def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]:
         query = " ".join(str(問合せ).split()).strip()
@@ -113,9 +120,9 @@ class OpenAlex参照供給器:
         url = self.BASE_URL + "?" + urlencode(params)
         try:
             payload = self._get_json(url, {"User-Agent": self.user_agent, "Accept": "application/json"}, self.timeout)
-            self.最後のエラー = None
+            self._error(None)
         except Exception as exc:
-            self.最後のエラー = f"{type(exc).__name__}: {exc}"
+            self._error(f"{type(exc).__name__}: {exc}")
             return ()
 
         rows = payload.get("results", ())
@@ -150,11 +157,9 @@ class OpenAlex参照供給器:
 
 
 class Wikipedia参照供給器:
-    """MediaWiki REST APIの検索＋page HTMLを外部参照Rへ接続する。
+    """MediaWiki REST APIの検索＋page HTMLを外部参照Rへ接続する。"""
 
-    HDS query展開では同じpageが複数queryへ現れやすいため、page本文はprovider instance内で
-    key単位にcacheする。検索rankingは毎query取り直し、本文I/Oだけを重複排除する。
-    """
+    並列安全 = True
 
     def __init__(
         self,
@@ -176,6 +181,9 @@ class Wikipedia参照供給器:
         self.最大本文文字数 = int(最大本文文字数)
         self.最後のエラー: str | None = None
         self._page_cache: dict[str, Mapping[str, Any] | None] = {}
+        self._cache_lock = Lock()
+        self._page_locks: dict[str, Lock] = {}
+        self._error_lock = Lock()
 
     @property
     def base(self) -> str:
@@ -183,20 +191,40 @@ class Wikipedia参照供給器:
 
     @property
     def 本文cache件数(self) -> int:
-        return len(self._page_cache)
+        with self._cache_lock:
+            return len(self._page_cache)
+
+    def _error(self, value: str | None) -> None:
+        with self._error_lock:
+            self.最後のエラー = value
+
+    def _key_lock(self, key: str) -> Lock:
+        with self._cache_lock:
+            lock = self._page_locks.get(key)
+            if lock is None:
+                lock = Lock()
+                self._page_locks[key] = lock
+            return lock
 
     def _page(self, key: str) -> Mapping[str, Any] | None:
-        if key in self._page_cache:
-            return self._page_cache[key]
-        url = f"{self.base}/page/{quote(key, safe='')}/with_html"
-        try:
-            value = self._get_json(url, {"User-Agent": self.user_agent, "Accept": "application/json"}, self.timeout)
-            self._page_cache[key] = value
+        with self._cache_lock:
+            if key in self._page_cache:
+                return self._page_cache[key]
+        key_lock = self._key_lock(key)
+        with key_lock:
+            with self._cache_lock:
+                if key in self._page_cache:
+                    return self._page_cache[key]
+            url = f"{self.base}/page/{quote(key, safe='')}/with_html"
+            try:
+                value = self._get_json(url, {"User-Agent": self.user_agent, "Accept": "application/json"}, self.timeout)
+                self._error(None)
+            except Exception as exc:
+                self._error(f"{type(exc).__name__}: {exc}")
+                value = None
+            with self._cache_lock:
+                self._page_cache[key] = value
             return value
-        except Exception as exc:
-            self.最後のエラー = f"{type(exc).__name__}: {exc}"
-            self._page_cache[key] = None
-            return None
 
     def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]:
         query = " ".join(str(問合せ).split()).strip()
@@ -205,9 +233,9 @@ class Wikipedia参照供給器:
         url = self.base + "/search/page?" + urlencode({"q": query, "limit": str(min(max(1, int(上限)), 100))})
         try:
             payload = self._get_json(url, {"User-Agent": self.user_agent, "Accept": "application/json"}, self.timeout)
-            self.最後のエラー = None
+            self._error(None)
         except Exception as exc:
-            self.最後のエラー = f"{type(exc).__name__}: {exc}"
+            self._error(f"{type(exc).__name__}: {exc}")
             return ()
 
         pages = payload.get("pages", ())
