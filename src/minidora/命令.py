@@ -8,6 +8,7 @@ from typing import Any
 class 作用(StrEnum):
     設定 = "設定"
     取得 = "取得"
+    抽出 = "抽出"
     加算 = "加算"
     減算 = "減算"
     乗算 = "乗算"
