@@ -62,7 +62,9 @@ def _coverage(query: frozenset[str], node_terms: frozenset[str]) -> float:
 
 def _fact_blocked(fact: object) -> bool:
     provenance = {str(x) for x in getattr(fact, "provenance", ())}
-    return bool(provenance & _BLOCKING_PROVENANCE)
+    if provenance & _BLOCKING_PROVENANCE:
+        return True
+    return any(item.startswith("residual_blocked:") for item in provenance)
 
 
 def HDS意味Graph索引構築(core: K3相当能力核) -> HDS意味Graph索引:
@@ -130,7 +132,7 @@ def HDS意味経路探索(
     if not adjacency or not 問い語 or not 候補語:
         return HDS意味経路結果(0.0, (), None)
 
-    starts = [( _coverage(問い語, terms), node) for node, terms in node_terms.items()]
+    starts = [(_coverage(問い語, terms), node) for node, terms in node_terms.items()]
     starts = [(score, node) for score, node in starts if score > 0]
     if not starts:
         return HDS意味経路結果(0.0, (), None)
