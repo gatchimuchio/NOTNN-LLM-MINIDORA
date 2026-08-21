@@ -2,9 +2,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections.abc import Sequence
 
 from .runtime import ミニドラ, 要求
+
+
+def _標準入出力をUTF8化() -> None:
+    """日本語基底CLIの出力をOSロケールから分離する。"""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="strict")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -40,6 +49,7 @@ def _run_once(body: ミニドラ, query: str, *, json_mode: bool) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    _標準入出力をUTF8化()
     args = _parser().parse_args(argv)
     body = ミニドラ()
 
