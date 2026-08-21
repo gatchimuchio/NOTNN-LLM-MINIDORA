@@ -164,7 +164,7 @@ class ミニドラ:
                     None,
                 )
             if not hds_ir.実行可能:
-                理由 = ["HDS_IR未閉包", "意味未確定"]
+                理由 = ["HDS_IR未閉包", *hds_ir.実行阻害理由]
                 if hds_ir.残差:
                     理由.extend(f"残差:{item.理由}" for item in hds_ir.残差)
                 return self._HDS未閉包(要求_, hds_ir, tuple(理由))
