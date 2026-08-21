@@ -69,11 +69,6 @@ def HDS証拠事実(core: K3相当能力核) -> tuple[Fact, ...]:
 
 
 def _残差阻害(ir: HDSIR) -> tuple[bool, dict[str, tuple[str, ...]]]:
-    """Data HDS-IRの残差を確定証拠へ昇格させない範囲へ落とす。
-
-    semantic_loss はHDS-IR自身が実行阻害とする重大残差なのでsource全体を阻害する。
-    その他残差は `影響座標` が明示された範囲だけを局所阻害し、無関係な確定座標は残す。
-    """
     source_blocked = any(item.種別 == "semantic_loss" for item in ir.残差)
     impacted: dict[str, list[str]] = {}
     for residual in ir.残差:
@@ -83,10 +78,15 @@ def _残差阻害(ir: HDSIR) -> tuple[bool, dict[str, tuple[str, ...]]]:
 
 
 def _残差marker(source_blocked: bool, kinds: Iterable[str]) -> tuple[str, ...]:
+    kinds_tuple = tuple(str(kind) for kind in kinds)
+    blocked = source_blocked or bool(kinds_tuple)
     markers: list[str] = []
+    if blocked:
+        # 既存HDS状態語へ接続し、確定回答根拠ではなく留保扱いにする。
+        markers.append("value_state:留保")
     if source_blocked:
         markers.append("residual_blocked:semantic_loss")
-    markers.extend("residual_blocked:" + str(kind) for kind in kinds)
+    markers.extend("residual_blocked:" + kind for kind in kinds_tuple)
     return tuple(dict.fromkeys(markers))
 
 
@@ -105,7 +105,7 @@ class HDSIR知識Adapter:
     """コンパイル済みHDS-IRだけをKへ投入する一般Adapter。
 
     Kには残差を含む全構造を監査用として保持する。一方、残差が影響する座標・関係は
-    `residual_blocked:*` を付与し、J/HDSの確定回答証拠・graph経路へは昇格させない。
+    `value_state:留保` / `residual_blocked:*` を付与し、J/HDSの確定回答証拠・graph経路へは昇格させない。
     """
 
     def __init__(self, core: K3相当能力核) -> None:
