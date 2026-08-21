@@ -16,6 +16,7 @@ _SURFACE_ONLY_KINDS = {
     "対象.原文保持",
     "文脈.言語",
 }
+_EVIDENCE_ATTR = "_hds_evidence_facts"
 
 
 def _predicate(kind: str) -> str:
@@ -41,6 +42,25 @@ def _confidence(state: 値状態) -> float:
     return 0.5
 
 
+def _state_marker(state: 値状態) -> str:
+    return "value_state:" + state.value
+
+
+def _証拠台帳(core: K3相当能力核) -> dict[str, Fact]:
+    """Kのcanonical Factとは別に、独立sourceごとのHDS証拠Factを保持する。"""
+    ledger = getattr(core.K, _EVIDENCE_ATTR, None)
+    if ledger is None:
+        ledger = {}
+        setattr(core.K, _EVIDENCE_ATTR, ledger)
+    return ledger
+
+
+def HDS証拠事実(core: K3相当能力核) -> tuple[Fact, ...]:
+    """独立sourceを潰さず保持したHDS証拠Factを返す。"""
+    ledger = getattr(core.K, _EVIDENCE_ATTR, {})
+    return tuple(ledger.values())
+
+
 @dataclass(frozen=True, slots=True)
 class HDS知識投入結果:
     追加事実数: int
@@ -48,12 +68,16 @@ class HDS知識投入結果:
     関係事実数: int
     残差数: int
     semantic_loss: bool
+    証拠事実数: int = 0
 
 
 class HDSIR知識Adapter:
     """コンパイル済みHDS-IRだけをKへ投入する一般Adapter。
 
-    生の自然言語Dataを直接Kへ入れない。Kの証拠対象は意味座標と方向付き関係だけとし、
+    生の自然言語Dataを直接Kへ入れない。Kのcanonical Factは意味重複を排除する一方、
+    独立sourceごとのHDS証拠Factは別台帳へ保持する。これにより同じ意味を複数資料が
+    支持した場合でも、J/HDSが独立根拠数と由来を失わない。
+
     source_text / normalized / 原文保持はHDS-IR側に保持したままK証拠から除外する。
     """
 
@@ -79,7 +103,14 @@ class HDSIR知識Adapter:
                     "hds_coordinate",
                     (kind, content),
                     confidence=_confidence(coord.値状態),
-                    provenance=source + ("HDS-IR", coord.座標ID, _text(coord.由来), _text(coord.暫定性)),
+                    provenance=source
+                    + (
+                        "HDS-IR",
+                        coord.座標ID,
+                        _state_marker(coord.値状態),
+                        _text(coord.由来),
+                        _text(coord.暫定性),
+                    ),
                 )
             )
             coord_count += 1
@@ -102,9 +133,11 @@ class HDSIR知識Adapter:
                     _predicate(relation.種別),
                     starts + ("→",) + ends,
                     confidence=_confidence(relation.値状態),
-                    provenance=source + (
+                    provenance=source
+                    + (
                         "HDS-IR",
                         relation.関係ID,
+                        _state_marker(relation.値状態),
                         "relation_type:" + _text(relation.種別),
                         _text(relation.由来),
                         _text(relation.暫定性),
@@ -119,9 +152,13 @@ class HDSIR知識Adapter:
                     "hds_residual",
                     (_text(residual.種別), _text(residual.原文), _text(residual.理由)),
                     confidence=0.35,
-                    provenance=source + ("HDS-IR", residual.残差ID),
+                    provenance=source + ("HDS-IR", residual.残差ID, "value_state:留保"),
                 )
             )
+
+        ledger = _証拠台帳(self.core)
+        for fact in facts:
+            ledger.setdefault(fact.fact_id, fact)
 
         added = self.core.K.add_many(facts)
         return HDS知識投入結果(
@@ -130,7 +167,8 @@ class HDSIR知識Adapter:
             関係事実数=relation_count,
             残差数=len(ir.残差),
             semantic_loss=any(item.種別 == "semantic_loss" for item in ir.残差),
+            証拠事実数=len(facts),
         )
 
 
-__all__ = ["HDS知識投入結果", "HDSIR知識Adapter"]
+__all__ = ["HDS知識投入結果", "HDSIR知識Adapter", "HDS証拠事実"]
