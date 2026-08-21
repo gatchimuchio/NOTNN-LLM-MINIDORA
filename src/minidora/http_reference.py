@@ -77,11 +77,7 @@ def _html_text(raw: object) -> str:
 
 
 class OpenAlex参照供給器:
-    """OpenAlex Works検索をMINIDORA外部参照Rへ接続する。
-
-    API keyはコードへ保持せず呼出側から受け取る。検索結果のrelevance_scoreは検索順位で
-    あって真偽信頼度ではないため、`参照記録.信頼` へ変換しない。
-    """
+    """OpenAlex Works検索をMINIDORA外部参照Rへ接続する。"""
 
     名称 = "OpenAlex"
     BASE_URL = "https://api.openalex.org/works"
@@ -137,13 +133,12 @@ class OpenAlex参照供給器:
                 continue
             year = row.get("publication_year")
             doi = str(row.get("doi") or "").strip()
-            provenance = doi or work_id
             records.append(
                 参照記録(
                     識別子="openalex:" + work_id.rsplit("/", 1)[-1],
                     対象=title or work_id,
                     内容=content[: self.最大本文文字数],
-                    由来=provenance,
+                    由来=doi or work_id,
                     供給器=self.名称,
                     信頼=1.0,
                     時点=str(year) if year is not None else None,
@@ -155,7 +150,11 @@ class OpenAlex参照供給器:
 
 
 class Wikipedia参照供給器:
-    """MediaWiki REST APIの検索＋page HTMLを外部参照Rへ接続する。"""
+    """MediaWiki REST APIの検索＋page HTMLを外部参照Rへ接続する。
+
+    HDS query展開では同じpageが複数queryへ現れやすいため、page本文はprovider instance内で
+    key単位にcacheする。検索rankingは毎query取り直し、本文I/Oだけを重複排除する。
+    """
 
     def __init__(
         self,
@@ -176,17 +175,27 @@ class Wikipedia参照供給器:
         self._get_json = JSON取得 or _JSON取得
         self.最大本文文字数 = int(最大本文文字数)
         self.最後のエラー: str | None = None
+        self._page_cache: dict[str, Mapping[str, Any] | None] = {}
 
     @property
     def base(self) -> str:
         return f"https://{self.言語}.wikipedia.org/w/rest.php/v1"
 
+    @property
+    def 本文cache件数(self) -> int:
+        return len(self._page_cache)
+
     def _page(self, key: str) -> Mapping[str, Any] | None:
+        if key in self._page_cache:
+            return self._page_cache[key]
         url = f"{self.base}/page/{quote(key, safe='')}/with_html"
         try:
-            return self._get_json(url, {"User-Agent": self.user_agent, "Accept": "application/json"}, self.timeout)
+            value = self._get_json(url, {"User-Agent": self.user_agent, "Accept": "application/json"}, self.timeout)
+            self._page_cache[key] = value
+            return value
         except Exception as exc:
             self.最後のエラー = f"{type(exc).__name__}: {exc}"
+            self._page_cache[key] = None
             return None
 
     def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]:
@@ -219,7 +228,7 @@ class Wikipedia参照供給器:
                 full_text = "\n".join(value for value in (title, description, excerpt) if value).strip()
             if not full_text:
                 continue
-            source_url = f"https://{self.言語}.wikipedia.org/wiki/{quote(key.replace(' ', '_'), safe='') }"
+            source_url = f"https://{self.言語}.wikipedia.org/wiki/{quote(key.replace(' ', '_'), safe='')}"
             records.append(
                 参照記録(
                     識別子=f"wikipedia:{self.言語}:{page_id}",
