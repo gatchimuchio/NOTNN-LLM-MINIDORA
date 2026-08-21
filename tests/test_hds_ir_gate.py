@@ -83,6 +83,18 @@ class HDSIR実行境界試験(unittest.TestCase):
         self.assertFalse(ir.実行可能)
         self.assertIn("実行入力座標欠落:b", ir.実行阻害理由)
 
+    def test_実行核外の未確定座標だけでは局所閉包を壊さない(self):
+        ir = _加算IR()
+        open_context = HDS座標(
+            "context:unknown",
+            "文脈.未解",
+            None,
+            値状態=値状態.未確定,
+        )
+        projected = replace(ir, 座標=ir.座標 + (open_context,))
+        self.assertTrue(projected.実行可能)
+        self.assertEqual(projected.実行阻害理由, ())
+
 
 if __name__ == "__main__":
     unittest.main()
