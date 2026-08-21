@@ -1,0 +1,34 @@
+{
+  "case_id": "L3_SELF_CONSISTENCY_HDS_V2_20260821",
+  "date": "2026-08-21",
+  "framework": "HDS rev4.1",
+  "target": "Meta Llama 3 70B Instruct (2024-04) の『自己一貫性』として観測される時間方向の応答連続性",
+  "target_projection": {
+    "operational_definition": "過去のassistant発話・立場・判断・選好・訂正が、後続turnのassistant出力を拘束し、理由なしの反転を抑えるように見える性質",
+    "not_assumed": [
+      "内面的自我の存在",
+      "永続的な隠れた主体実体",
+      "単一tensor/単一層に自己が格納されること"
+    ],
+    "reopen_condition": "挙動実験・weight解析・対照モデル比較で成立関係が変わる場合"
+  },
+  "purpose": "K3を基盤とするミニドラへ、Llama 3型の自己一貫性を機構として内包するための差分抽出",
+  "comparison_anchor": {
+    "primary_base": "K3",
+    "counter_anchor": "Llama 3",
+    "other_models": "K3/Llama3の差分を精密化する補助観測点"
+  },
+  "claim_policy": "観測 / 機構候補 / scoped principle candidate / 未解残差を分離",
+  "teacher_policy": "旧Llama3 HDS v1.0の意味記述を一次教師として使わず、一次資料を再観測。旧版は最後の差分監査だけに利用。",
+  "sources": {
+    "HDS-R4.1": {"name": "HDSフレーム rev4.1（仮）内部用統合仕様", "scope": "HDSの現行観測・暫定性・残差・原理候補・再開放規則"},
+    "L3-S01": {"name": "Meta: Introducing Meta Llama 3", "url": "https://ai.meta.com/blog/meta-llama-3/", "date": "2024-04-18"},
+    "L3-S03": {"name": "meta-llama/llama3 MODEL_CARD.md", "blob_sha": "ff24fb154837bbf7a4fdbab02c0d5dbf603f0a18"},
+    "L3-S06": {"name": "meta-llama/llama3 llama/model.py", "blob_sha": "e388c0387ccc3e99629a42ecc50227a7a4c7c58c"},
+    "L3-S07": {"name": "meta-llama/llama3 llama/tokenizer.py", "blob_sha": "e691beb6ade41e498ee53655c372be575d9c00ce"},
+    "L3-S08": {"name": "meta-llama/llama3 llama/generation.py", "blob_sha": "96be4b291b869bff9ccf2e5d098dd7f01c7f32cc"},
+    "L3-OLD": {"name": "Llama3_HDS日本語構文_v1.0", "scope": "2026-08-20旧構文化。旧意味は教師ではなく差分監査対象。"},
+    "K3-V2": {"name": "K3_HDS日本語構文_v2 blind-primary/fullweight", "scope": "KDA/MLA・AttnRes・LatentMoE等のK3成立関係。K3を主基盤として比較。"},
+    "L31-SERIES": {"name": "Meta: Introducing Llama 3.1", "url": "https://ai.meta.com/blog/meta-llama-3-1/", "scope": "後発系列証拠。元Llama 3へ固有機能を逆流させず、Dense設計方針の系列証拠としてのみ使用。"}
+  }
+}

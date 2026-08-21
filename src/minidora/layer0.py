@@ -6,6 +6,16 @@ from typing import Any
 from .命令 import 作用, 命令, 手順
 
 
+LAYER0仕様版 = "v4.0-provisional"
+LAYER0機能責任 = (
+    "LINGUISTIC_ADDRESSABILITY",
+    "CONTEXT_BOUND_STATE",
+    "TRANSFORMATION_OR_COMPOSITION_CORE",
+    "CONTEXT_DEPENDENT_RESULT_FORMATION",
+    "RESULT_SURFACE",
+)
+
+
 @dataclass(slots=True)
 class 実行文脈:
     状態: dict[str, Any] = field(default_factory=dict)
@@ -14,7 +24,7 @@ class 実行文脈:
 
 
 class Layer0:
-    """実装非依存の最小命令実行機構。K3固有構造を責任として持たない。"""
+    """実装非依存の最小命令実行機構。特定モデル固有構造を責任として持たない。"""
 
     def 実行(self, 手順_: 手順, 初期状態: dict[str, Any] | None = None) -> 実行文脈:
         文脈 = 実行文脈(dict(初期状態 or {}))

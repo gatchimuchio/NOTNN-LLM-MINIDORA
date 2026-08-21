@@ -1,102 +1,100 @@
-# Layer-0責任契約
+# Layer-0 v4責任契約
 
-## 1. 目的
+## 1. 正本
 
-Layer-0は、K3固有architectureを再現する層ではない。
+MINIDORA が参照する Layer-0 の現行正本は、別リポジトリ
+`gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification` の
+`v4.0-provisional` とする。
 
-Layer-0は、任意の命令形Pと状態、入力、参照Dataを受け取り、状態依存で参照・計算・変換・結果形成を行う最小実行責任である。
-
-## 2. 最小責任
-
-Layer-0は次のみを責任として持つ。
-
-1. **言語アドレス化**
-   - 入力を処理対象として識別可能な記号列へ落とす。
-
-2. **状態保持**
-   - 現在の計算状態を保持し、次の作用へ渡す。
-
-3. **内容依存参照**
-   - 入力・状態・命令に応じて必要な命令P又は参照Data Rを選択する。
-
-4. **条件付き変換**
-   - 条件を満たす命令を適用し、状態を変換する。
-
-5. **関係合成**
-   - 複数の関係・状態・結果を直列又は並列に合成する。
-
-6. **直列深度**
-   - 単発反応ではなく、必要な回数だけ状態遷移を続ける。
-
-7. **結果形成**
-   - 内部状態から外部へ返す結果を形成する。
-
-8. **停止**
-   - 成立、未解、矛盾、境界違反等に応じて処理を停止する。
-
-## 3. 非責任
-
-Layer-0自身は以下を持たない。
-
-- KDA
-- Attention
-- Transformer
-- MoE
-- 固定expert数
-- 固定layer数
-- 特定tokenizer
-- 特定weight形式
-- 固定Knowledge
-
-これらは実装又はDataの選択肢であり、Layer-0責任ではない。
-
-## 4. 入出力契約
+2026-08-21時点の参照commit:
 
 ```text
-入力:
-  要求
-  現在状態
-  命令形P
-  参照Data R
-  計算予算
-
-処理:
-  参照
-  条件評価
-  変換
-  合成
-  検証
-  停止判定
-
-出力:
-  結果候補
-  更新状態
-  根拠
-  未解残差
-  実行履歴
+4adf86d13d7beb99fe5eaa9e240b22996ba3d3bc
 ```
 
-## 5. 実装独立性
+MINIDORA 内の旧8責任は `構文化/MINIDORA_v0.2/` の履歴として保持し、現行責任数へは使用しない。
 
-同じLayer-0契約へ、少なくとも以下の異なるP実装を接続可能にする。
+## 2. Functional Core 5責任
 
-- 記号規則型P
-- 状態機械型P
-- 表・索引型P
-- プログラム型P
-- 将来のニューラル型P
+1. `LINGUISTIC_ADDRESSABILITY` — **言語アドレス化**
+2. `CONTEXT_BOUND_STATE` — **文脈束縛状態**
+3. `TRANSFORMATION_OR_COMPOSITION_CORE` — **変換・合成中核**
+4. `CONTEXT_DEPENDENT_RESULT_FORMATION` — **文脈依存結果形成**
+5. `RESULT_SURFACE` — **結果表面**
 
-Layer-0が特定のP形式に依存する場合は縮約不足である。
+重要:
 
-## 6. 完了関門
+```text
+責任数 != 機構数
+```
 
-Layer-0実装は、K3固有語を使わずに以下を通過しなければならない。
+主体主幹、参照R、日本語命令形P、Layer-0実行器、採否、Adapter等は、5責任を担う実装機構であってLayer-0責任数そのものではない。
 
-- 状態依存参照
-- 条件付き変換
-- 多段関係合成
-- 状態遷移
-- 未解時停止
-- 矛盾時停止
-- 外部Data差替え
-- 命令P差替え
+## 3. MINIDORA v0.3への写像
+
+| Layer-0 v4責任 | MINIDORA v0.3で主に担う機構 |
+|---|---|
+| 言語アドレス化 | `要求.問合せ`、参照Rの検索キー、日本語命令形P |
+| 文脈束縛状態 | `Layer0`状態 + `主体主幹` + 参照履歴 |
+| 変換・合成中核 | `Layer0`命令適用 + Pによる関係・状態変換 |
+| 文脈依存結果形成 | Pによる`結果`形成 + 主体整合Gate + 採否 |
+| 結果表面 | Runtime `結果`契約 |
+
+## 4. K3とLlama 3の位置
+
+### K3 — 主基盤
+
+K3はMINIDORAの主たる参照基盤である。
+KDA / MLA / AttnRes / LatentMoE等の物理実装名そのものをLayer-0へ移植せず、HDSで抽出した作用・責任・状態関係をPとRuntimeへ再構成する。
+
+### Llama 3 — 自己一貫性の対抗基準
+
+Llama 3はK3と同格の基盤ではない。
+Dense共通経路、逐次Residual、assistant住所、履歴再入力、preference選択等から観測された**自己一貫性の成立関係**だけを抽出し、主体主幹へ内包する。
+
+### その他LLM — 差分観測点
+
+DeepSeek / Qwen / OLMo / Apertus / OpenAI / Claude / Gemini / Grok等は、K3とLlama 3の差分を精密化するための補助観測点として扱う。
+
+## 5. 主体主幹は第6責任ではない
+
+主体主幹はLayer-0 v4の新規責任ではない。
+
+主に次を横断して担う。
+
+```text
+CONTEXT_BOUND_STATE
+  ×
+CONTEXT_DEPENDENT_RESULT_FORMATION
+```
+
+処理中の主体状態を全経路へ必須参照させ、専門処理・命令実行が返した差分を主体整合Gateで評価し、理由付き更新だけを次turnへ持ち越す。
+
+## 6. Construction / Operational Wrapper
+
+Layer-0 v4に従い、作られ方と実行責任を分離する。
+
+- MINIDORA construction profile: `authored / compiled / retrieved / hybrid`
+- operational profile: `interactive_chat / structured_output / text_api` を候補とする
+
+HDS構文化、K3/Llama 3からの抽出、手書きP、検索R等の由来は記録するが、Functional Coreの定義へ混入しない。
+
+## 7. Negative controls
+
+MINIDORAでは最低限、Layer-0 v4の8 negative controlを評価対象にする。
+
+1. context除去/固定
+2. transformation bypass/canned response
+3. source material破損
+4. result surface遮断
+5. unknown input fallback
+6. contradictory context resolution
+7. exact retrieval と composition の区別
+8. merged-role implementation の許容確認
+
+主体主幹固有ではさらに次を追加する。
+
+- 理由なし主体反転
+- 理由付き自己訂正
+- 専門処理からの主体主幹迂回
+- turn間主体状態持続

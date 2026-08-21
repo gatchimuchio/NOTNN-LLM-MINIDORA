@@ -1,0 +1,24 @@
+{
+  "layer0_version": "v4.0-provisional",
+  "canonical_repo": "gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification",
+  "canonical_commit": "4adf86d13d7beb99fe5eaa9e240b22996ba3d3bc",
+  "responsibilities": [
+    {"id": "LINGUISTIC_ADDRESSABILITY", "名称": "言語アドレス化"},
+    {"id": "CONTEXT_BOUND_STATE", "名称": "文脈束縛状態"},
+    {"id": "TRANSFORMATION_OR_COMPOSITION_CORE", "名称": "変換・合成中核"},
+    {"id": "CONTEXT_DEPENDENT_RESULT_FORMATION", "名称": "文脈依存結果形成"},
+    {"id": "RESULT_SURFACE", "名称": "結果表面"}
+  ],
+  "rules": {
+    "responsibility_count_is_not_mechanism_count": true,
+    "legacy_v0_2_eight_responsibilities": "history_only",
+    "subject_trunk_is_sixth_responsibility": false
+  },
+  "minidora_mapping": {
+    "LINGUISTIC_ADDRESSABILITY": ["要求.問合せ", "参照R", "日本語命令形P"],
+    "CONTEXT_BOUND_STATE": ["Layer0状態", "主体主幹", "参照履歴"],
+    "TRANSFORMATION_OR_COMPOSITION_CORE": ["Layer0", "日本語命令形P"],
+    "CONTEXT_DEPENDENT_RESULT_FORMATION": ["結果形成", "主体整合Gate", "採否"],
+    "RESULT_SURFACE": ["Runtime結果契約"]
+  }
+}

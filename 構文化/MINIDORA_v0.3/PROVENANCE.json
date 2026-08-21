@@ -1,0 +1,37 @@
+{
+  "version": "0.3",
+  "date": "2026-08-21",
+  "priority": {
+    "base": "K3",
+    "consistency_anchor": "Llama 3",
+    "other_llms": "K3/Llama3差分の補助観測点"
+  },
+  "sources": {
+    "layer0_v4": {
+      "repository": "gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification",
+      "commit": "4adf86d13d7beb99fe5eaa9e240b22996ba3d3bc",
+      "state": "v4.0-provisional / L0-C observed-set-supported"
+    },
+    "k3_fullweight_v2": {
+      "sha256": "2c6b2f88bb47780f964d3b11b69a5271497b913f1407a9c9a2e388ee12155bf9",
+      "payload_bytes": 1560860324864,
+      "tensor_count": 497220,
+      "role": "主基盤"
+    },
+    "llm_cross_hds_v0_1": {
+      "sha256": "d732760cb3541c19a79f68e29b6af9c682b1d1446882779ce5a06bf2a784559b",
+      "role": "相対座標・差分観測"
+    },
+    "llama3_self_consistency_hds_v2": {
+      "sha256": "e9b674c92c5bf99513569ea36462d76948922adba25a58a10b5c0ce2d3d75de5",
+      "role": "主体主幹抽出"
+    },
+    "hds_rev4_1_internal": {
+      "sha256": "7e6655f39a2c088580e4a0f3fd67f9f442c2b740dfa1fd6e4f530cc15c3d9294",
+      "published_content": false,
+      "role": "解析・分別規則"
+    }
+  },
+  "composite_source_digest": "f58f6a1b6a359d0b2d8b16973ff878fc894d7da04547712ac2d7b823185c109f",
+  "boundary": "上流HDS内部解析方法は公開実装へ埋め込まず、抽出された責任・作用・状態契約だけを反映する"
+}

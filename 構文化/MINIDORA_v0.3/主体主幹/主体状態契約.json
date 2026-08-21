@@ -1,0 +1,33 @@
+{
+  "version": "0.3",
+  "name": "主体主幹",
+  "state": [
+    "主体ID",
+    "現在目的",
+    "判断基準",
+    "立場",
+    "選好",
+    "約束",
+    "仮説",
+    "未解残差",
+    "版"
+  ],
+  "invariants": [
+    "主体IDは実行経路から変更不可",
+    "全Runtime実行は同一主体状態を必須参照",
+    "能力処理は主体状態を直接書換えず差分提案を返す",
+    "実差分は理由必須",
+    "理由なし変更は保留して旧状態維持",
+    "理由付き訂正は旧版・新版・差分・理由・根拠を保存",
+    "主体整合失敗/保留候補は必須モードで結果表面へ昇格させない"
+  ],
+  "layer0_v4_mapping": [
+    "CONTEXT_BOUND_STATE",
+    "CONTEXT_DEPENDENT_RESULT_FORMATION"
+  ],
+  "origin": {
+    "base": "K3",
+    "consistency_anchor": "Llama 3",
+    "other_models": "differential_observers"
+  }
+}

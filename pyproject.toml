@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "minidora-notnn"
-version = "0.1.0"
+version = "0.3.0"
 description = "日本語基底の非ニューラルネットワークLLM研究実装"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,6 +19,7 @@ keywords = [
   "MINIDORA",
   "Layer-0",
   "Japanese",
+  "subject-consistency",
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
