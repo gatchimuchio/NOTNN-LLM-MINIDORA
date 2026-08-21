@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping, Sequence
 
 from .hds_adapter import HDSコンパイラProtocol, HDS文脈
 from .hds_ir import HDSIR
+from .k3_functional import K3相当能力核, SystemResult as K3能力結果
 from .layer0 import Layer0
 from .multilingual_surface import 表面化 as 多言語表面化
 from .trinity_context import Trinity文脈系
@@ -42,7 +43,7 @@ class 結果:
 
 
 class ミニドラ:
-    """HDS-IR入力境界、Trinity J/C/M、Layer-0・P・R・主体主幹を接続する非ニューラル実行系。"""
+    """HDS-IR、Trinity J/C/M、Layer-0とK3機能相当能力核を接続する非ニューラルLLM Runtime。"""
 
     def __init__(
         self,
@@ -52,6 +53,7 @@ class ミニドラ:
         自然言語器_: 自然言語器 | None = None,
         HDSコンパイラ_: HDSコンパイラProtocol | None = None,
         Trinity文脈_: Trinity文脈系 | None = None,
+        K3能力核_: K3相当能力核 | None = None,
     ) -> None:
         self.参照供給器 = 参照供給器_
         self.layer0 = layer0 or Layer0()
@@ -59,6 +61,7 @@ class ミニドラ:
         self.自然言語器 = 自然言語器_ or 自然言語器()
         self.HDSコンパイラ = HDSコンパイラ_
         self.Trinity文脈 = Trinity文脈_ or Trinity文脈系()
+        self._K3能力核 = K3能力核_
 
     @property
     def 主体状態(self) -> 主体状態:
@@ -71,6 +74,22 @@ class ミニドラ:
     @property
     def HDS文脈(self) -> HDS文脈:
         return self.Trinity文脈.判断主体.文脈()
+
+    @property
+    def K3能力核(self) -> K3相当能力核:
+        """K3機能相当能力を使う時だけ非ニューラル能力核を初期化する。"""
+        if self._K3能力核 is None:
+            self._K3能力核 = K3相当能力核()
+        return self._K3能力核
+
+    def K3知識投入(self, statements: Iterable[str]) -> list[dict[str, Any]]:
+        return self.K3能力核.知識投入(statements)
+
+    def K3グリッド投入(self, grid: Sequence[Sequence[int]]) -> list[dict[str, Any]]:
+        return self.K3能力核.グリッド投入(grid)
+
+    def K3実行(self, request: str, effort: str | None = None) -> K3能力結果:
+        return self.K3能力核.実行(request, effort)
 
     def _主体更新提案(self, 文脈状態: Mapping[str, Any], 要求_: 要求) -> 主体更新提案 | None:
         候補 = 文脈状態.get("主体更新提案", 要求_.主体更新提案)
@@ -242,8 +261,6 @@ class ミニドラ:
         return self._帰還(result) if hds_ir is not None else result
 
     def 応答(self, 問合せ: str) -> str:
-        """通常利用入口。HDS Compiler経路ではIRが指定した表層言語へ戻す。"""
-
         result = self.実行(要求(問合せ))
         if result.HDS_IR is not None:
             language = result.HDS_IR.出力言語 or result.HDS_IR.入力言語
