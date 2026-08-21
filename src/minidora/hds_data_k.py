@@ -17,6 +17,8 @@ _SURFACE_ONLY_KINDS = {
     "文脈.言語",
 }
 _EVIDENCE_ATTR = "_hds_evidence_facts"
+_GRAPH_REVISION_ATTR = "_hds_graph_revision"
+_GRAPH_CACHE_ATTR = "_hds_graph_index_cache"
 
 
 def _predicate(kind: str) -> str:
@@ -47,7 +49,6 @@ def _state_marker(state: 値状態) -> str:
 
 
 def _証拠台帳(core: K3相当能力核) -> dict[str, Fact]:
-    """Kのcanonical Factとは別に、独立sourceごとのHDS証拠Factを保持する。"""
     ledger = getattr(core.K, _EVIDENCE_ATTR, None)
     if ledger is None:
         ledger = {}
@@ -55,8 +56,14 @@ def _証拠台帳(core: K3相当能力核) -> dict[str, Fact]:
     return ledger
 
 
+def _graph索引無効化(core: K3相当能力核) -> None:
+    revision = int(getattr(core.K, _GRAPH_REVISION_ATTR, 0)) + 1
+    setattr(core.K, _GRAPH_REVISION_ATTR, revision)
+    if hasattr(core.K, _GRAPH_CACHE_ATTR):
+        delattr(core.K, _GRAPH_CACHE_ATTR)
+
+
 def HDS証拠事実(core: K3相当能力核) -> tuple[Fact, ...]:
-    """独立sourceを潰さず保持したHDS証拠Factを返す。"""
     ledger = getattr(core.K, _EVIDENCE_ATTR, {})
     return tuple(ledger.values())
 
@@ -72,14 +79,7 @@ class HDS知識投入結果:
 
 
 class HDSIR知識Adapter:
-    """コンパイル済みHDS-IRだけをKへ投入する一般Adapter。
-
-    生の自然言語Dataを直接Kへ入れない。Kのcanonical Factは意味重複を排除する一方、
-    独立sourceごとのHDS証拠Factは別台帳へ保持する。これにより同じ意味を複数資料が
-    支持した場合でも、J/HDSが独立根拠数と由来を失わない。
-
-    source_text / normalized / 原文保持はHDS-IR側に保持したままK証拠から除外する。
-    """
+    """コンパイル済みHDS-IRだけをKへ投入する一般Adapter。"""
 
     def __init__(self, core: K3相当能力核) -> None:
         self.core = core
@@ -98,69 +98,37 @@ class HDSIR知識Adapter:
             content = _text(coord.内容)
             if not content:
                 continue
-            facts.append(
-                Fact(
-                    "hds_coordinate",
-                    (kind, content),
-                    confidence=_confidence(coord.値状態),
-                    provenance=source
-                    + (
-                        "HDS-IR",
-                        coord.座標ID,
-                        _state_marker(coord.値状態),
-                        _text(coord.由来),
-                        _text(coord.暫定性),
-                    ),
-                )
-            )
+            facts.append(Fact(
+                "hds_coordinate", (kind, content), confidence=_confidence(coord.値状態),
+                provenance=source + ("HDS-IR", coord.座標ID, _state_marker(coord.値状態), _text(coord.由来), _text(coord.暫定性)),
+            ))
             coord_count += 1
 
         for relation in ir.関係:
-            starts = tuple(
-                _text(coords[x].内容)
-                for x in relation.始点
-                if x in coords and _text(coords[x].内容)
-            )
-            ends = tuple(
-                _text(coords[x].内容)
-                for x in relation.終点
-                if x in coords and _text(coords[x].内容)
-            )
+            starts = tuple(_text(coords[x].内容) for x in relation.始点 if x in coords and _text(coords[x].内容))
+            ends = tuple(_text(coords[x].内容) for x in relation.終点 if x in coords and _text(coords[x].内容))
             if not starts and not ends:
                 continue
-            facts.append(
-                Fact(
-                    _predicate(relation.種別),
-                    starts + ("→",) + ends,
-                    confidence=_confidence(relation.値状態),
-                    provenance=source
-                    + (
-                        "HDS-IR",
-                        relation.関係ID,
-                        _state_marker(relation.値状態),
-                        "relation_type:" + _text(relation.種別),
-                        _text(relation.由来),
-                        _text(relation.暫定性),
-                    ),
-                )
-            )
+            facts.append(Fact(
+                _predicate(relation.種別), starts + ("→",) + ends,
+                confidence=_confidence(relation.値状態),
+                provenance=source + ("HDS-IR", relation.関係ID, _state_marker(relation.値状態), "relation_type:" + _text(relation.種別), _text(relation.由来), _text(relation.暫定性)),
+            ))
             relation_count += 1
 
         for residual in ir.残差:
-            facts.append(
-                Fact(
-                    "hds_residual",
-                    (_text(residual.種別), _text(residual.原文), _text(residual.理由)),
-                    confidence=0.35,
-                    provenance=source + ("HDS-IR", residual.残差ID, "value_state:留保"),
-                )
-            )
+            facts.append(Fact(
+                "hds_residual", (_text(residual.種別), _text(residual.原文), _text(residual.理由)),
+                confidence=0.35,
+                provenance=source + ("HDS-IR", residual.残差ID, "value_state:留保"),
+            ))
 
         ledger = _証拠台帳(self.core)
         for fact in facts:
             ledger.setdefault(fact.fact_id, fact)
 
         added = self.core.K.add_many(facts)
+        _graph索引無効化(self.core)
         return HDS知識投入結果(
             追加事実数=added,
             座標事実数=coord_count,
