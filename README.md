@@ -249,12 +249,11 @@ tests/                          単体・negative control試験
 Python 3.11以上を使用する。
 
 ```bash
-python -m venv .venv
 python -m pip install -e .
 python -m unittest discover -s tests -v
 ```
 
-CIではLinux / Windows上のPython 3.11・3.12・3.13・3.14で、パッケージ導入・構文確認・単体試験・CLI smoke testを行う。
+CIではLinux / Windows上のPython 3.11・3.12・3.13・3.14で、パッケージ導入・構文確認・単体試験・`python -m minidora` と `minidora` の両CLI smoke testを行う。
 
 ## 日本語基底
 
