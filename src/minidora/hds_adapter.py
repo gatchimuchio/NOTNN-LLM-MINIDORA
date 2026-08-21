@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -31,4 +32,24 @@ class HDSコンパイラProtocol(Protocol):
     ) -> HDSIR: ...
 
 
-__all__ = ["HDS文脈", "HDSコンパイラProtocol"]
+def HDS独立コンパイル(compiler: HDSコンパイラProtocol, 入力: str) -> HDSIR:
+    """choice/Data等の独立文書を会話Mから切離してコンパイルする。
+
+    現在のユーザー要求はTrinity文脈を使ってよい。一方、選択肢や検索で取得した外部Dataへ
+    前turnの現在焦点・直前結果・未解残差を注入すると、外部証拠が会話状態に汚染される。
+    この入口は空のHDS文脈だけを渡し、旧式Compilerには実装済み引数だけを供給する。
+    """
+    compile_fn = compiler.コンパイル
+    params = inspect.signature(compile_fn).parameters
+    has_kwargs = any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+    kwargs: dict[str, Any] = {}
+    if "前回結果" in params or has_kwargs:
+        kwargs["前回結果"] = None
+    if "HDS履歴" in params or has_kwargs:
+        kwargs["HDS履歴"] = ()
+    if "文脈" in params or has_kwargs:
+        kwargs["文脈"] = HDS文脈()
+    return compile_fn(入力, **kwargs)
+
+
+__all__ = ["HDS文脈", "HDSコンパイラProtocol", "HDS独立コンパイル"]
