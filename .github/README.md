@@ -1,0 +1,22 @@
+# .github
+
+`.github/` は、MINIDORAリポジトリのGitHub上の検証・運用設定を保持する。
+
+現行の正本ブランチは `main` であり、Workflowから恒久的な作業ブランチへ依存しない。
+
+## workflows
+
+現行の自動検証は `workflows/ci.yml` に集約する。
+
+CIはLinux / Windows × Python 3.11–3.14で、次を確認する。
+
+- editable install
+- リポジトリ正本整合性監査
+- `src / tests / tools` の構文確認
+- 全単体試験
+- module CLI smoke test
+- console script smoke test
+
+旧 `chappie/k3-hds-stream-v6` 専用K3 inventory Workflowは、対象ブランチ消滅後に無効な自動化となったため削除した。K3 inventoryツール本体と固定成果物・履歴は保持している。
+
+GitHub ActionsのPASSは定義された検証条件の成立を示すが、それ単独を製品・最終完成の根拠とはしない。
