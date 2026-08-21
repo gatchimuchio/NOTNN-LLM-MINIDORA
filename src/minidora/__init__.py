@@ -7,6 +7,7 @@ from .hds_ir import 値状態, HDS座標, HDS関係, HDS残差, HDS意味作用,
 from .hds_adapter import HDS文脈, HDSコンパイラProtocol
 from .trinity_context import Trinity記憶監査, 記憶主体, HDS判断主体, Trinity文脈系
 from .k3_functional import K3相当能力核, SystemResult as K3能力結果
+from .k3_hds_native import HDSK3結果, HDSIRネイティブAdapter
 from .k3_benchmark import run_k3_equivalence_benchmark
 from .言語 import 自然言語器, 言語計画
 from .runtime import ミニドラ, 要求, 結果
@@ -20,7 +21,7 @@ __all__ = [
     "値状態", "HDS座標", "HDS関係", "HDS残差", "HDS意味作用", "HDS実行核", "HDSIR",
     "HDS文脈", "HDSコンパイラProtocol",
     "Trinity記憶監査", "記憶主体", "HDS判断主体", "Trinity文脈系",
-    "K3相当能力核", "K3能力結果", "run_k3_equivalence_benchmark",
+    "K3相当能力核", "K3能力結果", "HDSK3結果", "HDSIRネイティブAdapter", "run_k3_equivalence_benchmark",
     "自然言語器", "言語計画",
     "ミニドラ", "要求", "結果",
 ]
