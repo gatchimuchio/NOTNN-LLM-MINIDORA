@@ -1,0 +1,85 @@
+name: llmbench-reconstruct-once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/llmbench-reconstruct-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconstruct:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Reconstruct and verify canonical artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='構文化/LLM横断_HDS日本語構文化_相対化ベンチマーク_v0_1'
+          cat .tmp_llmbench/artifact.part*.b64 > /tmp/artifact.b64
+          base64 -d /tmp/artifact.b64 > /tmp/artifact.zip
+          echo 'd732760cb3541c19a79f68e29b6af9c682b1d1446882779ce5a06bf2a784559b  /tmp/artifact.zip' | sha256sum -c -
+          unzip -o /tmp/artifact.zip -d 構文化
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path('構文化/LLM横断_HDS日本語構文化_相対化ベンチマーク_v0_1')
+          manifest = json.loads((root / 'MANIFEST.json').read_text(encoding='utf-8'))
+          for name, meta in manifest['files'].items():
+              p = root / name
+              data = p.read_bytes()
+              actual = hashlib.sha256(data).hexdigest()
+              if len(data) != meta['bytes']:
+                  raise SystemExit(f'BYTE_MISMATCH {name}: {len(data)} != {meta["bytes"]}')
+              if actual != meta['sha256']:
+                  raise SystemExit(f'SHA_MISMATCH {name}: {actual} != {meta["sha256"]}')
+          print(f'MANIFEST_OK files={len(manifest["files"])}')
+          PY
+
+          cat > "$ROOT/README_成果物.md" <<'EOF'
+          # LLM横断 HDS日本語構文化・相対化ベンチマーク v0.1
+
+          2026-08-21 実施の第一巡成果物です。
+
+          対象:
+          - OpenAI GPT-5.6 Sol
+          - Claude Fable 5 / Mythos 5
+          - Google Gemini 3.7 Flash / 3.1 Pro
+          - DeepSeek V4
+          - Qwen3.6-35B-A3B
+          - Grok 4.6
+          - Llama 3 70B (2024-04)
+          - OLMo 3
+          - Apertus 1.5 70B
+          - K2-V2 70B
+          - K3 v2 full-weight
+
+          目的は単一モデルの絶対評価ではなく、異質なLLMを同一の日本語HDS座標へ置き、差分によって基準自体を精密化することです。
+
+          GitHubでは転送監査性を優先し、成果物を展開済みテキスト正本として格納しています。
+          `MANIFEST.json` の bytes / SHA-256 を各ファイルの正本検証値とします。
+
+          ローカル生成ZIPの参考SHA-256:
+          `d732760cb3541c19a79f68e29b6af9c682b1d1446882779ce5a06bf2a784559b`
+
+          ZIPそのものはGitHubには置かず、同内容を展開済みで格納しています。
+          EOF
+
+          rm -rf .tmp_llmbench
+          rm .github/workflows/llmbench-reconstruct-once.yml
+
+          git config user.name 'llmbench-reconstruct-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -- "$ROOT"
+          git add -u -- .tmp_llmbench .github/workflows/llmbench-reconstruct-once.yml
+          git commit -m '横断HDS構文化正本をSHA検証の上で展開'
+          git push origin main
