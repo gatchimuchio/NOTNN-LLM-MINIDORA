@@ -66,6 +66,8 @@ def 参照矛盾数(記録群: Iterable[参照記録]) -> int:
 
 
 class 固定参照供給器:
+    並列安全 = True
+
     def __init__(self, 記録群: Iterable[参照記録], 名称: str = "固定資料") -> None:
         self.名称 = 名称
         self._記録群 = tuple(記録群)
@@ -96,11 +98,9 @@ class 固定参照供給器:
 
 
 class 複合参照供給器:
-    """複数Providerを並列取得し、Provider順を保ったround-robinで統合する。
+    """複数Providerを並列取得し、Provider順を保ったround-robinで統合する。"""
 
-    I/O完了順は結果順位へ影響させないため決定性を維持する。1 Providerの例外は空poolへ
-    閉じ、他Providerの取得を継続する。`並列=False` で逐次互換経路も利用できる。
-    """
+    並列安全 = True
 
     def __init__(
         self,
@@ -128,7 +128,6 @@ class 複合参照供給器:
             workers = min(self.最大並列, len(self._供給器群))
             with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="minidora-r") as executor:
                 futures = [executor.submit(self._取得, provider, 問合せ, 上限) for provider in self._供給器群]
-                # future完了順ではなくProvider定義順で回収し、結果決定性を保持する。
                 for provider, future in zip(self._供給器群, futures):
                     try:
                         pools.append(future.result())
