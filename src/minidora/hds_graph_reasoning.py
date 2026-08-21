@@ -15,6 +15,8 @@ _BLOCKING_PROVENANCE = {
     "value_state:矛盾",
     "value_state:留保",
 }
+_GRAPH_REVISION_ATTR = "_hds_graph_revision"
+_GRAPH_CACHE_ATTR = "_hds_graph_index_cache"
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +40,7 @@ class HDS意味Graph索引:
     隣接: Mapping[str, tuple[_辺, ...]]
     node_terms: Mapping[str, frozenset[str]]
     関係Fact数: int
+    revision: int
 
 
 def _relation(predicate: str) -> str | None:
@@ -63,11 +66,11 @@ def _fact_blocked(fact: object) -> bool:
 
 
 def HDS意味Graph索引構築(core: K3相当能力核) -> HDS意味Graph索引:
-    """現時点のKからHDS方向付き関係索引を一度だけ構築する。
+    revision = int(getattr(core.K, _GRAPH_REVISION_ATTR, 0))
+    cached = getattr(core.K, _GRAPH_CACHE_ATTR, None)
+    if cached is not None and cached.revision == revision:
+        return cached
 
-    1回の候補判定中はKを変更しないため、4候補やeffort追加探索で同じ索引を共有できる。
-    Kが更新された後の別判定では新しい索引を作る。永続cacheではないためstale化しない。
-    """
     store = getattr(core.K, "_facts", {})
     adjacency: dict[str, list[_辺]] = {}
     node_terms: dict[str, frozenset[str]] = {}
@@ -100,8 +103,14 @@ def HDS意味Graph索引構築(core: K3相当能力核) -> HDS意味Graph索引:
                 adjacency.setdefault(sk, []).append(_辺(ek, relation, confidence, fid, False))
                 adjacency.setdefault(ek, []).append(_辺(sk, relation, confidence * 0.82, fid, True))
 
-    frozen_adjacency = {node: tuple(edges) for node, edges in adjacency.items()}
-    return HDS意味Graph索引(frozen_adjacency, dict(node_terms), relation_fact_count)
+    index = HDS意味Graph索引(
+        {node: tuple(edges) for node, edges in adjacency.items()},
+        dict(node_terms),
+        relation_fact_count,
+        revision,
+    )
+    setattr(core.K, _GRAPH_CACHE_ATTR, index)
+    return index
 
 
 def HDS意味経路探索(
@@ -113,21 +122,6 @@ def HDS意味経路探索(
     最大深さ: int = 4,
     索引: HDS意味Graph索引 | None = None,
 ) -> HDS意味経路結果:
-    """KのHDS方向付き関係を辿り、問い意味から候補意味までの単純路を探す。
-
-    文書やベンチ形式には依存しない。複数Factを跨ぐ関係連鎖を一つの根拠としてJへ返す。
-    逆向き探索は可到達性確認のため許すが、方向保持のため減点する。
-
-    問い・候補・graph nodeは ``semantic_tokens.意味語`` を共有し、表層屈折差で
-    経路の始点・終点が切れないようにする。未確定・未観測・矛盾・留保のHDS関係は
-    Kに保持されていても確定推論経路へ昇格させない。
-
-    同一路内のnode再訪を禁止する。これにより `A→B→A→C` のような循環を
-    新しい推論深度として加点せず、独立sourceの増加が逆候補の循環scoreを押し上げる
-    ことを防ぐ。
-
-    ``索引`` が渡された場合、K全件走査を再実行せず同一索引を利用する。
-    """
     graph = 索引 or HDS意味Graph索引構築(core)
     adjacency = graph.隣接
     node_terms = graph.node_terms
@@ -136,15 +130,11 @@ def HDS意味経路探索(
     if not adjacency or not 問い語 or not 候補語:
         return HDS意味経路結果(0.0, (), None)
 
-    starts: list[tuple[float, str]] = []
-    for node, terms in node_terms.items():
-        qcov = _coverage(問い語, terms)
-        if qcov > 0:
-            starts.append((qcov, node))
+    starts = [( _coverage(問い語, terms), node) for node, terms in node_terms.items()]
+    starts = [(score, node) for score, node in starts if score > 0]
     if not starts:
         return HDS意味経路結果(0.0, (), None)
 
-    # max-heap: -score, depth, node, proof tuple, visited node tuple
     heap: list[tuple[float, int, str, tuple[str, ...], tuple[str, ...]]] = []
     best_state: dict[tuple[str, int], float] = {}
     for qcov, node in starts:
@@ -167,11 +157,7 @@ def HDS意味経路探索(
         for edge in adjacency.get(node, ()):
             if edge.行先 in visited:
                 continue
-            relation_bonus = 0.0
-            if edge.関係 in preferred:
-                relation_bonus = 0.8
-            elif edge.関係 not in _GENERIC:
-                relation_bonus = 0.25
+            relation_bonus = 0.8 if edge.関係 in preferred else (0.25 if edge.関係 not in _GENERIC else 0.0)
             direction_penalty = 0.78 if edge.逆向き else 1.0
             edge_gain = edge.信頼度 * direction_penalty * (1.0 + relation_bonus)
             new_score = score * 0.88 + edge_gain
@@ -180,17 +166,9 @@ def HDS意味経路探索(
                 continue
             best_state[state] = new_score
             new_proof = proof + ((edge.事実ID,) if edge.事実ID and edge.事実ID not in proof else ())
-            heapq.heappush(
-                heap,
-                (-new_score, depth + 1, edge.行先, new_proof, visited + (edge.行先,)),
-            )
+            heapq.heappush(heap, (-new_score, depth + 1, edge.行先, new_proof, visited + (edge.行先,)))
 
     return best_goal
 
 
-__all__ = [
-    "HDS意味経路結果",
-    "HDS意味Graph索引",
-    "HDS意味Graph索引構築",
-    "HDS意味経路探索",
-]
+__all__ = ["HDS意味経路結果", "HDS意味Graph索引", "HDS意味Graph索引構築", "HDS意味経路探索"]
