@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import math
 from typing import Mapping
 
+from .hds_data_k import HDS証拠事実
 from .hds_graph_reasoning import HDS意味経路探索
 from .hds_ir import HDSIR, 値状態
 from .k3_functional import Candidate, HDSJudge, JudgeDecision, K3相当能力核, SemanticFrame
@@ -29,6 +30,7 @@ _SIGNATURE_BLOCKING_STATES = {
     値状態.矛盾,
     値状態.留保,
 }
+_BLOCKING_PROVENANCE = {"value_state:" + state.value for state in _SIGNATURE_BLOCKING_STATES}
 
 
 def _choices(ir: HDSIR) -> tuple[tuple[str, str], ...]:
@@ -41,8 +43,28 @@ def _choices(ir: HDSIR) -> tuple[tuple[str, str], ...]:
 
 
 def _facts(core: K3相当能力核) -> tuple[object, ...]:
+    """Kのcanonical Factに、潰さず保持したHDS独立証拠を重ねて返す。"""
     store = getattr(core.K, "_facts", {})
-    return tuple(store.values())
+    evidence = HDS証拠事実(core)
+    if not evidence:
+        return tuple(store.values())
+
+    evidence_ids = {str(getattr(fact, "fact_id", "")) for fact in evidence}
+    canonical_non_hds = []
+    for fact in store.values():
+        fid = str(getattr(fact, "fact_id", ""))
+        provenance = tuple(str(x) for x in getattr(fact, "provenance", ()))
+        if fid in evidence_ids:
+            continue
+        if "HDS-IR" in provenance:
+            continue
+        canonical_non_hds.append(fact)
+    return tuple(canonical_non_hds) + tuple(evidence)
+
+
+def _fact_blocked(fact: object) -> bool:
+    provenance = {str(x) for x in getattr(fact, "provenance", ())}
+    return bool(provenance & _BLOCKING_PROVENANCE)
 
 
 def _fact_text(core: K3相当能力核, fact: object) -> str:
@@ -122,6 +144,9 @@ def _意味署名(ir: HDSIR, *, fallback_text: str = "") -> HDS意味署名:
 
 
 def _fact_signature(core: K3相当能力核, fact: object) -> tuple[set[str], set[str], set[str]]:
+    if _fact_blocked(fact):
+        return set(), set(), set()
+
     predicate = str(getattr(fact, "predicate", ""))
     args = tuple(str(x) for x in getattr(fact, "args", ()))
     terms: set[str] = set()
@@ -155,7 +180,7 @@ def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
 
     for fact in _facts(core):
         predicate = str(getattr(fact, "predicate", ""))
-        if predicate == "hds_residual":
+        if predicate == "hds_residual" or _fact_blocked(fact):
             continue
         fid = str(getattr(fact, "fact_id", ""))
         confidence = float(getattr(fact, "confidence", 1.0))
@@ -268,9 +293,9 @@ class HDSK3結果:
 class HDSIRネイティブAdapter:
     """HDS-IRをK3相当能力核へ直接接続する一般Adapter。
 
-    問い・候補・DataのHDS意味署名、同一文書内の意味共起、K内の方向付きHDS関係を
-    統合する。通常4段、未到達時のみ6段まで関係探索する。ベンチ名・正解情報には
-    依存せず、根拠が無い場合や一意差が無い場合はJ/HDSが保留する。
+    問い・候補・DataのHDS意味署名、独立source証拠、同一文書内の意味共起、K内の
+    方向付きHDS関係を統合する。通常4段、未到達時のみ6段まで関係探索する。
+    ベンチ名・正解情報には依存せず、根拠が無い場合や一意差が無い場合はJ/HDSが保留する。
     """
 
     def __init__(self, core: K3相当能力核 | None = None, judge: HDSJudge | None = None) -> None:
