@@ -9,6 +9,13 @@ from .k3_functional import Fact, K3相当能力核
 
 
 _SAFE = re.compile(r"[^0-9A-Za-z_一-龥ぁ-んァ-ヶー]+")
+_SURFACE_ONLY_KINDS = {
+    "source_text",
+    "language.input",
+    "language.normalized",
+    "対象.原文保持",
+    "文脈.言語",
+}
 
 
 def _predicate(kind: str) -> str:
@@ -46,8 +53,8 @@ class HDS知識投入結果:
 class HDSIR知識Adapter:
     """コンパイル済みHDS-IRだけをKへ投入する一般Adapter。
 
-    生の自然言語Dataを直接Kへ入れない。座標と方向付き関係をKのFactへ射影し、
-    原文・暫定性・由来をprovenanceとして保持する。
+    生の自然言語Dataを直接Kへ入れない。Kの証拠対象は意味座標と方向付き関係だけとし、
+    source_text / normalized / 原文保持はHDS-IR側に保持したままK証拠から除外する。
     """
 
     def __init__(self, core: K3相当能力核) -> None:
@@ -61,13 +68,16 @@ class HDSIR知識Adapter:
         relation_count = 0
 
         for coord in ir.座標:
+            kind = _text(coord.種別)
+            if kind in _SURFACE_ONLY_KINDS:
+                continue
             content = _text(coord.内容)
             if not content:
                 continue
             facts.append(
                 Fact(
                     "hds_coordinate",
-                    (_text(coord.種別), content),
+                    (kind, content),
                     confidence=_confidence(coord.値状態),
                     provenance=source + ("HDS-IR", coord.座標ID, _text(coord.由来), _text(coord.暫定性)),
                 )
