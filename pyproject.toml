@@ -30,6 +30,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.scripts]
+minidora = "minidora.__main__:main"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

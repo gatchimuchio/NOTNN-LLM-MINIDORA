@@ -16,6 +16,14 @@ class 値状態(StrEnum):
     留保 = "留保"
 
 
+_実行阻害値状態 = frozenset({
+    値状態.未確定,
+    値状態.未観測,
+    値状態.矛盾,
+    値状態.留保,
+})
+
+
 @dataclass(frozen=True, slots=True)
 class HDS座標:
     座標ID: str
@@ -101,5 +109,24 @@ class HDSIR:
         return {item.座標ID: item for item in self.座標}
 
     @property
+    def 実行阻害理由(self) -> tuple[str, ...]:
+        """Layer-0へ昇格できない、IR自身から機械判定可能な理由を返す。"""
+        reasons: list[str] = []
+        if self.手順 is None:
+            reasons.append("実行手順未閉包")
+        if any(r.種別 == "semantic_loss" for r in self.残差):
+            reasons.append("semantic_loss残差")
+
+        coordinates = self.座標辞書()
+        for coordinate_id in self.実行核.入力座標:
+            coordinate = coordinates.get(coordinate_id)
+            if coordinate is None:
+                reasons.append(f"実行入力座標欠落:{coordinate_id}")
+                continue
+            if coordinate.値状態 in _実行阻害値状態:
+                reasons.append(f"実行入力{coordinate.値状態.value}:{coordinate_id}")
+        return tuple(reasons)
+
+    @property
     def 実行可能(self) -> bool:
-        return self.手順 is not None and not any(r.種別 == "semantic_loss" for r in self.残差)
+        return not self.実行阻害理由
