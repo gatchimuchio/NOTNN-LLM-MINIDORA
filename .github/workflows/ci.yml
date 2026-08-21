@@ -25,5 +25,7 @@ jobs:
         run: python -m compileall -q src tests
       - name: 単体試験
         run: python -m unittest discover -s tests -v
-      - name: CLI smoke test
+      - name: module CLI smoke test
         run: python -m minidora "2+3"
+      - name: console script smoke test
+        run: minidora "2+3"
