@@ -68,6 +68,28 @@ def HDS証拠事実(core: K3相当能力核) -> tuple[Fact, ...]:
     return tuple(ledger.values())
 
 
+def _残差阻害(ir: HDSIR) -> tuple[bool, dict[str, tuple[str, ...]]]:
+    """Data HDS-IRの残差を確定証拠へ昇格させない範囲へ落とす。
+
+    semantic_loss はHDS-IR自身が実行阻害とする重大残差なのでsource全体を阻害する。
+    その他残差は `影響座標` が明示された範囲だけを局所阻害し、無関係な確定座標は残す。
+    """
+    source_blocked = any(item.種別 == "semantic_loss" for item in ir.残差)
+    impacted: dict[str, list[str]] = {}
+    for residual in ir.残差:
+        for coordinate_id in residual.影響座標:
+            impacted.setdefault(str(coordinate_id), []).append(str(residual.種別))
+    return source_blocked, {key: tuple(values) for key, values in impacted.items()}
+
+
+def _残差marker(source_blocked: bool, kinds: Iterable[str]) -> tuple[str, ...]:
+    markers: list[str] = []
+    if source_blocked:
+        markers.append("residual_blocked:semantic_loss")
+    markers.extend("residual_blocked:" + str(kind) for kind in kinds)
+    return tuple(dict.fromkeys(markers))
+
+
 @dataclass(frozen=True, slots=True)
 class HDS知識投入結果:
     追加事実数: int
@@ -76,10 +98,15 @@ class HDS知識投入結果:
     残差数: int
     semantic_loss: bool
     証拠事実数: int = 0
+    証拠阻害事実数: int = 0
 
 
 class HDSIR知識Adapter:
-    """コンパイル済みHDS-IRだけをKへ投入する一般Adapter。"""
+    """コンパイル済みHDS-IRだけをKへ投入する一般Adapter。
+
+    Kには残差を含む全構造を監査用として保持する。一方、残差が影響する座標・関係は
+    `residual_blocked:*` を付与し、J/HDSの確定回答証拠・graph経路へは昇格させない。
+    """
 
     def __init__(self, core: K3相当能力核) -> None:
         self.core = core
@@ -90,6 +117,8 @@ class HDSIR知識Adapter:
         facts: list[Fact] = []
         coord_count = 0
         relation_count = 0
+        blocked_count = 0
+        source_blocked, impacted = _残差阻害(ir)
 
         for coord in ir.座標:
             kind = _text(coord.種別)
@@ -98,9 +127,12 @@ class HDSIR知識Adapter:
             content = _text(coord.内容)
             if not content:
                 continue
+            residual_markers = _残差marker(source_blocked, impacted.get(coord.座標ID, ()))
+            if residual_markers:
+                blocked_count += 1
             facts.append(Fact(
                 "hds_coordinate", (kind, content), confidence=_confidence(coord.値状態),
-                provenance=source + ("HDS-IR", coord.座標ID, _state_marker(coord.値状態), _text(coord.由来), _text(coord.暫定性)),
+                provenance=source + ("HDS-IR", coord.座標ID, _state_marker(coord.値状態), *residual_markers, _text(coord.由来), _text(coord.暫定性)),
             ))
             coord_count += 1
 
@@ -109,18 +141,24 @@ class HDSIR知識Adapter:
             ends = tuple(_text(coords[x].内容) for x in relation.終点 if x in coords and _text(coords[x].内容))
             if not starts and not ends:
                 continue
+            affected_kinds: list[str] = []
+            for coordinate_id in (*relation.始点, *relation.終点):
+                affected_kinds.extend(impacted.get(coordinate_id, ()))
+            residual_markers = _残差marker(source_blocked, affected_kinds)
+            if residual_markers:
+                blocked_count += 1
             facts.append(Fact(
                 _predicate(relation.種別), starts + ("→",) + ends,
                 confidence=_confidence(relation.値状態),
-                provenance=source + ("HDS-IR", relation.関係ID, _state_marker(relation.値状態), "relation_type:" + _text(relation.種別), _text(relation.由来), _text(relation.暫定性)),
+                provenance=source + ("HDS-IR", relation.関係ID, _state_marker(relation.値状態), *residual_markers, "relation_type:" + _text(relation.種別), _text(relation.由来), _text(relation.暫定性)),
             ))
             relation_count += 1
 
         for residual in ir.残差:
             facts.append(Fact(
-                "hds_residual", (_text(residual.種別), _text(residual.原文), _text(residual.理由)),
+                "hds_residual", (_text(residual.種別), _text(residual.原文), _text(residual.理由), *tuple(_text(x) for x in residual.影響座標)),
                 confidence=0.35,
-                provenance=source + ("HDS-IR", residual.残差ID, "value_state:留保"),
+                provenance=source + ("HDS-IR", residual.残差ID, "value_state:留保", *tuple("impact:" + str(x) for x in residual.影響座標)),
             ))
 
         ledger = _証拠台帳(self.core)
@@ -134,8 +172,9 @@ class HDSIR知識Adapter:
             座標事実数=coord_count,
             関係事実数=relation_count,
             残差数=len(ir.残差),
-            semantic_loss=any(item.種別 == "semantic_loss" for item in ir.残差),
+            semantic_loss=source_blocked,
             証拠事実数=len(facts),
+            証拠阻害事実数=blocked_count,
         )
 
 
