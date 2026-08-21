@@ -25,11 +25,7 @@ class _FakeHTTP:
                         "doi": "https://doi.org/10.1/example",
                         "display_name": "Catalysis by ProteinX",
                         "publication_year": 2024,
-                        "abstract_inverted_index": {
-                            "ProteinX": [0],
-                            "supports": [1],
-                            "catalysis": [2],
-                        },
+                        "abstract_inverted_index": {"ProteinX": [0], "supports": [1], "catalysis": [2]},
                         "is_retracted": False,
                         "relevance_score": 12.3,
                     },
@@ -93,6 +89,19 @@ class HTTP参照供給器試験(unittest.TestCase):
         self.assertNotIn("ignored", record.内容)
         self.assertTrue(any("/search/page?" in url for url in fake.urls))
         self.assertTrue(any("/page/ProteinX/with_html" in url for url in fake.urls))
+
+    def test_Wikipedia本文は複数query間で再取得しない(self) -> None:
+        fake = _FakeHTTP()
+        provider = Wikipedia参照供給器(言語="en", JSON取得=fake)
+        first = provider.検索("ProteinX catalysis", 2)
+        second = provider.検索("ProteinX transport", 2)
+
+        self.assertTrue(first and second)
+        detail_calls = [url for url in fake.urls if "/page/ProteinX/with_html" in url]
+        search_calls = [url for url in fake.urls if "/search/page?" in url]
+        self.assertEqual(len(detail_calls), 1)
+        self.assertEqual(len(search_calls), 2)
+        self.assertEqual(provider.本文cache件数, 1)
 
     def test_一Provider障害でも複合Rは他Providerを返す(self) -> None:
         def failing(url, headers, timeout):
