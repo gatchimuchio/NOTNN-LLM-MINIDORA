@@ -16,7 +16,6 @@
 MINIDORAの公開Runtimeは、HDS Compilerを用意しなくてもLegacy互換経路を使って即時実行できる。
 
 ```bash
-python -m venv .venv
 python -m pip install -e .
 python -m minidora "2+3"
 ```
@@ -255,7 +254,7 @@ python -m pip install -e .
 python -m unittest discover -s tests -v
 ```
 
-CIではLinux / Windows上のPython 3.11・3.12・3.14で、パッケージ導入・構文確認・単体試験・CLI smoke testを行う。
+CIではLinux / Windows上のPython 3.11・3.12・3.13・3.14で、パッケージ導入・構文確認・単体試験・CLI smoke testを行う。
 
 ## 日本語基底
 
