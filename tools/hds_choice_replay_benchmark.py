@@ -57,6 +57,21 @@ def _run_case(row: dict[str, Any], *, effort: str | None) -> tuple[dict[str, Any
         evidence_fact_count += result.証拠事実数
 
     result = HDSIRネイティブAdapter(core).実行(question, 候補IR=choices, 努力=effort)
+    candidate_rows = [
+        {
+            "answer": candidate.answer,
+            "confidence": candidate.confidence,
+            "expert": candidate.expert,
+            "proof_fact_count": len(candidate.proof_fact_ids),
+            "provenance": list(candidate.provenance),
+        }
+        for candidate in result.候補
+    ]
+    confidence_margin = None
+    if candidate_rows:
+        ordered = sorted((row["confidence"] for row in candidate_rows), reverse=True)
+        confidence_margin = ordered[0] - ordered[1] if len(ordered) > 1 else ordered[0]
+
     detail = {
         "id": case_id,
         "status": result.状態,
@@ -69,6 +84,8 @@ def _run_case(row: dict[str, Any], *, effort: str | None) -> tuple[dict[str, Any
         "proof_fact_count": result.根拠事実数,
         "k_facts_added": data_fact_count,
         "evidence_facts": evidence_fact_count,
+        "candidate_confidence_margin": confidence_margin,
+        "candidates": candidate_rows,
     }
     return detail, (str(gold) if gold is not None else None)
 
