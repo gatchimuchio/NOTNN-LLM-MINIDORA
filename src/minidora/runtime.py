@@ -8,12 +8,13 @@ from .主体 import 主体主幹, 主体状態, 主体更新提案, 主体整合
 from .参照 import 参照供給器, 参照記録
 from .命令 import 手順
 from .採否 import 実行状態, 採否, 採否結果
+from .言語 import 自然言語器
 
 
 @dataclass(frozen=True, slots=True)
 class 要求:
     問合せ: str
-    手順: 手順
+    手順: 手順 | None = None
     初期状態: dict[str, Any] = field(default_factory=dict)
     参照必須: bool = False
     主体更新提案: 主体更新提案 | None = None
@@ -32,20 +33,23 @@ class 結果:
     主体状態: 主体状態 | None = None
     主体整合: 主体整合結果 | None = None
     主体監査履歴: tuple[主体更新記録, ...] = ()
+    言語計画: str | None = None
 
 
 class ミニドラ:
-    """Layer-0 v4責任上に、日本語命令P・参照R・主体主幹を接続する非ニューラル実行系。"""
+    """自然言語I/OからLayer-0・P・R・主体主幹まで閉じた非ニューラル実行系。"""
 
     def __init__(
         self,
         参照供給器_: 参照供給器 | None = None,
         layer0: Layer0 | None = None,
         主体主幹_: 主体主幹 | None = None,
+        自然言語器_: 自然言語器 | None = None,
     ) -> None:
         self.参照供給器 = 参照供給器_
         self.layer0 = layer0 or Layer0()
         self.主体主幹 = 主体主幹_ or 主体主幹()
+        self.自然言語器 = 自然言語器_ or 自然言語器()
 
     @property
     def 主体状態(self) -> 主体状態:
@@ -73,10 +77,15 @@ class ミニドラ:
         return 採否結果(実行状態.保留, 基礎.理由 + 主体.理由)
 
     def 実行(self, 要求_: 要求) -> 結果:
+        自動計画 = 要求_.手順 is None
+        計画 = self.自然言語器.計画(要求_.問合せ) if 自動計画 else None
+        手順_ = 計画.手順 if 計画 is not None else 要求_.手順
+        参照必須 = 要求_.参照必須 or bool(計画 and 計画.参照必須)
+
         参照 = ()
         if self.参照供給器 is not None:
             参照 = self.参照供給器.検索(要求_.問合せ)
-        if 要求_.参照必須 and not 参照:
+        if 参照必須 and not 参照:
             判定 = 採否(根拠数=0)
             主体整合 = self.主体主幹.非適用結果("参照不足のため主体更新未実行")
             return 結果(
@@ -88,19 +97,46 @@ class ミニドラ:
                 self.主体主幹.現在,
                 主体整合,
                 self.主体主幹.履歴,
+                計画.種別 if 計画 else None,
             )
 
         初期 = dict(要求_.初期状態)
+        if 計画 is not None:
+            初期.update(計画.初期状態)
         初期["参照"] = 参照
         初期["主体状態"] = self.主体主幹.状態辞書()
-        文脈 = self.layer0.実行(要求_.手順, 初期)
-        値 = 文脈.状態.get("結果")
 
+        try:
+            文脈 = self.layer0.実行(手順_, 初期)
+        except (ValueError, TypeError, ZeroDivisionError) as exc:
+            if not 自動計画:
+                raise
+            主体整合 = self.主体主幹.非適用結果("自然言語計画の実行失敗")
+            return 結果(
+                None,
+                初期,
+                tuple(参照),
+                (),
+                採否結果(実行状態.失敗, ("自然言語計画実行失敗", str(exc))),
+                self.主体主幹.現在,
+                主体整合,
+                self.主体主幹.履歴,
+                計画.種別 if 計画 else None,
+            )
+
+        値 = 文脈.状態.get("結果")
         提案 = self._主体更新提案(文脈.状態, 要求_)
         主体整合 = self.主体主幹.評価更新(提案)
 
-        結果根拠数 = len(参照) if 要求_.参照必須 else (1 if 値 is not None else 0)
-        基礎判定 = 採否(根拠数=結果根拠数, 矛盾数=要求_.矛盾数, 危険=要求_.境界違反)
+        if 参照必須:
+            結果根拠数 = len(参照) if 値 is not None else 0
+        else:
+            結果根拠数 = 1 if 値 is not None else 0
+        基礎判定 = 採否(
+            根拠数=結果根拠数,
+            矛盾数=要求_.矛盾数,
+            危険=要求_.境界違反,
+        )
         判定 = self._採否合成(基礎判定, 主体整合, 要求_.主体整合必須)
         if 要求_.主体整合必須 and 判定.状態 in {実行状態.保留, 実行状態.失敗}:
             値 = None
@@ -114,4 +150,15 @@ class ミニドラ:
             self.主体主幹.現在,
             主体整合,
             self.主体主幹.履歴,
+            計画.種別 if 計画 else None,
+        )
+
+    def 応答(self, 問合せ: str) -> str:
+        """通常利用入口。自然言語文字列を受け、自然言語文字列を返す。"""
+
+        result = self.実行(要求(問合せ))
+        return self.自然言語器.表面化(
+            result.値,
+            result.採否.状態.value,
+            result.採否.理由,
         )

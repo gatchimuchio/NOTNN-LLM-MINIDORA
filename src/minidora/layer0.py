@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Mapping
 
 from .命令 import 作用, 命令, 手順
 
@@ -55,6 +55,23 @@ class Layer0:
             result = 文脈.状態.get(命令_.対象)
             if 命令_.更新先:
                 文脈.状態[命令_.更新先] = result
+        elif op == 作用.抽出:
+            if len(args) != 2:
+                raise ValueError("抽出は 対象, キー/位置 を取る")
+            source, key = args
+            if isinstance(source, Mapping):
+                result = source.get(key)
+            elif isinstance(key, int) and isinstance(source, (tuple, list, str)):
+                result = source[key] if -len(source) <= key < len(source) else None
+            elif isinstance(key, str) and hasattr(source, key):
+                result = getattr(source, key)
+            else:
+                try:
+                    result = source[key]
+                except (KeyError, IndexError, TypeError):
+                    result = None
+            if 命令_.更新先:
+                文脈.状態[命令_.更新先] = result
         elif op in {作用.加算, 作用.減算, 作用.乗算, 作用.除算}:
             if len(args) < 2:
                 raise ValueError(f"{op}には2値以上が必要")
@@ -67,6 +84,8 @@ class Layer0:
                 elif op == 作用.乗算:
                     result *= value
                 else:
+                    if value == 0:
+                        raise ValueError("0では除算できない")
                     result /= value
             if 命令_.更新先:
                 文脈.状態[命令_.更新先] = result
@@ -74,7 +93,14 @@ class Layer0:
             if len(args) != 3:
                 raise ValueError("比較は 左, 演算子, 右 を取る")
             左, 演算子, 右 = args
-            比較表 = {"同値": 左 == 右, "不同": 左 != 右, "大": 左 > 右, "小": 左 < 右, "以上": 左 >= 右, "以下": 左 <= 右}
+            比較表 = {
+                "同値": 左 == 右,
+                "不同": 左 != 右,
+                "大": 左 > 右,
+                "小": 左 < 右,
+                "以上": 左 >= 右,
+                "以下": 左 <= 右,
+            }
             if 演算子 not in 比較表:
                 raise ValueError(f"未対応比較: {演算子}")
             result = 比較表[演算子]
@@ -108,4 +134,11 @@ class Layer0:
         else:
             raise ValueError(f"未対応作用: {op}")
 
-        文脈.履歴.append({"名称": 命令_.名称, "作用": op.value, "対象": 命令_.対象, "引数": args, "結果": result, "根拠": 命令_.根拠})
+        文脈.履歴.append({
+            "名称": 命令_.名称,
+            "作用": op.value,
+            "対象": 命令_.対象,
+            "引数": args,
+            "結果": result,
+            "根拠": 命令_.根拠,
+        })
