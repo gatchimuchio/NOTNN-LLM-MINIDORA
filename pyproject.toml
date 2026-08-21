@@ -30,6 +30,10 @@ classifiers = [
 ]
 dependencies = []
 
+[project.urls]
+Repository = "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA"
+"Layer-0 Reference" = "https://github.com/gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification"
+
 [project.scripts]
 minidora = "minidora.__main__:main"
 
