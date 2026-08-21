@@ -8,7 +8,8 @@ from .主体 import 主体主幹, 主体状態, 主体更新提案, 主体整合
 from .参照 import 参照供給器, 参照記録
 from .命令 import 手順
 from .採否 import 実行状態, 採否, 採否結果
-from .言語 import 自然言語器
+from .言語 import 自然言語器, 言語計画
+from .hds_ir import HDSIR
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,10 +35,11 @@ class 結果:
     主体整合: 主体整合結果 | None = None
     主体監査履歴: tuple[主体更新記録, ...] = ()
     言語計画: str | None = None
+    HDS_IR: HDSIR | None = None
 
 
 class ミニドラ:
-    """自然言語I/OからLayer-0・P・R・主体主幹まで閉じた非ニューラル実行系。"""
+    """HDS意味IRを入力境界とし、Layer-0・P・R・主体主幹まで閉じた非ニューラル実行系。"""
 
     def __init__(
         self,
@@ -78,13 +80,27 @@ class ミニドラ:
 
     def 実行(self, 要求_: 要求) -> 結果:
         自動計画 = 要求_.手順 is None
-        計画 = self.自然言語器.計画(要求_.問合せ) if 自動計画 else None
+        HDS_IR_ = self.自然言語器.compiler.コンパイル(要求_.問合せ) if 自動計画 else None
+        計画 = None
+        if HDS_IR_ is not None and HDS_IR_.手順 is not None:
+            計画 = 言語計画(HDS_IR_.手順, dict(HDS_IR_.初期状態), HDS_IR_.参照必須, HDS_IR_.種別)
         手順_ = 計画.手順 if 計画 is not None else 要求_.手順
-        参照必須 = 要求_.参照必須 or bool(計画 and 計画.参照必須)
+        参照必須 = 要求_.参照必須 or bool(HDS_IR_ and HDS_IR_.参照必須)
+
+        if 自動計画 and 手順_ is None:
+            主体整合 = self.主体主幹.非適用結果("HDS-IR未閉包")
+            return 結果(
+                None, {}, (), (),
+                採否結果(実行状態.保留, ("HDS-IR未閉包", "意味残差保持")),
+                self.主体主幹.現在, 主体整合, self.主体主幹.履歴,
+                HDS_IR_.種別 if HDS_IR_ else None, HDS_IR_,
+            )
 
         参照 = ()
         if self.参照供給器 is not None:
             参照 = self.参照供給器.検索(要求_.問合せ)
+        if HDS_IR_ is not None and 参照:
+            HDS_IR_ = self.自然言語器.compiler.参照統合(HDS_IR_, tuple(参照))
         if 参照必須 and not 参照:
             判定 = 採否(根拠数=0)
             主体整合 = self.主体主幹.非適用結果("参照不足のため主体更新未実行")
@@ -97,7 +113,8 @@ class ミニドラ:
                 self.主体主幹.現在,
                 主体整合,
                 self.主体主幹.履歴,
-                計画.種別 if 計画 else None,
+                HDS_IR_.種別 if HDS_IR_ else (計画.種別 if 計画 else None),
+                HDS_IR_,
             )
 
         初期 = dict(要求_.初期状態)
@@ -111,17 +128,18 @@ class ミニドラ:
         except (ValueError, TypeError, ZeroDivisionError) as exc:
             if not 自動計画:
                 raise
-            主体整合 = self.主体主幹.非適用結果("自然言語計画の実行失敗")
+            主体整合 = self.主体主幹.非適用結果("HDS-IR実行失敗")
             return 結果(
                 None,
                 初期,
                 tuple(参照),
                 (),
-                採否結果(実行状態.失敗, ("自然言語計画実行失敗", str(exc))),
+                採否結果(実行状態.失敗, ("HDS-IR実行失敗", str(exc))),
                 self.主体主幹.現在,
                 主体整合,
                 self.主体主幹.履歴,
-                計画.種別 if 計画 else None,
+                HDS_IR_.種別 if HDS_IR_ else (計画.種別 if 計画 else None),
+                HDS_IR_,
             )
 
         値 = 文脈.状態.get("結果")
@@ -132,9 +150,10 @@ class ミニドラ:
             結果根拠数 = len(参照) if 値 is not None else 0
         else:
             結果根拠数 = 1 if 値 is not None else 0
+        HDS矛盾数 = sum(1 for r in HDS_IR_.残差 if r.種別 == "contradiction") if HDS_IR_ is not None else 0
         基礎判定 = 採否(
             根拠数=結果根拠数,
-            矛盾数=要求_.矛盾数,
+            矛盾数=要求_.矛盾数 + HDS矛盾数,
             危険=要求_.境界違反,
         )
         判定 = self._採否合成(基礎判定, 主体整合, 要求_.主体整合必須)
@@ -150,11 +169,15 @@ class ミニドラ:
             self.主体主幹.現在,
             主体整合,
             self.主体主幹.履歴,
-            計画.種別 if 計画 else None,
+            HDS_IR_.種別 if HDS_IR_ else (計画.種別 if 計画 else None),
+            HDS_IR_,
         )
 
+    def コンパイル(self, 問合せ: str) -> HDSIR:
+        return self.自然言語器.compiler.コンパイル(問合せ)
+
     def 応答(self, 問合せ: str) -> str:
-        """通常利用入口。自然言語文字列を受け、自然言語文字列を返す。"""
+        """通常利用入口。自然言語文字列を受け、HDS-IR経由で自然言語文字列を返す。"""
 
         result = self.実行(要求(問合せ))
         return self.自然言語器.表面化(
