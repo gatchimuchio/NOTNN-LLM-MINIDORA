@@ -77,6 +77,7 @@ class HDSIR実行境界試験(unittest.TestCase):
         result = ミニドラ(HDSコンパイラ_=_固定Compiler(uncertain_ir)).実行(要求("実行して"))
         self.assertIsNone(result.値)
         self.assertEqual(result.採否.状態, 実行状態.保留)
+        self.assertIn("実行入力未確定:a", result.採否.理由)
 
     def test_実行核が参照する座標欠落は実行不能(self):
         ir = replace(_加算IR(), 座標=(HDS座標("a", "対象.現在状態", 2),))
