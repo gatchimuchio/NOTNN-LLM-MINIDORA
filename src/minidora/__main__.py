@@ -9,8 +9,8 @@ from .runtime import ミニドラ, 要求
 
 
 def _標準入出力をUTF8化() -> None:
-    """日本語基底CLIの出力をOSロケールから分離する。"""
-    for stream in (sys.stdout, sys.stderr):
+    """日本語基底CLIの標準入出力をOSロケールから分離する。"""
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
             reconfigure(encoding="utf-8", errors="strict")
