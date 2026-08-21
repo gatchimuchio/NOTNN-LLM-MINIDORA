@@ -5,6 +5,7 @@ import heapq
 from typing import Iterable
 
 from .k3_functional import K3相当能力核
+from .semantic_tokens import 意味語
 
 
 _GENERIC = {"意味原子→節", "談話順序", "節→述語"}
@@ -33,13 +34,6 @@ def _relation(predicate: str) -> str | None:
     return predicate[len(prefix):].replace("_", " ")
 
 
-def _tokens(text: object) -> frozenset[str]:
-    # 呼出側と同じ意味原子を想定し、ここでは空白・記号境界だけで保守的に分割する。
-    import re
-    parts = re.findall(r"[A-Za-z0-9_+\-.]+|[ぁ-んァ-ヶー]+|[一-龥々]+", str(text))
-    return frozenset(x.casefold().strip("._-") for x in parts if len(x.strip("._-")) > 1)
-
-
 def _node_key(text: str) -> str:
     return " ".join(str(text).casefold().split())
 
@@ -62,6 +56,9 @@ def HDS意味経路探索(
 
     文書やベンチ形式には依存しない。複数Factを跨ぐ関係連鎖を一つの根拠としてJへ返す。
     逆向き探索は可到達性確認のため許すが、方向保持のため減点する。
+
+    問い・候補・graph nodeは ``semantic_tokens.意味語`` を共有し、表層屈折差で
+    経路の始点・終点が切れないようにする。
     """
     store = getattr(core.K, "_facts", {})
     adjacency: dict[str, list[_辺]] = {}
@@ -85,10 +82,10 @@ def HDS意味経路探索(
         fid = str(getattr(fact, "fact_id", ""))
         for start in starts:
             sk = _node_key(start)
-            node_terms.setdefault(sk, _tokens(start))
+            node_terms.setdefault(sk, 意味語(start))
             for end in ends:
                 ek = _node_key(end)
-                node_terms.setdefault(ek, _tokens(end))
+                node_terms.setdefault(ek, 意味語(end))
                 adjacency.setdefault(sk, []).append(_辺(ek, relation, confidence, fid, False))
                 adjacency.setdefault(ek, []).append(_辺(sk, relation, confidence * 0.82, fid, True))
 
