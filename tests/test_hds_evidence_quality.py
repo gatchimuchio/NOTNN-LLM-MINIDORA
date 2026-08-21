@@ -66,8 +66,8 @@ class HDS証拠品質試験(unittest.TestCase):
         adapter.投入(_use_ir("stone"), provenance=("web", "doc:stone:1"))
 
         result = HDSIRネイティブAdapter(core).実行(_question(), 候補IR=_candidates())
-        self.assertEqual(result.状態, "APPROVE")
-        self.assertEqual(result.回答ラベル, "A")
+        self.assertEqual(result.状態, "APPROVE", result.候補診断)
+        self.assertEqual(result.回答ラベル, "A", result.候補診断)
         engine_candidate = next(c for c in result.候補 if c.answer == "A")
         self.assertGreaterEqual(len(engine_candidate.proof_fact_ids), 2)
 
@@ -79,7 +79,7 @@ class HDS証拠品質試験(unittest.TestCase):
         )
 
         result = HDSIRネイティブAdapter(core).実行(_question(), 候補IR=_candidates())
-        self.assertEqual(result.状態, "SUSPEND")
+        self.assertEqual(result.状態, "SUSPEND", result.候補診断)
         self.assertIsNone(result.回答ラベル)
 
     def test_確定関係は同じDataで承認可能(self) -> None:
@@ -90,8 +90,8 @@ class HDS証拠品質試験(unittest.TestCase):
         )
 
         result = HDSIRネイティブAdapter(core).実行(_question(), 候補IR=_candidates())
-        self.assertEqual(result.状態, "APPROVE")
-        self.assertEqual(result.回答ラベル, "A")
+        self.assertEqual(result.状態, "APPROVE", result.候補診断)
+        self.assertEqual(result.回答ラベル, "A", result.候補診断)
 
 
 if __name__ == "__main__":
