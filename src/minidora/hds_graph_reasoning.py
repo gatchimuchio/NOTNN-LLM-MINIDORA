@@ -1,0 +1,145 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+import heapq
+from typing import Iterable
+
+from .k3_functional import K3相当能力核
+
+
+_GENERIC = {"意味原子→節", "談話順序", "節→述語"}
+
+
+@dataclass(frozen=True, slots=True)
+class HDS意味経路結果:
+    得点: float
+    事実ID: tuple[str, ...]
+    深さ: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class _辺:
+    行先: str
+    関係: str
+    信頼度: float
+    事実ID: str
+    逆向き: bool = False
+
+
+def _relation(predicate: str) -> str | None:
+    prefix = "hds_relation_"
+    if not predicate.startswith(prefix):
+        return None
+    return predicate[len(prefix):].replace("_", " ")
+
+
+def _tokens(text: object) -> frozenset[str]:
+    # 呼出側と同じ意味原子を想定し、ここでは空白・記号境界だけで保守的に分割する。
+    import re
+    parts = re.findall(r"[A-Za-z0-9_+\-.]+|[ぁ-んァ-ヶー]+|[一-龥々]+", str(text))
+    return frozenset(x.casefold().strip("._-") for x in parts if len(x.strip("._-")) > 1)
+
+
+def _node_key(text: str) -> str:
+    return " ".join(str(text).casefold().split())
+
+
+def _coverage(query: frozenset[str], node_terms: frozenset[str]) -> float:
+    if not query:
+        return 0.0
+    return len(query & node_terms) / len(query)
+
+
+def HDS意味経路探索(
+    core: K3相当能力核,
+    問い語: frozenset[str],
+    候補語: frozenset[str],
+    優先関係: Iterable[str] = (),
+    *,
+    最大深さ: int = 4,
+) -> HDS意味経路結果:
+    """KのHDS方向付き関係を辿り、問い意味から候補意味までの経路を探す。
+
+    文書やベンチ形式には依存しない。複数Factを跨ぐ関係連鎖を一つの根拠としてJへ返す。
+    逆向き探索は可到達性確認のため許すが、方向保持のため減点する。
+    """
+    store = getattr(core.K, "_facts", {})
+    adjacency: dict[str, list[_辺]] = {}
+    node_terms: dict[str, frozenset[str]] = {}
+    preferred = {str(x) for x in 優先関係}
+
+    for fact in store.values():
+        predicate = str(getattr(fact, "predicate", ""))
+        relation = _relation(predicate)
+        if relation is None:
+            continue
+        args = [str(x) for x in getattr(fact, "args", ())]
+        if "→" not in args:
+            continue
+        split = args.index("→")
+        starts = [x for x in args[:split] if x]
+        ends = [x for x in args[split + 1:] if x]
+        if not starts or not ends:
+            continue
+        confidence = float(getattr(fact, "confidence", 1.0))
+        fid = str(getattr(fact, "fact_id", ""))
+        for start in starts:
+            sk = _node_key(start)
+            node_terms.setdefault(sk, _tokens(start))
+            for end in ends:
+                ek = _node_key(end)
+                node_terms.setdefault(ek, _tokens(end))
+                adjacency.setdefault(sk, []).append(_辺(ek, relation, confidence, fid, False))
+                adjacency.setdefault(ek, []).append(_辺(sk, relation, confidence * 0.82, fid, True))
+
+    if not adjacency or not 問い語 or not 候補語:
+        return HDS意味経路結果(0.0, (), None)
+
+    starts: list[tuple[float, str]] = []
+    for node, terms in node_terms.items():
+        qcov = _coverage(問い語, terms)
+        if qcov > 0:
+            starts.append((qcov, node))
+    if not starts:
+        return HDS意味経路結果(0.0, (), None)
+
+    # max-heap: -score, depth, node, proof tuple
+    heap: list[tuple[float, int, str, tuple[str, ...]]] = []
+    best_state: dict[tuple[str, int], float] = {}
+    for qcov, node in starts:
+        score = 2.0 * qcov
+        heapq.heappush(heap, (-score, 0, node, ()))
+        best_state[(node, 0)] = score
+
+    best_goal = HDS意味経路結果(0.0, (), None)
+    while heap:
+        neg_score, depth, node, proof = heapq.heappop(heap)
+        score = -neg_score
+        candidate_cov = _coverage(候補語, node_terms.get(node, frozenset()))
+        if candidate_cov > 0 and proof:
+            goal = score + 5.0 * candidate_cov - 0.25 * depth
+            if goal > best_goal.得点:
+                best_goal = HDS意味経路結果(goal, proof, depth)
+        if depth >= 最大深さ:
+            continue
+
+        for edge in adjacency.get(node, ()):
+            relation_bonus = 0.0
+            if edge.関係 in preferred:
+                relation_bonus = 0.8
+            elif edge.関係 not in _GENERIC:
+                relation_bonus = 0.25
+            direction_penalty = 0.78 if edge.逆向き else 1.0
+            edge_gain = edge.信頼度 * direction_penalty * (1.0 + relation_bonus)
+            new_score = score * 0.88 + edge_gain
+            state = (edge.行先, depth + 1)
+            if new_score <= best_state.get(state, -1.0):
+                continue
+            best_state[state] = new_score
+            new_proof = proof + ((edge.事実ID,) if edge.事実ID and edge.事実ID not in proof else ())
+            heapq.heappush(heap, (-new_score, depth + 1, edge.行先, new_proof))
+
+    return best_goal
+
+
+__all__ = ["HDS意味経路結果", "HDS意味経路探索"]
