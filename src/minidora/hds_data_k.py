@@ -72,6 +72,21 @@ def HDS証拠事実(core: K3相当能力核) -> tuple[Fact, ...]:
     return tuple(ledger.values())
 
 
+def HDS証拠状態複製(source: K3相当能力核, destination: K3相当能力核) -> None:
+    """K3 cloneで落ちるHDS独立source台帳を作業Kへ複製する。
+
+    `KnowledgeBase.copy()` はcanonical Factだけを複製するため、HDS独立source台帳は明示的に
+    移す。graph index cache自体は共有せず、同じrevisionからdestination側で再構築する。
+    """
+    ledger = getattr(source.K, _EVIDENCE_ATTR, None)
+    if ledger is not None:
+        setattr(destination.K, _EVIDENCE_ATTR, dict(ledger))
+    revision = int(getattr(source.K, _GRAPH_REVISION_ATTR, 0))
+    setattr(destination.K, _GRAPH_REVISION_ATTR, revision)
+    if hasattr(destination.K, _GRAPH_CACHE_ATTR):
+        delattr(destination.K, _GRAPH_CACHE_ATTR)
+
+
 def _残差阻害(ir: HDSIR) -> tuple[bool, dict[str, tuple[str, ...]]]:
     source_blocked = any(item.種別 == "semantic_loss" for item in ir.残差)
     impacted: dict[str, list[str]] = {}
@@ -181,4 +196,9 @@ class HDSIR知識Adapter:
         )
 
 
-__all__ = ["HDS知識投入結果", "HDSIR知識Adapter", "HDS証拠事実"]
+__all__ = [
+    "HDS知識投入結果",
+    "HDSIR知識Adapter",
+    "HDS証拠事実",
+    "HDS証拠状態複製",
+]
