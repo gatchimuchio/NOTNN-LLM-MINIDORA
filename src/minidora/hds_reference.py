@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 
+from .hds_effort import HDS努力水準
 from .hds_ir import HDSIR, 値状態
 from .参照 import 参照供給器, 参照記録
 
@@ -15,6 +17,28 @@ _SURFACE_ONLY_KINDS = {
     "文脈.言語",
 }
 _BLOCKING_STATES = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
+
+
+@dataclass(frozen=True, slots=True)
+class HDS参照予算:
+    努力水準: str
+    取得上限: int
+    一問合せ上限: int
+    最大問合せ並列: int
+
+
+def HDS参照予算選択(ir: HDSIR) -> HDS参照予算:
+    """K3 effortと外部Data budgetを接続する。
+
+    4択はHDS努力水準で最低highとなるため、既定6 queryへ概ね2件ずつ回せる12件を確保する。
+    ベンチ名やgold labelは見ず、HDS構造量だけで決定する。
+    """
+    level = HDS努力水準(ir)
+    if level == "max":
+        return HDS参照予算(level, 16, 4, 4)
+    if level == "high":
+        return HDS参照予算(level, 12, 4, 4)
+    return HDS参照予算(level, 6, 3, 2)
 
 
 def _unique(parts: Iterable[str]) -> tuple[str, ...]:
@@ -57,7 +81,6 @@ def _役割語群(ir: HDSIR) -> tuple[dict[str, tuple[str, ...]], tuple[tuple[st
         "その他": [],
     }
     choices: list[tuple[str, str]] = []
-
     for coord in ir.座標:
         if coord.値状態 in _BLOCKING_STATES:
             continue
@@ -70,31 +93,19 @@ def _役割語群(ir: HDSIR) -> tuple[dict[str, tuple[str, ...]], tuple[tuple[st
         if str(coord.種別) in _SURFACE_ONLY_KINDS:
             continue
         groups[_役割(str(coord.種別))].append(content)
-
-    return (
-        {name: _unique(values) for name, values in groups.items()},
-        tuple(sorted(choices, key=lambda item: item[0])),
-    )
+    return {name: _unique(values) for name, values in groups.items()}, tuple(sorted(choices))
 
 
 def HDS参照問合せ候補(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[str, ...]:
-    """HDS-IRの役割構造から、外部参照Rへ渡す対称な検索query群を作る。"""
     groups, choices = _役割語群(ir)
     base = " ".join(str(ir.正規化文 or ir.原文).split()).strip()
-
-    structured_parts = (
-        *groups["対象"],
-        *groups["関係"],
-        *groups["状態"],
-        *groups["条件"],
-        *groups["焦点"],
-        *groups["その他"],
-    )
-    structured = " ".join(_unique(structured_parts))
+    structured = " ".join(_unique((
+        *groups["対象"], *groups["関係"], *groups["状態"],
+        *groups["条件"], *groups["焦点"], *groups["その他"],
+    )))
     entity_relation = " ".join(_unique((*groups["対象"], *groups["関係"], *groups["状態"])))
     entity_only = " ".join(groups["対象"])
     anchor = structured or entity_relation or entity_only or base
-
     budget = max(int(最大候補数), len(choices))
     nonchoice_slots = max(0, budget - len(choices))
     nonchoice = _unique((base, structured, entity_relation, entity_only))[:nonchoice_slots]
@@ -102,47 +113,49 @@ def HDS参照問合せ候補(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[st
     return _unique((*nonchoice, *choice_queries))
 
 
-def _query_pools(
-    provider: 参照供給器,
-    queries: tuple[str, ...],
-    per_query_limit: int,
-    *,
-    max_parallel: int,
-) -> list[tuple[参照記録, ...]]:
-    """Providerが並列安全を宣言した場合だけquery I/Oを並列化する。
-
-    futureは完了順ではなく元query順で回収するため、検索結果の決定性は維持する。
-    未知のcustom Providerは従来どおり逐次実行する。
-    """
+def _query_pools(provider: 参照供給器, queries: tuple[str, ...], per_query_limit: int, *, max_parallel: int) -> list[tuple[参照記録, ...]]:
     parallel_safe = bool(getattr(provider, "並列安全", False))
     if not parallel_safe or len(queries) <= 1 or max_parallel <= 1:
-        return [tuple(provider.検索(query, per_query_limit)) for query in queries]
-
+        pools: list[tuple[参照記録, ...]] = []
+        for query in queries:
+            try:
+                pools.append(tuple(provider.検索(query, per_query_limit)))
+            except Exception:
+                pools.append(())
+        return pools
     workers = min(max(1, int(max_parallel)), len(queries))
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="minidora-rq") as executor:
         futures = [executor.submit(provider.検索, query, per_query_limit) for query in queries]
-        return [tuple(future.result()) for future in futures]
+        pools = []
+        for future in futures:
+            try:
+                pools.append(tuple(future.result()))
+            except Exception:
+                pools.append(())
+        return pools
 
 
 def HDS参照検索(
     provider: 参照供給器,
     ir: HDSIR,
     *,
-    上限: int = 8,
-    一問合せ上限: int = 4,
-    最大問合せ並列: int = 4,
+    上限: int | None = None,
+    一問合せ上限: int | None = None,
+    最大問合せ並列: int | None = None,
 ) -> tuple[参照記録, ...]:
-    """複数HDS queryを安全なら並列取得し、元query順round-robinで統合する。"""
+    """K3 effort由来budgetで複数HDS queryを取得し、元query順round-robinで統合する。"""
+    budget = HDS参照予算選択(ir)
+    total_limit = budget.取得上限 if 上限 is None else max(0, int(上限))
+    per_query = budget.一問合せ上限 if 一問合せ上限 is None else max(1, int(一問合せ上限))
+    parallel = budget.最大問合せ並列 if 最大問合せ並列 is None else max(1, int(最大問合せ並列))
     queries = HDS参照問合せ候補(ir)
-    if not queries:
+    if not queries or total_limit <= 0:
         return ()
-
-    pools = _query_pools(provider, queries, 一問合せ上限, max_parallel=最大問合せ並列)
+    pools = _query_pools(provider, queries, per_query, max_parallel=parallel)
     result: list[参照記録] = []
     seen: set[str] = set()
     depth = 0
-
-    while len(result) < 上限:
+    while len(result) < total_limit:
         progressed = False
         for pool in pools:
             if depth >= len(pool):
@@ -153,13 +166,17 @@ def HDS参照検索(
                 continue
             seen.add(record.識別子)
             result.append(record)
-            if len(result) >= 上限:
+            if len(result) >= total_limit:
                 break
         if not progressed:
             break
         depth += 1
-
     return tuple(result)
 
 
-__all__ = ["HDS参照問合せ候補", "HDS参照検索"]
+__all__ = [
+    "HDS参照予算",
+    "HDS参照予算選択",
+    "HDS参照問合せ候補",
+    "HDS参照検索",
+]
