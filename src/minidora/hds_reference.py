@@ -28,11 +28,6 @@ class HDS参照予算:
 
 
 def HDS参照予算選択(ir: HDSIR) -> HDS参照予算:
-    """K3 effortと外部Data budgetを接続する。
-
-    4択はHDS努力水準で最低highとなるため、既定6 queryへ概ね2件ずつ回せる12件を確保する。
-    ベンチ名やgold labelは見ず、HDS構造量だけで決定する。
-    """
     level = HDS努力水準(ir)
     if level == "max":
         return HDS参照予算(level, 16, 4, 4)
@@ -73,12 +68,7 @@ def _役割(kind: str) -> str:
 
 def _役割語群(ir: HDSIR) -> tuple[dict[str, tuple[str, ...]], tuple[tuple[str, str], ...]]:
     groups: dict[str, list[str]] = {
-        "対象": [],
-        "関係": [],
-        "状態": [],
-        "条件": [],
-        "焦点": [],
-        "その他": [],
+        "対象": [], "関係": [], "状態": [], "条件": [], "焦点": [], "その他": [],
     }
     choices: list[tuple[str, str]] = []
     for coord in ir.座標:
@@ -113,6 +103,30 @@ def HDS参照問合せ候補(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[st
     return _unique((*nonchoice, *choice_queries))
 
 
+def HDS参照縮退問合せ候補(ir: HDSIR) -> tuple[str, ...]:
+    """主検索が完全0件の場合だけ使う、より短い対称query群。
+
+    `対象 + choice` を全choice同条件で作り、次に `対象 + 関係/状態`、最後に対象単体へ縮退する。
+    choice単独は対象が取れない場合だけ使用し、一般語choiceだけの過広検索を常態化させない。
+    """
+    groups, choices = _役割語群(ir)
+    entity = " ".join(groups["対象"])
+    relation = " ".join(_unique((*groups["関係"], *groups["状態"])))
+    contextual = " ".join(_unique((*groups["条件"], *groups["焦点"])))
+    choice_queries = tuple(
+        " ".join(_unique((entity, choice))) if entity else choice
+        for _, choice in choices
+    )
+    reduced = _unique((
+        *choice_queries,
+        " ".join(_unique((entity, relation))),
+        " ".join(_unique((entity, contextual))),
+        entity,
+    ))
+    primary = {query.casefold() for query in HDS参照問合せ候補(ir)}
+    return tuple(query for query in reduced if query.casefold() not in primary)
+
+
 def _query_pools(provider: 参照供給器, queries: tuple[str, ...], per_query_limit: int, *, max_parallel: int) -> list[tuple[参照記録, ...]]:
     parallel_safe = bool(getattr(provider, "並列安全", False))
     if not parallel_safe or len(queries) <= 1 or max_parallel <= 1:
@@ -135,29 +149,14 @@ def _query_pools(provider: 参照供給器, queries: tuple[str, ...], per_query_
         return pools
 
 
-def HDS参照検索(
-    provider: 参照供給器,
-    ir: HDSIR,
-    *,
-    上限: int | None = None,
-    一問合せ上限: int | None = None,
-    最大問合せ並列: int | None = None,
-) -> tuple[参照記録, ...]:
-    """K3 effort由来budgetで複数HDS queryを取得し、元query順round-robinで統合する。"""
-    budget = HDS参照予算選択(ir)
-    total_limit = budget.取得上限 if 上限 is None else max(0, int(上限))
-    per_query = budget.一問合せ上限 if 一問合せ上限 is None else max(1, int(一問合せ上限))
-    parallel = budget.最大問合せ並列 if 最大問合せ並列 is None else max(1, int(最大問合せ並列))
-    queries = HDS参照問合せ候補(ir)
-    if not queries or total_limit <= 0:
-        return ()
-    pools = _query_pools(provider, queries, per_query, max_parallel=parallel)
+def _round_robin(pools: Iterable[tuple[参照記録, ...]], limit: int) -> tuple[参照記録, ...]:
+    pools_tuple = tuple(pools)
     result: list[参照記録] = []
     seen: set[str] = set()
     depth = 0
-    while len(result) < total_limit:
+    while len(result) < limit:
         progressed = False
-        for pool in pools:
+        for pool in pools_tuple:
             if depth >= len(pool):
                 continue
             progressed = True
@@ -166,7 +165,7 @@ def HDS参照検索(
                 continue
             seen.add(record.識別子)
             result.append(record)
-            if len(result) >= total_limit:
+            if len(result) >= limit:
                 break
         if not progressed:
             break
@@ -174,9 +173,44 @@ def HDS参照検索(
     return tuple(result)
 
 
+def HDS参照検索(
+    provider: 参照供給器,
+    ir: HDSIR,
+    *,
+    上限: int | None = None,
+    一問合せ上限: int | None = None,
+    最大問合せ並列: int | None = None,
+) -> tuple[参照記録, ...]:
+    """K3 effort由来budgetで検索し、完全0件時だけHDS構造を段階縮退して再検索する。"""
+    budget = HDS参照予算選択(ir)
+    total_limit = budget.取得上限 if 上限 is None else max(0, int(上限))
+    per_query = budget.一問合せ上限 if 一問合せ上限 is None else max(1, int(一問合せ上限))
+    parallel = budget.最大問合せ並列 if 最大問合せ並列 is None else max(1, int(最大問合せ並列))
+    if total_limit <= 0:
+        return ()
+
+    primary = HDS参照問合せ候補(ir)
+    if primary:
+        primary_records = _round_robin(
+            _query_pools(provider, primary, per_query, max_parallel=parallel),
+            total_limit,
+        )
+        if primary_records:
+            return primary_records
+
+    fallback = HDS参照縮退問合せ候補(ir)
+    if not fallback:
+        return ()
+    return _round_robin(
+        _query_pools(provider, fallback, per_query, max_parallel=parallel),
+        total_limit,
+    )
+
+
 __all__ = [
     "HDS参照予算",
     "HDS参照予算選択",
     "HDS参照問合せ候補",
+    "HDS参照縮退問合せ候補",
     "HDS参照検索",
 ]
