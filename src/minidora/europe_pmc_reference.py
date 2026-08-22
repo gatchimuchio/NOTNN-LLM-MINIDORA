@@ -33,11 +33,21 @@ def _truthy(value: object) -> bool:
     return str(value or "").strip().casefold() in {"1", "true", "yes", "y"}
 
 
+def _doi_identifier(doi: str) -> str:
+    normalized = doi.strip().casefold()
+    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+        if normalized.startswith(prefix):
+            normalized = normalized[len(prefix):]
+            break
+    return "doi:" + normalized
+
+
 class EuropePMC参照供給器:
     """Europe PMC REST searchを使う、API key不要の科学文献参照Provider。
 
     検索順位は文献候補の取得順にだけ利用し、真偽confidenceへ変換しない。
     abstract本文がある文献を主証拠とし、titleしかないレコードは低confidenceで保持する。
+    DOIがある文献はProvider横断で共通識別子を使い、同一論文の独立source水増しを防ぐ。
     """
 
     名称 = "EuropePMC"
@@ -110,7 +120,8 @@ class EuropePMC参照供給器:
             article_id = _text(row.get("id") or row.get("pmid") or row.get("pmcid") or row.get("doi"))
             if not article_id:
                 continue
-            identifier = f"europepmc:{source}:{article_id}"
+            doi = _text(row.get("doi"))
+            identifier = _doi_identifier(doi) if doi else f"europepmc:{source}:{article_id}"
             key = identifier.casefold()
             if key in seen:
                 continue
@@ -131,7 +142,6 @@ class EuropePMC参照供給器:
             content = "\n".join(pieces)[: self.最大本文文字数]
             confidence = self.ABSTRACT信頼 if abstract else self.TITLE_ONLY信頼
 
-            doi = _text(row.get("doi"))
             origin = (
                 "https://doi.org/" + quote(doi, safe="/:()-.;")
                 if doi
@@ -139,6 +149,8 @@ class EuropePMC参照供給器:
             )
             date = _text(row.get("firstPublicationDate") or row.get("firstIndexDate") or row.get("pubYear")) or None
             conditions: list[tuple[str, str]] = []
+            if doi:
+                conditions.append(("canonical_source", _doi_identifier(doi)))
             if journal:
                 conditions.append(("journal", journal))
             if publication_type:
