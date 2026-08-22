@@ -53,7 +53,7 @@ class _部分被覆Provider:
             return (
                 参照記録("doc:catalysis", "ProteinX", "ProteinX supports catalysis.", "fixture://catalysis", self.名称),
             )[:上限]
-        if normalized == "proteinx transport":
+        if normalized == "transport":
             return (
                 参照記録("doc:transport", "ProteinX", "ProteinX transports cargo.", "fixture://transport", self.名称),
             )[:上限]
@@ -133,7 +133,7 @@ class HDS参照拡張試験(unittest.TestCase):
         conditions = {record.識別子: set(record.条件) for record in records}
         self.assertIn(("hds_query_choice", "A"), conditions["doc:catalysis"])
         self.assertIn(("hds_query_choice", "B"), conditions["doc:transport"])
-        self.assertIn("proteinx transport", provider.queries)
+        self.assertIn("transport", provider.queries)
 
     def test_Runtime_HDS経路で展開検索を使用する(self) -> None:
         provider = _記録Provider()
