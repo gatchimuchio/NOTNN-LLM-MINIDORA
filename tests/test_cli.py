@@ -31,7 +31,7 @@ class CLI試験(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(completed.stdout.strip(), "5です。")
 
-    def test_json出力は採否境界を機械可読で返す(self):
+    def test_json出力は公開HDS_Compiler経路を機械可読で返す(self):
         completed = subprocess.run(
             [sys.executable, "-m", "minidora", "--json", "2+3"],
             cwd=ROOT,
@@ -46,7 +46,8 @@ class CLI試験(unittest.TestCase):
         self.assertEqual(payload["value"], 5)
         self.assertEqual(payload["status"], "合格")
         self.assertEqual(payload["plan"], "算術")
-        self.assertFalse(payload["hds_ir"])
+        self.assertTrue(payload["hds_ir"])
+        self.assertEqual(payload["compiler"], "公開HDSコンパイラ")
 
     def test_非UTF8ロケールでも日本語標準入力を処理できる(self):
         completed = subprocess.run(
