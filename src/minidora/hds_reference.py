@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
+import re
 
 from .hds_effort import HDS努力水準
 from .hds_ir import HDSIR, 値状態
@@ -18,6 +19,7 @@ _SURFACE_ONLY_KINDS = {
     "文脈.言語",
 }
 _BLOCKING_STATES = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
+_FOCUS_SPLIT = re.compile(r"(?<=[?!.。？！])\s+|\n+")
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,6 +135,25 @@ def _切詰め(text: str, limit: int) -> str:
     return " ".join((*head, *tail))
 
 
+def _焦点抽出(text: str, *, limit: int = 180) -> str:
+    """長文末尾の実質問を独立queryとして抽出する。
+
+    文書固有の語彙には依存せず、疑問符を含む末尾文を優先する。疑問文境界が無い場合は
+    最後の32語を使い、背景全体とは別の検索面を確保する。
+    """
+    raw = str(text).strip()
+    if not raw:
+        return ""
+    segments = [segment.strip() for segment in _FOCUS_SPLIT.split(raw) if segment.strip()]
+    for segment in reversed(segments):
+        if "?" in segment or "？" in segment:
+            return _切詰め(segment, limit)
+    if len(segments) > 1:
+        return _切詰め(segments[-1], limit)
+    words = raw.split()
+    return _切詰め(" ".join(words[-32:]), limit)
+
+
 def _検索表層(token: str) -> str:
     for prefix in ("math:", "atom:", "sym:"):
         if token.startswith(prefix):
@@ -167,7 +188,9 @@ def _候補差分語(choices: tuple[tuple[str, str], ...]) -> dict[str, tuple[st
 
 def _問合せ仕様(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[_HDS問合せ仕様, ...]:
     groups, choices = _役割語群(ir)
-    base = _切詰め(str(ir.正規化文 or ir.原文), 280)
+    raw = str(ir.正規化文 or ir.原文)
+    base = _切詰め(raw, 280)
+    focus = _焦点抽出(raw)
     structured = _切詰め(" ".join(_unique((
         *groups["対象"], *groups["関係"], *groups["状態"],
         *groups["条件"], *groups["焦点"], *groups["その他"],
@@ -175,12 +198,14 @@ def _問合せ仕様(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[_HDS問合
     entity_relation = _切詰め(" ".join(_unique((*groups["対象"], *groups["関係"], *groups["状態"]))), 200)
     entity_only = _切詰め(" ".join(groups["対象"]), 160)
 
-    anchor = entity_relation or structured or entity_only or base
+    structural_anchor = entity_relation or structured or entity_only
+    anchor = _切詰め(" ".join(_unique((structural_anchor, focus))), 220) or focus or structural_anchor or base
     budget = max(int(最大候補数), len(choices))
     nonchoice_slots = max(0, budget - len(choices))
 
     nonchoice_raw = (
         (base, "surface"),
+        (focus, "focus"),
         (structured, "structured"),
         (entity_relation, "entity_relation"),
         (entity_only, "entity"),
