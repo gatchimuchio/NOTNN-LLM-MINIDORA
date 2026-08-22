@@ -21,11 +21,6 @@ _GRAPH_CACHE_ATTR = "_hds_graph_index_cache"
 
 
 def _predicate(kind: str) -> str:
-    """HDS関係種別を可逆にK predicateへ写す。
-
-    `記述→問い` を `記述_問い` へ潰すと、問いIR側の生関係ラベルと再照合できなくなる。
-    Fact predicateは識別子制約を持たないため、空白だけ正規化して関係記号を保持する。
-    """
     normalized = re.sub(r"\s+", " ", str(kind)).strip()
     return "hds_relation_" + (normalized or "unknown")
 
@@ -48,8 +43,20 @@ def _confidence(state: 値状態) -> float:
     return 0.5
 
 
+def _source_confidence(value: float) -> float:
+    return min(1.0, max(0.0, float(value)))
+
+
+def _combined_confidence(state: 値状態, source_confidence: float) -> float:
+    return _confidence(state) * _source_confidence(source_confidence)
+
+
 def _state_marker(state: 値状態) -> str:
     return "value_state:" + state.value
+
+
+def _source_marker(value: float) -> str:
+    return f"source_confidence:{_source_confidence(value):.6f}"
 
 
 def _証拠台帳(core: K3相当能力核) -> dict[str, Fact]:
@@ -73,11 +80,6 @@ def HDS証拠事実(core: K3相当能力核) -> tuple[Fact, ...]:
 
 
 def HDS証拠状態複製(source: K3相当能力核, destination: K3相当能力核) -> None:
-    """K3 cloneで落ちるHDS独立source台帳を作業Kへ複製する。
-
-    `KnowledgeBase.copy()` はcanonical Factだけを複製するため、HDS独立source台帳は明示的に
-    移す。graph index cache自体は共有せず、同じrevisionからdestination側で再構築する。
-    """
     ledger = getattr(source.K, _EVIDENCE_ATTR, None)
     if ledger is not None:
         setattr(destination.K, _EVIDENCE_ATTR, dict(ledger))
@@ -117,20 +119,30 @@ class HDS知識投入結果:
     semantic_loss: bool
     証拠事実数: int = 0
     証拠阻害事実数: int = 0
+    source_confidence: float = 1.0
 
 
 class HDSIR知識Adapter:
-    """コンパイル済みHDS-IRだけをKへ投入する一般Adapter。
+    """コンパイル済みHDS-IRをKへ投入する一般Adapter。
 
-    Kには残差を含む全構造を監査用として保持する。一方、残差が影響する座標・関係は
-    `value_state:留保` / `residual_blocked:*` を付与し、J/HDSの確定回答証拠・graph経路へは昇格させない。
+    HDSの値状態confidenceとR側のsource confidenceを分離して受け取り、Kへ入るFact強度は
+    その積とする。source confidence=1.0なら従来挙動と同じ。残差影響構造は監査用に保持しつつ
+    確定回答証拠・graph経路へ昇格させない。
     """
 
     def __init__(self, core: K3相当能力核) -> None:
         self.core = core
 
-    def 投入(self, ir: HDSIR, *, provenance: Iterable[str] = ()) -> HDS知識投入結果:
+    def 投入(
+        self,
+        ir: HDSIR,
+        *,
+        provenance: Iterable[str] = (),
+        信頼係数: float = 1.0,
+    ) -> HDS知識投入結果:
         source = tuple(str(x) for x in provenance)
+        source_confidence = _source_confidence(信頼係数)
+        source_marker = _source_marker(source_confidence)
         coords = ir.座標辞書()
         facts: list[Fact] = []
         coord_count = 0
@@ -149,8 +161,10 @@ class HDSIR知識Adapter:
             if residual_markers:
                 blocked_count += 1
             facts.append(Fact(
-                "hds_coordinate", (kind, content), confidence=_confidence(coord.値状態),
-                provenance=source + ("HDS-IR", coord.座標ID, _state_marker(coord.値状態), *residual_markers, _text(coord.由来), _text(coord.暫定性)),
+                "hds_coordinate",
+                (kind, content),
+                confidence=_combined_confidence(coord.値状態, source_confidence),
+                provenance=source + ("HDS-IR", coord.座標ID, _state_marker(coord.値状態), source_marker, *residual_markers, _text(coord.由来), _text(coord.暫定性)),
             ))
             coord_count += 1
 
@@ -166,17 +180,19 @@ class HDSIR知識Adapter:
             if residual_markers:
                 blocked_count += 1
             facts.append(Fact(
-                _predicate(relation.種別), starts + ("→",) + ends,
-                confidence=_confidence(relation.値状態),
-                provenance=source + ("HDS-IR", relation.関係ID, _state_marker(relation.値状態), *residual_markers, "relation_type:" + _text(relation.種別), _text(relation.由来), _text(relation.暫定性)),
+                _predicate(relation.種別),
+                starts + ("→",) + ends,
+                confidence=_combined_confidence(relation.値状態, source_confidence),
+                provenance=source + ("HDS-IR", relation.関係ID, _state_marker(relation.値状態), source_marker, *residual_markers, "relation_type:" + _text(relation.種別), _text(relation.由来), _text(relation.暫定性)),
             ))
             relation_count += 1
 
         for residual in ir.残差:
             facts.append(Fact(
-                "hds_residual", (_text(residual.種別), _text(residual.原文), _text(residual.理由), *tuple(_text(x) for x in residual.影響座標)),
-                confidence=0.35,
-                provenance=source + ("HDS-IR", residual.残差ID, "value_state:留保", *tuple("impact:" + str(x) for x in residual.影響座標)),
+                "hds_residual",
+                (_text(residual.種別), _text(residual.原文), _text(residual.理由), *tuple(_text(x) for x in residual.影響座標)),
+                confidence=0.35 * source_confidence,
+                provenance=source + ("HDS-IR", residual.残差ID, "value_state:留保", source_marker, *tuple("impact:" + str(x) for x in residual.影響座標)),
             ))
 
         ledger = _証拠台帳(self.core)
@@ -193,6 +209,7 @@ class HDSIR知識Adapter:
             semantic_loss=source_blocked,
             証拠事実数=len(facts),
             証拠阻害事実数=blocked_count,
+            source_confidence=source_confidence,
         )
 
 
