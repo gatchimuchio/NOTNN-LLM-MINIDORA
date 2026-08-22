@@ -14,6 +14,10 @@ class HDS選択意図試験(unittest.TestCase):
         self.assertEqual(HDS選択意図判定("Which statement is incorrect?").種別, "EXCEPTION")
         self.assertEqual(HDS選択意図判定("Which statement is not true?").種別, "EXCEPTION")
 
+    def test_false_statementを例外選択として判定する(self) -> None:
+        self.assertEqual(HDS選択意図判定("Which of the following statements is false?").種別, "EXCEPTION")
+        self.assertEqual(HDS選択意図判定("Select the false statement.").種別, "EXCEPTION")
+
     def test_least_likely系を例外選択として判定する(self) -> None:
         self.assertEqual(
             HDS選択意図判定("Which mechanism is least likely to explain the observation?").種別,
@@ -45,6 +49,16 @@ class HDS選択意図試験(unittest.TestCase):
             "Which mechanism best explains the confirmed observation?"
         )
         self.assertEqual(HDS選択意図判定(text).種別, "POSITIVE")
+
+    def test_最終質問中のfalseやincorrectが対象内容なら反転しない(self) -> None:
+        self.assertEqual(
+            HDS選択意図判定("Which mechanism explains the false positive signal?").種別,
+            "POSITIVE",
+        )
+        self.assertEqual(
+            HDS選択意図判定("Which process produces an incorrect measurement result?").種別,
+            "POSITIVE",
+        )
 
     def test_単なるsmallestやminimumは例外扱いしない(self) -> None:
         self.assertEqual(HDS選択意図判定("Which value is the smallest?").種別, "POSITIVE")
