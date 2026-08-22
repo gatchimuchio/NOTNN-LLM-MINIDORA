@@ -142,6 +142,7 @@ class HDS候補診断:
     採用証拠数: int
     graph深さ: int | None
     根拠事実数: int
+    識別語数: int = 0
 
 
 def _意味署名(ir: HDSIR, *, fallback_text: str = "") -> HDS意味署名:
@@ -175,6 +176,23 @@ def _意味署名(ir: HDSIR, *, fallback_text: str = "") -> HDS意味署名:
     if not terms:
         terms.update(意味語(fallback_text or ir.原文))
     return HDS意味署名(frozenset(terms), frozenset(relations), frozenset(kinds))
+
+
+def _候補識別語(signatures: Mapping[str, HDS意味署名]) -> dict[str, frozenset[str]]:
+    """候補集合の共通意味を除き、各候補固有の識別語を返す。
+
+    候補全文は別途保持し、識別語がない場合は空集合のままにする。したがって単純な
+    選択肢や同義候補を強制的に差別化せず、JのNO_GUESS境界を維持する。
+    """
+    labels = tuple(signatures)
+    out: dict[str, frozenset[str]] = {}
+    for label in labels:
+        others: set[str] = set()
+        for other in labels:
+            if other != label:
+                others.update(signatures[other].語)
+        out[label] = frozenset(signatures[label].語 - others)
+    return out
 
 
 def _fact_signature(core: K3相当能力核, fact: object) -> tuple[set[str], set[str], set[str]]:
@@ -297,17 +315,30 @@ def _kind_similarity(query: frozenset[str], evidence: frozenset[str]) -> float:
     return len(query & evidence) / math.sqrt(len(query) * len(evidence))
 
 
-def _group_score(question: HDS意味署名, candidate: HDS意味署名, evidence: _証拠群) -> float:
+def _group_score(
+    question: HDS意味署名,
+    candidate: HDS意味署名,
+    evidence: _証拠群,
+    *,
+    識別語: frozenset[str] = frozenset(),
+) -> float:
     if evidence.関係阻害:
         return 0.0
 
-    candidate_coverage = _coverage(candidate.語, evidence.語)
-    if candidate_coverage <= 0:
+    full_coverage = _coverage(candidate.語, evidence.語)
+    if full_coverage <= 0:
         return 0.0
 
     question_coverage = _coverage(question.語, evidence.語)
     if question.語 and question_coverage <= 0:
         return 0.0
+
+    # 候補全文の一致は残しつつ、候補集合の差分意味がある場合はそちらを主信号にする。
+    if 識別語:
+        distinctive_coverage = _coverage(識別語, evidence.語)
+        candidate_coverage = 0.35 * full_coverage + 0.65 * distinctive_coverage
+    else:
+        candidate_coverage = full_coverage
 
     relation_match = max(
         _relation_similarity(question.関係種別, evidence.関係種別),
@@ -386,17 +417,20 @@ class HDSIRネイティブAdapter:
         evidence_groups = _証拠群を作る(self.core)
         facts = _facts(self.core)
         fact_sources = _fact_source_map(self.core)
-        candidate_signatures: dict[str, HDS意味署名] = {}
-        raw_evidence: list[HDS候補証拠] = []
 
+        candidate_signatures: dict[str, HDS意味署名] = {}
         for label, option in choices:
             candidate_ir = (候補IR or {}).get(label)
-            candidate_signature = (
+            candidate_signatures[label] = (
                 _意味署名(candidate_ir, fallback_text=option)
                 if candidate_ir is not None
                 else HDS意味署名(意味語(option), frozenset(), frozenset())
             )
-            candidate_signatures[label] = candidate_signature
+        distinctive_terms = _候補識別語(candidate_signatures)
+
+        raw_evidence: list[HDS候補証拠] = []
+        for label, option in choices:
+            candidate_signature = candidate_signatures[label]
 
             parsed = self.core.R.parse(option)
             parsed_fact = getattr(parsed, "fact", None)
@@ -422,7 +456,12 @@ class HDSIRネイティブAdapter:
                     )
 
             for evidence in evidence_groups:
-                score = _group_score(question_signature, candidate_signature, evidence)
+                score = _group_score(
+                    question_signature,
+                    candidate_signature,
+                    evidence,
+                    識別語=distinctive_terms.get(label, frozenset()),
+                )
                 if score <= 0:
                     continue
                 raw_evidence.append(
@@ -447,6 +486,7 @@ class HDSIRネイティブAdapter:
         diagnostics: list[HDS候補診断] = []
         for label, option in choices:
             candidate_signature = candidate_signatures[label]
+            distinctive = distinctive_terms.get(label, frozenset())
             evidence_result = reconciled[label]
             aggregate = evidence_result.合計得点
             evidence_score = aggregate
@@ -458,10 +498,11 @@ class HDSIRネイティブAdapter:
                         proof_ids.append(fid)
 
             preferred_relations = question_signature.関係種別 | candidate_signature.関係種別
+            graph_target = distinctive or candidate_signature.語
             path = HDS意味経路探索(
                 self.core,
                 question_signature.語,
-                candidate_signature.語,
+                graph_target,
                 preferred_relations,
                 最大深さ=4,
             )
@@ -469,7 +510,7 @@ class HDSIRネイティブAdapter:
                 path = HDS意味経路探索(
                     self.core,
                     question_signature.語,
-                    candidate_signature.語,
+                    graph_target,
                     preferred_relations,
                     最大深さ=探索方針.graph深さ上限,
                 )
@@ -506,6 +547,7 @@ class HDSIRネイティブAdapter:
                     採用証拠数=len(evidence_result.採用証拠),
                     graph深さ=path.深さ,
                     根拠事実数=len(proof_ids),
+                    識別語数=len(distinctive),
                 )
             )
 
@@ -525,6 +567,7 @@ class HDSIRネイティブAdapter:
                                 "K",
                                 "STRUCTURAL_GRAPH_MATCH",
                                 "SOURCE_AWARE_RECONCILE",
+                                "CANDIDATE_DISTINCTIVE_WEIGHT",
                                 "effort:" + 探索方針.水準,
                                 "sources:" + str(len(independent_sources)),
                             ),
@@ -576,7 +619,7 @@ class HDSIRネイティブAdapter:
             raw=ir.原文,
             predicate="HDS_choice_selection",
             args=(None,),
-            tags=("HDS-IR", "choice", "structural_graph", "source_aware_reconcile"),
+            tags=("HDS-IR", "choice", "structural_graph", "source_aware_reconcile", "candidate_distinctive"),
             language=getattr(ir, "入力言語", "en") or "en",
         )
         decision = self.judge.decide(frame, (top_candidate,))
