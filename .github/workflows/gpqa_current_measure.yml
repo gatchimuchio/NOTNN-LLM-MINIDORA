@@ -3,6 +3,7 @@ name: MINIDORA GPQA current measurement
 on:
   pull_request:
     paths:
+      - "src/minidora/**"
       - "tools/gpqa_measure_current.py"
       - ".github/workflows/gpqa_current_measure.yml"
   workflow_dispatch:

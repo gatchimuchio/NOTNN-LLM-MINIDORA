@@ -1,19 +1,22 @@
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from .hds_adapter import HDS独立コンパイル
 from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
-from .hds_ir import HDSIR, 値状態
+from .hds_ir import HDSIR, HDS実行核, HDS座標, 値状態
 from .k3_functional import K3相当能力核
 from .k3_hds_native import HDSK3結果, HDSIRネイティブAdapter
+from .semantic_tokens import 意味語
 from .参照 import 参照記録
 
 
 HDSコンパイル関数 = Callable[[str], HDSIR]
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
+_QUERY_PROVENANCE_KEYS = {"hds_query_choice", "hds_query_kind"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +107,113 @@ def _一括コンパイル(
         return tuple(out)
 
 
+def _参照候補群(record: 参照記録) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(
+        str(value)
+        for key, value in record.条件
+        if str(key) == "hds_query_choice" and str(value)
+    ))
+
+
+def _参照provenance(record: 参照記録) -> tuple[str, ...]:
+    markers: list[str] = []
+    for key, value in record.条件:
+        k = str(key)
+        if k not in _QUERY_PROVENANCE_KEYS:
+            continue
+        if k == "hds_query_choice":
+            markers.append("query_choice:" + str(value))
+        elif k == "hds_query_kind":
+            markers.append("query_kind:" + str(value))
+    return tuple((record.供給器, record.由来, record.識別子, *dict.fromkeys(markers)))
+
+
+def _候補識別語(choices: tuple[tuple[str, str, 値状態], ...]) -> dict[str, frozenset[str]]:
+    """各候補について、他候補にはない意味語だけを返す。
+
+    検索経路そのものを真偽証拠へ誤昇格させないため、識別語が存在しない候補は空集合の
+    まま返す。全文signatureへのfallbackは行わない。
+    """
+    signatures = {label: set(意味語(content)) for label, content, _ in choices}
+    labels = tuple(signatures)
+    out: dict[str, frozenset[str]] = {}
+    for label in labels:
+        others: set[str] = set()
+        for other in labels:
+            if other != label:
+                others.update(signatures[other])
+        out[label] = frozenset(signatures[label] - others)
+    return out
+
+
+def _参照意味語(record: 参照記録) -> frozenset[str]:
+    return 意味語(" ".join((str(record.対象), str(record.内容))))
+
+
+def _検索経路証拠(
+    question_ir: HDSIR,
+    choices: tuple[tuple[str, str, 値状態], ...],
+    references: tuple[参照記録, ...],
+) -> tuple[tuple[参照記録, HDSIR], ...]:
+    """候補固有query + 本文意味一致 + 複数独立文書が揃った時だけ弱い経路証拠を作る。
+
+    検索順位やhit数だけを候補の真偽へ変換しない。候補固有queryで得た文書であっても、
+    文書自身がその候補の「他候補との差分意味」に触れていなければ経路証拠には数えない。
+    同一文書が複数候補queryで取得された場合も固有支持から除外する。
+    """
+    choice_map = {label: content for label, content, _ in choices}
+    distinctive = _候補識別語(choices)
+    exclusive: list[tuple[str, 参照記録]] = []
+    for record in references:
+        labels = _参照候補群(record)
+        if len(labels) != 1 or labels[0] not in choice_map:
+            continue
+        label = labels[0]
+        required = distinctive.get(label, frozenset())
+        if not required:
+            continue
+        if not (required & _参照意味語(record)):
+            continue
+        exclusive.append((label, record))
+
+    counts = Counter(label for label, _ in exclusive)
+    if not counts:
+        return ()
+    ranking = counts.most_common()
+    top_label, top_count = ranking[0]
+    second_count = ranking[1][1] if len(ranking) > 1 else 0
+    # 単発hit・同数hit・候補差がないhitは採用しない。
+    if top_count < 2 or top_count <= second_count:
+        return ()
+
+    focus = " ".join(str(question_ir.正規化文 or question_ir.原文).split())[:1200]
+    candidate = choice_map[top_label]
+    out: list[tuple[参照記録, HDSIR]] = []
+    for label, record in exclusive:
+        if label != top_label:
+            continue
+        ir = HDSIR(
+            原文=f"retrieval-route:{label}",
+            正規化文=f"retrieval-route:{label}",
+            認知世界ID="hds:r-query-route",
+            座標=(
+                HDS座標("q", "対象.検索焦点", focus, 値状態.推定, 由来="HDS参照検索経路"),
+                HDS座標("c", "文脈.検索候補", candidate, 値状態.推定, 由来="HDS参照検索経路"),
+            ),
+            関係=(),
+            残差=(),
+            意味作用履歴=(),
+            実行核=HDS実行核(),
+            初期状態={},
+            参照必須=False,
+            種別="retrieval_route_evidence",
+            閉包状態="PROVISIONAL",
+            入力言語=question_ir.入力言語,
+        )
+        out.append((record, ir))
+    return tuple(out)
+
+
 def HDS選択推論実行(
     question_ir: HDSIR,
     references: tuple[参照記録, ...],
@@ -113,7 +223,6 @@ def HDS選択推論実行(
     努力: str | None = None,
     最大コンパイル並列: int = 4,
 ) -> HDS選択実行結果:
-    """HDS choice問題を `候補/Data→HDS-IR→K→J` の正規経路で実行する。"""
     choices = _choices(question_ir)
     if len(choices) < 2:
         return _suspend("HDS_CHOICE_SET_INCOMPLETE")
@@ -163,13 +272,24 @@ def HDS選択推論実行(
             continue
         result = ingest.投入(
             compiled,
-            provenance=(record.供給器, record.由来, record.識別子),
+            provenance=_参照provenance(record),
             信頼係数=record.信頼,
         )
         data_compiled += 1
         added += result.追加事実数
         evidence += result.証拠事実数
         blocked += result.証拠阻害事実数
+
+    # R経路は本文の候補差分意味一致まで確認した弱い補助証拠としてのみ重ねる。
+    for record, route_ir in _検索経路証拠(question_ir, choices, references):
+        route = ingest.投入(
+            route_ir,
+            provenance=_参照provenance(record),
+            信頼係数=min(0.18, max(0.0, float(record.信頼)) * 0.18),
+        )
+        added += route.追加事実数
+        evidence += route.証拠事実数
+        blocked += route.証拠阻害事実数
 
     k3 = HDSIRネイティブAdapter(working).実行(question_ir, 候補IR=candidate_irs, 努力=努力)
     choice_map = {label: content for label, content, _ in choices}

@@ -3,7 +3,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Iterable, Protocol
 
 
@@ -97,8 +97,29 @@ class 固定参照供給器:
         return tuple(record for _, record in 採点済み[:上限])
 
 
+def _記録品質(record: 参照記録) -> tuple[int, float, int]:
+    return (1 if record.意味確定 else 0, float(record.信頼), len(str(record.内容)))
+
+
+def _同一source統合(old: 参照記録, new: 参照記録) -> 参照記録:
+    """同一識別子の資料を独立sourceへ増やさず、より強い記録へ統合する。"""
+    best, other = (new, old) if _記録品質(new) > _記録品質(old) else (old, new)
+    conditions = list(best.条件)
+    for condition in other.条件:
+        if condition not in conditions:
+            conditions.append(condition)
+    for provider in (old.供給器, new.供給器):
+        marker = ("observed_by_provider", str(provider))
+        if marker not in conditions:
+            conditions.append(marker)
+    return replace(best, 条件=tuple(conditions), 信頼=max(float(old.信頼), float(new.信頼)))
+
+
 class 複合参照供給器:
-    """複数Providerを並列取得し、Provider順を保ったround-robinで統合する。"""
+    """複数Providerを並列取得し、Provider順を保ったround-robinで統合する。
+
+    同一識別子は独立資料として二重計上せず、confidence・本文量の高い記録へ品質統合する。
+    """
 
     並列安全 = True
 
@@ -144,21 +165,23 @@ class 複合参照供給器:
         self.最後のエラー = tuple(errors)
 
         result: list[参照記録] = []
-        seen: set[str] = set()
+        index_by_id: dict[str, int] = {}
         depth = 0
-        while len(result) < 上限:
+        while True:
             progressed = False
             for pool in pools:
                 if depth >= len(pool):
                     continue
                 progressed = True
                 record = pool[depth]
-                if record.識別子 in seen:
+                existing = index_by_id.get(record.識別子)
+                if existing is not None:
+                    result[existing] = _同一source統合(result[existing], record)
                     continue
-                seen.add(record.識別子)
-                result.append(record)
                 if len(result) >= 上限:
-                    break
+                    continue
+                index_by_id[record.識別子] = len(result)
+                result.append(record)
             if not progressed:
                 break
             depth += 1

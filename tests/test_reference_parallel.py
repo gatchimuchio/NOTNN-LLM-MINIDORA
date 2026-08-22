@@ -73,6 +73,44 @@ class 複合参照並列試験(unittest.TestCase):
         self.assertEqual(provider.最後のエラー[0][0], "fail")
         self.assertIn("provider down", provider.最後のエラー[0][1])
 
+    def test_同一識別資料は独立sourceへ増やさず高品質記録へ統合する(self) -> None:
+        low = type(
+            "LowProvider",
+            (),
+            {
+                "名称": "low",
+                "検索": lambda self, q, limit=8: (
+                    参照記録(
+                        "doi:10.1000/shared", "paper", "short title", "https://doi.org/10.1000/shared", "low",
+                        信頼=0.46, 条件=(("evidence_scope", "title"),),
+                    ),
+                ),
+            },
+        )()
+        high = type(
+            "HighProvider",
+            (),
+            {
+                "名称": "high",
+                "検索": lambda self, q, limit=8: (
+                    参照記録(
+                        "doi:10.1000/shared", "paper", "paper title and a much richer abstract body", "https://doi.org/10.1000/shared", "high",
+                        信頼=0.82, 条件=(("evidence_scope", "abstract"),),
+                    ),
+                ),
+            },
+        )()
+        provider = 複合参照供給器(low, high, 並列=False)
+
+        records = provider.検索("query", 4)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].識別子, "doi:10.1000/shared")
+        self.assertEqual(records[0].供給器, "high")
+        self.assertEqual(records[0].信頼, 0.82)
+        self.assertIn("richer abstract", records[0].内容)
+        self.assertIn(("observed_by_provider", "low"), records[0].条件)
+        self.assertIn(("observed_by_provider", "high"), records[0].条件)
+
 
 if __name__ == "__main__":
     unittest.main()
