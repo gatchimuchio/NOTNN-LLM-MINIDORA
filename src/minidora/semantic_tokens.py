@@ -4,6 +4,9 @@ import re
 
 
 _WORD = re.compile(r"[A-Za-z0-9_+\-\.]+|[ぁ-んァ-ヶー]+|[一-龥々]+")
+_MATH_ANCHOR = re.compile(
+    r"(?<![A-Za-z0-9_])[-+]?\d+(?:\.\d+)?(?:\s*(?:/|\^)\s*[-+]?\d+(?:\.\d+)?)?(?![A-Za-z0-9_])"
+)
 _STOP = {
     "the", "a", "an", "of", "to", "in", "on", "at", "for", "from", "with", "and", "or",
     "is", "are", "was", "were", "be", "been", "being", "which", "what", "who", "when", "where",
@@ -44,11 +47,32 @@ def _english_stem(value: str) -> str:
     return value
 
 
+def _数値語(value: str) -> bool:
+    return re.fullmatch(r"[-+]?\d+(?:\.\d+)?", value) is not None
+
+
 def 意味語(text: object) -> frozenset[str]:
-    """HDS意味照合で共有する正規化語集合を返す。"""
+    """HDS意味照合で共有する正規化語集合を返す。
+
+    1文字の英字は従来どおり雑音として落とすが、`0`〜`9` の単独choiceや符号付き数値は
+    意味を持つため保持する。分数・指数は追加の `math:` anchorとして保持し、数式choice間で
+    共通語だけが残って識別点が消えることを防ぐ。
+    """
+    raw = str(text)
     out: set[str] = set()
-    for token in _WORD.findall(str(text)):
-        value = token.casefold().strip("._-")
+
+    for anchor in _MATH_ANCHOR.findall(raw):
+        compact = re.sub(r"\s+", "", anchor)
+        if compact:
+            out.add("math:" + compact.casefold())
+
+    for token in _WORD.findall(raw):
+        value = token.casefold().strip("._")
+        if _数値語(value):
+            out.add(value)
+            continue
+
+        value = value.strip("-")
         if len(value) <= 1 or value in _STOP:
             continue
         normalized = _english_stem(value)
