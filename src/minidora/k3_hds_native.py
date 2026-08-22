@@ -395,10 +395,9 @@ def _group_score(
         _kind_similarity(question.座標種別, evidence.座標種別),
         _kind_similarity(candidate.座標種別, evidence.座標種別),
     )
-    direction_match = max(
-        _edge_similarity(question.関係辺, evidence.関係辺),
-        _edge_similarity(candidate.関係辺, evidence.関係辺),
-    )
+    question_direction_match = _edge_similarity(question.関係辺, evidence.関係辺)
+    candidate_direction_match = _edge_similarity(candidate.関係辺, evidence.関係辺)
+    direction_match = candidate_direction_match if candidate.関係辺 else question_direction_match
     structural_multiplier = 1.0 + 1.5 * relation_match + 0.5 * kind_match + 2.0 * direction_match
     scope_multiplier = 1.0
     if evidence.範囲 == "document":
