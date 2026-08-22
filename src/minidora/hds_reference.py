@@ -56,14 +56,20 @@ def _compact_join(parts: Iterable[str], *, 最大要素: int = 12, 最大文字�
     """検索器へ渡すHDS anchorを、先頭の意味役割を保ったまま有限長へ圧縮する。"""
     selected: list[str] = []
     size = 0
+    char_limit = max(1, int(最大文字数))
     for part in _unique(parts):
         if len(selected) >= max(1, int(最大要素)):
             break
-        addition = len(part) + (1 if selected else 0)
-        if selected and size + addition > max(1, int(最大文字数)):
+        remaining = char_limit - size - (1 if selected else 0)
+        if remaining <= 0:
             break
-        selected.append(part)
-        size += addition
+        piece = part[:remaining].strip()
+        if not piece:
+            break
+        selected.append(piece)
+        size += len(piece) + (1 if len(selected) > 1 else 0)
+        if len(piece) < len(part):
+            break
     return " ".join(selected)
 
 
@@ -120,7 +126,7 @@ def _候補識別語群(choices: tuple[tuple[str, str], ...]) -> dict[str, tuple
     for label, terms in terms_by_label.items():
         distinctive = [term for term in terms if frequency.get(term, 0) < len(choices)]
         distinctive.sort(key=lambda term: (frequency.get(term, 0), 0 if term.startswith("math:") else 1, -len(term), term))
-        result[label] = tuple(_検索語(term) for term in distinctive[:8])
+        result[label] = _unique(_検索語(term) for term in distinctive[:8])
     return result
 
 
