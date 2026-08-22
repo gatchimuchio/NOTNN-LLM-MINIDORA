@@ -31,17 +31,15 @@ def _焦点(text: str) -> str:
     segments = [segment.strip() for segment in _SPLIT.split(raw) if segment.strip()]
     if not segments:
         return raw
-    # 最後の疑問文を最優先し、その一つ前までを補助文脈として含める。
-    for index in range(len(segments) - 1, -1, -1):
-        segment = segments[index]
+    # 採否方向は背景説明から伝染させず、最後の実質問文だけで決める。
+    for segment in reversed(segments):
         if "?" in segment or "？" in segment:
-            start = max(0, index - 1)
-            return " ".join(segments[start:index + 1])[-800:]
-    return " ".join(segments[-2:])[-800:]
+            return segment[-800:]
+    return segments[-1][-800:]
 
 
 def HDS選択意図判定(text: str) -> HDS選択意図:
-    """選択問題の採否方向を、最終問い周辺の表層論理だけから判定する。
+    """選択問題の採否方向を、最終問いの表層論理だけから判定する。
 
     ベンチ名・分野・正解候補は参照しない。現在は明示的な単一例外/否定選択だけを
     `EXCEPTION` とし、それ以外は `POSITIVE` とする。曖昧な最小/最大比較はここで推測しない。
