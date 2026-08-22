@@ -67,7 +67,7 @@ def HDSReplayCase評価(
             "合計得点": item.合計得点,
             "証拠得点": item.証拠得点,
             "graph得点": item.graph得点,
-            "graph補正": item.graph補正,
+            "graph補正": item.graph補正係数,
             "独立出典数": item.独立出典数,
             "採用証拠数": item.採用証拠数,
             "graph深さ": item.graph深さ,
