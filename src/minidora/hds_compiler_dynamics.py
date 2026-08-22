@@ -26,6 +26,7 @@ _JA_ROLLBACK = re.compile(
     rf"(?:失敗時|エラー時|異常時)?[^。！？]{{0,30}}?(?:rollback|ロールバック|切り戻し?)(?:して|し|で)?\s*(?P<dst>{_状態語})(?:へ|に)(?:戻す|戻る|切り戻す|復帰する)"
 )
 _EN_ROLLBACK = re.compile(r"(?:rollback|roll back|revert|undo)(?:\s+to)\s+(?P<dst>[A-Za-z0-9_.+\-]{1,48})", re.I)
+_状態役割prefix = ("初期状態", "開始状態", "次状態", "終了状態", "状態")
 
 
 def _clean(value: str | None) -> str | None:
@@ -33,6 +34,18 @@ def _clean(value: str | None) -> str | None:
         return None
     text = " ".join(str(value).split()).strip(" ,、:;。！？?!")
     return text or None
+
+
+def _state_name(value: str | None) -> str | None:
+    text = _clean(value)
+    if text is None:
+        return None
+    for prefix in _状態役割prefix:
+        if text.startswith(prefix) and len(text) > len(prefix):
+            candidate = text[len(prefix):].strip(" :=：")
+            if candidate:
+                return candidate
+    return text
 
 
 def _append_edge(
@@ -46,9 +59,9 @@ def _append_edge(
     reversible: bool | None = None,
     rollback: str | None = None,
 ) -> None:
-    src = _clean(src)
-    dst = _clean(dst)
-    rollback = _clean(rollback)
+    src = _state_name(src)
+    dst = _state_name(dst)
+    rollback = _state_name(rollback)
     for value in (src, dst, rollback):
         if value and value not in nodes:
             nodes[value] = HDS状態ノード(f"state:{len(nodes):03d}", value)
@@ -85,21 +98,21 @@ def HDS状態遷移抽出(text: str) -> HDS状態遷移図:
         _append_edge(edges, nodes, src=match.group("src"), dst=match.group("dst"), action=("transition",))
 
     for match in _JA_COND_TO.finditer(source):
-        dst = _clean(match.group("dst"))
+        dst = _state_name(match.group("dst"))
         if not any(edge.終点 == dst and edge.条件 for edge in edges):
             _append_edge(edges, nodes, src=None, dst=dst, cond=(match.group("cond"),), action=("条件遷移",))
 
     for match in _EN_COND_TO.finditer(source):
-        dst = _clean(match.group("dst"))
+        dst = _state_name(match.group("dst"))
         if not any(edge.終点 == dst and edge.条件 for edge in edges):
             _append_edge(edges, nodes, src=None, dst=dst, cond=(match.group("cond"),), action=("conditional transition",))
 
     for match in _JA_ROLLBACK.finditer(source):
-        rollback = _clean(match.group("dst"))
+        rollback = _state_name(match.group("dst"))
         _append_edge(edges, nodes, src=None, dst=rollback, cond=("失敗または撤回条件",), action=("rollback",), reversible=True, rollback=rollback)
 
     for match in _EN_ROLLBACK.finditer(source):
-        rollback = _clean(match.group("dst"))
+        rollback = _state_name(match.group("dst"))
         _append_edge(edges, nodes, src=None, dst=rollback, cond=("failure or withdrawal condition",), action=("rollback",), reversible=True, rollback=rollback)
 
     for edge in edges:
