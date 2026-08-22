@@ -72,6 +72,74 @@ _否定規則 = (
 )
 _共参照 = re.compile(r"\b(?:it|this|that|these|those|they|them|former|latter)\b|(?:それ|これ|あれ|その|この|あの|前者|後者)")
 
+_英語検索述語 = {
+    "因果": "causes",
+    "増加": "increases",
+    "減少": "decreases",
+    "阻害": "inhibits",
+    "活性化": "activates",
+    "生成": "produces",
+    "要求": "requires",
+    "包含": "contains",
+    "使用": "uses",
+    "防止": "prevents",
+    "相関": "associated with",
+}
+_日本語検索述語 = {
+    "因果": "引き起こす",
+    "増加": "増加させる",
+    "減少": "減少させる",
+    "阻害": "阻害する",
+    "活性化": "活性化する",
+    "生成": "生成する",
+    "要求": "必要とする",
+    "包含": "含む",
+    "使用": "使う",
+    "防止": "防ぐ",
+    "相関": "関連する",
+}
+
+
+def _未知端点(text: str) -> tuple[bool, str]:
+    value = " ".join(str(text).split()).strip(" ,;:。！？?")
+    if not value:
+        return False, ""
+    lowered = value.casefold()
+    if lowered in {"who", "whom"}:
+        return True, "person"
+    if lowered in {"what", "which"}:
+        return True, ""
+    match = re.fullmatch(r"(?:which|what)\s+(?P<kind>.+)", value, flags=re.I)
+    if match:
+        kind = re.sub(r"^of\s+the\s+following\s+", "", match.group("kind"), flags=re.I).strip()
+        return True, kind
+    if value == "誰":
+        return True, "人物"
+    if value in {"何", "なに"}:
+        return True, ""
+    if value.startswith("どの") and len(value) > 2:
+        return True, value[2:].strip()
+    match = re.fullmatch(r"(?:何|なに)の(?P<kind>.+)", value)
+    if match:
+        return True, match.group("kind").strip()
+    return False, ""
+
+
+def _条件表層除去(text: str, conditions: tuple[str, ...]) -> str:
+    value = " ".join(str(text).split()).strip()
+    for condition in sorted((" ".join(c.split()).strip() for c in conditions if c), key=len, reverse=True):
+        if value.casefold().endswith(condition.casefold()):
+            value = value[: len(value) - len(condition)].strip(" ,;:。！？?")
+    return value
+
+
+def _関係検索述語(kind: str, surface: str, language: str, *, reverse: bool) -> str:
+    if not reverse:
+        return " ".join(str(surface).split()).strip()
+    table = _日本語検索述語 if str(language).casefold().startswith("ja") else _英語検索述語
+    return table.get(kind, " ".join(str(surface).split()).strip())
+
+
 
 @dataclass(frozen=True, slots=True)
 class 公開HDSコンパイラ方針:
@@ -209,9 +277,14 @@ class 公開HDSコンパイラ:
                 add_coord("状態.否定", match.group(0))
                 break
 
+        condition_surfaces: list[str] = []
         for pattern in _条件規則:
             for match in pattern.finditer(normalized):
-                add_coord("条件.前提", match.group(0))
+                condition = " ".join(match.group(0).split()).strip()
+                if not condition or condition in condition_surfaces:
+                    continue
+                condition_surfaces.append(condition)
+                add_coord("条件.前提", condition)
 
         relation_count = 0
 
@@ -219,23 +292,62 @@ class 公開HDSコンパイラ:
             nonlocal relation_count
             if relation_count >= self.方針.最大関係数:
                 return
-            subject = subject.strip(" ,;:。！？")
-            object_ = object_.strip(" ,;:。！？")
+            subject = _条件表層除去(subject, tuple(condition_surfaces)).strip(" ,;:。！？")
+            object_ = _条件表層除去(object_, tuple(condition_surfaces)).strip(" ,;:。！？")
             predicate_surface = predicate_surface.strip()
             if not subject or not object_ or not predicate_surface:
                 return
             if reverse:
                 subject, object_ = object_, subject
-            sid = add_coord("対象.始点", subject)
+
+            subject_unknown, subject_type = _未知端点(subject)
+            object_unknown, object_type = _未知端点(object_)
+            if subject_unknown and object_unknown:
+                residuals.append(
+                    HDS残差(
+                        f"residual:relation:{relation_count}",
+                        "未解関係両端",
+                        f"{subject} {predicate_surface} {object_}",
+                        "関係の始点と終点がともに未観測",
+                        解消条件=("Rまたは文脈で少なくとも一方の端点を確定する",),
+                    )
+                )
+                relation_count += 1
+                return
+
+            query_predicate = _関係検索述語(kind, predicate_surface, language, reverse=reverse)
+            relation_conditions: list[str] = [f"検索述語={query_predicate}"]
+            relation_state = 値状態.確定
+
+            if subject_unknown:
+                sid = add_coord("目的.未知始点", subject_type or "未特定", state=値状態.未観測)
+                add_coord("目的.不足位置", "始点")
+                if subject_type:
+                    add_coord("目的.要求型", subject_type)
+                oid = add_coord("対象.終点", object_)
+                relation_conditions.append("不足位置=始点")
+                relation_state = 値状態.未観測
+            elif object_unknown:
+                sid = add_coord("対象.始点", subject)
+                oid = add_coord("目的.未知終点", object_type or "未特定", state=値状態.未観測)
+                add_coord("目的.不足位置", "終点")
+                if object_type:
+                    add_coord("目的.要求型", object_type)
+                relation_conditions.append("不足位置=終点")
+                relation_state = 値状態.未観測
+            else:
+                sid = add_coord("対象.始点", subject)
+                oid = add_coord("対象.終点", object_)
+
             add_coord("関係.述語", predicate_surface)
-            oid = add_coord("対象.終点", object_)
             relations.append(
                 HDS関係(
                     f"rel:{relation_count}",
                     (sid,),
                     (oid,),
                     kind,
-                    値状態=値状態.確定,
+                    条件=tuple(relation_conditions),
+                    値状態=relation_state,
                     由来="公開HDS Compiler",
                 )
             )
@@ -327,7 +439,7 @@ class 公開HDSコンパイラ:
                 ("normalized",),
                 tuple(coord.座標ID for coord in coords if coord.座標ID not in {"src", "normalized"}),
                 "対象・関係・状態・条件・目的・数量を有限射影",
-                保持構造=("関係方向", "否定", "数量", "単位", "検索焦点"),
+                保持構造=("関係方向", "否定", "数量", "単位", "検索焦点", "不足スロット"),
                 損失=tuple(item.理由 for item in residuals),
                 検証=("ベンチ固有規則なし", "正解情報参照なし"),
             )

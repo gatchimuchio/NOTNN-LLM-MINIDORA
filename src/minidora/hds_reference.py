@@ -11,7 +11,7 @@ from .semantic_tokens import 意味語
 from .参照 import 参照供給器, 参照記録
 
 _SURFACE_ONLY_KINDS = {"source_text", "language.input", "language.normalized", "対象.原文保持", "文脈.言語"}
-_QUERY_META_PREFIXES = ("制御.", "監査.")
+_QUERY_META_PREFIXES = ("制御.", "監査.", "目的.不足位置", "条件.検索極性")
 _BLOCKING_STATES = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
 _FOCUS_SPLIT = re.compile(r"(?<=[?!.。？！])\s+|\n+")
 _EN_QUESTION_TAIL = re.compile(r"(?P<q>\b(?:which|what|why|how|who|when|where)\b[^?？]{0,320}[?？])\s*$", re.I)
@@ -181,6 +181,40 @@ def _候補query片(choice: str, distinctive: tuple[str, ...]) -> str:
     return _切詰め(differential or surface, 160)
 
 
+
+def _関係条件値(relation: object, key: str) -> str:
+    prefix = key + "="
+    for raw in getattr(relation, "条件", ()):
+        value = str(raw)
+        if value.startswith(prefix):
+            return value[len(prefix):].strip()
+    return ""
+
+
+def _不足スロット候補query(ir: HDSIR, choice: str) -> str:
+    """Compilerが確定した関係の未知端点だけを候補で埋め、R用表層へ戻す。"""
+    coords = ir.座標辞書()
+    groups, _ = _役割語群(ir)
+    conditions = groups["条件"]
+    for relation in ir.関係:
+        position = _関係条件値(relation, "不足位置")
+        predicate = _関係条件値(relation, "検索述語")
+        if position not in {"始点", "終点"} or not predicate:
+            continue
+        starts = [coords[cid] for cid in relation.始点 if cid in coords]
+        ends = [coords[cid] for cid in relation.終点 if cid in coords]
+        if position == "始点":
+            known = next((str(coord.内容) for coord in ends if coord.値状態 not in _BLOCKING_STATES), "")
+            parts = (choice, predicate, known, *conditions)
+        else:
+            known = next((str(coord.内容) for coord in starts if coord.値状態 not in _BLOCKING_STATES), "")
+            parts = (known, predicate, choice, *conditions)
+        query = _切詰め(" ".join(_unique(parts)), 360)
+        if query:
+            return query
+    return ""
+
+
 def _問合せ仕様(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[_HDS問合せ仕様, ...]:
     groups, choices = _役割語群(ir)
     raw = str(ir.正規化文 or ir.原文)
@@ -216,8 +250,10 @@ def _問合せ仕様(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[_HDS問合
 
     distinctive = _候補差分語(choices)
     for label, choice in choices:
-        suffix = _候補query片(choice, distinctive.get(label, ()))
-        query = _切詰め(" ".join(_unique((anchor, suffix))), 360)
+        query = _不足スロット候補query(ir, choice)
+        if not query:
+            suffix = _候補query片(choice, distinctive.get(label, ()))
+            query = _切詰め(" ".join(_unique((anchor, suffix))), 360)
         if not query:
             continue
         key = query.casefold()
