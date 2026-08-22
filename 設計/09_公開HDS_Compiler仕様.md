@@ -2,7 +2,7 @@
 
 ## 1. 位置づけ
 
-`src/minidora/hds_compiler.py` をMINIDORAの公開標準HDS Compiler正本とする。
+`src/minidora/hds_compiler_v1.py` をMINIDORAの公開標準HDS Compiler正本とする。`src/minidora/hds_compiler.py` は既存の基礎意味Projection互換層として保持する。
 
 このCompilerはフル公開対象である。性能改善、試験、第三者監査、派生実装を許容する。
 
@@ -32,6 +32,8 @@
 11. Projection履歴
 
 未知情報を補完して確定しない。
+
+詳細Architectureは [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) を正本とする。
 
 ## 4. R性能との関係
 

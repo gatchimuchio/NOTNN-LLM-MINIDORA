@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import re
 from typing import Iterable
 
+from .hds_compiler_records import HDS_COMPILER_META_PREFIXES
 from .hds_ir import HDSIR, 値状態
 from .k3_functional import Fact, K3相当能力核
 
@@ -127,7 +128,7 @@ class HDSIR知識Adapter:
 
     HDSの値状態confidenceとR側のsource confidenceを分離して受け取り、Kへ入るFact強度は
     その積とする。source confidence=1.0なら従来挙動と同じ。残差影響構造は監査用に保持しつつ
-    確定回答証拠・graph経路へ昇格させない。
+    確定回答証拠・graph経路へ昇格させない。Compilerの監査メタ座標も実世界Factへ昇格させない。
     """
 
     def __init__(self, core: K3相当能力核) -> None:
@@ -152,7 +153,7 @@ class HDSIR知識Adapter:
 
         for coord in ir.座標:
             kind = _text(coord.種別)
-            if kind in _SURFACE_ONLY_KINDS:
+            if kind in _SURFACE_ONLY_KINDS or kind.startswith(HDS_COMPILER_META_PREFIXES):
                 continue
             content = _text(coord.内容)
             if not content:

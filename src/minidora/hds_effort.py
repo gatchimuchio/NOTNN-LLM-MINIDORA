@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
 
+from .hds_compiler_records import HDS_COMPILER_META_PREFIXES
 from .hds_ir import HDSIR
 from .k3_functional import DistilledEffortPolicyController, EffortPolicy, SemanticFrame
 from .semantic_tokens import 意味語
@@ -17,13 +18,19 @@ class HDS探索方針:
     証拠重み: tuple[float, ...]
 
 
+def _演算座標(coord: object) -> bool:
+    kind = str(getattr(coord, "種別", ""))
+    return not kind.startswith(HDS_COMPILER_META_PREFIXES)
+
+
 def _構造量(ir: HDSIR, 候補IR: Mapping[str, HDSIR] | None) -> tuple[int, int, int, int]:
-    coords = sum(1 for c in ir.座標 if not c.座標ID.startswith("choice:"))
+    # Compiler監査メタ情報は問題自体の意味複雑性ではないため、探索努力量へ加算しない。
+    coords = sum(1 for c in ir.座標 if not c.座標ID.startswith("choice:") and _演算座標(c))
     relations = len(ir.関係)
     residuals = len(ir.残差)
     terms = len(意味語(ir.正規化文 or ir.原文))
     if 候補IR:
-        coords += sum(len(cir.座標) for cir in 候補IR.values())
+        coords += sum(sum(1 for c in cir.座標 if _演算座標(c)) for cir in 候補IR.values())
         relations += sum(len(cir.関係) for cir in 候補IR.values())
         residuals += sum(len(cir.残差) for cir in 候補IR.values())
         terms += sum(len(意味語(cir.正規化文 or cir.原文)) for cir in 候補IR.values())
@@ -34,6 +41,7 @@ def HDS努力水準(ir: HDSIR, 候補IR: Mapping[str, HDSIR] | None = None) -> s
     """HDS構造量から、K3型の計算資源水準を決定論的に選ぶ。
 
     ベンチ名や正解情報は使わない。関係数・意味座標・残差・意味語数だけを見る。
+    Compilerの監査メタ座標はここでは意味構造量へ数えない。
     """
     coords, relations, residuals, terms = _構造量(ir, 候補IR)
     choices = sum(1 for c in ir.座標 if c.座標ID.startswith("choice:"))

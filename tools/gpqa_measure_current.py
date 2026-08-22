@@ -17,7 +17,7 @@ SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
 from minidora.hds_choice_runtime import HDS選択推論実行
-from minidora.hds_compiler import 公開HDSコンパイラ
+from minidora.hds_compiler_v1 import 公開HDSコンパイラ
 from minidora.hds_reference import HDS参照検索
 from minidora.k3_functional import K3相当能力核
 from minidora.standard_reference import 一般知識参照供給器

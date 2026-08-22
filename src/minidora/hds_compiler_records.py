@@ -1,0 +1,122 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import StrEnum
+
+from .hds_ir import HDSIR
+
+
+class HDS監査状態(StrEnum):
+    観測 = "観測"
+    推定 = "推定"
+    要求 = "要求"
+    未固定 = "未固定"
+    留保 = "留保"
+
+
+class HDS原理段階(StrEnum):
+    未形成 = "UNFORMED"
+    影 = "SHADOW"
+    パターン = "PATTERN"
+    機構候補 = "MECHANISM_CANDIDATE"
+    原理候補 = "PRINCIPLE_CANDIDATE"
+
+
+@dataclass(frozen=True, slots=True)
+class HDS認知世界断片:
+    """公開Compilerが入力表層から観測できたCognitiveWorldの有限断片。"""
+
+    発話主体: tuple[str, ...] = ()
+    作用主体: tuple[str, ...] = ()
+    対象: tuple[str, ...] = ()
+    時間: tuple[str, ...] = ()
+    空間: tuple[str, ...] = ()
+    目的: tuple[str, ...] = ()
+    機構: tuple[str, ...] = ()
+    未固定座標: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class HDS監査項目:
+    項目ID: str
+    層: str
+    種別: str
+    内容: str
+    状態: HDS監査状態
+    由来: str = "公開HDS Compiler"
+    必要情報: tuple[str, ...] = ()
+    再開放条件: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class HDS監査要求:
+    """HDS判断側へ渡す監査入力要求。Compiler自身はPASS/FAILを決めない。"""
+
+    要求ID: str
+    種別: str
+    理由: str
+    必要情報: tuple[str, ...] = ()
+    影響参照: tuple[str, ...] = ()
+    次の観測候補: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class HDS原理探索要求:
+    段階: HDS原理段階 = HDS原理段階.未形成
+    明示語: tuple[str, ...] = ()
+    原理質問候補: tuple[str, ...] = ()
+    必要監査: tuple[str, ...] = ()
+    適用範囲: tuple[str, ...] = ()
+    反証条件: tuple[str, ...] = ()
+    再開放条件: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class HDS保持契約:
+    全座標保持: bool = True
+    全関係保持: bool = True
+    不確実性保持: bool = True
+    残差保持: bool = True
+    由来保持: bool = True
+    旧解釈保持: bool = True
+    不可逆剪定禁止: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class HDSCompiler成果:
+    IR: HDSIR
+    認知世界: HDS認知世界断片
+    監査項目: tuple[HDS監査項目, ...]
+    監査要求: tuple[HDS監査要求, ...]
+    原理探索: HDS原理探索要求
+    保持契約: HDS保持契約 = HDS保持契約()
+
+    @property
+    def 未固定座標(self) -> tuple[str, ...]:
+        return self.認知世界.未固定座標
+
+    @property
+    def 要求種別(self) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(item.種別 for item in self.監査要求))
+
+
+# Compiler内部の監査・制御メタ情報。外部検索語やKの事実へ直接昇格させない。
+HDS_COMPILER_META_PREFIXES = (
+    "監査.",
+    "保持.",
+    "暫定性.",
+    "帰還.",
+)
+
+
+__all__ = [
+    "HDS監査状態",
+    "HDS原理段階",
+    "HDS認知世界断片",
+    "HDS監査項目",
+    "HDS監査要求",
+    "HDS原理探索要求",
+    "HDS保持契約",
+    "HDSCompiler成果",
+    "HDS_COMPILER_META_PREFIXES",
+]
