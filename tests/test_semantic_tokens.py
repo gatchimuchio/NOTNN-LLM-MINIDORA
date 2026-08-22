@@ -19,19 +19,29 @@ class 意味語正規化試験(unittest.TestCase):
     def test_日本語意味語は保持する(self) -> None:
         self.assertEqual(意味語("触媒 反応 促進"), frozenset({"触媒", "反応", "促進"}))
 
-    def test_1桁数値choiceを保持する(self) -> None:
+    def test_1桁数値と単独choice_atomを保持する(self) -> None:
         self.assertIn("0", 意味語("0"))
         self.assertIn("6", 意味語("6"))
-        self.assertEqual(意味語("x"), frozenset())
+        self.assertIn("atom:x", 意味語("x"))
+        self.assertIn("atom:b", 意味語("b"))
+        self.assertIn("atom:c", 意味語("c) option"))
 
     def test_符号付き数値を区別する(self) -> None:
         self.assertIn("-1", 意味語("-1"))
         self.assertIn("+1", 意味語("+1"))
         self.assertNotEqual(意味語("-1"), 意味語("+1"))
 
-    def test_分数と指数を数式anchorとして保持する(self) -> None:
+    def test_分数指数科学記数法を数式anchorとして保持する(self) -> None:
         self.assertIn("math:1/3", 意味語("1/3"))
         self.assertIn("math:10^-16", 意味語("10^-16 J"))
+        self.assertIn("math:2.6*1e5", 意味語("2.6*1e5 GeV"))
+        self.assertIn("math:1/3", 意味語(r"\frac{1}{3}"))
+        self.assertIn("math:sqrt(2)", 意味語(r"\sqrt{2}"))
+
+    def test_技術記号を通常語と別anchorで保持する(self) -> None:
+        self.assertIn("sym:e", 意味語("E = 2*x"))
+        self.assertIn("sym:x", 意味語("E = 2*x"))
+        self.assertIn("sym:θ", 意味語("θ"))
 
 
 if __name__ == "__main__":
