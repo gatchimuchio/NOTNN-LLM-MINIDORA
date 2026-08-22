@@ -67,12 +67,18 @@ class EuropePMC参照供給器試験(unittest.TestCase):
 
         self.assertEqual(len(records), 2)
         first = records[0]
-        self.assertEqual(first.識別子, "europepmc:MED:12345678")
+        self.assertEqual(first.識別子, "doi:10.1000/example")
         self.assertIn("ProteinX promotes catalytic turnover", first.内容)
         self.assertEqual(first.信頼, provider.ABSTRACT信頼)
         self.assertEqual(first.時点, "2024-05-01")
         self.assertEqual(first.由来, "https://doi.org/10.1000/example")
+        self.assertIn(("canonical_source", "doi:10.1000/example"), first.条件)
         self.assertIn(("evidence_scope", "abstract"), first.条件)
+
+    def test_DOIなしはEuropePMC固有識別へfallbackする(self) -> None:
+        provider = EuropePMC参照供給器(JSON取得=_FakeEuropePMC())
+        records = provider.検索("ProteinX catalysis", 8)
+        self.assertEqual(records[1].識別子, "europepmc:MED:87654321")
 
     def test_title_onlyはabstractより低confidence(self) -> None:
         provider = EuropePMC参照供給器(JSON取得=_FakeEuropePMC())
