@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 from .hds_effort import HDS努力水準
 from .hds_ir import HDSIR, 値状態
-from .semantic_tokens import 意味語
 from .参照 import 参照供給器, 参照記録
 
 
@@ -18,8 +17,6 @@ _SURFACE_ONLY_KINDS = {
     "文脈.言語",
 }
 _BLOCKING_STATES = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
-_QUERY_CHOICE_KEY = "hds_query_choice"
-_QUERY_KIND_KEY = "hds_query_kind"
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,13 +25,6 @@ class HDS参照予算:
     取得上限: int
     一問合せ上限: int
     最大問合せ並列: int
-
-
-@dataclass(frozen=True, slots=True)
-class _HDS検索仕様:
-    問合せ: str
-    候補: str | None = None
-    種別: str = "structure"
 
 
 def HDS参照予算選択(ir: HDSIR) -> HDS参照予算:
@@ -59,26 +49,6 @@ def _unique(parts: Iterable[str]) -> tuple[str, ...]:
         seen.add(key)
         out.append(value)
     return tuple(out)
-
-
-def _compact_join(parts: Iterable[str], *, 最大要素: int = 12, 最大文字数: int = 280) -> str:
-    selected: list[str] = []
-    size = 0
-    char_limit = max(1, int(最大文字数))
-    for part in _unique(parts):
-        if len(selected) >= max(1, int(最大要素)):
-            break
-        remaining = char_limit - size - (1 if selected else 0)
-        if remaining <= 0:
-            break
-        piece = part[:remaining].strip()
-        if not piece:
-            break
-        selected.append(piece)
-        size += len(piece) + (1 if len(selected) > 1 else 0)
-        if len(piece) < len(part):
-            break
-    return " ".join(selected)
 
 
 def _役割(kind: str) -> str:
@@ -116,152 +86,91 @@ def _役割語群(ir: HDSIR) -> tuple[dict[str, tuple[str, ...]], tuple[tuple[st
     return {name: _unique(values) for name, values in groups.items()}, tuple(sorted(choices))
 
 
-def _検索語(token: str) -> str:
-    return token[5:] if token.startswith("math:") else token
-
-
-def _候補識別語群(choices: tuple[tuple[str, str], ...]) -> dict[str, tuple[str, ...]]:
-    terms_by_label = {label: 意味語(text) for label, text in choices}
-    frequency: dict[str, int] = {}
-    for terms in terms_by_label.values():
-        for term in terms:
-            frequency[term] = frequency.get(term, 0) + 1
-
-    result: dict[str, tuple[str, ...]] = {}
-    for label, terms in terms_by_label.items():
-        distinctive = [term for term in terms if frequency.get(term, 0) < len(choices)]
-        distinctive.sort(key=lambda term: (frequency.get(term, 0), 0 if term.startswith("math:") else 1, -len(term), term))
-        result[label] = _unique(_検索語(term) for term in distinctive[:8])
-    return result
-
-
-def _主検索仕様(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[_HDS検索仕様, ...]:
+def HDS参照問合せ候補(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[str, ...]:
     groups, choices = _役割語群(ir)
     base = " ".join(str(ir.正規化文 or ir.原文).split()).strip()
-    structured_parts = _unique((
+    structured = " ".join(_unique((
         *groups["対象"], *groups["関係"], *groups["状態"],
         *groups["条件"], *groups["焦点"], *groups["その他"],
-    ))
-    structured = _compact_join(structured_parts)
-    entity_relation = _compact_join((*groups["対象"], *groups["関係"], *groups["状態"]), 最大要素=10)
-    entity_only = _compact_join(groups["対象"], 最大要素=8)
-    compact_base = _compact_join((base,), 最大要素=1, 最大文字数=280)
-    anchor = structured or entity_relation or entity_only or compact_base
-
+    )))
+    entity_relation = " ".join(_unique((*groups["対象"], *groups["関係"], *groups["状態"])))
+    entity_only = " ".join(groups["対象"])
+    anchor = structured or entity_relation or entity_only or base
     budget = max(int(最大候補数), len(choices))
     nonchoice_slots = max(0, budget - len(choices))
-    nonchoice = _unique((compact_base, structured, entity_relation, entity_only))[:nonchoice_slots]
-    specs = [_HDS検索仕様(query, None, "structure") for query in nonchoice]
-
-    distinctive = _候補識別語群(choices)
-    for label, choice in choices:
-        choice_focus = " ".join(distinctive.get(label, ())) or choice
-        query = _compact_join((anchor, choice_focus), 最大要素=2, 最大文字数=360)
-        if query:
-            specs.append(_HDS検索仕様(query, label, "choice"))
-    return _仕様重複排除(specs)
-
-
-def _縮退検索仕様(ir: HDSIR) -> tuple[_HDS検索仕様, ...]:
-    groups, choices = _役割語群(ir)
-    entity = _compact_join(groups["対象"], 最大要素=8)
-    relation = _compact_join((*groups["関係"], *groups["状態"]), 最大要素=6)
-    contextual = _compact_join((*groups["条件"], *groups["焦点"]), 最大要素=6)
-    distinctive = _候補識別語群(choices)
-    specs: list[_HDS検索仕様] = []
-    for label, choice in choices:
-        focus = " ".join(distinctive.get(label, ())) or choice
-        query = _compact_join((entity, focus), 最大要素=2, 最大文字数=320) if entity else focus
-        if query:
-            specs.append(_HDS検索仕様(query, label, "choice_fallback"))
-    for query in _unique((
-        _compact_join((entity, relation), 最大要素=2),
-        _compact_join((entity, contextual), 最大要素=2),
-        entity,
-    )):
-        specs.append(_HDS検索仕様(query, None, "fallback"))
-    primary = {spec.問合せ.casefold() for spec in _主検索仕様(ir)}
-    return tuple(spec for spec in _仕様重複排除(specs) if spec.問合せ.casefold() not in primary)
-
-
-def _仕様重複排除(specs: Iterable[_HDS検索仕様]) -> tuple[_HDS検索仕様, ...]:
-    out: list[_HDS検索仕様] = []
-    seen: set[tuple[str, str | None]] = set()
-    for spec in specs:
-        key = (spec.問合せ.casefold(), spec.候補)
-        if not spec.問合せ or key in seen:
-            continue
-        seen.add(key)
-        out.append(spec)
-    return tuple(out)
-
-
-def HDS参照問合せ候補(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[str, ...]:
-    return _unique(spec.問合せ for spec in _主検索仕様(ir, 最大候補数=最大候補数))
+    nonchoice = _unique((base, structured, entity_relation, entity_only))[:nonchoice_slots]
+    choice_queries = tuple(f"{anchor} {choice}" if anchor else choice for _, choice in choices)
+    return _unique((*nonchoice, *choice_queries))
 
 
 def HDS参照縮退問合せ候補(ir: HDSIR) -> tuple[str, ...]:
-    return _unique(spec.問合せ for spec in _縮退検索仕様(ir))
+    """主検索が完全0件の場合だけ使う、より短い対称query群。
+
+    `対象 + choice` を全choice同条件で作り、次に `対象 + 関係/状態`、最後に対象単体へ縮退する。
+    choice単独は対象が取れない場合だけ使用し、一般語choiceだけの過広検索を常態化させない。
+    """
+    groups, choices = _役割語群(ir)
+    entity = " ".join(groups["対象"])
+    relation = " ".join(_unique((*groups["関係"], *groups["状態"])))
+    contextual = " ".join(_unique((*groups["条件"], *groups["焦点"])))
+    choice_queries = tuple(
+        " ".join(_unique((entity, choice))) if entity else choice
+        for _, choice in choices
+    )
+    reduced = _unique((
+        *choice_queries,
+        " ".join(_unique((entity, relation))),
+        " ".join(_unique((entity, contextual))),
+        entity,
+    ))
+    primary = {query.casefold() for query in HDS参照問合せ候補(ir)}
+    return tuple(query for query in reduced if query.casefold() not in primary)
 
 
-def _query_pools(provider: 参照供給器, specs: tuple[_HDS検索仕様, ...], per_query_limit: int, *, max_parallel: int) -> list[tuple[_HDS検索仕様, tuple[参照記録, ...]]]:
+def _query_pools(provider: 参照供給器, queries: tuple[str, ...], per_query_limit: int, *, max_parallel: int) -> list[tuple[参照記録, ...]]:
     parallel_safe = bool(getattr(provider, "並列安全", False))
-    if not parallel_safe or len(specs) <= 1 or max_parallel <= 1:
-        pools: list[tuple[_HDS検索仕様, tuple[参照記録, ...]]] = []
-        for spec in specs:
+    if not parallel_safe or len(queries) <= 1 or max_parallel <= 1:
+        pools: list[tuple[参照記録, ...]] = []
+        for query in queries:
             try:
-                pools.append((spec, tuple(provider.検索(spec.問合せ, per_query_limit))))
+                pools.append(tuple(provider.検索(query, per_query_limit)))
             except Exception:
-                pools.append((spec, ()))
+                pools.append(())
         return pools
-    workers = min(max(1, int(max_parallel)), len(specs))
+    workers = min(max(1, int(max_parallel)), len(queries))
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="minidora-rq") as executor:
-        futures = [executor.submit(provider.検索, spec.問合せ, per_query_limit) for spec in specs]
+        futures = [executor.submit(provider.検索, query, per_query_limit) for query in queries]
         pools = []
-        for spec, future in zip(specs, futures):
+        for future in futures:
             try:
-                pools.append((spec, tuple(future.result())))
+                pools.append(tuple(future.result()))
             except Exception:
-                pools.append((spec, ()))
+                pools.append(())
         return pools
 
 
-def _query_conditions(record: 参照記録, spec: _HDS検索仕様) -> tuple[tuple[str, str], ...]:
-    conditions = list(record.条件)
-    conditions.append((_QUERY_KIND_KEY, spec.種別))
-    if spec.候補 is not None:
-        conditions.append((_QUERY_CHOICE_KEY, spec.候補))
-    return tuple(dict.fromkeys((str(k), str(v)) for k, v in conditions))
-
-
-def _round_robin(pools: Iterable[tuple[_HDS検索仕様, tuple[参照記録, ...]]], limit: int) -> tuple[参照記録, ...]:
+def _round_robin(pools: Iterable[tuple[参照記録, ...]], limit: int) -> tuple[参照記録, ...]:
     pools_tuple = tuple(pools)
-    order: list[str] = []
-    merged: dict[str, 参照記録] = {}
+    result: list[参照記録] = []
+    seen: set[str] = set()
     depth = 0
-    while len(order) < limit:
+    while len(result) < limit:
         progressed = False
-        for spec, pool in pools_tuple:
+        for pool in pools_tuple:
             if depth >= len(pool):
                 continue
             progressed = True
             record = pool[depth]
-            enriched = replace(record, 条件=_query_conditions(record, spec))
-            old = merged.get(record.識別子)
-            if old is None:
-                merged[record.識別子] = enriched
-                order.append(record.識別子)
-            else:
-                merged[record.識別子] = replace(
-                    old,
-                    条件=tuple(dict.fromkeys((*old.条件, *enriched.条件))),
-                )
-            if len(order) >= limit:
+            if record.識別子 in seen:
+                continue
+            seen.add(record.識別子)
+            result.append(record)
+            if len(result) >= limit:
                 break
         if not progressed:
             break
         depth += 1
-    return tuple(merged[identifier] for identifier in order)
+    return tuple(result)
 
 
 def HDS参照検索(
@@ -272,6 +181,7 @@ def HDS参照検索(
     一問合せ上限: int | None = None,
     最大問合せ並列: int | None = None,
 ) -> tuple[参照記録, ...]:
+    """K3 effort由来budgetで検索し、完全0件時だけHDS構造を段階縮退して再検索する。"""
     budget = HDS参照予算選択(ir)
     total_limit = budget.取得上限 if 上限 is None else max(0, int(上限))
     per_query = budget.一問合せ上限 if 一問合せ上限 is None else max(1, int(一問合せ上限))
@@ -279,7 +189,7 @@ def HDS参照検索(
     if total_limit <= 0:
         return ()
 
-    primary = _主検索仕様(ir)
+    primary = HDS参照問合せ候補(ir)
     if primary:
         primary_records = _round_robin(
             _query_pools(provider, primary, per_query, max_parallel=parallel),
@@ -288,7 +198,7 @@ def HDS参照検索(
         if primary_records:
             return primary_records
 
-    fallback = _縮退検索仕様(ir)
+    fallback = HDS参照縮退問合せ候補(ir)
     if not fallback:
         return ()
     return _round_robin(
