@@ -5,7 +5,7 @@ import json
 import sys
 from collections.abc import Sequence
 
-from .hds_compiler import 公開HDSコンパイラ
+from .hds_compiler_v1 import 公開HDSコンパイラ
 from .runtime import ミニドラ, 要求
 
 
@@ -33,7 +33,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _標準ミニドラ() -> ミニドラ:
-    """公開HDS Compilerを正規入口として接続した標準CLI Runtimeを返す。"""
+    """公開HDS Compiler Architecture v1を正規入口として接続した標準CLI Runtimeを返す。"""
     return ミニドラ(HDSコンパイラ_=公開HDSコンパイラ())
 
 
@@ -48,7 +48,7 @@ def _run_once(body: ミニドラ, query: str, *, json_mode: bool) -> None:
             "plan": result.言語計画,
             "reference_count": len(result.参照),
             "hds_ir": result.HDS_IR is not None,
-            "compiler": "公開HDSコンパイラ",
+            "compiler": "公開HDSコンパイラ Architecture v1",
         }
         print(json.dumps(payload, ensure_ascii=False, default=str))
         return
