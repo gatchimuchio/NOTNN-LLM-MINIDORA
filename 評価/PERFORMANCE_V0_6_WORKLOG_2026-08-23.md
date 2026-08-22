@@ -91,6 +91,23 @@ Kへ投入されたHDS relation factについても `→` の前後を分離し�
 
 これにより、語集合だけでは同型だった候補を構造差で比較できる。
 
+### 4. `false / incorrect` の内容語による誤反転を抑止
+
+対象: `src/minidora/choice_intent.py`
+
+従来は最終質問文に `false` や `incorrect` が含まれるだけで `EXCEPTION` へ反転し得た。
+
+例えば次は正方向の質問である。
+
+```text
+Which mechanism explains the false positive signal?
+Which process produces an incorrect measurement result?
+```
+
+v0.6では `false / incorrect / not` を単なる内容語として検出せず、`Which ... is false`、`Which ... is not ...` 等の**候補選択述語へ結び付く場合**だけ反転する方向へ狭めた。
+
+これにより、誤り・偽陽性・非活性等を「説明対象」として含む通常質問を、誤答候補選択へ取り違えにくくする。
+
 ## 追加した回帰fixture
 
 ### `tests/test_hds_candidate_reconcile.py`
@@ -103,7 +120,9 @@ Kへ投入されたHDS relation factについても `→` の前後を分離し�
 ### `tests/test_choice_intent.py`
 
 - `least likely / least consistent / most unlikely`
+- `Which ... is false` と `Select the false statement`
 - 日本語の反転表現
+- `false positive / incorrect measurement` を誤反転しないnegative control
 - `smallest / minimum` を誤反転しないnegative control
 
 ### `tests/test_k3_directed_relation.py`
@@ -127,20 +146,20 @@ Kへ投入されたHDS relation factについても `→` の前後を分離し�
 
 ## GitHub Actions 状態
 
-PR head `70732281e098310d542d3bb1866e3e24c63b14b5` で確認。
+実装code head `28d25cd57728b3765c8d0586e970410736d33eef` で確認。
 
 ### 再構築CI
 
-- workflow run: `#296`
-- run id: `32582401275`
+- workflow run: `#299`
+- run id: `32582547792`
 - Ubuntu / Windows × Python 3.11–3.14 の8jobすべて `failure`
 - 全jobで `steps=null`
 - job log URLも生成されていない
 
 ### GPQA current measurement
 
-- workflow run: `#10`
-- run id: `32582401280`
+- workflow run: `#13`
+- run id: `32582547752`
 - `measure` job: `failure`
 - `steps=null`
 - job log URLも生成されていない
@@ -153,12 +172,23 @@ PR head `70732281e098310d542d3bb1866e3e24c63b14b5` で確認。
 environment failure / runner prestart failure
 ```
 
+## 補助論理確認
+
+Actionsとは独立に、変更した決定論ロジックについて局所確認を行った。
+
+- 反転意図fixture群は期待する `EXCEPTION / POSITIVE` に分離
+- 全候補共通sourceは候補得点 `0` となりprovenanceから消える
+- 一候補固有sourceは従来どおり識別係数 `1.0`
+
+これはrepository全体のCI PASSを代替しない。全統合試験の観測状態は未確定のままとする。
+
 ## 現時点で確定できること
 
-- v0.6の3改善は実装済み
+- v0.6の4改善は実装済み
 - PR差分上、GPQA/gold固有依存は追加していない
 - 新しい失敗クラスを狙った一般回帰fixtureを追加した
-- Actionsは実行前停止のため、テストPASSもFAILも未観測
+- 局所決定論ロジックは期待挙動を確認した
+- Actionsは実行前停止のため、repository全体のテストPASS/FAILは未観測
 - GPQA Diamond新スコアは未観測
 
 ## 未確定
@@ -172,7 +202,7 @@ environment failure / runner prestart failure
 
 ## 次の測定条件
 
-同一実装headまたはその内容を含むmain commitに対して、次を実行する。
+同一実装内容を含むmain commitに対して、次を実行する。
 
 ```text
 repository_consistency_check
