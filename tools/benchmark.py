@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import tempfile
+import subprocess
 import urllib.request
 import zipfile
 from collections import Counter
@@ -41,10 +41,24 @@ def _parser() -> argparse.ArgumentParser:
     gpqa_parser.add_argument("--refresh-dataset", action="store_true", help="GPQA dataset.zipを再取得する")
     gpqa_parser.add_argument("--start-index", type=int, default=0, help="0始まりの開始問題番号")
     gpqa_parser.add_argument("--limit", type=int, default=None, help="実行問題数。省略時は末尾まで")
-    gpqa_parser.add_argument("--resume", action="store_true", help="既存outの完了問題を再利用して続行する")
+    gpqa_parser.add_argument("--resume", action="store_true", help="同一commit・同一条件の既存outから続行する")
     gpqa_parser.add_argument("--checkpoint-every", type=int, default=1, help="何問ごとに途中結果JSONを書き出すか")
     gpqa_parser.add_argument("--no-openalex", action="store_true", help="OPENALEX_API_KEYが存在してもOpenAlexを使わない")
     return parser
+
+
+def _git_head() -> str:
+    completed = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return "UNKNOWN"
+    value = completed.stdout.strip()
+    return value or "UNKNOWN"
 
 
 def _atomic_write(path: Path, payload: dict[str, Any]) -> None:
@@ -87,13 +101,24 @@ def _selected_range(total: int, start: int, limit: int | None) -> range:
     return range(start, stop)
 
 
-def _load_resume(path: Path, *, selected: range, csv_hash: str) -> dict[int, dict[str, Any]]:
+def _load_resume(
+    path: Path,
+    *,
+    selected: range,
+    csv_hash: str,
+    repository_commit: str,
+    openalex_enabled: bool,
+) -> dict[int, dict[str, Any]]:
     if not path.exists():
         return {}
     payload = json.loads(path.read_text(encoding="utf-8"))
     protocol = payload.get("protocol", {})
     if protocol.get("dataset_csv_sha256") != csv_hash:
         raise SystemExit("--resume対象のdataset hashが現行GPQAと一致しません。")
+    if protocol.get("repository_commit") != repository_commit:
+        raise SystemExit("--resume対象のrepository commitが現在のcheckoutと一致しません。")
+    if bool(protocol.get("openalex_enabled")) != openalex_enabled:
+        raise SystemExit("--resume対象のOpenAlex条件が今回の実行条件と一致しません。")
     expected = list(selected)
     if protocol.get("selected_indices") != expected:
         raise SystemExit("--resume対象の実行範囲が今回の --start-index/--limit と一致しません。")
@@ -162,6 +187,7 @@ def _result_payload(
     selected: range,
     zip_hash: str,
     csv_hash: str,
+    repository_commit: str,
     openalex_enabled: bool,
 ) -> dict[str, Any]:
     selected_total = len(selected)
@@ -190,10 +216,11 @@ def _result_payload(
             "choice_shuffle_seed": gpqa.SEED,
             "compiler": "deterministic generic HDS semantic-atom projection; not the unavailable prototype-completion private compiler",
             "gold_boundary": "gold used only after inference for scoring",
+            "repository_commit": repository_commit,
             "openalex_enabled": openalex_enabled,
             "wikipedia_languages": ["en"],
             "runtime": "current repository checkout; HDS choice native R->HDS->K->J",
-            "checkpoint_resume": True,
+            "checkpoint_resume": "same dataset + selected range + repository commit + OpenAlex condition only",
         },
         "metrics": metrics,
         "comparison_reference": comparison,
@@ -216,8 +243,19 @@ def _run_gpqa(args: argparse.Namespace) -> int:
     if args.checkpoint_every <= 0:
         raise SystemExit("--checkpoint-every は1以上で指定してください。")
 
-    completed = _load_resume(args.out, selected=selected, csv_hash=csv_hash) if args.resume else {}
+    repository_commit = _git_head()
     api_key = None if args.no_openalex else (os.getenv("OPENALEX_API_KEY", "").strip() or None)
+    completed = (
+        _load_resume(
+            args.out,
+            selected=selected,
+            csv_hash=csv_hash,
+            repository_commit=repository_commit,
+            openalex_enabled=api_key is not None,
+        )
+        if args.resume
+        else {}
+    )
     provider = gpqa.一般知識参照供給器(
         OpenAlex_API_key=api_key,
         Wikipedia言語=("en",),
@@ -288,6 +326,7 @@ def _run_gpqa(args: argparse.Namespace) -> int:
                     selected=selected,
                     zip_hash=zip_hash,
                     csv_hash=csv_hash,
+                    repository_commit=repository_commit,
                     openalex_enabled=api_key is not None,
                 ),
             )
@@ -299,6 +338,7 @@ def _run_gpqa(args: argparse.Namespace) -> int:
         selected=selected,
         zip_hash=zip_hash,
         csv_hash=csv_hash,
+        repository_commit=repository_commit,
         openalex_enabled=api_key is not None,
     )
     _atomic_write(args.out, result)
