@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
+from minidora.hds_compiler import 公開HDSコンパイラ  # noqa: E402
 from minidora.layer0 import (  # noqa: E402
     LAYER0参照コミット,
     LAYER0仕様版,
@@ -20,9 +21,7 @@ from minidora.layer0 import (  # noqa: E402
 
 
 EXPECTED_REPOSITORY = "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA"
-EXPECTED_LAYER0_REPO = (
-    "https://github.com/gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification"
-)
+EXPECTED_LAYER0_REPO = "https://github.com/gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification"
 EXPECTED_LAYER0_COMMIT = "4adf86d13d7beb99fe5eaa9e240b22996ba3d3bc"
 EXPECTED_LAYER0_VERSION = "v4.0-provisional"
 EXPECTED_LAYER0_RESPONSIBILITIES = (
@@ -33,6 +32,7 @@ EXPECTED_LAYER0_RESPONSIBILITIES = (
     "RESULT_SURFACE",
 )
 EXPECTED_MINIDORA_VERSION = "0.3.0"
+EXPECTED_BASE_LANGUAGE = "ja"
 
 REQUIRED_PATHS = (
     "README.md",
@@ -55,6 +55,7 @@ REQUIRED_PATHS = (
     "設計/06_主体主幹仕様.md",
     "設計/07_HDS_IR入力契約.md",
     "設計/08_多言語_Trinity文脈契約.md",
+    "設計/09_公開HDS_Compiler仕様.md",
     "構文化/README.md",
     "構文化/MINIDORA_v0.2/README.md",
     "構文化/MINIDORA_v0.3/README.md",
@@ -62,6 +63,8 @@ REQUIRED_PATHS = (
     "評価/PROTOTYPE_COMPLETION_2026-08-22.md",
     "評価/GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json",
     "src/minidora/layer0.py",
+    "src/minidora/hds_compiler.py",
+    "tests/test_hds_compiler.py",
 )
 
 CORE_MARKDOWN = (
@@ -78,6 +81,9 @@ CORE_MARKDOWN = (
     "設計/README.md",
     "設計/02_Layer0責任契約.md",
     "設計/05_完成判定関門.md",
+    "設計/07_HDS_IR入力契約.md",
+    "設計/08_多言語_Trinity文脈契約.md",
+    "設計/09_公開HDS_Compiler仕様.md",
     "構文化/README.md",
     "構文化/MINIDORA_v0.2/README.md",
     "構文化/MINIDORA_v0.3/README.md",
@@ -116,9 +122,25 @@ def _check_workflows(errors: list[str]) -> None:
     for path in sorted(workflow_dir.glob("*.y*ml")):
         text = path.read_text(encoding="utf-8")
         if "chappie/" in text:
-            errors.append(
-                f"{path.relative_to(ROOT)}: 正本main方針に反する旧作業ブランチ参照"
-            )
+            errors.append(f"{path.relative_to(ROOT)}: 正本main方針に反する旧作業ブランチ参照")
+
+
+def _check_language_and_hds_boundary(errors: list[str]) -> None:
+    if 公開HDSコンパイラ.基底言語 != EXPECTED_BASE_LANGUAGE:
+        errors.append("公開HDS Compiler: 基底言語が日本語(ja)ではない")
+
+    agents = _text("AGENTS.md")
+    for required in ("日本語をMINIDORAリポジトリの基底・規定言語", "実務上やむを得ない境界", "HDS公開境界"):
+        if required not in agents:
+            errors.append(f"AGENTS.md: 言語/HDS公開方針欠落: {required}")
+
+    compiler_spec = _text("設計/09_公開HDS_Compiler仕様.md")
+    if "フル公開" not in compiler_spec:
+        errors.append("設計/09: HDS Compilerフル公開境界が明示されていない")
+    if "HDS本体" not in compiler_spec or "非公開" not in compiler_spec:
+        errors.append("設計/09: HDS本体非公開境界が明示されていない")
+    if "基底・規定言語" not in compiler_spec or "日本語" not in compiler_spec:
+        errors.append("設計/09: 日本語基底・規定言語が明示されていない")
 
 
 def main() -> int:
@@ -132,9 +154,7 @@ def main() -> int:
     project = pyproject.get("project", {})
     version = project.get("version")
     if version != EXPECTED_MINIDORA_VERSION:
-        errors.append(
-            f"MINIDORA version不整合: pyproject={version!r}, expected={EXPECTED_MINIDORA_VERSION!r}"
-        )
+        errors.append(f"MINIDORA version不整合: pyproject={version!r}, expected={EXPECTED_MINIDORA_VERSION!r}")
 
     urls = project.get("urls", {})
     if urls.get("Repository") != EXPECTED_REPOSITORY:
@@ -152,28 +172,17 @@ def main() -> int:
         errors.append("Layer-0 5機能責任が正本期待値と不一致")
 
     reference_documents = (
-        "README.md",
-        "REFERENCES.md",
-        "AGENTS.md",
-        "src/README.md",
-        "設計/README.md",
-        "設計/02_Layer0責任契約.md",
-        "構文化/README.md",
-        "構文化/MINIDORA_v0.2/README.md",
+        "README.md", "REFERENCES.md", "AGENTS.md", "src/README.md", "設計/README.md",
+        "設計/02_Layer0責任契約.md", "構文化/README.md", "構文化/MINIDORA_v0.2/README.md",
         "構文化/MINIDORA_v0.3/README.md",
     )
     for path in reference_documents:
-        text = _text(path)
-        if EXPECTED_LAYER0_REPO not in text:
+        if EXPECTED_LAYER0_REPO not in _text(path):
             errors.append(f"{path}: Layer-0正本Repository URL欠落")
 
     pinned_documents = (
-        "REFERENCES.md",
-        "AGENTS.md",
-        "設計/README.md",
-        "設計/02_Layer0責任契約.md",
-        "構文化/README.md",
-        "構文化/MINIDORA_v0.3/README.md",
+        "REFERENCES.md", "AGENTS.md", "設計/README.md", "設計/02_Layer0責任契約.md",
+        "構文化/README.md", "構文化/MINIDORA_v0.3/README.md",
     )
     for path in pinned_documents:
         text = _text(path)
@@ -196,6 +205,7 @@ def main() -> int:
     if "LEGACY" not in legacy or "現行MINIDORAはv0.3" not in legacy:
         errors.append("構文化/MINIDORA_v0.2/README.md: Legacy境界が不明確")
 
+    _check_language_and_hds_boundary(errors)
     for path in CORE_MARKDOWN:
         _check_local_links(path, errors)
     _check_workflows(errors)
@@ -210,6 +220,9 @@ def main() -> int:
     print(f"MINIDORA_VERSION={EXPECTED_MINIDORA_VERSION}")
     print(f"LAYER0_VERSION={LAYER0仕様版}")
     print(f"LAYER0_REFERENCE_COMMIT={LAYER0参照コミット}")
+    print(f"BASE_LANGUAGE={EXPECTED_BASE_LANGUAGE}")
+    print("PUBLIC_HDS_COMPILER=PASS")
+    print("HDS_CORE_PRIVATE_BOUNDARY=PASS")
     print(f"CHECKED_MARKDOWN={len(CORE_MARKDOWN)}")
     print("WORKFLOW_BRANCH_POLICY=PASS")
     print("LEGACY_BOUNDARY=PASS")
