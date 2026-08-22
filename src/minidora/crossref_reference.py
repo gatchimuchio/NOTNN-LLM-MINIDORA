@@ -55,6 +55,15 @@ def _markup_text(value: object) -> str:
         return _text(raw)
 
 
+def _doi_identifier(doi: str) -> str:
+    normalized = doi.strip().casefold()
+    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+        if normalized.startswith(prefix):
+            normalized = normalized[len(prefix):]
+            break
+    return "doi:" + normalized
+
+
 def _date(row: Mapping[str, Any]) -> str | None:
     for field in ("published-print", "published-online", "published", "created"):
         value = row.get(field)
@@ -75,7 +84,8 @@ class Crossref参照供給器:
     """Crossref REST APIを使う、分野横断のkey不要学術メタデータProvider。
 
     公開poolの同時接続制限を超えないようProvider内部でHTTP呼出しを直列化する。
-    APIの検索順位・被引用数は真偽confidenceへ変換しない。
+    APIの検索順位・被引用数は真偽confidenceへ変換しない。DOIがある資料は他Providerと
+    共通識別子を使い、同一論文を複数独立sourceとして数えない。
     """
 
     名称 = "Crossref"
@@ -114,7 +124,6 @@ class Crossref参照供給器:
             return ()
         cache_key = (query.casefold(), limit)
 
-        # Crossref public poolは同時接続1。cache確認からHTTPまで同じlockで直列化する。
         with self._lock:
             cached = self._cache.get(cache_key)
             if cached is not None:
@@ -151,8 +160,7 @@ class Crossref参照供給器:
                 if not doi and not title:
                     continue
 
-                identifier_base = doi or title
-                identifier = "crossref:" + identifier_base
+                identifier = _doi_identifier(doi) if doi else "crossref:title:" + title.casefold()
                 key = identifier.casefold()
                 if key in seen:
                     continue
@@ -167,6 +175,8 @@ class Crossref参照供給器:
                 conditions: list[tuple[str, str]] = [
                     ("evidence_scope", "abstract" if abstract else "title"),
                 ]
+                if doi:
+                    conditions.append(("canonical_source", _doi_identifier(doi)))
                 container = _text(row.get("container-title"))
                 work_type = _text(row.get("type"))
                 if container:
