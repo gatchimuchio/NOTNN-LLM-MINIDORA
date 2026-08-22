@@ -24,6 +24,13 @@ class HDS選択意図試験(unittest.TestCase):
         )
         self.assertEqual(HDS選択意図判定(text).種別, "POSITIVE")
 
+    def test_直前背景のfalse_positiveも最終質問へ伝染しない(self) -> None:
+        text = (
+            "The preliminary assay produced a false positive. "
+            "Which mechanism best explains the confirmed observation?"
+        )
+        self.assertEqual(HDS選択意図判定(text).種別, "POSITIVE")
+
     def test_通常のwhich問題はpositiveのまま(self) -> None:
         self.assertEqual(HDS選択意図判定("Which process is active in the cell?").種別, "POSITIVE")
 
