@@ -268,6 +268,21 @@ def HDS参照問合せ候補(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[st
     return tuple(spec.問合せ for spec in _問合せ仕様(ir, 最大候補数=最大候補数))
 
 
+def _監査probe仕様(ir: HDSIR) -> tuple[_HDS問合せ仕様, ...]:
+    specs: list[_HDS問合せ仕様] = []
+    seen: set[str] = set()
+    for coord in ir.座標:
+        if str(coord.種別) != "監査.R_query":
+            continue
+        query = " ".join(str(coord.内容).split()).strip()
+        key = query.casefold()
+        if not query or key in seen:
+            continue
+        seen.add(key)
+        specs.append(_HDS問合せ仕様(query, "audit_probe"))
+    return tuple(specs)
+
+
 def _縮退仕様(ir: HDSIR) -> tuple[_HDS問合せ仕様, ...]:
     groups, choices = _役割語群(ir)
     entity = _切詰め(" ".join(groups["対象"]), 160)
@@ -277,6 +292,15 @@ def _縮退仕様(ir: HDSIR) -> tuple[_HDS問合せ仕様, ...]:
     primary = {q.casefold() for q in HDS参照問合せ候補(ir)}
     specs: list[_HDS問合せ仕様] = []
     seen: set[str] = set(primary)
+
+    # 監査probeは高純度primaryが不足した時だけ使う。Compiler metaを通常queryへ混入させない。
+    for spec in _監査probe仕様(ir):
+        key = spec.問合せ.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        specs.append(spec)
+
     for label, choice in choices:
         suffix = _候補query片(choice, distinctive.get(label, ()))
         for query, kind in (

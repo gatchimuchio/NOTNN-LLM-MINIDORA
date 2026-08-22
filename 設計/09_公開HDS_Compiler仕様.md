@@ -33,7 +33,7 @@
 
 未知情報を補完して確定しない。
 
-詳細Architectureは [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) を正本とする。
+Architecture v1の履歴は [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) に保持し、現行Architecture v1.1は [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) を正本とする。
 
 ## 4. R性能との関係
 

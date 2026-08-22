@@ -27,6 +27,17 @@ from .hds_compiler_records import (
     HDS保持契約,
     HDSCompiler成果,
 )
+from .hds_compiler_records_v1_1 import (
+    HDS失敗署名状態,
+    HDS状態ノード,
+    HDS遷移辺,
+    HDS状態遷移図,
+    HDS暗黙知記録,
+    HDS失敗署名候補,
+    HDSチェックリスト項目,
+    HDS認知世界差分,
+    HDS監査参照候補,
+)
 from .hds_candidate_reconcile import HDS候補証拠, HDS調停済証拠, HDS候補調停結果, HDS候補横断調停
 from .hds_choice_runtime import HDS選択実行結果, HDS選択問題, HDS選択推論実行
 from .hds_data_k import HDS知識投入結果, HDSIR知識Adapter, HDS証拠事実, HDS証拠状態複製
@@ -51,6 +62,7 @@ __all__ = [
     "値状態", "HDS座標", "HDS関係", "HDS残差", "HDS意味作用", "HDS実行核", "HDSIR",
     "HDS文脈", "HDSコンパイラProtocol", "HDS独立コンパイル", "公開HDSコンパイラ方針", "公開HDSコンパイラ",
     "HDS監査状態", "HDS原理段階", "HDS認知世界断片", "HDS監査項目", "HDS監査要求", "HDS原理探索要求", "HDS保持契約", "HDSCompiler成果",
+    "HDS失敗署名状態", "HDS状態ノード", "HDS遷移辺", "HDS状態遷移図", "HDS暗黙知記録", "HDS失敗署名候補", "HDSチェックリスト項目", "HDS認知世界差分", "HDS監査参照候補",
     "HDS候補証拠", "HDS調停済証拠", "HDS候補調停結果", "HDS候補横断調停",
     "HDS選択実行結果", "HDS選択問題", "HDS選択推論実行",
     "HDS知識投入結果", "HDSIR知識Adapter", "HDS証拠事実", "HDS証拠状態複製",
