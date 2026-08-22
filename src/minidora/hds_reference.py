@@ -95,19 +95,42 @@ def _役割語群(ir: HDSIR) -> tuple[dict[str, tuple[str, ...]], tuple[tuple[st
 
 
 def _切詰め(text: str, limit: int) -> str:
+    """長文queryの先頭文脈と末尾焦点を両方保持する。"""
     value = " ".join(str(text).split()).strip()
     if len(value) <= limit:
         return value
     parts = value.split()
-    out: list[str] = []
+    if not parts or limit <= 0:
+        return ""
+
+    head_budget = max(1, int(limit * 0.58))
+    tail_budget = max(1, limit - head_budget - 1)
+
+    head: list[str] = []
     size = 0
-    for part in parts:
-        extra = len(part) + (1 if out else 0)
-        if size + extra > limit:
+    split_index = 0
+    for index, part in enumerate(parts):
+        extra = len(part) + (1 if head else 0)
+        if size + extra > head_budget:
+            split_index = index
             break
-        out.append(part)
+        head.append(part)
         size += extra
-    return " ".join(out)
+        split_index = index + 1
+
+    tail_rev: list[str] = []
+    size = 0
+    for part in reversed(parts[split_index:]):
+        extra = len(part) + (1 if tail_rev else 0)
+        if size + extra > tail_budget:
+            break
+        tail_rev.append(part)
+        size += extra
+    tail = list(reversed(tail_rev))
+
+    if not tail:
+        return " ".join(head)
+    return " ".join((*head, *tail))
 
 
 def _候補差分語(choices: tuple[tuple[str, str], ...]) -> dict[str, tuple[str, ...]]:
