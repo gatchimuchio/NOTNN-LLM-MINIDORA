@@ -46,7 +46,6 @@ def _choices(ir: HDSIR) -> tuple[tuple[str, str], ...]:
 
 
 def _facts(core: K3相当能力核) -> tuple[object, ...]:
-    """Kのcanonical Factに、潰さず保持したHDS独立証拠を重ねて返す。"""
     store = getattr(core.K, "_facts", {})
     evidence = HDS証拠事実(core)
     if not evidence:
@@ -144,10 +143,10 @@ class HDS候補診断:
     graph深さ: int | None
     根拠事実数: int
     識別語数: int = 0
+    識別一致出典数: int = 0
 
 
 def _意味署名(ir: HDSIR, *, fallback_text: str = "") -> HDS意味署名:
-    """HDS-IRの確定・推定意味を署名へ落とす。"""
     terms: set[str] = set()
     kinds: set[str] = set()
     relations: set[str] = set()
@@ -176,7 +175,6 @@ def _意味署名(ir: HDSIR, *, fallback_text: str = "") -> HDS意味署名:
 
 
 def _候補識別語(signatures: Mapping[str, HDS意味署名]) -> dict[str, frozenset[str]]:
-    """候補集合の共通意味を除き、各候補固有の識別語を返す。"""
     labels = tuple(signatures)
     out: dict[str, frozenset[str]] = {}
     for label in labels:
@@ -215,7 +213,6 @@ def _fact_signature(core: K3相当能力核, fact: object) -> tuple[set[str], se
 
 
 def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
-    """Fact単位証拠に加えて、同一HDS文書内の分散意味を低重みで再統合する。"""
     result: list[_証拠群] = []
     document_terms: dict[str, set[str]] = {}
     document_relations: dict[str, set[str]] = {}
@@ -243,14 +240,8 @@ def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
         if terms or relations or kinds:
             result.append(
                 _証拠群(
-                    fid or str(id(fact)),
-                    source_id,
-                    frozenset(terms),
-                    frozenset(relations),
-                    frozenset(kinds),
-                    (fid,) if fid else (),
-                    confidence,
-                    "fact",
+                    fid or str(id(fact)), source_id, frozenset(terms), frozenset(relations), frozenset(kinds),
+                    (fid,) if fid else (), confidence, "fact",
                 )
             )
 
@@ -274,15 +265,9 @@ def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
         confidences = document_confidences.get(group_id, [1.0])
         result.append(
             _証拠群(
-                group_id,
-                group_id,
-                frozenset(document_terms[group_id]),
-                relations,
-                frozenset(document_kinds.get(group_id, set())),
-                ids,
-                sum(confidences) / len(confidences),
-                "document",
-                relation_blocked,
+                group_id, group_id, frozenset(document_terms[group_id]), relations,
+                frozenset(document_kinds.get(group_id, set())), ids,
+                sum(confidences) / len(confidences), "document", relation_blocked,
             )
         )
     return tuple(result)
@@ -315,11 +300,9 @@ def _group_score(
 ) -> float:
     if evidence.関係阻害:
         return 0.0
-
     full_coverage = _coverage(candidate.語, evidence.語)
     if full_coverage <= 0:
         return 0.0
-
     question_coverage = _coverage(question.語, evidence.語)
     if question.語 and question_coverage <= 0:
         return 0.0
@@ -344,12 +327,7 @@ def _group_score(
         scope_multiplier = 0.62
         if relation_match <= 0 and kind_match <= 0:
             scope_multiplier *= 0.65
-    return (
-        evidence.信頼度
-        * (4.0 * candidate_coverage + 2.0 * question_coverage)
-        * structural_multiplier
-        * scope_multiplier
-    )
+    return evidence.信頼度 * (4.0 * candidate_coverage + 2.0 * question_coverage) * structural_multiplier * scope_multiplier
 
 
 def _例外消去候補(
@@ -357,7 +335,6 @@ def _例外消去候補(
     scored: list[tuple[float, Candidate]],
     diagnostics: tuple[HDS候補診断, ...],
 ) -> Candidate | None:
-    """N択のN-1候補が独立根拠付きで確認された場合だけ、残り1候補を消去法で返す。"""
     labels = tuple(label for label, _ in choices)
     candidate_by_label = {candidate.answer: candidate for _, candidate in scored}
     diagnostic_by_label = {diagnostic.候補: diagnostic for diagnostic in diagnostics}
@@ -368,6 +345,7 @@ def _例外消去候補(
         if label in candidate_by_label
         and diagnostic_by_label.get(label) is not None
         and diagnostic_by_label[label].独立出典数 >= 1
+        and diagnostic_by_label[label].識別一致出典数 >= 1
         and diagnostic_by_label[label].根拠事実数 >= 1
     ]
     unsupported = [label for label in labels if label not in supported]
@@ -391,13 +369,7 @@ def _例外消去候補(
         confidence=min(confidences),
         expert="HDS_exception_elimination",
         proof_fact_ids=tuple(proof_ids),
-        provenance=(
-            "HDS-IR",
-            "K",
-            "EXCEPTION_INTENT",
-            "N_MINUS_ONE_ELIMINATION",
-            "NO_GUESS",
-        ),
+        provenance=("HDS-IR", "K", "EXCEPTION_INTENT", "N_MINUS_ONE_DISTINCTIVE_ELIMINATION", "NO_GUESS"),
     )
 
 
@@ -416,8 +388,6 @@ class HDSK3結果:
 
 
 class HDSIRネイティブAdapter:
-    """HDS-IRをK3相当能力核へ直接接続する一般Adapter。"""
-
     def __init__(self, core: K3相当能力核 | None = None, judge: HDSJudge | None = None) -> None:
         self.core = core or K3相当能力核()
         self.judge = judge or self.core.J
@@ -434,12 +404,7 @@ class HDSIRネイティブAdapter:
             decision = JudgeDecision("SUSPEND", None, ("HDS_NO_CHOICE_SET",))
             return HDSK3結果("SUSPEND", None, decision, (), 0, decision.reason_codes)
 
-        探索方針 = HDS探索方針選択(
-            ir,
-            候補IR,
-            指定水準=努力,
-            controller=self.core.policy_controller,
-        )
+        探索方針 = HDS探索方針選択(ir, 候補IR, 指定水準=努力, controller=self.core.policy_controller)
         question_signature = _意味署名(ir, fallback_text=ir.原文)
         evidence_groups = _証拠群を作る(self.core)
         facts = _facts(self.core)
@@ -454,10 +419,12 @@ class HDSIRネイティブAdapter:
                 else HDS意味署名(意味語(option), frozenset(), frozenset())
             )
         distinctive_terms = _候補識別語(candidate_signatures)
+        distinctive_sources: dict[str, set[str]] = {label: set() for label, _ in choices}
 
         raw_evidence: list[HDS候補証拠] = []
         for label, option in choices:
             candidate_signature = candidate_signatures[label]
+            distinctive = distinctive_terms.get(label, frozenset())
 
             parsed = self.core.R.parse(option)
             parsed_fact = getattr(parsed, "fact", None)
@@ -472,42 +439,22 @@ class HDSIRネイティブAdapter:
                     if bool(getattr(fact, "polarity", True)) != parsed_fact.polarity:
                         continue
                     fid = str(getattr(fact, "fact_id", ""))
+                    source_id = _source_group_id(fact)
+                    distinctive_sources[label].add(source_id)
                     raw_evidence.append(
-                        HDS候補証拠(
-                            label,
-                            _source_group_id(fact),
-                            8.0 * float(getattr(fact, "confidence", 1.0)),
-                            (fid,) if fid else (),
-                            "direct",
-                        )
+                        HDS候補証拠(label, source_id, 8.0 * float(getattr(fact, "confidence", 1.0)), (fid,) if fid else (), "direct")
                     )
 
             for evidence in evidence_groups:
-                score = _group_score(
-                    question_signature,
-                    candidate_signature,
-                    evidence,
-                    識別語=distinctive_terms.get(label, frozenset()),
-                )
+                if distinctive and (distinctive & evidence.語):
+                    distinctive_sources[label].add(evidence.出典ID)
+                score = _group_score(question_signature, candidate_signature, evidence, 識別語=distinctive)
                 if score <= 0:
                     continue
-                raw_evidence.append(
-                    HDS候補証拠(
-                        label,
-                        evidence.出典ID,
-                        score,
-                        evidence.事実ID,
-                        evidence.範囲,
-                    )
-                )
+                raw_evidence.append(HDS候補証拠(label, evidence.出典ID, score, evidence.事実ID, evidence.範囲))
 
         labels = tuple(label for label, _ in choices)
-        reconciled = HDS候補横断調停(
-            labels,
-            raw_evidence,
-            証拠重み=探索方針.証拠重み,
-            証拠上限=探索方針.証拠上限,
-        )
+        reconciled = HDS候補横断調停(labels, raw_evidence, 証拠重み=探索方針.証拠重み, 証拠上限=探索方針.証拠上限)
 
         scored: list[tuple[float, Candidate]] = []
         diagnostics: list[HDS候補診断] = []
@@ -526,29 +473,15 @@ class HDSIRネイティブAdapter:
 
             preferred_relations = question_signature.関係種別 | candidate_signature.関係種別
             graph_target = distinctive or candidate_signature.語
-            path = HDS意味経路探索(
-                self.core,
-                question_signature.語,
-                graph_target,
-                preferred_relations,
-                最大深さ=4,
-            )
+            path = HDS意味経路探索(self.core, question_signature.語, graph_target, preferred_relations, 最大深さ=4)
             if path.得点 <= 0 and 探索方針.graph深さ上限 > 4:
                 path = HDS意味経路探索(
-                    self.core,
-                    question_signature.語,
-                    graph_target,
-                    preferred_relations,
-                    最大深さ=探索方針.graph深さ上限,
+                    self.core, question_signature.語, graph_target, preferred_relations, 最大深さ=探索方針.graph深さ上限
                 )
 
             graph_score = 0.0
             graph_factor = 0.0
-            graph_sources = {
-                fact_sources[fid]
-                for fid in path.事実ID
-                if fid in fact_sources
-            }
+            graph_sources = {fact_sources[fid] for fid in path.事実ID if fid in fact_sources}
             if path.得点 > 0:
                 if graph_sources:
                     novel = graph_sources - selected_sources
@@ -563,6 +496,10 @@ class HDSIRネイティブAdapter:
                         proof_ids.append(fid)
 
             independent_sources = selected_sources | graph_sources
+            matched_distinctive_sources = selected_sources & distinctive_sources.get(label, set())
+            if distinctive and path.得点 > 0:
+                matched_distinctive_sources |= graph_sources
+
             diagnostics.append(
                 HDS候補診断(
                     候補=label,
@@ -575,6 +512,7 @@ class HDSIRネイティブAdapter:
                     graph深さ=path.深さ,
                     根拠事実数=len(proof_ids),
                     識別語数=len(distinctive),
+                    識別一致出典数=len(matched_distinctive_sources),
                 )
             )
 
@@ -590,13 +528,10 @@ class HDSIRネイティブAdapter:
                             expert="HDS_IR_structural_graph",
                             proof_fact_ids=tuple(proof_ids),
                             provenance=(
-                                "HDS-IR",
-                                "K",
-                                "STRUCTURAL_GRAPH_MATCH",
-                                "SOURCE_AWARE_RECONCILE",
-                                "CANDIDATE_DISTINCTIVE_WEIGHT",
-                                "effort:" + 探索方針.水準,
+                                "HDS-IR", "K", "STRUCTURAL_GRAPH_MATCH", "SOURCE_AWARE_RECONCILE",
+                                "CANDIDATE_DISTINCTIVE_WEIGHT", "effort:" + 探索方針.水準,
                                 "sources:" + str(len(independent_sources)),
+                                "distinctive_sources:" + str(len(matched_distinctive_sources)),
                             ),
                         ),
                     )
@@ -608,11 +543,7 @@ class HDSIRネイティブAdapter:
 
         intent = HDS選択意図判定(ir.原文)
         frame = SemanticFrame(
-            kind="question",
-            intent="knowledge_query",
-            raw=ir.原文,
-            predicate="HDS_choice_selection",
-            args=(None,),
+            kind="question", intent="knowledge_query", raw=ir.原文, predicate="HDS_choice_selection", args=(None,),
             tags=("HDS-IR", "choice", "structural_graph", "source_aware_reconcile", "candidate_distinctive", intent.種別),
             language=getattr(ir, "入力言語", "en") or "en",
         )
@@ -629,9 +560,8 @@ class HDSIRネイティブAdapter:
             decision = self.judge.decide(frame, (eliminated,))
             selected = decision.selected_candidate.answer if decision.selected_candidate else None
             all_candidates = (eliminated, *tuple(candidate for candidate in candidates if candidate.answer != eliminated.answer))
-            proof_count = len(set(eliminated.proof_fact_ids))
             return HDSK3結果(
-                decision.status, selected, decision, all_candidates, proof_count, decision.reason_codes,
+                decision.status, selected, decision, all_candidates, len(set(eliminated.proof_fact_ids)), decision.reason_codes,
                 探索方針.水準, 探索方針.graph深さ上限, 探索方針.証拠上限, diagnostic_tuple,
             )
 
