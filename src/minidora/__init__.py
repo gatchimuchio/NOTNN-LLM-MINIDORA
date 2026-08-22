@@ -16,6 +16,7 @@ from .命令 import 作用, 命令, 手順
 from .採否 import 実行状態, 採否結果, 採否
 from .hds_ir import 値状態, HDS座標, HDS関係, HDS残差, HDS意味作用, HDS実行核, HDSIR
 from .hds_adapter import HDS文脈, HDSコンパイラProtocol, HDS独立コンパイル
+from .hds_compiler import 公開HDSコンパイラ方針, 公開HDSコンパイラ
 from .hds_candidate_reconcile import HDS候補証拠, HDS調停済証拠, HDS候補調停結果, HDS候補横断調停
 from .hds_choice_runtime import HDS選択実行結果, HDS選択問題, HDS選択推論実行
 from .hds_data_k import HDS知識投入結果, HDSIR知識Adapter, HDS証拠事実, HDS証拠状態複製
@@ -38,7 +39,7 @@ __all__ = [
     "作用", "命令", "手順",
     "実行状態", "採否結果", "採否",
     "値状態", "HDS座標", "HDS関係", "HDS残差", "HDS意味作用", "HDS実行核", "HDSIR",
-    "HDS文脈", "HDSコンパイラProtocol", "HDS独立コンパイル",
+    "HDS文脈", "HDSコンパイラProtocol", "HDS独立コンパイル", "公開HDSコンパイラ方針", "公開HDSコンパイラ",
     "HDS候補証拠", "HDS調停済証拠", "HDS候補調停結果", "HDS候補横断調停",
     "HDS選択実行結果", "HDS選択問題", "HDS選択推論実行",
     "HDS知識投入結果", "HDSIR知識Adapter", "HDS証拠事実", "HDS証拠状態複製",

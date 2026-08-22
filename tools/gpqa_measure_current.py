@@ -5,14 +5,11 @@ import hashlib
 import json
 import os
 import random
-import re
 import sys
 import tempfile
-import unicodedata
 import urllib.request
 import zipfile
 from collections import Counter
-from dataclasses import replace
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,10 +17,9 @@ SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
 from minidora.hds_choice_runtime import HDS選択推論実行
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from minidora.hds_compiler import 公開HDSコンパイラ
 from minidora.hds_reference import HDS参照検索
 from minidora.k3_functional import K3相当能力核
-from minidora.semantic_tokens import 意味語
 from minidora.standard_reference import 一般知識参照供給器
 
 
@@ -31,6 +27,9 @@ DATASET_URL = "https://raw.githubusercontent.com/idavidrein/gpqa/main/dataset.zi
 DATASET_PASSWORD = b"deserted-untie-orchid"
 SEED = 0
 LABELS = ("A", "B", "C", "D")
+
+# 旧ベンチ入口との互換名。実体は公開標準HDS Compiler。
+汎用意味射影Compiler = 公開HDSコンパイラ
 
 
 def _sha256(path: Path) -> str:
@@ -42,93 +41,6 @@ def _sha256(path: Path) -> str:
                 break
             h.update(chunk)
     return h.hexdigest()
-
-
-class 汎用意味射影Compiler:
-    """GPQA固有知識を持たない決定論HDS-IR射影器。
-
-    入力中の意味語をHDS意味原子座標へ写し、隣接する意味原子だけを談話順序関係で
-    接続する。正解ラベル、GPQA列名、解説、検索結果の採点情報にはアクセスしない。
-    """
-
-    並列安全 = True
-
-    def __init__(self, 最大意味語数: int = 256) -> None:
-        self.最大意味語数 = int(最大意味語数)
-
-    def _ordered_terms(self, text: str) -> tuple[str, ...]:
-        normalized = unicodedata.normalize("NFKC", str(text)).strip()
-        raw = re.findall(r"[0-9A-Za-z_+\-]+|[一-龥ぁ-んァ-ヶー]+", normalized)
-        out: list[str] = []
-        seen: set[str] = set()
-        for token in raw:
-            derived = 意味語(token)
-            if not derived:
-                continue
-            for term in sorted(derived):
-                key = term.casefold()
-                if not term or key in seen:
-                    continue
-                seen.add(key)
-                out.append(term)
-                if len(out) >= self.最大意味語数:
-                    return tuple(out)
-        if not out:
-            out.extend(sorted(意味語(normalized))[: self.最大意味語数])
-        return tuple(out)
-
-    def コンパイル(self, 入力: str, **_: object) -> HDSIR:
-        raw = str(入力)
-        normalized = unicodedata.normalize("NFKC", raw).strip()
-        terms = self._ordered_terms(normalized)
-        coords: list[HDS座標] = [
-            HDS座標("src", "source_text", raw),
-            HDS座標("normalized", "language.normalized", normalized),
-        ]
-        for i, term in enumerate(terms):
-            coords.append(HDS座標(f"m:{i}", "対象.意味原子", term, 値状態.確定, 由来="GPQA測定用決定論意味射影"))
-        relations: list[HDS関係] = []
-        for i in range(max(0, len(terms) - 1)):
-            relations.append(
-                HDS関係(
-                    f"seq:{i}",
-                    (f"m:{i}",),
-                    (f"m:{i + 1}",),
-                    "談話順序",
-                    値状態=値状態.確定,
-                    由来="GPQA測定用決定論意味射影",
-                )
-            )
-        return HDSIR(
-            原文=raw,
-            正規化文=normalized,
-            認知世界ID="gpqa:measurement",
-            座標=tuple(coords),
-            関係=tuple(relations),
-            残差=(),
-            意味作用履歴=(),
-            実行核=HDS実行核("意味構造転送"),
-            初期状態={},
-            参照必須=False,
-            種別="意味構造",
-            閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
-            入力言語="en",
-        )
-
-    def 問題IR(self, question: str, choices: tuple[str, str, str, str]) -> HDSIR:
-        base = self.コンパイル(question)
-        choice_coords = tuple(
-            HDS座標(f"choice:{label}", "目的.候補", text, 値状態.確定, 由来="GPQA公式選択肢")
-            for label, text in zip(LABELS, choices)
-        )
-        return replace(
-            base,
-            座標=base.座標 + choice_coords,
-            参照必須=True,
-            種別="knowledge_query",
-            実行核=HDS実行核("HDS_choice_selection"),
-            手順=None,
-        )
 
 
 def _download_dataset(work: Path) -> tuple[Path, str, str]:
@@ -183,7 +95,7 @@ def main() -> int:
             並列=True,
             最大並列=4,
         )
-        compiler = 汎用意味射影Compiler()
+        compiler = 公開HDSコンパイラ()
         base_core = K3相当能力核()
 
         correct_count = 0
@@ -270,7 +182,7 @@ def main() -> int:
                 "dataset_csv_sha256": csv_hash,
                 "n": len(cases),
                 "choice_shuffle_seed": SEED,
-                "compiler": "deterministic generic HDS semantic-atom projection; not the unavailable prototype-completion private compiler",
+                "compiler": "MINIDORA public standard HDS Compiler; Japanese-base role projection; benchmark-agnostic",
                 "gold_boundary": "gold used only after inference for scoring",
                 "openalex_enabled": api_key is not None,
                 "wikipedia_languages": ["en"],
