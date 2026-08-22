@@ -96,7 +96,6 @@ def _一括コンパイル(
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="minidora-hds") as executor:
         futures = [executor.submit(compile_fn, text) for text in texts]
         out: list[HDSIR | Exception] = []
-        # 完了順ではなく入力順で回収し、choice label/Data順の決定性を維持する。
         for future in futures:
             try:
                 out.append(future.result())
@@ -138,19 +137,9 @@ def HDS選択推論実行(
     candidate_irs: dict[str, HDSIR] = {}
     for (label, _, _), compiled in zip(choices, choice_payloads):
         if isinstance(compiled, Exception):
-            return _suspend(
-                "HDS_CHOICE_COMPILE_FAILED",
-                candidate_count=len(candidate_irs),
-                parallel=parallel_safe,
-                workers=worker_count,
-            )
+            return _suspend("HDS_CHOICE_COMPILE_FAILED", candidate_count=len(candidate_irs), parallel=parallel_safe, workers=worker_count)
         if any(residual.種別 == "semantic_loss" for residual in compiled.残差):
-            return _suspend(
-                "HDS_CHOICE_SEMANTIC_LOSS",
-                candidate_count=len(candidate_irs) + 1,
-                parallel=parallel_safe,
-                workers=worker_count,
-            )
+            return _suspend("HDS_CHOICE_SEMANTIC_LOSS", candidate_count=len(candidate_irs) + 1, parallel=parallel_safe, workers=worker_count)
         candidate_irs[label] = compiled
 
     working = 基礎能力核.clone()
@@ -175,17 +164,14 @@ def HDS選択推論実行(
         result = ingest.投入(
             compiled,
             provenance=(record.供給器, record.由来, record.識別子),
+            信頼係数=record.信頼,
         )
         data_compiled += 1
         added += result.追加事実数
         evidence += result.証拠事実数
         blocked += result.証拠阻害事実数
 
-    k3 = HDSIRネイティブAdapter(working).実行(
-        question_ir,
-        候補IR=candidate_irs,
-        努力=努力,
-    )
+    k3 = HDSIRネイティブAdapter(working).実行(question_ir, 候補IR=candidate_irs, 努力=努力)
     choice_map = {label: content for label, content, _ in choices}
     content = choice_map.get(k3.回答ラベル) if k3.回答ラベル is not None else None
     reasons = list(k3.理由)
