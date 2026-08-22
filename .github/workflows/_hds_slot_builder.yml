@@ -1,15 +1,15 @@
 name: HDS slot patch builder
 
 on:
-  push:
-    branches: [chappie/hds-slot-r-v1]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   build:
-    if: github.actor != 'github-actions[bot]'
+    if: github.head_ref == 'chappie/hds-slot-r-v1'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
