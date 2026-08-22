@@ -189,24 +189,40 @@ def HDS参照問合せ候補(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[st
     return tuple(spec.問合せ for spec in _問合せ仕様(ir, 最大候補数=最大候補数))
 
 
-def HDS参照縮退問合せ候補(ir: HDSIR) -> tuple[str, ...]:
+def _縮退仕様(ir: HDSIR) -> tuple[_HDS問合せ仕様, ...]:
     groups, choices = _役割語群(ir)
     entity = _切詰め(" ".join(groups["対象"]), 160)
     relation = _切詰め(" ".join(_unique((*groups["関係"], *groups["状態"]))), 160)
     contextual = _切詰め(" ".join(_unique((*groups["条件"], *groups["焦点"]))), 160)
     distinctive = _候補差分語(choices)
-    choice_queries = tuple(
-        _切詰め(" ".join(_unique((entity, " ".join(distinctive.get(label, ())) or choice))), 280)
-        for label, choice in choices
-    )
-    reduced = _unique((
-        *choice_queries,
-        " ".join(_unique((entity, relation))),
-        " ".join(_unique((entity, contextual))),
-        entity,
-    ))
     primary = {query.casefold() for query in HDS参照問合せ候補(ir)}
-    return tuple(query for query in reduced if query.casefold() not in primary)
+
+    specs: list[_HDS問合せ仕様] = []
+    seen: set[str] = set(primary)
+    for label, choice in choices:
+        suffix = " ".join(distinctive.get(label, ())) or _切詰め(choice, 100)
+        query = _切詰め(" ".join(_unique((entity, suffix))), 280)
+        key = query.casefold()
+        if query and key not in seen:
+            seen.add(key)
+            specs.append(_HDS問合せ仕様(query, "fallback_choice", label))
+
+    for query, kind in (
+        (" ".join(_unique((entity, relation))), "fallback_relation"),
+        (" ".join(_unique((entity, contextual))), "fallback_context"),
+        (entity, "fallback_entity"),
+    ):
+        query = _切詰め(query, 280)
+        key = query.casefold()
+        if not query or key in seen:
+            continue
+        seen.add(key)
+        specs.append(_HDS問合せ仕様(query, kind))
+    return tuple(specs)
+
+
+def HDS参照縮退問合せ候補(ir: HDSIR) -> tuple[str, ...]:
+    return tuple(spec.問合せ for spec in _縮退仕様(ir))
 
 
 def _条件追加(record: 参照記録, spec: _HDS問合せ仕様) -> 参照記録:
@@ -286,6 +302,34 @@ def _round_robin(pools: Iterable[tuple[参照記録, ...]], limit: int) -> tuple
     return tuple(result)
 
 
+def _候補被覆(records: Iterable[参照記録]) -> frozenset[str]:
+    labels: set[str] = set()
+    for record in records:
+        for key, value in record.条件:
+            if str(key) == "hds_query_choice" and str(value):
+                labels.add(str(value))
+    return frozenset(labels)
+
+
+def _記録群統合(
+    first: Iterable[参照記録],
+    second: Iterable[参照記録],
+    limit: int,
+) -> tuple[参照記録, ...]:
+    result: list[参照記録] = []
+    index_by_id: dict[str, int] = {}
+    for record in (*tuple(first), *tuple(second)):
+        existing = index_by_id.get(record.識別子)
+        if existing is not None:
+            result[existing] = _記録統合(result[existing], record)
+            continue
+        if len(result) >= limit:
+            continue
+        index_by_id[record.識別子] = len(result)
+        result.append(record)
+    return tuple(result)
+
+
 def HDS参照検索(
     provider: 参照供給器,
     ir: HDSIR,
@@ -294,7 +338,7 @@ def HDS参照検索(
     一問合せ上限: int | None = None,
     最大問合せ並列: int | None = None,
 ) -> tuple[参照記録, ...]:
-    """K3 effort由来budgetで検索し、完全0件時だけHDS構造を段階縮退して再検索する。"""
+    """候補被覆を見ながら段階検索し、1件hitだけで探索を打ち切らない。"""
     budget = HDS参照予算選択(ir)
     total_limit = budget.取得上限 if 上限 is None else max(0, int(上限))
     per_query = budget.一問合せ上限 if 一問合せ上限 is None else max(1, int(一問合せ上限))
@@ -302,23 +346,40 @@ def HDS参照検索(
     if total_limit <= 0:
         return ()
 
+    _, choices = _役割語群(ir)
+    expected_labels = {label for label, _ in choices}
     primary_specs = _問合せ仕様(ir)
-    if primary_specs:
-        primary_records = _round_robin(
-            _query_pools(provider, primary_specs, per_query, max_parallel=parallel),
-            total_limit,
-        )
-        if primary_records:
-            return primary_records
+    primary_records = _round_robin(
+        _query_pools(provider, primary_specs, per_query, max_parallel=parallel),
+        total_limit,
+    ) if primary_specs else ()
 
-    fallback_queries = HDS参照縮退問合せ候補(ir)
-    if not fallback_queries:
-        return ()
-    fallback_specs = tuple(_HDS問合せ仕様(query, "fallback") for query in fallback_queries)
-    return _round_robin(
-        _query_pools(provider, fallback_specs, per_query, max_parallel=parallel),
+    coverage = set(_候補被覆(primary_records))
+    needs_fallback = (
+        not primary_records
+        or bool(expected_labels - coverage)
+        or len(primary_records) < min(total_limit, max(2, len(expected_labels)))
+    )
+    if not needs_fallback:
+        return primary_records
+
+    fallback_specs = _縮退仕様(ir)
+    if not fallback_specs:
+        return primary_records
+
+    filtered_specs = tuple(
+        spec
+        for spec in fallback_specs
+        if spec.候補 is None or spec.候補 not in coverage
+    )
+    if not filtered_specs:
+        return primary_records
+
+    fallback_records = _round_robin(
+        _query_pools(provider, filtered_specs, per_query, max_parallel=parallel),
         total_limit,
     )
+    return _記録群統合(primary_records, fallback_records, total_limit)
 
 
 __all__ = [
