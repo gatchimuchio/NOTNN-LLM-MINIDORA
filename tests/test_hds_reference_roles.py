@@ -127,6 +127,26 @@ class HDS参照役割Query試験(unittest.TestCase):
         queries = HDS参照問合せ候補(ir)
         self.assertTrue(any("AlphaProtein" in q and "final_focus_marker" in q for q in queries))
 
+    def test_長文末尾の実質問を背景と別queryでも保持する(self) -> None:
+        background = " ".join(f"background{i}" for i in range(90))
+        focus = "Which mechanism controls the final state?"
+        text = f"AlphaProtein is observed in the experiment. {background} {focus}"
+        ir = HDSIR(
+            原文=text,
+            正規化文=text,
+            認知世界ID="reference-focus-test",
+            座標=(
+                HDS座標("choice:A", "目的.候補", "catalysis"),
+                HDS座標("choice:B", "目的.候補", "transport"),
+                HDS座標("choice:C", "目的.候補", "folding"),
+                HDS座標("choice:D", "目的.候補", "signaling"),
+            ),
+            関係=(), 残差=(), 意味作用履歴=(), 実行核=HDS実行核("参照回答"),
+            参照必須=True, 種別="knowledge_query", 閉包状態="CLOSED_FOR_OPERATION", 入力言語="en",
+        )
+        queries = HDS参照問合せ候補(ir)
+        self.assertIn(focus, queries)
+
 
 if __name__ == "__main__":
     unittest.main()
