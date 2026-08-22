@@ -40,7 +40,7 @@ class HDS候補調停結果:
 
     @property
     def 独立出典数(self) -> int:
-        return len({item.出典ID for item in self.採用証拠 if item.調停得点 > 0})
+        return len({item.出典ID for item in self.採用証拠})
 
 
 def _collapse_by_source(items: Iterable[HDS候補証拠]) -> dict[tuple[str, str], HDS候補証拠]:
@@ -102,7 +102,7 @@ def HDS候補横断調停(
 
     一候補だけを支持するsourceは係数1.0。複数候補へ当たるsourceは、最大競合との差と
     支持候補の広さから識別係数を決める。共通知識を負の証拠へ変換せず、候補差のない
-    大きな絶対得点をJ marginから除去する。
+    大きな絶対得点をJ marginとprovenanceから除去する。
     """
     labels = tuple(dict.fromkeys(str(x) for x in 候補群))
     collapsed = _collapse_by_source(証拠群)
@@ -126,6 +126,8 @@ def HDS候補横断調停(
             全候補数=len(labels),
         )
         adjusted = own * discrimination
+        if adjusted <= 0:
+            continue
         reconciled.setdefault(label, []).append(
             HDS調停済証拠(
                 候補=label,
