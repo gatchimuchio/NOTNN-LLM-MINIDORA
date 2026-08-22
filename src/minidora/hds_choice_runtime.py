@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from .hds_adapter import HDS独立コンパイル
 from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
-from .hds_ir import HDSIR, 値状態
+from .hds_ir import HDSIR, HDS実行核, HDS座標, 値状態
 from .k3_functional import K3相当能力核
 from .k3_hds_native import HDSK3結果, HDSIRネイティブAdapter
 from .参照 import 参照記録
@@ -105,12 +106,15 @@ def _一括コンパイル(
         return tuple(out)
 
 
-def _参照provenance(record: 参照記録) -> tuple[str, ...]:
-    """Data本文の由来に、MINIDORA自身のR query経路だけを追加する。
+def _参照候補群(record: 参照記録) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(
+        str(value)
+        for key, value in record.条件
+        if str(key) == "hds_query_choice" and str(value)
+    ))
 
-    query choiceは正解ラベルではなく、全候補対称に生成した検索経路。Dataの真偽内容と
-    混同しないよう専用markerで保持し、K3側では弱いretrieval evidenceとしてのみ扱う。
-    """
+
+def _参照provenance(record: 参照記録) -> tuple[str, ...]:
     markers: list[str] = []
     for key, value in record.条件:
         k = str(key)
@@ -123,6 +127,62 @@ def _参照provenance(record: 参照記録) -> tuple[str, ...]:
     return tuple((record.供給器, record.由来, record.識別子, *dict.fromkeys(markers)))
 
 
+def _検索経路証拠(
+    question_ir: HDSIR,
+    choices: tuple[tuple[str, str, 値状態], ...],
+    references: tuple[参照記録, ...],
+) -> tuple[tuple[参照記録, HDSIR], ...]:
+    """一候補だけのqueryで得た独立文書が複数ある時だけ、弱い検索経路証拠を作る。
+
+    Data本文の真偽を捏造するものではない。検索queryと取得結果の対応を、推定・低信頼の
+    HDS文脈として保持する。複数候補queryで同じ文書が取得された場合は固有支持から除外する。
+    """
+    choice_map = {label: content for label, content, _ in choices}
+    exclusive: list[tuple[str, 参照記録]] = []
+    for record in references:
+        labels = _参照候補群(record)
+        if len(labels) != 1 or labels[0] not in choice_map:
+            continue
+        exclusive.append((labels[0], record))
+
+    counts = Counter(label for label, _ in exclusive)
+    if not counts:
+        return ()
+    ranking = counts.most_common()
+    top_label, top_count = ranking[0]
+    second_count = ranking[1][1] if len(ranking) > 1 else 0
+    # 単発hitや同数hitは採用しない。検索分岐に実差がある場合だけ弱い補助証拠へ昇格。
+    if top_count < 2 or top_count <= second_count:
+        return ()
+
+    focus = " ".join(str(question_ir.正規化文 or question_ir.原文).split())[:1200]
+    candidate = choice_map[top_label]
+    out: list[tuple[参照記録, HDSIR]] = []
+    for label, record in exclusive:
+        if label != top_label:
+            continue
+        ir = HDSIR(
+            原文=f"retrieval-route:{label}",
+            正規化文=f"retrieval-route:{label}",
+            認知世界ID="hds:r-query-route",
+            座標=(
+                HDS座標("q", "対象.検索焦点", focus, 値状態.推定, 由来="HDS参照検索経路"),
+                HDS座標("c", "文脈.検索候補", candidate, 値状態.推定, 由来="HDS参照検索経路"),
+            ),
+            関係=(),
+            残差=(),
+            意味作用履歴=(),
+            実行核=HDS実行核(),
+            初期状態={},
+            参照必須=False,
+            種別="retrieval_route_evidence",
+            閉包状態="PROVISIONAL",
+            入力言語=question_ir.入力言語,
+        )
+        out.append((record, ir))
+    return tuple(out)
+
+
 def HDS選択推論実行(
     question_ir: HDSIR,
     references: tuple[参照記録, ...],
@@ -132,7 +192,6 @@ def HDS選択推論実行(
     努力: str | None = None,
     最大コンパイル並列: int = 4,
 ) -> HDS選択実行結果:
-    """HDS choice問題を `候補/Data→HDS-IR→K→J` の正規経路で実行する。"""
     choices = _choices(question_ir)
     if len(choices) < 2:
         return _suspend("HDS_CHOICE_SET_INCOMPLETE")
@@ -189,6 +248,17 @@ def HDS選択推論実行(
         added += result.追加事実数
         evidence += result.証拠事実数
         blocked += result.証拠阻害事実数
+
+    # Rの候補別検索分岐は、同一sourceへ低信頼で重ねる。本文Factと二重source加点されない。
+    for record, route_ir in _検索経路証拠(question_ir, choices, references):
+        route = ingest.投入(
+            route_ir,
+            provenance=_参照provenance(record),
+            信頼係数=min(0.18, max(0.0, float(record.信頼)) * 0.18),
+        )
+        added += route.追加事実数
+        evidence += route.証拠事実数
+        blocked += route.証拠阻害事実数
 
     k3 = HDSIRネイティブAdapter(working).実行(question_ir, 候補IR=candidate_irs, 努力=努力)
     choice_map = {label: content for label, content, _ in choices}
