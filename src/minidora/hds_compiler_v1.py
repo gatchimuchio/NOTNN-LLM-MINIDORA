@@ -1,26 +1,65 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Sequence
 
 from .hds_adapter import HDS文脈
 from .hds_compiler import 公開HDSコンパイラ as _基礎HDSコンパイラ
 from .hds_compiler import 公開HDSコンパイラ方針
+from .hds_compiler_dynamics import HDS状態遷移IR射影, HDS状態遷移抽出
+from .hds_compiler_failure import HDSチェックリスト生成, HDS失敗署名候補生成, HDS監査参照候補生成
 from .hds_compiler_frontend import 公開HDSフロントエンド射影, 公開HDS詳細成果
+from .hds_compiler_history import HDS認知世界差分IR射影, HDS認知世界差分生成
 from .hds_compiler_records import HDSCompiler成果
+from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
 from .hds_ir import HDSIR
 
 
 class 公開HDSコンパイラ(_基礎HDSコンパイラ):
-    """MINIDORA公開標準HDS Compiler Architecture v1。
+    """MINIDORA公開標準HDS Compiler Architecture v1.1。
 
-    既存の決定論的意味Projectionを互換基礎層として利用し、その上へ座標固定・動態・暗黙知・
-    論証・原理探索入力・監査要求・保持契約を開放Front-Endとして重ねる。
+    v1の開放多層Front-Endを維持しつつ、動態を状態遷移graphへ、暗黙知を構造Recordへ、
+    未閉包・残差をFailure Signature候補へ、監査要求を再利用可能ChecklistとR probeへ、
+    HDS履歴をCognitiveWorld差分・再解釈要求へ接続する。
 
     Compilerは真偽、原理の最終採用、行動、最終採否を決めない。
     """
 
-    Architecture版 = "v1"
+    Architecture版 = "v1.1"
     基底言語 = "ja"
+
+    def _完成(
+        self,
+        base: HDSIR,
+        *,
+        HDS履歴: tuple[HDSIR, ...] = (),
+    ) -> HDSCompiler成果:
+        first = 公開HDSフロントエンド射影(base)
+
+        graph = HDS状態遷移抽出(first.IR.正規化文 or first.IR.原文)
+        ir = HDS状態遷移IR射影(first.IR, graph)
+
+        tacit = HDS暗黙知抽出(ir.正規化文 or ir.原文)
+        ir = HDS暗黙知IR射影(ir, tacit)
+
+        # v1.1で追加した残差・関係を含めてv1監査要求を再計算する。
+        refreshed = 公開HDS詳細成果(ir)
+        signatures = HDS失敗署名候補生成(refreshed.IR, refreshed.認知世界)
+        checklist = HDSチェックリスト生成(refreshed.監査要求, signatures)
+        audit_queries = HDS監査参照候補生成(refreshed.IR, checklist)
+        world_diff = HDS認知世界差分生成(refreshed.IR, HDS履歴)
+        final_ir = HDS認知世界差分IR射影(refreshed.IR, world_diff)
+
+        return replace(
+            refreshed,
+            IR=final_ir,
+            状態遷移=graph,
+            暗黙知構造=tacit,
+            失敗署名候補=signatures,
+            チェックリスト=checklist,
+            認知世界差分=world_diff,
+            監査参照候補=audit_queries,
+        )
 
     def コンパイル(
         self,
@@ -30,13 +69,14 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         HDS履歴: tuple[HDSIR, ...] = (),
         文脈: HDS文脈 | None = None,
     ) -> HDSIR:
-        base = super().コンパイル(
+        base = _基礎HDSコンパイラ.コンパイル(
+            self,
             入力,
             前回結果=前回結果,
             HDS履歴=HDS履歴,
             文脈=文脈,
         )
-        return 公開HDSフロントエンド射影(base).IR
+        return self._完成(base, HDS履歴=HDS履歴).IR
 
     def 詳細コンパイル(
         self,
@@ -53,10 +93,11 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             HDS履歴=HDS履歴,
             文脈=文脈,
         )
-        return 公開HDSフロントエンド射影(base)
+        return self._完成(base, HDS履歴=HDS履歴)
 
     def 詳細問題IR(self, question: str, choices: Sequence[str]) -> HDSCompiler成果:
-        return 公開HDS詳細成果(self.問題IR(question, choices))
+        # 問題IRはself.コンパイル()を通るためv1.1 Projection済み。候補追加後に監査要求を再生成する。
+        return self._完成(self.問題IR(question, choices))
 
 
 __all__ = ["公開HDSコンパイラ方針", "公開HDSコンパイラ", "HDSCompiler成果"]
