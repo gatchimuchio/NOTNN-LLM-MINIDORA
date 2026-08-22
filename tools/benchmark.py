@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 import urllib.request
 import zipfile
 from collections import Counter
@@ -25,6 +26,14 @@ BENCHMARKS = {
         },
     },
 }
+
+
+def _標準入出力をUTF8化() -> None:
+    """日本語基底のベンチCLIをOS既定コードページから分離する。"""
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="strict")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -57,8 +66,7 @@ def _git_head() -> str:
     )
     if completed.returncode != 0:
         return "UNKNOWN"
-    value = completed.stdout.strip()
-    return value or "UNKNOWN"
+    return completed.stdout.strip() or "UNKNOWN"
 
 
 def _atomic_write(path: Path, payload: dict[str, Any]) -> None:
@@ -201,7 +209,9 @@ def _result_payload(
         k3_score - metrics["accuracy_percent"] if comparison["directly_comparable"] else None
     )
     comparison["k3_score_ratio_percent"] = (
-        100.0 * metrics["accuracy_percent"] / k3_score if comparison["directly_comparable"] and k3_score else None
+        100.0 * metrics["accuracy_percent"] / k3_score
+        if comparison["directly_comparable"] and k3_score
+        else None
     )
     return {
         "schema": "minidora.benchmark.repository-runner.v1",
@@ -214,7 +224,7 @@ def _result_payload(
             "full_benchmark_total": BENCHMARKS["gpqa-diamond"]["full_total"],
             "selected_indices": list(selected),
             "choice_shuffle_seed": gpqa.SEED,
-            "compiler": "deterministic generic HDS semantic-atom projection; not the unavailable prototype-completion private compiler",
+            "compiler": "MINIDORA public standard HDS Compiler; Japanese-base role projection; benchmark-agnostic",
             "gold_boundary": "gold used only after inference for scoring",
             "repository_commit": repository_commit,
             "openalex_enabled": openalex_enabled,
@@ -349,6 +359,7 @@ def _run_gpqa(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
+    _標準入出力をUTF8化()
     parser = _parser()
     args = parser.parse_args()
     if args.list_mode:
