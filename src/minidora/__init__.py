@@ -18,7 +18,7 @@ from .hds_candidate_reconcile import HDS候補証拠, HDS調停済証拠, HDS候
 from .hds_choice_runtime import HDS選択実行結果, HDS選択問題, HDS選択推論実行
 from .hds_data_k import HDS知識投入結果, HDSIR知識Adapter, HDS証拠事実, HDS証拠状態複製
 from .hds_effort import HDS探索方針, HDS努力水準, HDS探索方針選択
-from .hds_reference import HDS参照問合せ候補, HDS参照検索
+from .hds_reference import HDS参照予算, HDS参照予算選択, HDS参照問合せ候補, HDS参照検索
 from .hds_replay import HDSIR辞書化, HDSIR復元
 from .trinity_context import Trinity記憶監査, 記憶主体, HDS判断主体, Trinity文脈系
 from .k3_functional import K3相当能力核, SystemResult as K3能力結果
@@ -41,7 +41,8 @@ __all__ = [
     "HDS選択実行結果", "HDS選択問題", "HDS選択推論実行",
     "HDS知識投入結果", "HDSIR知識Adapter", "HDS証拠事実", "HDS証拠状態複製",
     "HDS探索方針", "HDS努力水準", "HDS探索方針選択",
-    "HDS参照問合せ候補", "HDS参照検索", "HDSIR辞書化", "HDSIR復元",
+    "HDS参照予算", "HDS参照予算選択", "HDS参照問合せ候補", "HDS参照検索",
+    "HDSIR辞書化", "HDSIR復元",
     "Trinity記憶監査", "記憶主体", "HDS判断主体", "Trinity文脈系",
     "K3相当能力核", "K3能力結果", "HDS候補診断", "HDSK3結果", "HDSIRネイティブAdapter", "run_k3_equivalence_benchmark",
     "自然言語器", "言語計画",
