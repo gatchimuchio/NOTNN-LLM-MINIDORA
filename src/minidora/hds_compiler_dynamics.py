@@ -22,8 +22,10 @@ _EN_COND_TO = re.compile(
     r"(?:if|when|unless)\s+(?P<cond>[^,.;!?]{1,100})[, ]+(?:then\s+)?(?:transition|move|change|switch|go|shift)(?:s|ed|ing)?\s+to\s+(?P<dst>[A-Za-z0-9_.+\-]{1,48})",
     re.I,
 )
-_JA_ROLLBACK = re.compile(rf"(?:失敗時|エラー時|異常時)?[^。！？]{{0,50}}?(?:rollback|ロールバック|切り戻|戻す)[^。！？]{{0,40}}?(?P<dst>{_状態語})(?:へ|に)?")
-_EN_ROLLBACK = re.compile(r"(?:rollback|roll back|revert|undo)(?:\s+to)?\s+(?P<dst>[A-Za-z0-9_.+\-]{1,48})", re.I)
+_JA_ROLLBACK = re.compile(
+    rf"(?:失敗時|エラー時|異常時)?[^。！？]{{0,30}}?(?:rollback|ロールバック|切り戻し?)(?:して|し|で)?\s*(?P<dst>{_状態語})(?:へ|に)(?:戻す|戻る|切り戻す|復帰する)"
+)
+_EN_ROLLBACK = re.compile(r"(?:rollback|roll back|revert|undo)(?:\s+to)\s+(?P<dst>[A-Za-z0-9_.+\-]{1,48})", re.I)
 _CONDITION_IN_MIDDLE = re.compile(r"(?P<cond>[^、,]{1,80}?)(?:ならば|なら|の場合|if|when|unless)", re.I)
 
 
@@ -34,26 +36,40 @@ def _clean(value: str | None) -> str | None:
     return text or None
 
 
-def _append_edge(edges: list[HDS遷移辺], nodes: dict[str, HDS状態ノード], *, src: str | None, dst: str | None, cond: tuple[str, ...] = (), action: tuple[str, ...] = (), reversible: bool | None = None, rollback: str | None = None) -> None:
+def _append_edge(
+    edges: list[HDS遷移辺],
+    nodes: dict[str, HDS状態ノード],
+    *,
+    src: str | None,
+    dst: str | None,
+    cond: tuple[str, ...] = (),
+    action: tuple[str, ...] = (),
+    reversible: bool | None = None,
+    rollback: str | None = None,
+) -> None:
     src = _clean(src)
     dst = _clean(dst)
     rollback = _clean(rollback)
     for value in (src, dst, rollback):
         if value and value not in nodes:
             nodes[value] = HDS状態ノード(f"state:{len(nodes):03d}", value)
-    candidate = HDS遷移辺(
-        f"transition:{len(edges):03d}",
-        src,
-        dst,
-        tuple(dict.fromkeys(_clean(x) for x in cond if _clean(x))),
-        tuple(dict.fromkeys(_clean(x) for x in action if _clean(x))),
-        reversible,
-        rollback,
-    )
-    signature = (candidate.始点, candidate.終点, candidate.条件, candidate.作用, candidate.可逆, candidate.rollback先)
+
+    condition_values = tuple(dict.fromkeys(value for raw in cond if (value := _clean(raw))))
+    action_values = tuple(dict.fromkeys(value for raw in action if (value := _clean(raw))))
+    signature = (src, dst, condition_values, action_values, reversible, rollback)
     if any((edge.始点, edge.終点, edge.条件, edge.作用, edge.可逆, edge.rollback先) == signature for edge in edges):
         return
-    edges.append(candidate)
+    edges.append(
+        HDS遷移辺(
+            f"transition:{len(edges):03d}",
+            src,
+            dst,
+            condition_values,
+            action_values,
+            reversible,
+            rollback,
+        )
+    )
 
 
 def HDS状態遷移抽出(text: str) -> HDS状態遷移図:
@@ -81,11 +97,13 @@ def HDS状態遷移抽出(text: str) -> HDS状態遷移図:
         if not any(edge.終点 == dst and edge.条件 for edge in edges):
             _append_edge(edges, nodes, src=None, dst=dst, cond=(match.group("cond"),), action=("conditional transition",))
 
-    rollback_matches = [*_JA_ROLLBACK.finditer(source), *_EN_ROLLBACK.finditer(source)]
-    for match in rollback_matches:
+    for match in _JA_ROLLBACK.finditer(source):
         rollback = _clean(match.group("dst"))
-        if rollback:
-            _append_edge(edges, nodes, src=None, dst=rollback, cond=("失敗または撤回条件",), action=("rollback",), reversible=True, rollback=rollback)
+        _append_edge(edges, nodes, src=None, dst=rollback, cond=("失敗または撤回条件",), action=("rollback",), reversible=True, rollback=rollback)
+
+    for match in _EN_ROLLBACK.finditer(source):
+        rollback = _clean(match.group("dst"))
+        _append_edge(edges, nodes, src=None, dst=rollback, cond=("failure or withdrawal condition",), action=("rollback",), reversible=True, rollback=rollback)
 
     for edge in edges:
         if edge.始点 is None:
@@ -120,13 +138,16 @@ def HDS状態遷移IR射影(ir: HDSIR, graph: HDS状態遷移図) -> HDSIR:
             sid = coord_map.get(edge.始点)
             oid = coord_map.get(edge.終点)
             if sid and oid:
+                conditions = [*edge.条件, *(f"作用={value}" for value in edge.作用)]
+                if edge.rollback先:
+                    conditions.append(f"rollback={edge.rollback先}")
                 relations.append(
                     HDS関係(
                         f"archv11:{edge.遷移ID}",
                         (sid,),
                         (oid,),
                         "状態遷移",
-                        条件=tuple((*edge.条件, *(f"作用={x}" for x in edge.作用), *( (f"rollback={edge.rollback先}",) if edge.rollback先 else () ))),
+                        条件=tuple(conditions),
                         値状態=値状態.確定,
                         由来="公開HDS Compiler v1.1",
                     )
