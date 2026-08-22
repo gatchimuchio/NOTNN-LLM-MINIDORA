@@ -52,16 +52,18 @@ class Crossref参照供給器試験(unittest.TestCase):
 
         self.assertEqual(len(records), 2)
         first = records[0]
-        self.assertEqual(first.識別子, "crossref:10.1000/example")
+        self.assertEqual(first.識別子, "doi:10.1000/example")
         self.assertIn("trap-free single-carrier", first.内容)
         self.assertNotIn("jats:p", first.内容)
         self.assertEqual(first.信頼, provider.ABSTRACT信頼)
         self.assertEqual(first.時点, "2024-7-1")
+        self.assertIn(("canonical_source", "doi:10.1000/example"), first.条件)
         self.assertIn(("evidence_scope", "abstract"), first.条件)
 
     def test_title_onlyは低confidence(self) -> None:
         provider = Crossref参照供給器(JSON取得=_FakeCrossref())
         records = provider.検索("Mott Gurney equation", 4)
+        self.assertEqual(records[1].識別子, "doi:10.1000/title-only")
         self.assertEqual(records[1].信頼, provider.TITLE_ONLY信頼)
         self.assertLess(records[1].信頼, records[0].信頼)
 
