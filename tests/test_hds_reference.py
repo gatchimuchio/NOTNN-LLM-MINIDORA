@@ -40,6 +40,26 @@ class _共通記録Provider:
         return ()
 
 
+class _部分被覆Provider:
+    名称 = "partial-coverage-provider"
+
+    def __init__(self) -> None:
+        self.queries: list[str] = []
+
+    def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]:
+        normalized = " ".join(問合せ.casefold().split())
+        self.queries.append(normalized)
+        if "catalysis" in normalized:
+            return (
+                参照記録("doc:catalysis", "ProteinX", "ProteinX supports catalysis.", "fixture://catalysis", self.名称),
+            )[:上限]
+        if normalized == "proteinx transport":
+            return (
+                参照記録("doc:transport", "ProteinX", "ProteinX transports cargo.", "fixture://transport", self.名称),
+            )[:上限]
+        return ()
+
+
 def _procedure() -> 手順:
     return 手順(
         "参照先頭回答",
@@ -105,6 +125,15 @@ class HDS参照拡張試験(unittest.TestCase):
         self.assertEqual(len(records), 1)
         labels = {value for key, value in records[0].条件 if key == "hds_query_choice"}
         self.assertEqual(labels, {"A", "B"})
+
+    def test_一部候補だけ主検索hitでも未被覆候補の縮退検索を継続する(self) -> None:
+        provider = _部分被覆Provider()
+        records = HDS参照検索(provider, _ir(), 上限=8, 一問合せ上限=4)
+        self.assertEqual({record.識別子 for record in records}, {"doc:catalysis", "doc:transport"})
+        conditions = {record.識別子: set(record.条件) for record in records}
+        self.assertIn(("hds_query_choice", "A"), conditions["doc:catalysis"])
+        self.assertIn(("hds_query_choice", "B"), conditions["doc:transport"])
+        self.assertIn("proteinx transport", provider.queries)
 
     def test_Runtime_HDS経路で展開検索を使用する(self) -> None:
         provider = _記録Provider()
