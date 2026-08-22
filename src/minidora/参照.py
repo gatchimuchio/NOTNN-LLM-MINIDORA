@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -46,7 +47,6 @@ def _検索語(問合せ: str) -> set[str]:
 
 
 def 参照矛盾数(記録群: Iterable[参照記録]) -> int:
-    """意味同一性がData側で確定したスロットだけを競合として数える。"""
     groups: dict[
         tuple[str, str, str | None, str | None, tuple[tuple[str, str], ...]],
         set[str],
@@ -66,6 +66,8 @@ def 参照矛盾数(記録群: Iterable[参照記録]) -> int:
 
 
 class 固定参照供給器:
+    並列安全 = True
+
     def __init__(self, 記録群: Iterable[参照記録], 名称: str = "固定資料") -> None:
         self.名称 = 名称
         self._記録群 = tuple(記録群)
@@ -96,19 +98,68 @@ class 固定参照供給器:
 
 
 class 複合参照供給器:
-    def __init__(self, *供給器群: 参照供給器, 名称: str = "複合参照") -> None:
+    """複数Providerを並列取得し、Provider順を保ったround-robinで統合する。"""
+
+    並列安全 = True
+
+    def __init__(
+        self,
+        *供給器群: 参照供給器,
+        名称: str = "複合参照",
+        並列: bool = True,
+        最大並列: int = 4,
+    ) -> None:
         self.名称 = 名称
         self._供給器群 = tuple(供給器群)
+        self.並列 = bool(並列)
+        self.最大並列 = max(1, int(最大並列))
+        self.最後のエラー: tuple[tuple[str, str], ...] = ()
+
+    def _取得(self, provider: 参照供給器, 問合せ: str, 上限: int) -> tuple[参照記録, ...]:
+        return tuple(provider.検索(問合せ, 上限))
 
     def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]:
-        結果: list[参照記録] = []
-        既出: set[str] = set()
-        for 供給器 in self._供給器群:
-            for 記録 in 供給器.検索(問合せ, 上限):
-                if 記録.識別子 in 既出:
+        if 上限 <= 0 or not self._供給器群:
+            return ()
+
+        pools: list[tuple[参照記録, ...]] = []
+        errors: list[tuple[str, str]] = []
+        if self.並列 and len(self._供給器群) > 1:
+            workers = min(self.最大並列, len(self._供給器群))
+            with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="minidora-r") as executor:
+                futures = [executor.submit(self._取得, provider, 問合せ, 上限) for provider in self._供給器群]
+                for provider, future in zip(self._供給器群, futures):
+                    try:
+                        pools.append(future.result())
+                    except Exception as exc:
+                        pools.append(())
+                        errors.append((str(getattr(provider, "名称", type(provider).__name__)), f"{type(exc).__name__}: {exc}"))
+        else:
+            for provider in self._供給器群:
+                try:
+                    pools.append(self._取得(provider, 問合せ, 上限))
+                except Exception as exc:
+                    pools.append(())
+                    errors.append((str(getattr(provider, "名称", type(provider).__name__)), f"{type(exc).__name__}: {exc}"))
+        self.最後のエラー = tuple(errors)
+
+        result: list[参照記録] = []
+        seen: set[str] = set()
+        depth = 0
+        while len(result) < 上限:
+            progressed = False
+            for pool in pools:
+                if depth >= len(pool):
                     continue
-                既出.add(記録.識別子)
-                結果.append(記録)
-                if len(結果) >= 上限:
-                    return tuple(結果)
-        return tuple(結果)
+                progressed = True
+                record = pool[depth]
+                if record.識別子 in seen:
+                    continue
+                seen.add(record.識別子)
+                result.append(record)
+                if len(result) >= 上限:
+                    break
+            if not progressed:
+                break
+            depth += 1
+        return tuple(result)
