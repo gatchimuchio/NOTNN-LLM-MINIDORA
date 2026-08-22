@@ -11,9 +11,10 @@
 3. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — Data / Knowledgeの外部参照層Rを定める。
 4. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — 公開HDS CompilerとRuntimeのHDS-IR境界を定める。
 5. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — フル公開する標準Compilerの責任・非責任・性能改善境界を定める。
-6. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
-7. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
-8. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
+6. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) — 座標・動態・暗黙知・論証・原理探索入力・監査要求を統合する公開Front-End Architectureを定める。
+7. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
+8. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
+9. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
 
 番号は成立順・履歴を保持しているため、文書の読み順と完全には一致しない。整理目的だけで番号を振り直さない。
 
@@ -50,7 +51,7 @@ tests/ + 評価/
 
 ## HDS公開境界
 
-- `src/minidora/hds_compiler.py` はフル公開対象であり、MINIDORAの通常の性能改善対象とする。
+- `src/minidora/hds_compiler_v1.py` と、その公開Front-End構成はフル公開対象であり、MINIDORAの通常の性能改善対象とする。`hds_compiler.py` は互換基礎Projectionとして保持する。
 - HDS-IRスキーマとCompilerの有限Projectionを公開しても、HDS本体の上流理論・導出規則・非公開解析正本は自動的に公開しない。
 - Compiler公開を理由にHDS本体の資料を `設計/` や `src/` へ複製しない。
 

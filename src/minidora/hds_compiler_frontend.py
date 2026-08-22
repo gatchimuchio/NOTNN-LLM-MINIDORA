@@ -40,6 +40,10 @@ _機構規則 = (
     re.compile(r"(?:によって|を通じて|を介して|機構|メカニズム|経路|作用機序)"),
     re.compile(r"\b(?:through|via|by means of|mechanism|pathway|process)\b", re.I),
 )
+_一般作用規則 = (
+    re.compile(r"(?P<s>[^。！？、]{1,80}?)(?:が|は)(?P<o>[^。！？、]{1,80}?)(?:を)?(?P<v>変える|変化させる|変更する|更新する|改善する|悪化させる)"),
+    re.compile(r"(?P<s>[^?!.;,]{1,100}?)\s+(?P<v>changes?|transforms?|alters?|updates?|improves?|worsens?)\s+(?P<o>[^?!.;,]{1,100})", re.I),
+)
 
 _動態規則 = {
     "初期状態": (
@@ -151,6 +155,14 @@ def _該当表層(text: str, patterns: Iterable[re.Pattern[str]]) -> tuple[str, 
     return _unique(match.group(0) for pattern in patterns for match in pattern.finditer(text))
 
 
+def _一般作用端点(text: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    for pattern in _一般作用規則:
+        match = pattern.search(text)
+        if match:
+            return _unique((match.group("s"),)), _unique((match.group("o"),))
+    return (), ()
+
+
 def _関係端点(ir: HDSIR) -> tuple[tuple[str, ...], tuple[str, ...]]:
     coords = ir.座標辞書()
     starts: list[str] = []
@@ -182,6 +194,8 @@ def _監査要求追加(requirements: list[HDS監査要求], *, kind: str, reaso
 def _抽出(ir: HDSIR) -> tuple[HDS認知世界断片, tuple[HDS監査項目, ...], tuple[HDS監査要求, ...], HDS原理探索要求, dict[str, tuple[str, ...]]]:
     text = " ".join(str(ir.正規化文 or ir.原文).split()).strip()
     starts, ends = _関係端点(ir)
+    if not starts and not ends:
+        starts, ends = _一般作用端点(text)
     speakers = _該当表層(text, _発話主体規則)
     times = _該当表層(text, _時間規則)
     spaces = _該当表層(text, _空間規則)
@@ -288,6 +302,13 @@ def _IRへ射影(ir: HDSIR, world: HDS認知世界断片, requirements: tuple[HD
         counter += 1
 
     add("監査.Architecture", "v1")
+    existing_kinds = {str(coord.種別) for coord in ir.座標}
+    if "対象.始点" not in existing_kinds:
+        for value in world.作用主体:
+            add("対象.作用主体", value)
+    if "対象.終点" not in existing_kinds:
+        for value in world.対象:
+            add("対象.作用対象", value)
     for kind, values in semantic.items():
         state = 値状態.推定 if kind == "不確実性.明示" else 値状態.確定
         for value in values:

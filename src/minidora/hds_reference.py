@@ -5,13 +5,14 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 import re
 
+from .hds_compiler_records import HDS_COMPILER_META_PREFIXES
 from .hds_effort import HDS努力水準
 from .hds_ir import HDSIR, 値状態
 from .semantic_tokens import 意味語
 from .参照 import 参照供給器, 参照記録
 
 _SURFACE_ONLY_KINDS = {"source_text", "language.input", "language.normalized", "対象.原文保持", "文脈.言語"}
-_QUERY_META_PREFIXES = ("制御.", "監査.", "目的.不足位置", "条件.検索極性")
+_QUERY_META_PREFIXES = HDS_COMPILER_META_PREFIXES + ("制御.", "目的.不足位置", "条件.検索極性")
 _BLOCKING_STATES = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
 _FOCUS_SPLIT = re.compile(r"(?<=[?!.。？！])\s+|\n+")
 _EN_QUESTION_TAIL = re.compile(r"(?P<q>\b(?:which|what|why|how|who|when|where)\b[^?？]{0,320}[?？])\s*$", re.I)
