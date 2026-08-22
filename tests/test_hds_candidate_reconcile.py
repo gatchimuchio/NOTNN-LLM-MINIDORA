@@ -21,7 +21,7 @@ class HDS候補横断調停試験(unittest.TestCase):
         self.assertAlmostEqual(result["A"].合計得点, 5.0)
         self.assertEqual(result["A"].採用証拠[0].経路, "fact")
 
-    def test_全候補共通sourceは識別力を減衰する(self) -> None:
+    def test_全候補共通sourceは識別力を強く減衰する(self) -> None:
         result = HDS候補横断調停(
             ("A", "B"),
             (
@@ -34,9 +34,24 @@ class HDS候補横断調停試験(unittest.TestCase):
         )
         common_a = next(x for x in result["A"].採用証拠 if x.出典ID == "common")
         common_b = next(x for x in result["B"].採用証拠 if x.出典ID == "common")
-        self.assertLess(common_a.識別係数, 1.0)
+        self.assertLessEqual(common_a.識別係数, 0.12)
         self.assertAlmostEqual(common_a.識別係数, common_b.識別係数)
         self.assertGreater(result["A"].合計得点, result["B"].合計得点)
+
+    def test_僅差の共通sourceより独立sourceを優先する(self) -> None:
+        result = HDS候補横断調停(
+            ("A", "B", "C", "D"),
+            (
+                HDS候補証拠("A", "common", 10.0, ("a",), "fact"),
+                HDS候補証拠("B", "common", 9.8, ("b",), "fact"),
+                HDS候補証拠("C", "common", 9.7, ("c",), "fact"),
+                HDS候補証拠("D", "common", 9.6, ("d",), "fact"),
+                HDS候補証拠("D", "exclusive-d", 3.0, ("d-only",), "fact"),
+            ),
+            証拠重み=(1.0, 0.5),
+            証拠上限=2,
+        )
+        self.assertGreater(result["D"].合計得点, result["A"].合計得点)
 
     def test_独立sourceは別々に加点する(self) -> None:
         result = HDS候補横断調停(
