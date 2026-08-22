@@ -14,6 +14,7 @@ from .参照 import 参照記録
 
 HDSコンパイル関数 = Callable[[str], HDSIR]
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
+_QUERY_PROVENANCE_KEYS = {"hds_query_choice", "hds_query_kind"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +105,24 @@ def _一括コンパイル(
         return tuple(out)
 
 
+def _参照provenance(record: 参照記録) -> tuple[str, ...]:
+    """Data本文の由来に、MINIDORA自身のR query経路だけを追加する。
+
+    query choiceは正解ラベルではなく、全候補対称に生成した検索経路。Dataの真偽内容と
+    混同しないよう専用markerで保持し、K3側では弱いretrieval evidenceとしてのみ扱う。
+    """
+    markers: list[str] = []
+    for key, value in record.条件:
+        k = str(key)
+        if k not in _QUERY_PROVENANCE_KEYS:
+            continue
+        if k == "hds_query_choice":
+            markers.append("query_choice:" + str(value))
+        elif k == "hds_query_kind":
+            markers.append("query_kind:" + str(value))
+    return tuple((record.供給器, record.由来, record.識別子, *dict.fromkeys(markers)))
+
+
 def HDS選択推論実行(
     question_ir: HDSIR,
     references: tuple[参照記録, ...],
@@ -163,7 +182,7 @@ def HDS選択推論実行(
             continue
         result = ingest.投入(
             compiled,
-            provenance=(record.供給器, record.由来, record.識別子),
+            provenance=_参照provenance(record),
             信頼係数=record.信頼,
         )
         data_compiled += 1
