@@ -23,6 +23,10 @@ class _RecorderCompiler:
             原文=入力,
             正規化文=入力,
             認知世界ID="independent-compile-test",
+            座標=(),
+            関係=(),
+            残差=(),
+            意味作用履歴=(),
             実行核=HDS実行核("意味構造転送"),
             種別="意味構造",
             閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
@@ -39,6 +43,10 @@ class _LegacyCompiler:
             原文=入力,
             正規化文=入力,
             認知世界ID="legacy-independent-test",
+            座標=(),
+            関係=(),
+            残差=(),
+            意味作用履歴=(),
             実行核=HDS実行核("意味構造転送"),
         )
 
