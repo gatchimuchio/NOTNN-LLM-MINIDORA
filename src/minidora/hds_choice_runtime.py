@@ -10,6 +10,7 @@ from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
 from .hds_ir import HDSIR, HDS実行核, HDS座標, 値状態
 from .k3_functional import K3相当能力核
 from .k3_hds_native import HDSK3結果, HDSIRネイティブAdapter
+from .semantic_tokens import 意味語
 from .参照 import 参照記録
 
 
@@ -127,23 +128,53 @@ def _参照provenance(record: 参照記録) -> tuple[str, ...]:
     return tuple((record.供給器, record.由来, record.識別子, *dict.fromkeys(markers)))
 
 
+def _候補識別語(choices: tuple[tuple[str, str, 値状態], ...]) -> dict[str, frozenset[str]]:
+    """各候補について、他候補にはない意味語だけを返す。
+
+    検索経路そのものを真偽証拠へ誤昇格させないため、識別語が存在しない候補は空集合の
+    まま返す。全文signatureへのfallbackは行わない。
+    """
+    signatures = {label: set(意味語(content)) for label, content, _ in choices}
+    labels = tuple(signatures)
+    out: dict[str, frozenset[str]] = {}
+    for label in labels:
+        others: set[str] = set()
+        for other in labels:
+            if other != label:
+                others.update(signatures[other])
+        out[label] = frozenset(signatures[label] - others)
+    return out
+
+
+def _参照意味語(record: 参照記録) -> frozenset[str]:
+    return 意味語(" ".join((str(record.対象), str(record.内容))))
+
+
 def _検索経路証拠(
     question_ir: HDSIR,
     choices: tuple[tuple[str, str, 値状態], ...],
     references: tuple[参照記録, ...],
 ) -> tuple[tuple[参照記録, HDSIR], ...]:
-    """一候補だけのqueryで得た独立文書が複数ある時だけ、弱い検索経路証拠を作る。
+    """候補固有query + 本文意味一致 + 複数独立文書が揃った時だけ弱い経路証拠を作る。
 
-    Data本文の真偽を捏造するものではない。検索queryと取得結果の対応を、推定・低信頼の
-    HDS文脈として保持する。複数候補queryで同じ文書が取得された場合は固有支持から除外する。
+    検索順位やhit数だけを候補の真偽へ変換しない。候補固有queryで得た文書であっても、
+    文書自身がその候補の「他候補との差分意味」に触れていなければ経路証拠には数えない。
+    同一文書が複数候補queryで取得された場合も固有支持から除外する。
     """
     choice_map = {label: content for label, content, _ in choices}
+    distinctive = _候補識別語(choices)
     exclusive: list[tuple[str, 参照記録]] = []
     for record in references:
         labels = _参照候補群(record)
         if len(labels) != 1 or labels[0] not in choice_map:
             continue
-        exclusive.append((labels[0], record))
+        label = labels[0]
+        required = distinctive.get(label, frozenset())
+        if not required:
+            continue
+        if not (required & _参照意味語(record)):
+            continue
+        exclusive.append((label, record))
 
     counts = Counter(label for label, _ in exclusive)
     if not counts:
@@ -151,7 +182,7 @@ def _検索経路証拠(
     ranking = counts.most_common()
     top_label, top_count = ranking[0]
     second_count = ranking[1][1] if len(ranking) > 1 else 0
-    # 単発hitや同数hitは採用しない。検索分岐に実差がある場合だけ弱い補助証拠へ昇格。
+    # 単発hit・同数hit・候補差がないhitは採用しない。
     if top_count < 2 or top_count <= second_count:
         return ()
 
@@ -249,7 +280,7 @@ def HDS選択推論実行(
         evidence += result.証拠事実数
         blocked += result.証拠阻害事実数
 
-    # Rの候補別検索分岐は、同一sourceへ低信頼で重ねる。本文Factと二重source加点されない。
+    # R経路は本文の候補差分意味一致まで確認した弱い補助証拠としてのみ重ねる。
     for record, route_ir in _検索経路証拠(question_ir, choices, references):
         route = ingest.投入(
             route_ir,
