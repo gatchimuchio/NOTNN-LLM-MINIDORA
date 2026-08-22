@@ -9,10 +9,10 @@ from .hds_ir import HDSIR, HDS座標, HDS関係, HDS残差, 値状態
 
 _状態語 = r"[A-Za-z0-9_一-龥々ぁ-んァ-ヶー.+\-]{1,48}"
 _JA_FROM_TO = re.compile(
-    rf"(?P<src>{_状態語})から(?P<middle>[^。！？]{{0,100}}?)(?P<dst>{_状態語})(?:へ|に)(?:遷移|移行|変化|変わる|移る)"
+    rf"(?P<src>{_状態語})から[、,\s]*(?:(?P<cond>[^。！？、,]{{1,80}}?)(?:ならば|なら|の場合)[、,\s]*)?(?P<dst>{_状態語})(?:へ|に)(?:遷移|移行|変化|変わる|移る)"
 )
 _JA_COND_TO = re.compile(
-    rf"(?P<cond>[^。！？、]{{1,80}}?)(?:ならば|なら|の場合)(?P<middle>[^。！？]{{0,50}}?)(?P<dst>{_状態語})(?:へ|に)(?:遷移|移行|変化|変わる|移る)"
+    rf"(?P<cond>[^。！？、]{{1,80}}?)(?:ならば|なら|の場合)[、,\s]*(?P<dst>{_状態語})(?:へ|に)(?:遷移|移行|変化|変わる|移る)"
 )
 _EN_FROM_TO = re.compile(
     r"(?:transition|move|change|switch|go|shift)(?:s|ed|ing)?\s+from\s+(?P<src>[A-Za-z0-9_.+\-]{1,48})\s+to\s+(?P<dst>[A-Za-z0-9_.+\-]{1,48})",
@@ -26,7 +26,6 @@ _JA_ROLLBACK = re.compile(
     rf"(?:失敗時|エラー時|異常時)?[^。！？]{{0,30}}?(?:rollback|ロールバック|切り戻し?)(?:して|し|で)?\s*(?P<dst>{_状態語})(?:へ|に)(?:戻す|戻る|切り戻す|復帰する)"
 )
 _EN_ROLLBACK = re.compile(r"(?:rollback|roll back|revert|undo)(?:\s+to)\s+(?P<dst>[A-Za-z0-9_.+\-]{1,48})", re.I)
-_CONDITION_IN_MIDDLE = re.compile(r"(?P<cond>[^、,]{1,80}?)(?:ならば|なら|の場合|if|when|unless)", re.I)
 
 
 def _clean(value: str | None) -> str | None:
@@ -79,9 +78,7 @@ def HDS状態遷移抽出(text: str) -> HDS状態遷移図:
     unresolved: list[str] = []
 
     for match in _JA_FROM_TO.finditer(source):
-        middle = _clean(match.group("middle")) or ""
-        condition_match = _CONDITION_IN_MIDDLE.search(middle)
-        condition = (condition_match.group("cond"),) if condition_match else ()
+        condition = (match.group("cond"),) if match.group("cond") else ()
         _append_edge(edges, nodes, src=match.group("src"), dst=match.group("dst"), cond=condition, action=("遷移",))
 
     for match in _EN_FROM_TO.finditer(source):
