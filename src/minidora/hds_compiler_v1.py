@@ -6,6 +6,7 @@ from typing import Sequence
 from .hds_adapter import HDS文脈
 from .hds_compiler import 公開HDSコンパイラ as _基礎HDSコンパイラ
 from .hds_compiler import 公開HDSコンパイラ方針
+from .hds_compiler_audit_ir import HDS監査参照IR射影
 from .hds_compiler_dynamics import HDS状態遷移IR射影, HDS状態遷移抽出
 from .hds_compiler_failure import HDSチェックリスト生成, HDS失敗署名候補生成, HDS監査参照候補生成
 from .hds_compiler_frontend import 公開HDSフロントエンド射影, 公開HDS詳細成果
@@ -47,8 +48,9 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         signatures = HDS失敗署名候補生成(refreshed.IR, refreshed.認知世界)
         checklist = HDSチェックリスト生成(refreshed.監査要求, signatures)
         audit_queries = HDS監査参照候補生成(refreshed.IR, checklist)
-        world_diff = HDS認知世界差分生成(refreshed.IR, HDS履歴)
-        final_ir = HDS認知世界差分IR射影(refreshed.IR, world_diff)
+        audit_ir = HDS監査参照IR射影(refreshed.IR, audit_queries)
+        world_diff = HDS認知世界差分生成(audit_ir, HDS履歴)
+        final_ir = HDS認知世界差分IR射影(audit_ir, world_diff)
 
         return replace(
             refreshed,
