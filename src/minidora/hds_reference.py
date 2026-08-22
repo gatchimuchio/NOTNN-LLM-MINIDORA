@@ -201,11 +201,17 @@ def _縮退仕様(ir: HDSIR) -> tuple[_HDS問合せ仕様, ...]:
     seen: set[str] = set(primary)
     for label, choice in choices:
         suffix = " ".join(distinctive.get(label, ())) or _切詰め(choice, 100)
-        query = _切詰め(" ".join(_unique((entity, suffix))), 280)
-        key = query.casefold()
-        if query and key not in seen:
+        candidates = (
+            (_切詰め(" ".join(_unique((entity, suffix))), 280), "fallback_choice"),
+            (_切詰め(suffix, 180), "fallback_choice_only"),
+        )
+        for query, kind in candidates:
+            key = query.casefold()
+            if not query or key in seen:
+                continue
             seen.add(key)
-            specs.append(_HDS問合せ仕様(query, "fallback_choice", label))
+            specs.append(_HDS問合せ仕様(query, kind, label))
+            break
 
     for query, kind in (
         (" ".join(_unique((entity, relation))), "fallback_relation"),
