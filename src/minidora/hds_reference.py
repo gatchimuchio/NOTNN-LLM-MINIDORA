@@ -133,6 +133,13 @@ def _切詰め(text: str, limit: int) -> str:
     return " ".join((*head, *tail))
 
 
+def _検索表層(token: str) -> str:
+    for prefix in ("math:", "atom:", "sym:"):
+        if token.startswith(prefix):
+            return token[len(prefix):]
+    return token
+
+
 def _候補差分語(choices: tuple[tuple[str, str], ...]) -> dict[str, tuple[str, ...]]:
     if not choices:
         return {}
@@ -154,8 +161,7 @@ def _候補差分語(choices: tuple[tuple[str, str], ...]) -> dict[str, tuple[st
                 token,
             ),
         )
-        cleaned = tuple(token[5:] if token.startswith("math:") else token for token in ordered)
-        out[label] = cleaned[:16]
+        out[label] = tuple(_検索表層(token) for token in ordered[:16])
     return out
 
 
