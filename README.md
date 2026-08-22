@@ -56,7 +56,7 @@ PROTOTYPE COMPLETE
 
 ## 30秒で確認する
 
-公開Runtimeは、HDS Compilerを用意しなくてもLegacy互換経路を使って即時実行できる。
+公開CLIは、リポジトリ内の公開標準HDS Compilerを接続して即時実行できる。Runtime APIではLegacy互換経路も維持する。
 
 ```bash
 python -m pip install -e .
@@ -84,7 +84,7 @@ python -m minidora --json "2+3"
 - `pyproject.toml` のRuntime依存パッケージは **0**
 - `torch` / `transformers` / `numpy` をRuntime依存として要求しない
 - K3 / Llama 3は構文化・比較・設計上の観測基盤であり、公開Runtimeがそれらのニューラルモデル推論を呼び出すことを成立条件としない
-- HDS Compiler内部実装は公開Runtimeから分離され、公開側はHDS-IR受入契約だけを持つ
+- 公開標準HDS Compilerはリポジトリ内でフル公開し、HDS本体の上流理論・導出規則は公開物へ含めない
 
 ## 現在の設計軸
 
@@ -104,7 +104,7 @@ HDS / 日本語構文化  = 上流の分別・再射影手段
 
 利用者が日本語命令Pを事前に組み立てることを前提にしない。
 
-HDS Compilerが接続されている場合、自然言語入力はHDSで意味付けされた `HDS-IR` としてRuntimeへ渡す。公開MINIDORAはCompiler内部方式ではなく、HDS-IRの受入・実行境界を規定する。
+通常CLIでは公開標準HDS Compilerを接続し、自然言語入力をHDSで意味付けされた `HDS-IR` としてRuntimeへ渡す。Compilerはフル公開するが、HDS本体の上流理論・導出規則とは明確に分離する。
 
 ```text
 自然言語入力 / 外部Data
@@ -132,7 +132,7 @@ HDS-IRはHDS Nativeそのものではなく有限Projectionである。固定し
 
 `P = どう処理するか`、`Data = 何を意味し、何について処理するか` を分離する。言い換え表現や属性・時点・範囲などの意味情報を、新しいPとして増殖させない。
 
-HDS Compilerは `HDSコンパイラProtocol` を満たす外部実装として差替え可能であり、Runtimeは直前結果と過去のHDS-IR履歴をCompilerへ帰還できる。HDS Compilerが接続されていない場合は、決定論的 `自然言語器` をLegacy互換経路として利用する。
+公開標準HDS Compilerは `HDSコンパイラProtocol` を満たし、同Protocol互換実装へ差替え可能である。Runtimeは直前結果と過去のHDS-IR履歴をCompilerへ帰還できる。Compilerが明示注入されない内部APIでは、決定論的 `自然言語器` をLegacy互換経路として利用できる。
 
 詳細は [`設計/07_HDS_IR入力契約.md`](設計/07_HDS_IR入力契約.md) を参照する。
 
