@@ -8,12 +8,16 @@ import unicodedata
 _SPLIT = re.compile(r"(?<=[?!.。？！])\s+|\n+")
 _EXCEPTION_PATTERNS = (
     re.compile(r"\bexcept\b", re.I),
-    re.compile(r"\bincorrect\b", re.I),
-    re.compile(r"\bfalse\b", re.I),
-    re.compile(r"\bnot\s+(?:correct|true|valid|permitted|allowed|possible|associated)\b", re.I),
-    re.compile(r"\bwhich\b.{0,100}\b(?:does|do|is|are|will|would|can)\s+not\b", re.I),
-    re.compile(r"\bwhich\b.{0,100}\bcannot\b", re.I),
-    re.compile(r"(?:誤っている|正しくない|該当しない|当てはまらない|許可されない|認められない|除く|以外)", re.I),
+    re.compile(r"\bwhich\b.{0,120}\b(?:is|are)\s+(?:incorrect|false)\b", re.I),
+    re.compile(r"\bwhich\b.{0,120}\bincorrectly\s+(?:describes|states|identifies|matches|predicts|assigns|pairs)\b", re.I),
+    re.compile(r"\bwhich\b.{0,120}\b(?:does|do|is|are|will|would|can)\s+not\b", re.I),
+    re.compile(r"\bwhich\b.{0,120}\bcannot\b", re.I),
+    re.compile(r"\b(?:select|choose|identify)\b.{0,100}\b(?:incorrect|false)\s+(?:statement|option|claim|answer|choice)\b", re.I),
+    re.compile(r"\bleast\s+(?:likely|probable|expected|consistent|compatible|supported|plausible)\b", re.I),
+    re.compile(r"\bmost\s+unlikely\b", re.I),
+    re.compile(r"(?:誤っている|正しくない|該当しない|当てはまらない|許可されない|認められない)(?:もの|選択肢|記述|文|項目)?(?:は)?(?:どれ|どの|何れ)", re.I),
+    re.compile(r"(?:除く|以外)", re.I),
+    re.compile(r"(?:最も|もっとも)(?:可能性が低い|起こりにくい|考えにくい|ありそうにない|整合しない|適合しない|支持されない)", re.I),
 )
 
 
@@ -39,10 +43,12 @@ def _焦点(text: str) -> str:
 
 
 def HDS選択意図判定(text: str) -> HDS選択意図:
-    """選択問題の採否方向を、最終問いの表層論理だけから判定する。
+    """選択問題の採否方向を、最終問いの選択述語へ結び付く表層論理だけから判定する。
 
-    ベンチ名・分野・正解候補は参照しない。現在は明示的な単一例外/否定選択だけを
-    `EXCEPTION` とし、それ以外は `POSITIVE` とする。曖昧な最小/最大比較はここで推測しない。
+    ベンチ名・分野・正解候補は参照しない。`false` / `incorrect` / `not` が質問中の
+    対象内容を修飾するだけでは反転させず、「どの候補が誤りか」という選択方向に結び付く場合だけ
+    `EXCEPTION` とする。`least likely` 系は他候補より成立しにくい1件を求めるため同じ扱いにする。
+    単なる `least` / `smallest` / `minimum` は数値比較と混同するため拾わない。
     """
     focus = _焦点(text)
     matched = tuple(pattern.pattern for pattern in _EXCEPTION_PATTERNS if pattern.search(focus))

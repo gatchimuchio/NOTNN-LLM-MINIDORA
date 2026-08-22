@@ -112,10 +112,18 @@ def _fact_source_map(core: K3相当能力核) -> dict[str, str]:
 
 
 @dataclass(frozen=True, slots=True)
+class HDS関係辺署名:
+    関係: str
+    始点語: frozenset[str]
+    終点語: frozenset[str]
+
+
+@dataclass(frozen=True, slots=True)
 class HDS意味署名:
     語: frozenset[str]
     関係種別: frozenset[str]
     座標種別: frozenset[str]
+    関係辺: tuple[HDS関係辺署名, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,6 +137,7 @@ class _証拠群:
     信頼度: float
     範囲: str = "fact"
     関係阻害: bool = False
+    関係辺: tuple[HDS関係辺署名, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,10 +155,20 @@ class HDS候補診断:
     識別一致出典数: int = 0
 
 
+def _辺署名(関係: str, 始点: object, 終点: object) -> HDS関係辺署名 | None:
+    start_terms = 意味語(始点)
+    end_terms = 意味語(終点)
+    if not start_terms or not end_terms:
+        return None
+    return HDS関係辺署名(str(関係), start_terms, end_terms)
+
+
 def _意味署名(ir: HDSIR, *, fallback_text: str = "") -> HDS意味署名:
     terms: set[str] = set()
     kinds: set[str] = set()
     relations: set[str] = set()
+    edges: list[HDS関係辺署名] = []
+    coords = ir.座標辞書()
 
     for coord in ir.座標:
         kind = str(coord.種別)
@@ -166,12 +185,28 @@ def _意味署名(ir: HDSIR, *, fallback_text: str = "") -> HDS意味署名:
         if relation.値状態 in _SIGNATURE_BLOCKING_STATES:
             continue
         relation_type = str(relation.種別)
-        if relation_type not in _GENERIC_RELATIONS:
-            relations.add(relation_type)
+        if relation_type in _GENERIC_RELATIONS:
+            continue
+        relations.add(relation_type)
+        starts = [
+            coords[coordinate_id]
+            for coordinate_id in relation.始点
+            if coordinate_id in coords and coords[coordinate_id].値状態 not in _SIGNATURE_BLOCKING_STATES
+        ]
+        ends = [
+            coords[coordinate_id]
+            for coordinate_id in relation.終点
+            if coordinate_id in coords and coords[coordinate_id].値状態 not in _SIGNATURE_BLOCKING_STATES
+        ]
+        for start in starts:
+            for end in ends:
+                edge = _辺署名(relation_type, start.内容, end.内容)
+                if edge is not None and edge not in edges:
+                    edges.append(edge)
 
     if not terms:
         terms.update(意味語(fallback_text or ir.原文))
-    return HDS意味署名(frozenset(terms), frozenset(relations), frozenset(kinds))
+    return HDS意味署名(frozenset(terms), frozenset(relations), frozenset(kinds), tuple(edges))
 
 
 def _候補識別語(signatures: Mapping[str, HDS意味署名]) -> dict[str, frozenset[str]]:
@@ -186,21 +221,34 @@ def _候補識別語(signatures: Mapping[str, HDS意味署名]) -> dict[str, fro
     return out
 
 
-def _fact_signature(core: K3相当能力核, fact: object) -> tuple[set[str], set[str], set[str]]:
+def _fact_signature(
+    core: K3相当能力核,
+    fact: object,
+) -> tuple[set[str], set[str], set[str], tuple[HDS関係辺署名, ...]]:
     if _fact_blocked(fact):
-        return set(), set(), set()
+        return set(), set(), set(), ()
 
     predicate = str(getattr(fact, "predicate", ""))
     args = tuple(str(x) for x in getattr(fact, "args", ()))
     terms: set[str] = set()
     relations: set[str] = set()
     kinds: set[str] = set()
+    edges: list[HDS関係辺署名] = []
 
     relation = _relation_name_from_predicate(predicate)
     if relation is not None:
         if relation not in _GENERIC_RELATIONS:
             relations.add(relation)
         terms.update(意味語(" ".join(x for x in args if x != "→")))
+        if relation not in _GENERIC_RELATIONS and "→" in args:
+            split = args.index("→")
+            starts = tuple(x for x in args[:split] if x)
+            ends = tuple(x for x in args[split + 1:] if x)
+            for start in starts:
+                for end in ends:
+                    edge = _辺署名(relation, start, end)
+                    if edge is not None and edge not in edges:
+                        edges.append(edge)
     elif predicate == "hds_coordinate" and len(args) >= 2:
         kind = args[0]
         if kind not in _SURFACE_ONLY_KINDS:
@@ -209,7 +257,7 @@ def _fact_signature(core: K3相当能力核, fact: object) -> tuple[set[str], se
     elif predicate != "hds_residual":
         terms.update(意味語(_fact_text(core, fact)))
         relations.add(predicate)
-    return terms, relations, kinds
+    return terms, relations, kinds, tuple(edges)
 
 
 def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
@@ -217,6 +265,7 @@ def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
     document_terms: dict[str, set[str]] = {}
     document_relations: dict[str, set[str]] = {}
     document_kinds: dict[str, set[str]] = {}
+    document_edges: dict[str, list[HDS関係辺署名]] = {}
     document_fact_ids: dict[str, list[str]] = {}
     document_confidences: dict[str, list[float]] = {}
     document_blocked_relations: set[str] = set()
@@ -235,21 +284,25 @@ def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
 
         fid = str(getattr(fact, "fact_id", ""))
         confidence = float(getattr(fact, "confidence", 1.0))
-        terms, relations, kinds = _fact_signature(core, fact)
+        terms, relations, kinds, edges = _fact_signature(core, fact)
 
-        if terms or relations or kinds:
+        if terms or relations or kinds or edges:
             result.append(
                 _証拠群(
                     fid or str(id(fact)), source_id, frozenset(terms), frozenset(relations), frozenset(kinds),
-                    (fid,) if fid else (), confidence, "fact",
+                    (fid,) if fid else (), confidence, "fact", False, edges,
                 )
             )
 
-        if group_id is None or not (terms or relations or kinds):
+        if group_id is None or not (terms or relations or kinds or edges):
             continue
         document_terms.setdefault(group_id, set()).update(terms)
         document_relations.setdefault(group_id, set()).update(relations)
         document_kinds.setdefault(group_id, set()).update(kinds)
+        edge_rows = document_edges.setdefault(group_id, [])
+        for edge in edges:
+            if edge not in edge_rows:
+                edge_rows.append(edge)
         if fid:
             ids = document_fact_ids.setdefault(group_id, [])
             if fid not in ids:
@@ -268,6 +321,7 @@ def _証拠群を作る(core: K3相当能力核) -> tuple[_証拠群, ...]:
                 group_id, group_id, frozenset(document_terms[group_id]), relations,
                 frozenset(document_kinds.get(group_id, set())), ids,
                 sum(confidences) / len(confidences), "document", relation_blocked,
+                tuple(document_edges.get(group_id, ())),
             )
         )
     return tuple(result)
@@ -289,6 +343,26 @@ def _kind_similarity(query: frozenset[str], evidence: frozenset[str]) -> float:
     if not query or not evidence:
         return 0.0
     return len(query & evidence) / math.sqrt(len(query) * len(evidence))
+
+
+def _edge_similarity(
+    query: tuple[HDS関係辺署名, ...],
+    evidence: tuple[HDS関係辺署名, ...],
+) -> float:
+    """関係種別だけでなく、始点→終点の方向を保った一致率を返す。"""
+    if not query or not evidence:
+        return 0.0
+    best = 0.0
+    for query_edge in query:
+        for evidence_edge in evidence:
+            if query_edge.関係 != evidence_edge.関係:
+                continue
+            start = _coverage(query_edge.始点語, evidence_edge.始点語)
+            end = _coverage(query_edge.終点語, evidence_edge.終点語)
+            if start <= 0 or end <= 0:
+                continue
+            best = max(best, math.sqrt(start * end))
+    return best
 
 
 def _group_score(
@@ -321,11 +395,14 @@ def _group_score(
         _kind_similarity(question.座標種別, evidence.座標種別),
         _kind_similarity(candidate.座標種別, evidence.座標種別),
     )
-    structural_multiplier = 1.0 + 1.5 * relation_match + 0.5 * kind_match
+    question_direction_match = _edge_similarity(question.関係辺, evidence.関係辺)
+    candidate_direction_match = _edge_similarity(candidate.関係辺, evidence.関係辺)
+    direction_match = candidate_direction_match if candidate.関係辺 else question_direction_match
+    structural_multiplier = 1.0 + 1.5 * relation_match + 0.5 * kind_match + 2.0 * direction_match
     scope_multiplier = 1.0
     if evidence.範囲 == "document":
         scope_multiplier = 0.62
-        if relation_match <= 0 and kind_match <= 0:
+        if relation_match <= 0 and kind_match <= 0 and direction_match <= 0:
             scope_multiplier *= 0.65
     return evidence.信頼度 * (4.0 * candidate_coverage + 2.0 * question_coverage) * structural_multiplier * scope_multiplier
 
@@ -448,6 +525,8 @@ class HDSIRネイティブAdapter:
             for evidence in evidence_groups:
                 if distinctive and (distinctive & evidence.語):
                     distinctive_sources[label].add(evidence.出典ID)
+                if candidate_signature.関係辺 and _edge_similarity(candidate_signature.関係辺, evidence.関係辺) > 0:
+                    distinctive_sources[label].add(evidence.出典ID)
                 score = _group_score(question_signature, candidate_signature, evidence, 識別語=distinctive)
                 if score <= 0:
                     continue
@@ -529,7 +608,8 @@ class HDSIRネイティブAdapter:
                             proof_fact_ids=tuple(proof_ids),
                             provenance=(
                                 "HDS-IR", "K", "STRUCTURAL_GRAPH_MATCH", "SOURCE_AWARE_RECONCILE",
-                                "CANDIDATE_DISTINCTIVE_WEIGHT", "effort:" + 探索方針.水準,
+                                "CANDIDATE_DISTINCTIVE_WEIGHT", "DIRECTED_RELATION_MATCH",
+                                "effort:" + 探索方針.水準,
                                 "sources:" + str(len(independent_sources)),
                                 "distinctive_sources:" + str(len(matched_distinctive_sources)),
                             ),
@@ -544,7 +624,10 @@ class HDSIRネイティブAdapter:
         intent = HDS選択意図判定(ir.原文)
         frame = SemanticFrame(
             kind="question", intent="knowledge_query", raw=ir.原文, predicate="HDS_choice_selection", args=(None,),
-            tags=("HDS-IR", "choice", "structural_graph", "source_aware_reconcile", "candidate_distinctive", intent.種別),
+            tags=(
+                "HDS-IR", "choice", "structural_graph", "source_aware_reconcile",
+                "candidate_distinctive", "directed_relation", intent.種別,
+            ),
             language=getattr(ir, "入力言語", "en") or "en",
         )
 
@@ -593,4 +676,4 @@ class HDSIRネイティブAdapter:
         )
 
 
-__all__ = ["HDS意味署名", "HDS候補診断", "HDSK3結果", "HDSIRネイティブAdapter"]
+__all__ = ["HDS関係辺署名", "HDS意味署名", "HDS候補診断", "HDSK3結果", "HDSIRネイティブAdapter"]

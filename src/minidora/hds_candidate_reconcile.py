@@ -65,11 +65,14 @@ def _collapse_by_source(items: Iterable[HDS候補証拠]) -> dict[tuple[str, str
 
 
 def _識別係数(own: float, competitor: float, *, 支持候補数: int, 全候補数: int) -> float:
-    """同一source内の絶対一致ではなく、候補間の差分を識別力として返す。
+    """同一source内で候補を実際に識別できる差分だけを返す。
 
-    共通語の多い長文・数式choiceでは同一sourceが複数候補へ高得点しやすい。
-    その絶対値を残すと僅かな共有語差がJ marginを作るため、競合候補との差が無ければ
-    ほぼ共通知識として扱う。一候補だけを支持するsourceは従来どおり1.0。
+    一候補だけを支持するsourceは従来どおり1.0。同じsourceが複数候補を支持する場合は、
+    絶対一致量ではなく最大競合候補に対する相対優位だけを識別力とする。完全同点または
+    競合側が同等以上なら、そのsourceは当該候補の選択marginへ寄与しない。
+
+    これにより「全候補へ同じ資料が高一致した」という共通知識を、検索順位や僅かな共通語差で
+    擬似的な正答根拠へ昇格させない。
     """
     if own <= 0:
         return 0.0
@@ -77,14 +80,15 @@ def _識別係数(own: float, competitor: float, *, 支持候補数: int, 全候
         return 1.0
 
     relative_advantage = max(0.0, (own - competitor) / max(own, competitor))
-    base = 0.12 + 0.88 * relative_advantage
+    if relative_advantage <= 0:
+        return 0.0
 
     if 全候補数 <= 1:
         breadth_penalty = 1.0
     else:
         common_ratio = max(0.0, min(1.0, (支持候補数 - 1) / (全候補数 - 1)))
         breadth_penalty = 1.0 - 0.35 * common_ratio
-    return max(0.08, min(1.0, base * breadth_penalty))
+    return max(0.0, min(1.0, relative_advantage * breadth_penalty))
 
 
 def HDS候補横断調停(
@@ -94,11 +98,11 @@ def HDS候補横断調停(
     証拠重み: Sequence[float],
     証拠上限: int,
 ) -> Mapping[str, HDS候補調停結果]:
-    """source単位で候補横断比較し、識別力の低い共通証拠を減衰する。
+    """source単位で候補横断比較し、識別力の低い共通証拠を除去・減衰する。
 
     一候補だけを支持するsourceは係数1.0。複数候補へ当たるsourceは、最大競合との差と
     支持候補の広さから識別係数を決める。共通知識を負の証拠へ変換せず、候補差のない
-    大きな絶対得点だけをJ marginから除去する。
+    大きな絶対得点をJ marginとprovenanceから除去する。
     """
     labels = tuple(dict.fromkeys(str(x) for x in 候補群))
     collapsed = _collapse_by_source(証拠群)
@@ -122,6 +126,8 @@ def HDS候補横断調停(
             全候補数=len(labels),
         )
         adjusted = own * discrimination
+        if adjusted <= 0:
+            continue
         reconciled.setdefault(label, []).append(
             HDS調停済証拠(
                 候補=label,
