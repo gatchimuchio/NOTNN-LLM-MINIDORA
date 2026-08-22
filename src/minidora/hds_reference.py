@@ -265,7 +265,6 @@ def _縮退仕様(ir: HDSIR) -> tuple[_HDS問合せ仕様, ...]:
                 continue
             seen.add(key)
             specs.append(_HDS問合せ仕様(query, kind, label))
-            break
 
     for query, kind in (
         (" ".join(_unique((entity, relation))), "fallback_relation"),
