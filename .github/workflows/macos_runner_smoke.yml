@@ -1,0 +1,22 @@
+name: MINIDORA macOS runner smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/macos_runner_smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: runner smoke
+        run: python -c "print('MACOS_RUNNER_OK')"
