@@ -110,6 +110,23 @@ class HDS参照役割Query試験(unittest.TestCase):
         for number in ("1", "2", "3", "6"):
             self.assertEqual(sum(number in q.split() for q in queries), 1)
 
+    def test_長文queryは冒頭文脈と末尾焦点を同時に保持する(self) -> None:
+        filler = " ".join(f"context{i}" for i in range(120))
+        text = f"AlphaProtein {filler} final_focus_marker"
+        ir = HDSIR(
+            原文=text,
+            正規化文=text,
+            認知世界ID="reference-long-context-test",
+            座標=(
+                HDS座標("choice:A", "目的.候補", "red"),
+                HDS座標("choice:B", "目的.候補", "blue"),
+            ),
+            関係=(), 残差=(), 意味作用履歴=(), 実行核=HDS実行核("参照回答"),
+            参照必須=True, 種別="knowledge_query", 閉包状態="CLOSED_FOR_OPERATION", 入力言語="en",
+        )
+        queries = HDS参照問合せ候補(ir)
+        self.assertTrue(any("AlphaProtein" in q and "final_focus_marker" in q for q in queries))
+
 
 if __name__ == "__main__":
     unittest.main()
