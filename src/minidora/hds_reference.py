@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from .hds_effort import HDS努力水準
 from .hds_ir import HDSIR, 値状態
+from .semantic_tokens import 意味語
 from .参照 import 参照供給器, 参照記録
 
 
@@ -51,6 +52,21 @@ def _unique(parts: Iterable[str]) -> tuple[str, ...]:
     return tuple(out)
 
 
+def _compact_join(parts: Iterable[str], *, 最大要素: int = 12, 最大文字数: int = 280) -> str:
+    """検索器へ渡すHDS anchorを、先頭の意味役割を保ったまま有限長へ圧縮する。"""
+    selected: list[str] = []
+    size = 0
+    for part in _unique(parts):
+        if len(selected) >= max(1, int(最大要素)):
+            break
+        addition = len(part) + (1 if selected else 0)
+        if selected and size + addition > max(1, int(最大文字数)):
+            break
+        selected.append(part)
+        size += addition
+    return " ".join(selected)
+
+
 def _役割(kind: str) -> str:
     normalized = str(kind).strip()
     if normalized.startswith(("対象.", "実体.")):
@@ -86,41 +102,73 @@ def _役割語群(ir: HDSIR) -> tuple[dict[str, tuple[str, ...]], tuple[tuple[st
     return {name: _unique(values) for name, values in groups.items()}, tuple(sorted(choices))
 
 
+def _検索語(token: str) -> str:
+    if token.startswith("math:"):
+        return token[5:]
+    return token
+
+
+def _候補識別語群(choices: tuple[tuple[str, str], ...]) -> dict[str, tuple[str, ...]]:
+    """全choiceを対称比較し、各choiceを他候補から区別する意味語を返す。"""
+    terms_by_label = {label: 意味語(text) for label, text in choices}
+    frequency: dict[str, int] = {}
+    for terms in terms_by_label.values():
+        for term in terms:
+            frequency[term] = frequency.get(term, 0) + 1
+
+    result: dict[str, tuple[str, ...]] = {}
+    for label, terms in terms_by_label.items():
+        distinctive = [term for term in terms if frequency.get(term, 0) < len(choices)]
+        distinctive.sort(key=lambda term: (frequency.get(term, 0), 0 if term.startswith("math:") else 1, -len(term), term))
+        result[label] = tuple(_検索語(term) for term in distinctive[:8])
+    return result
+
+
 def HDS参照問合せ候補(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[str, ...]:
     groups, choices = _役割語群(ir)
     base = " ".join(str(ir.正規化文 or ir.原文).split()).strip()
-    structured = " ".join(_unique((
+    structured_parts = _unique((
         *groups["対象"], *groups["関係"], *groups["状態"],
         *groups["条件"], *groups["焦点"], *groups["その他"],
-    )))
-    entity_relation = " ".join(_unique((*groups["対象"], *groups["関係"], *groups["状態"])))
-    entity_only = " ".join(groups["対象"])
-    anchor = structured or entity_relation or entity_only or base
+    ))
+    structured = _compact_join(structured_parts)
+    entity_relation = _compact_join((*groups["対象"], *groups["関係"], *groups["状態"]), 最大要素=10)
+    entity_only = _compact_join(groups["対象"], 最大要素=8)
+    compact_base = _compact_join((base,), 最大要素=1, 最大文字数=280)
+    anchor = structured or entity_relation or entity_only or compact_base
+
     budget = max(int(最大候補数), len(choices))
     nonchoice_slots = max(0, budget - len(choices))
-    nonchoice = _unique((base, structured, entity_relation, entity_only))[:nonchoice_slots]
-    choice_queries = tuple(f"{anchor} {choice}" if anchor else choice for _, choice in choices)
+    nonchoice = _unique((compact_base, structured, entity_relation, entity_only))[:nonchoice_slots]
+
+    distinctive = _候補識別語群(choices)
+    choice_queries = []
+    for label, choice in choices:
+        choice_focus = " ".join(distinctive.get(label, ())) or choice
+        choice_queries.append(_compact_join((anchor, choice_focus), 最大要素=2, 最大文字数=360))
     return _unique((*nonchoice, *choice_queries))
 
 
 def HDS参照縮退問合せ候補(ir: HDSIR) -> tuple[str, ...]:
     """主検索が完全0件の場合だけ使う、より短い対称query群。
 
-    `対象 + choice` を全choice同条件で作り、次に `対象 + 関係/状態`、最後に対象単体へ縮退する。
+    `対象 + choice差分語` を全choice同条件で作り、次に `対象 + 関係/状態`、最後に対象単体へ縮退する。
     choice単独は対象が取れない場合だけ使用し、一般語choiceだけの過広検索を常態化させない。
     """
     groups, choices = _役割語群(ir)
-    entity = " ".join(groups["対象"])
-    relation = " ".join(_unique((*groups["関係"], *groups["状態"])))
-    contextual = " ".join(_unique((*groups["条件"], *groups["焦点"])))
+    entity = _compact_join(groups["対象"], 最大要素=8)
+    relation = _compact_join((*groups["関係"], *groups["状態"]), 最大要素=6)
+    contextual = _compact_join((*groups["条件"], *groups["焦点"]), 最大要素=6)
+    distinctive = _候補識別語群(choices)
     choice_queries = tuple(
-        " ".join(_unique((entity, choice))) if entity else choice
-        for _, choice in choices
+        _compact_join((entity, " ".join(distinctive.get(label, ())) or choice), 最大要素=2, 最大文字数=320)
+        if entity else (" ".join(distinctive.get(label, ())) or choice)
+        for label, choice in choices
     )
     reduced = _unique((
         *choice_queries,
-        " ".join(_unique((entity, relation))),
-        " ".join(_unique((entity, contextual))),
+        _compact_join((entity, relation), 最大要素=2),
+        _compact_join((entity, contextual), 最大要素=2),
         entity,
     ))
     primary = {query.casefold() for query in HDS参照問合せ候補(ir)}
