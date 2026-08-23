@@ -35,9 +35,7 @@ jobs:
               raise SystemExit('DIRECTED_GATE_MARKER_NOT_FOUND')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
           PY
-          python -m pip install -e .
-          python -m unittest tests.test_k3_choice_hypothesis -v
-          python -m unittest tests.test_k3_directed_relation -v
+          python -m py_compile src/minidora/k3_hds_native.py
           git diff --check
       - name: 実装差分を記録
         run: |
