@@ -13,49 +13,69 @@ class 英語関係構文:
 
 
 # 世界知識ではなく、英語という言語体系の基底知識だけを保持する。
-# 特に科学・技術文で頻出する関係動詞の語形差を同一概念へ戻す。
+# 科学・技術文を含む一般文で頻出する関係語の屈折・派生差を同一概念へ戻す。
 _英語基本形表 = {
     # 因果
     "cause": "cause", "causes": "cause", "caused": "cause", "causing": "cause",
+    "causal": "cause", "causally": "cause", "causation": "cause",
     "lead": "lead", "leads": "lead", "led": "lead", "leading": "lead",
     "result": "result", "results": "result", "resulted": "result", "resulting": "result",
     # 増加
     "increase": "increase", "increases": "increase", "increased": "increase", "increasing": "increase",
     "raise": "raise", "raises": "raise", "raised": "raise", "raising": "raise",
     "enhance": "enhance", "enhances": "enhance", "enhanced": "enhance", "enhancing": "enhance",
+    "enhancement": "enhance", "enhancements": "enhance",
     # 減少
     "decrease": "decrease", "decreases": "decrease", "decreased": "decrease", "decreasing": "decrease",
     "reduce": "reduce", "reduces": "reduce", "reduced": "reduce", "reducing": "reduce",
+    "reduction": "reduce", "reductions": "reduce", "reductive": "reduce",
     "lower": "lower", "lowers": "lower", "lowered": "lower", "lowering": "lower",
     # 阻害
     "inhibit": "inhibit", "inhibits": "inhibit", "inhibited": "inhibit", "inhibiting": "inhibit",
+    "inhibition": "inhibit", "inhibitions": "inhibit", "inhibitory": "inhibit",
     "suppress": "suppress", "suppresses": "suppress", "suppressed": "suppress", "suppressing": "suppress",
-    "block": "block", "blocks": "block", "blocked": "block", "blocking": "block",
+    "suppression": "suppress", "suppressions": "suppress", "suppressive": "suppress",
+    "block": "block", "blocks": "block", "blocked": "block", "blocking": "block", "blockage": "block",
     # 活性化
     "activate": "activate", "activates": "activate", "activated": "activate", "activating": "activate",
+    "activation": "activate", "activations": "activate",
     "stimulate": "stimulate", "stimulates": "stimulate", "stimulated": "stimulate", "stimulating": "stimulate",
+    "stimulation": "stimulate", "stimulations": "stimulate", "stimulatory": "stimulate",
     # 生成
     "produce": "produce", "produces": "produce", "produced": "produce", "producing": "produce",
+    "production": "produce", "productions": "produce", "productive": "produce",
     "generate": "generate", "generates": "generate", "generated": "generate", "generating": "generate",
+    "generation": "generate", "generations": "generate", "generative": "generate",
     # 要求・依存
     "require": "require", "requires": "require", "required": "require", "requiring": "require",
+    "requirement": "require", "requirements": "require",
     "need": "need", "needs": "need", "needed": "need", "needing": "need",
     "depend": "depend", "depends": "depend", "depended": "depend", "depending": "depend",
+    "dependent": "depend", "dependence": "depend", "dependency": "depend", "dependencies": "depend",
     # 包含
     "contain": "contain", "contains": "contain", "contained": "contain", "containing": "contain",
+    "containment": "contain",
     "include": "include", "includes": "include", "included": "include", "including": "include",
+    "inclusion": "include", "inclusions": "include", "inclusive": "include",
     "comprise": "comprise", "comprises": "comprise", "comprised": "comprise", "comprising": "comprise",
     # 使用
-    "use": "use", "uses": "use", "used": "use", "using": "use",
+    "use": "use", "uses": "use", "used": "use", "using": "use", "usage": "use",
     "utilize": "utilize", "utilizes": "utilize", "utilized": "utilize", "utilizing": "utilize",
+    "utilization": "utilize", "utilisation": "utilize",
     "employ": "employ", "employs": "employ", "employed": "employ", "employing": "employ",
+    "employment": "employ",
     # 防止
     "prevent": "prevent", "prevents": "prevent", "prevented": "prevent", "preventing": "prevent",
+    "prevention": "prevent", "preventive": "prevent", "preventative": "prevent",
     "protect": "protect", "protects": "protect", "protected": "protect", "protecting": "protect",
+    "protection": "protect", "protective": "protect",
     # 相関
     "associate": "associate", "associates": "associate", "associated": "associate", "associating": "associate",
+    "association": "associate", "associations": "associate",
     "correlate": "correlate", "correlates": "correlate", "correlated": "correlate", "correlating": "correlate",
+    "correlation": "correlate", "correlations": "correlate", "correlative": "correlate",
     "relate": "relate", "relates": "relate", "related": "relate", "relating": "relate",
+    "relation": "relate", "relations": "relate", "relational": "relate",
 }
 
 
@@ -91,6 +111,10 @@ def 英語関係概念(word: str) -> str | None:
 
 def 英語関係族() -> dict[str, frozenset[str]]:
     return dict(_英語関係族)
+
+
+def 英語語形数() -> int:
+    return len(_英語基本形表)
 
 
 _SUBJECT = r"(?P<s>[^?!.;,\n]{1,120}?)"
@@ -136,5 +160,6 @@ __all__ = [
     "英語基本形",
     "英語関係概念",
     "英語関係族",
+    "英語語形数",
     "英語明示関係構文",
 ]
