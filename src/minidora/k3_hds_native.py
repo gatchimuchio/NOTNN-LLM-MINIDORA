@@ -258,7 +258,7 @@ def _候補仮説関係(question_ir: HDSIR, candidate_text: str) -> tuple[frozen
                 if edge is not None and edge not in edges:
                     edges.append(edge)
 
-        if edges:
+        if any(edge.関係 == relation_type for edge in edges):
             relations.add(relation_type)
 
     return frozenset(relations), tuple(edges)
