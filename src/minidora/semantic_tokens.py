@@ -30,8 +30,8 @@ _STOP = {
     # 選択QAの制御語。真偽・反転はCompiler/J側で別構造として保持し、意味証拠へ混ぜない。
     "following", "statement", "statements", "answer", "answers", "option", "options", "choice", "choices",
     "correct", "incorrect", "true", "false", "most", "least", "likely", "unlikely", "best", "except",
-    "select", "choose", "chosen", "consider", "considered", "regarding", "according", "given", "respect",
-    "respectively", "not",
+    "select", "choose", "chosen", "consider", "considered", "describe", "describes", "described",
+    "regarding", "according", "given", "respect", "respectively", "not",
 }
 
 
