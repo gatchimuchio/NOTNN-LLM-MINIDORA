@@ -1,6 +1,7 @@
 name: MINIDORA GPQA current measurement
 
 on:
+  pull_request:
   workflow_dispatch:
   pull_request:
     branches: [main]
@@ -26,7 +27,7 @@ jobs:
       - name: パッケージ導入
         run: python -m pip install -e .
       - name: GPQA Diamond 198問実測
-        run: python tools/benchmark.py gpqa-diamond --out gpqa_current_measurement.json
+        run: python tools/gpqa_semantic_atom_evidence_ablation.py
       - name: 結果要約
         if: always()
         run: |
