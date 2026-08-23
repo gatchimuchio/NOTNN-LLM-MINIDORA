@@ -209,6 +209,61 @@ def _意味署名(ir: HDSIR, *, fallback_text: str = "") -> HDS意味署名:
     return HDS意味署名(frozenset(terms), frozenset(relations), frozenset(kinds), tuple(edges))
 
 
+def _関係条件値(relation: object, key: str) -> str:
+    prefix = key + "="
+    for raw in getattr(relation, "条件", ()):
+        value = str(raw)
+        if value.startswith(prefix):
+            return value[len(prefix):].strip()
+    return ""
+
+
+def _候補仮説関係(question_ir: HDSIR, candidate_text: str) -> tuple[frozenset[str], tuple[HDS関係辺署名, ...]]:
+    """問いで未観測の関係端点へ候補を代入し、候補ごとの構造仮説を作る。
+
+    Compilerが明示した `不足位置` だけを使用し、未知位置を推測しない。問い自体の
+    未観測関係を事実へ昇格させず、候補を代入した仮説署名として証拠照合にだけ使う。
+    """
+    candidate_terms = 意味語(candidate_text)
+    if not candidate_terms:
+        return frozenset(), ()
+
+    coords = question_ir.座標辞書()
+    relations: set[str] = set()
+    edges: list[HDS関係辺署名] = []
+    for relation in question_ir.関係:
+        relation_type = str(relation.種別)
+        if relation_type in _GENERIC_RELATIONS:
+            continue
+        missing = _関係条件値(relation, "不足位置")
+        if missing not in {"始点", "終点"}:
+            continue
+
+        if missing == "始点":
+            known = [
+                coords[cid] for cid in relation.終点
+                if cid in coords and coords[cid].値状態 not in _SIGNATURE_BLOCKING_STATES
+            ]
+            for endpoint in known:
+                edge = _辺署名(relation_type, candidate_text, endpoint.内容)
+                if edge is not None and edge not in edges:
+                    edges.append(edge)
+        else:
+            known = [
+                coords[cid] for cid in relation.始点
+                if cid in coords and coords[cid].値状態 not in _SIGNATURE_BLOCKING_STATES
+            ]
+            for endpoint in known:
+                edge = _辺署名(relation_type, endpoint.内容, candidate_text)
+                if edge is not None and edge not in edges:
+                    edges.append(edge)
+
+        if edges:
+            relations.add(relation_type)
+
+    return frozenset(relations), tuple(edges)
+
+
 def _候補識別語(signatures: Mapping[str, HDS意味署名]) -> dict[str, frozenset[str]]:
     labels = tuple(signatures)
     out: dict[str, frozenset[str]] = {}
@@ -490,10 +545,17 @@ class HDSIRネイティブAdapter:
         candidate_signatures: dict[str, HDS意味署名] = {}
         for label, option in choices:
             candidate_ir = (候補IR or {}).get(label)
-            candidate_signatures[label] = (
+            base_signature = (
                 _意味署名(candidate_ir, fallback_text=option)
                 if candidate_ir is not None
                 else HDS意味署名(意味語(option), frozenset(), frozenset())
+            )
+            hypothesis_relations, hypothesis_edges = _候補仮説関係(ir, option)
+            candidate_signatures[label] = HDS意味署名(
+                base_signature.語,
+                base_signature.関係種別 | hypothesis_relations,
+                base_signature.座標種別,
+                tuple(dict.fromkeys((*base_signature.関係辺, *hypothesis_edges))),
             )
         distinctive_terms = _候補識別語(candidate_signatures)
         distinctive_sources: dict[str, set[str]] = {label: set() for label, _ in choices}
