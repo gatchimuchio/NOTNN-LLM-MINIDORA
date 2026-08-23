@@ -16,6 +16,7 @@ from .hds_compiler_records import HDSCompiler成果
 from .hds_compiler_records_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規則改善候補
 from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
 from .hds_ir import HDSIR
+from .hds_language_relations import HDS英語基底関係射影
 from .言語基底 import 言語基底P, 標準言語基底P
 
 
@@ -50,6 +51,9 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         *,
         HDS履歴: tuple[HDSIR, ...] = (),
     ) -> HDSCompiler成果:
+        # 共有言語基底Pで、基礎Compilerが表面語形差だけで取りこぼした明示関係を補完する。
+        # 世界知識や名詞共起からの推定は行わない。
+        base = HDS英語基底関係射影(base, self.言語基底P)
         first = 公開HDSフロントエンド射影(base)
 
         graph = HDS状態遷移抽出(first.IR.正規化文 or first.IR.原文)

@@ -47,13 +47,21 @@ class 言語基底P試験(unittest.TestCase):
         self.assertIn("猫", 意味語("猫 は 動物"))
         self.assertIn("動物", 意味語("猫 は 動物"))
 
+    def test_英語関係知識も同じPから取得できる(self) -> None:
+        self.assertEqual(標準言語基底P.英語基本形("generated"), "generate")
+        self.assertEqual(標準言語基底P.英語関係概念("suppressed"), "阻害")
+        self.assertIn("generate", 標準言語基底P.英語関係族()["生成"])
+        self.assertTrue(標準言語基底P.英語関係構文())
+
     def test_言語基底版と統計を機械取得できる(self) -> None:
         stats = 標準言語基底P.統計()
-        self.assertEqual(stats["版"], "v0.1")
+        self.assertEqual(stats["版"], "v0.2")
         self.assertGreaterEqual(stats["ひらがな"], 46)
         self.assertGreaterEqual(stats["カタカナ"], 46)
         self.assertGreater(stats["日本語基底語彙"], 0)
         self.assertGreater(stats["英語基底機能"], 0)
+        self.assertGreater(stats["英語関係族"], 0)
+        self.assertGreater(stats["英語関係基本形"], 0)
 
 
 if __name__ == "__main__":

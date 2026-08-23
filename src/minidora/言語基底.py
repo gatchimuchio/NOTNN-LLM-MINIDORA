@@ -4,8 +4,15 @@ from dataclasses import dataclass
 import re
 import unicodedata
 
+from .言語基底_英語 import (
+    英語基本形 as _英語基本形,
+    英語関係概念 as _英語関係概念,
+    英語関係族 as _英語関係族,
+    英語明示関係構文,
+)
 
-言語基底版 = "v0.1"
+
+言語基底版 = "v0.2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,7 +160,7 @@ class 言語基底P:
     """HDS CompilerとMINIDORA Runtimeが共有する最小言語基底知識。
 
     これは百科事典的な世界知識ではない。文字体系、表音対応、基本文法機能、
-    HDS/Pで常用する基底概念だけを常在資産として保持する。
+    HDS/Pで常用する基底概念、主要外部接続言語の一般関係だけを常在資産として保持する。
     """
 
     版 = 言語基底版
@@ -189,6 +196,9 @@ class 言語基底P:
             return 語彙知識(value, "en", "文法機能", (_英語基底機能[lowered],))
         if value in _日本語文法機能:
             return 語彙知識(value, "ja", "文法機能", (_日本語文法機能[value],))
+        relation = _英語関係概念(value)
+        if relation is not None:
+            return 語彙知識(value, "en", "関係語", (relation,), 対応語=(relation,))
         return None
 
     def 文法機能(self, word: str) -> str | None:
@@ -196,6 +206,18 @@ class 言語基底P:
         if value in _日本語文法機能:
             return _日本語文法機能[value]
         return _英語基底機能.get(value.casefold())
+
+    def 英語基本形(self, word: str) -> str:
+        return _英語基本形(word)
+
+    def 英語関係概念(self, word: str) -> str | None:
+        return _英語関係概念(word)
+
+    def 英語関係族(self) -> dict[str, frozenset[str]]:
+        return _英語関係族()
+
+    def 英語関係構文(self):
+        return 英語明示関係構文
 
     def 入力言語判定(self, text: str) -> str:
         value = unicodedata.normalize("NFKC", str(text))
@@ -215,6 +237,7 @@ class 言語基底P:
         return "ja"
 
     def 統計(self) -> dict[str, int | str]:
+        families = self.英語関係族()
         return {
             "版": self.版,
             "ひらがな": len(_ひらがなローマ字),
@@ -222,6 +245,8 @@ class 言語基底P:
             "日本語基底語彙": len(_日本語基底語彙),
             "日本語文法機能": len(_日本語文法機能),
             "英語基底機能": len(_英語基底機能),
+            "英語関係族": len(families),
+            "英語関係基本形": sum(len(words) for words in families.values()),
         }
 
 

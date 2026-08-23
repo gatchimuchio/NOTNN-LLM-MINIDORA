@@ -4,6 +4,7 @@ import re
 import unicodedata
 
 from .言語基底 import 標準言語基底P
+from .言語基底_英語 import 英語基本形 as _英語基底基本形, 英語関係概念
 
 
 _WORD = re.compile(r"[A-Za-z0-9_+\-\.]+|[Α-Ωα-ωϐ-Ͽ]+|[ぁ-んァ-ヶー]+|[一-龥々]+")
@@ -38,9 +39,15 @@ _STOP = {
 
 
 def _english_stem(value: str) -> str:
-    """意味照合用の保守的な英語表層正規化。"""
+    """意味照合用の保守的な英語表層正規化。
+
+    共有言語基底Pで明示している語形を先に戻し、それ以外だけ一般的な軽量stemへ落とす。
+    """
     if not re.fullmatch(r"[a-z]+", value):
         return value
+    lexical = _英語基底基本形(value)
+    if lexical != value:
+        return lexical
     if value in {"species", "series"}:
         return value
     if len(value) > 4 and value.endswith("ies"):
@@ -92,7 +99,8 @@ def 意味語(text: object) -> frozenset[str]:
 
     技術文では一文字の変数・列挙記号・ギリシャ文字・科学記数法自体が意味を持つ。
     日本語は共有言語基底Pを参照し、一文字漢字を意味記号として保持する一方、助詞など
-    文法機能だけの語は意味証拠へ混ぜない。選択QAの制御語はCompiler/J側の
+    文法機能だけの語は意味証拠へ混ぜない。英語の明示関係動詞は語形を基本形へ戻し、
+    同義の関係語へ共有 `rel:` anchorを追加する。選択QAの制御語はCompiler/J側の
     選択意図・否定・反転構造に責任を分離する。
     """
     raw = unicodedata.normalize("NFKC", str(text))
@@ -138,6 +146,9 @@ def 意味語(text: object) -> frozenset[str]:
         if len(normalized) <= 1 or normalized in _STOP:
             continue
         out.add(normalized)
+        relation = 英語関係概念(normalized)
+        if relation is not None:
+            out.add("rel:" + relation)
     return frozenset(out)
 
 
