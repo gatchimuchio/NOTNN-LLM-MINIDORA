@@ -49,7 +49,7 @@ def _run_once(body: ミニドラ, query: str, *, json_mode: bool) -> None:
             "reference_count": len(result.参照),
             "hds_ir": result.HDS_IR is not None,
             "compiler": "公開HDSコンパイラ",
-            "compiler_architecture": "v1",
+            "compiler_architecture": "v1.1",
         }
         print(json.dumps(payload, ensure_ascii=False, default=str))
         return

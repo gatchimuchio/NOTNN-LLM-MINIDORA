@@ -4,6 +4,14 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from .hds_ir import HDSIR
+from .hds_compiler_records_v1_1 import (
+    HDSチェックリスト項目,
+    HDS失敗署名候補,
+    HDS状態遷移図,
+    HDS暗黙知記録,
+    HDS認知世界差分,
+    HDS監査参照候補,
+)
 
 
 class HDS監査状態(StrEnum):
@@ -80,6 +88,9 @@ class HDS保持契約:
     由来保持: bool = True
     旧解釈保持: bool = True
     不可逆剪定禁止: bool = True
+    時間履歴保持: bool = True
+    認知世界履歴保持: bool = True
+    帰還経路保持: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +101,12 @@ class HDSCompiler成果:
     監査要求: tuple[HDS監査要求, ...]
     原理探索: HDS原理探索要求
     保持契約: HDS保持契約 = HDS保持契約()
+    状態遷移: HDS状態遷移図 = HDS状態遷移図()
+    暗黙知構造: tuple[HDS暗黙知記録, ...] = ()
+    失敗署名候補: tuple[HDS失敗署名候補, ...] = ()
+    チェックリスト: tuple[HDSチェックリスト項目, ...] = ()
+    認知世界差分: HDS認知世界差分 = HDS認知世界差分()
+    監査参照候補: tuple[HDS監査参照候補, ...] = ()
 
     @property
     def 未固定座標(self) -> tuple[str, ...]:

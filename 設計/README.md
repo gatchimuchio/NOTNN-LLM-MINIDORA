@@ -11,8 +11,9 @@
 3. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — Data / Knowledgeの外部参照層Rを定める。
 4. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — 公開HDS CompilerとRuntimeのHDS-IR境界を定める。
 5. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — フル公開する標準Compilerの責任・非責任・性能改善境界を定める。
-6. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) — 座標・動態・暗黙知・論証・原理探索入力・監査要求を統合する公開Front-End Architectureを定める。
-7. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
+6. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) — v1の公開Front-End Architecture履歴を保持する。
+7. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) — Failure Signature、状態遷移graph、暗黙知構造、監査R probe、CognitiveWorld差分まで接続する現行Architectureを定める。
+8. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
 8. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
 9. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
 
