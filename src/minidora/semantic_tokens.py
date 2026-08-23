@@ -21,9 +21,17 @@ _MATH_VAR_LEFT = re.compile(r"(?<![A-Za-z0-9_])([A-Za-zΑ-Ωα-ωϐ-Ͽ])(?=\s*(?
 _MATH_VAR_RIGHT = re.compile(r"(?:=|[+\-*/^<>≤≥])\s*([A-Za-zΑ-Ωα-ωϐ-Ͽ])(?![A-Za-z0-9_])")
 
 _STOP = {
+    # 基本機能語
     "the", "a", "an", "of", "to", "in", "on", "at", "for", "from", "with", "and", "or",
     "is", "are", "was", "were", "be", "been", "being", "which", "what", "who", "when", "where",
     "why", "how", "this", "that", "these", "those", "it", "its", "as", "by", "than", "then",
+    "do", "does", "did", "have", "has", "had", "will", "shall", "would", "could", "should",
+    "may", "might", "can", "about", "into", "through", "during", "after", "before", "between", "among",
+    # 選択QAの制御語。真偽・反転はCompiler/J側で別構造として保持し、意味証拠へ混ぜない。
+    "following", "statement", "statements", "answer", "answers", "option", "options", "choice", "choices",
+    "correct", "incorrect", "true", "false", "most", "least", "likely", "unlikely", "best", "except",
+    "select", "choose", "chosen", "consider", "considered", "regarding", "according", "given", "respect",
+    "respectively", "not",
 }
 
 
@@ -82,7 +90,8 @@ def 意味語(text: object) -> frozenset[str]:
 
     技術文では一文字の変数・列挙記号・ギリシャ文字・科学記数法自体が意味を持つ。
     通常の一文字英単語は雑音として落としつつ、明示的な列挙・数式文脈だけは `atom:` /
-    `sym:` anchorとして保持する。
+    `sym:` anchorとして保持する。選択QAの制御語は真偽証拠へ混ぜず、Compiler/J側の
+    選択意図・否定・反転構造に責任を分離する。
     """
     raw = unicodedata.normalize("NFKC", str(text))
     out: set[str] = _数式anchor(raw)
