@@ -9,15 +9,16 @@
 1. [`02_Layer0責任契約.md`](02_Layer0責任契約.md) — Layer-0上位契約をMINIDORAへ写像する。
 2. [`03_日本語命令形P仕様.md`](03_日本語命令形P仕様.md) — 実行可能な命令形PとDataの分離を定める。
 3. [`13_共有言語基底P仕様.md`](13_共有言語基底P仕様.md) — HDS CompilerとMINIDORA/Cが共有する文字・基本文法・基底概念の常在言語資産を定める。
-4. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — Data / Knowledgeの外部参照層Rを定める。
-5. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — 公開HDS CompilerとRuntimeのHDS-IR境界を定める。
-6. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — フル公開する標準Compilerの責任・非責任・性能改善境界を定める。
-7. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) — v1の公開Front-End Architecture履歴を保持する。
-8. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) — Failure Signature候補、状態遷移graph、暗黙知構造、監査R probe、CognitiveWorld差分まで接続した履歴を保持する。
-9. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md) — Failure Signature Bank、反復昇格、改善候補帰還を定める現行Architecture正本。
-10. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
-11. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
-12. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
+4. [`14_英日意味コンパイル仕様_v0_3.md`](14_英日意味コンパイル仕様_v0_3.md) — 外部英語表層を日本語正本の意味フレームへ射影し、R境界で英語検索表層へ戻す責任を定める。
+5. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — Data / Knowledgeの外部参照層Rを定める。
+6. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — 公開HDS CompilerとRuntimeのHDS-IR境界を定める。
+7. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — フル公開する標準Compilerの責任・非責任・性能改善境界を定める。
+8. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) — v1の公開Front-End Architecture履歴を保持する。
+9. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) — Failure Signature候補、状態遷移graph、暗黙知構造、監査R probe、CognitiveWorld差分まで接続した履歴を保持する。
+10. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md) — Failure Signature Bank、反復昇格、改善候補帰還を定める現行Architecture正本。
+11. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
+12. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
+13. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
 
 番号は成立順・履歴を保持しているため、文書の読み順と完全には一致しない。整理目的だけで番号を振り直さない。
 
@@ -40,6 +41,9 @@ Layer-0そのものの論理正本は本ディレクトリではない。
         ↓
 MINIDORA局所設計
         ├─ 共有言語基底P
+        │      ├─ 英日意味コンパイル
+        │      │      ↓
+        │      │    日本語意味正本
         │      ├─ 公開HDS Compiler
         │      │      ↓
         │      │    HDS-IR
@@ -78,6 +82,8 @@ tests/ + 評価/
 - PへDataを埋め込まない。
 - 共有言語基底Pへ百科事典的な世界知識を混入させない。
 - HDS CompilerとMINIDORA/Cは同じ言語基底版を参照する。
+- 英語表層を内部意味正本へ直接昇格させず、日本語正本の意味フレームを介す。
+- 日本語意味正本を英語R検索queryへ無差別に混入させない。
 - 公開HDS Compilerは通常のRuntime実装として変更・試験・監査してよい。
 - HDS本体の非公開正本を公開Compilerへ無断転記しない。
 - 日本語を基底・規定言語とし、多言語は実務上やむを得ない境界だけに限定する。
