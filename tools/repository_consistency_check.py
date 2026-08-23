@@ -58,6 +58,7 @@ REQUIRED_PATHS = (
     "設計/09_公開HDS_Compiler仕様.md",
     "設計/10_HDS_Compiler_Architecture_v1.md",
     "設計/11_HDS_Compiler_Architecture_v1_1.md",
+    "設計/12_HDS_Compiler_Architecture_v1_2.md",
     "構文化/README.md",
     "構文化/MINIDORA_v0.2/README.md",
     "構文化/MINIDORA_v0.3/README.md",
@@ -70,14 +71,17 @@ REQUIRED_PATHS = (
     "src/minidora/hds_compiler_frontend.py",
     "src/minidora/hds_compiler_records.py",
     "src/minidora/hds_compiler_records_v1_1.py",
+    "src/minidora/hds_compiler_records_v1_2.py",
     "src/minidora/hds_compiler_dynamics.py",
     "src/minidora/hds_compiler_tacit.py",
     "src/minidora/hds_compiler_failure.py",
+    "src/minidora/hds_compiler_failure_bank.py",
     "src/minidora/hds_compiler_history.py",
     "src/minidora/hds_compiler_audit_ir.py",
     "tests/test_hds_compiler.py",
     "tests/test_hds_compiler_architecture_v1.py",
     "tests/test_hds_compiler_architecture_v1_1.py",
+    "tests/test_hds_compiler_architecture_v1_2.py",
 )
 
 CORE_MARKDOWN = (
@@ -99,6 +103,7 @@ CORE_MARKDOWN = (
     "設計/09_公開HDS_Compiler仕様.md",
     "設計/10_HDS_Compiler_Architecture_v1.md",
     "設計/11_HDS_Compiler_Architecture_v1_1.md",
+    "設計/12_HDS_Compiler_Architecture_v1_2.md",
     "構文化/README.md",
     "構文化/MINIDORA_v0.2/README.md",
     "構文化/MINIDORA_v0.3/README.md",
@@ -156,18 +161,27 @@ def _check_language_and_hds_boundary(errors: list[str]) -> None:
         errors.append("設計/09: HDS本体非公開境界が明示されていない")
     if "基底・規定言語" not in compiler_spec or "日本語" not in compiler_spec:
         errors.append("設計/09: 日本語基底・規定言語が明示されていない")
+    for required in ("Failure Signature Bank", "自動自己改変", "改善候補"):
+        if required not in compiler_spec:
+            errors.append(f"設計/09: v1.2公開境界欠落: {required}")
 
     architecture = _text("設計/10_HDS_Compiler_Architecture_v1.md")
     for required in ("公開Front-End Compiler", "固定次元禁止", "不可能性要求", "原理探索Front-End", "最終採否委譲", "HDS本体の上流導出規則"):
         if required not in architecture:
             errors.append(f"設計/10: Architecture v1必須境界欠落: {required}")
-    if getattr(公開HDSコンパイラ, "Architecture版", None) != "v1.1":
-        errors.append("公開HDS Compiler: Architecture版がv1.1ではない")
 
     architecture_v11 = _text("設計/11_HDS_Compiler_Architecture_v1_1.md")
     for required in ("Failure Signature", "状態遷移graph", "監査R probe", "CognitiveWorld差分", "fallback", "HDS本体の内部Gate判定アルゴリズム", "日本語"):
         if required not in architecture_v11:
             errors.append(f"設計/11: Architecture v1.1必須境界欠落: {required}")
+
+    architecture_v12 = _text("設計/12_HDS_Compiler_Architecture_v1_2.md")
+    for required in ("Failure Signature Bank", "独立Run", "改善候補", "自動自己改変", "HDS本体", "日本語", "旧記録保持"):
+        if required not in architecture_v12:
+            errors.append(f"設計/12: Architecture v1.2必須境界欠落: {required}")
+
+    if getattr(公開HDSコンパイラ, "Architecture版", None) != "v1.2":
+        errors.append("公開HDS Compiler: Architecture版がv1.2ではない")
 
 
 def main() -> int:

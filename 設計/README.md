@@ -12,10 +12,11 @@
 4. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — 公開HDS CompilerとRuntimeのHDS-IR境界を定める。
 5. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — フル公開する標準Compilerの責任・非責任・性能改善境界を定める。
 6. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) — v1の公開Front-End Architecture履歴を保持する。
-7. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) — Failure Signature、状態遷移graph、暗黙知構造、監査R probe、CognitiveWorld差分まで接続する現行Architectureを定める。
-8. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
-8. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
-9. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
+7. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) — Failure Signature候補、状態遷移graph、暗黙知構造、監査R probe、CognitiveWorld差分まで接続した履歴を保持する。
+8. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md) — Failure Signature Bank、反復昇格、改善候補帰還を定める現行Architecture正本。
+9. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
+10. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
+11. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
 
 番号は成立順・履歴を保持しているため、文書の読み順と完全には一致しない。整理目的だけで番号を振り直さない。
 
@@ -52,9 +53,10 @@ tests/ + 評価/
 
 ## HDS公開境界
 
-- `src/minidora/hds_compiler_v1.py` と、その公開Front-End構成はフル公開対象であり、MINIDORAの通常の性能改善対象とする。`hds_compiler.py` は互換基礎Projectionとして保持する。
-- HDS-IRスキーマとCompilerの有限Projectionを公開しても、HDS本体の上流理論・導出規則・非公開解析正本は自動的に公開しない。
+- `src/minidora/hds_compiler_v1.py` と、その公開Front-End構成、明示Failure Signature Bankはフル公開対象であり、MINIDORAの通常の性能改善対象とする。`hds_compiler.py` は互換基礎Projectionとして保持する。
+- HDS-IRスキーマ、Compilerの有限Projection、Failure Signatureの公開再利用契約を公開しても、HDS本体の上流理論・導出規則・非公開解析正本は自動的に公開しない。
 - Compiler公開を理由にHDS本体の資料を `設計/` や `src/` へ複製しない。
+- Failure Signature BankはCompiler自動自己改変器ではない。改善候補の最終採否は別境界へ委譲する。
 
 ## 状態語
 
@@ -74,6 +76,7 @@ tests/ + 評価/
 - 公開HDS Compilerは通常のRuntime実装として変更・試験・監査してよい。
 - HDS本体の非公開正本を公開Compilerへ無断転記しない。
 - 日本語を基底・規定言語とし、多言語は実務上やむを得ない境界だけに限定する。
+- Failure Signature反復から改善候補を生成しても、自動適用・自己承認しない。
 - 主体主幹をLayer-0第6責任として扱わない。
 - Legacy構文化を現行設計へ無言で復帰させない。
 - 設計変更時は実装・試験・README・評価解釈境界まで同時に監査する。

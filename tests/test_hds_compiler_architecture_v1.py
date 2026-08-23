@@ -79,7 +79,7 @@ class HDSCompilerArchitectureV1試験(unittest.TestCase):
         result = self.compiler.詳細コンパイル("Protein A causes apoptosis.")
         self.assertEqual(self.compiler.基底言語, "ja")
         self.assertEqual(result.IR.入力言語, "en")
-        self.assertEqual(self.compiler.Architecture版, "v1.1")
+        self.assertEqual(self.compiler.Architecture版, "v1.2")
 
 
 if __name__ == "__main__":

@@ -33,7 +33,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _標準ミニドラ() -> ミニドラ:
-    """公開HDS Compiler Architecture v1を正規入口として接続した標準CLI Runtimeを返す。"""
+    """公開HDS Compiler Architecture v1.2を正規入口として接続した標準CLI Runtimeを返す。"""
     return ミニドラ(HDSコンパイラ_=公開HDSコンパイラ())
 
 
@@ -49,7 +49,7 @@ def _run_once(body: ミニドラ, query: str, *, json_mode: bool) -> None:
             "reference_count": len(result.参照),
             "hds_ir": result.HDS_IR is not None,
             "compiler": "公開HDSコンパイラ",
-            "compiler_architecture": "v1.1",
+            "compiler_architecture": "v1.2",
         }
         print(json.dumps(payload, ensure_ascii=False, default=str))
         return
