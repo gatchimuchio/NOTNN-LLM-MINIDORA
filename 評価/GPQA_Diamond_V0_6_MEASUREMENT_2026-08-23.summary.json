@@ -1,0 +1,60 @@
+{
+  "schema": "minidora.gpqa.measurement.summary.v1",
+  "recorded_at_jst": "2026-08-23T12:06:48+09:00",
+  "source": {
+    "workflow_run_id": 32582547752,
+    "workflow_job_id": 97131890431,
+    "artifact_id": 9486518870,
+    "artifact_name": "minidora-gpqa-current-measurement",
+    "artifact_zip_sha256": "b83121203a3a8a232c34a8d44b61690f01c182ac5d27d6146aabc689f5714394",
+    "workflow_head_branch": "chappie/perf-brushup-v0-6",
+    "workflow_head_sha": "28d25cd57728b3765c8d0586e970410736d33eef",
+    "checkout_merge_sha": "5d82f055727f102f046da784ce9e556816e0ddf8",
+    "later_main_head_not_measured": "edc48556f922b93e56da4a19cd8e27599f58af85"
+  },
+  "protocol": {
+    "dataset": "official idavidrein/gpqa dataset.zip / gpqa_diamond.csv",
+    "dataset_url": "https://raw.githubusercontent.com/idavidrein/gpqa/main/dataset.zip",
+    "dataset_zip_sha256": "461ae7329f15a3e35f8184d2dac24b990f34fdf12f366ca4062d8e6638cd08dc",
+    "dataset_csv_sha256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+    "n": 198,
+    "choice_shuffle_seed": 0,
+    "compiler": "deterministic generic HDS semantic-atom projection; not the unavailable prototype-completion private compiler",
+    "gold_boundary": "gold used only after inference for scoring",
+    "openalex_enabled": false,
+    "wikipedia_languages": ["en"],
+    "runtime": "current repository head; HDS choice native R->HDS->K->J"
+  },
+  "metrics": {
+    "correct": 31,
+    "total": 198,
+    "accuracy_percent": 15.656565656565656,
+    "answered": 128,
+    "answer_rate_percent": 64.64646464646465,
+    "suspended": 70,
+    "retrieval_empty": 0,
+    "documents_retrieved": 2934,
+    "data_compiled": 2934,
+    "data_compile_failed": 0,
+    "k_facts_added": 323611,
+    "evidence_facts": 370570,
+    "blocked_evidence_facts": 0,
+    "source_counts": {"Crossref": 1583, "EuropePMC": 1334, "Wikipedia:en": 17},
+    "reason_counts": {"AMBIGUOUS_EVIDENCE": 53, "AUTHORITY_SEPARATED": 128, "EVIDENCE_PRESENT": 128, "EXCEPTION_NOT_RESOLVED": 6, "NO_GUESS": 70, "NO_KNOWLEDGE_EVIDENCE": 11, "RUBRIC_PASS": 128},
+    "effort_counts": {"max": 198},
+    "wrong": 97,
+    "answered_accuracy_percent": 24.21875
+  },
+  "history": [
+    {"date": "2026-08-22", "kind": "invalid_diagnostic", "correct": 5, "total": 198, "accuracy_percent": 2.525252525252525, "valid": false},
+    {"date": "2026-08-22", "kind": "prototype_baseline", "correct": 8, "total": 198, "accuracy_percent": 4.040404040404041, "answered": 27, "suspended": 171, "valid": true, "immutable": true},
+    {"date": "2026-08-22", "kind": "v0.5_interim", "correct": 17, "total": 198, "accuracy_percent": 8.585858585858587, "valid": true, "formal_baseline": false},
+    {"date": "2026-08-23", "kind": "v0.6_workflow_measurement", "correct": 31, "total": 198, "accuracy_percent": 15.656565656565656, "answered": 128, "suspended": 70, "valid": true, "workflow_success": true}
+  ],
+  "comparison_boundary": {
+    "strictly_comparable_across_history": false,
+    "reason": "Prototype baseline and later measurements do not use an identical executable compiler/configuration; record as development trajectory, not a controlled same-condition curve.",
+    "k3_reference_percent": 93.5,
+    "k3_reference_status": "reference_only_not_same_tool_conditions"
+  }
+}
