@@ -73,6 +73,50 @@ class HDS候補横断調停試験(unittest.TestCase):
         self.assertAlmostEqual(result["A"].合計得点, 5.5)
         self.assertEqual(result["B"].合計得点, 0.0)
 
+    def test_候補専用queryだけで取得した自己支持sourceは弱化する(self) -> None:
+        source_a = "document:provider|origin|id-a|query_choice:A|query_kind:choice"
+        result = HDS候補横断調停(
+            ("A", "B"),
+            (
+                HDS候補証拠("A", source_a, 10.0, ("a",), "document"),
+                HDS候補証拠("B", "general-b", 3.0, ("b",), "document"),
+            ),
+            証拠重み=(1.0,),
+            証拠上限=1,
+        )
+        self.assertAlmostEqual(result["A"].合計得点, 1.8)
+        self.assertAlmostEqual(result["B"].合計得点, 3.0)
+
+    def test_一般queryでも取得したsourceは自己支持でも弱化しない(self) -> None:
+        source_a = "document:provider|origin|id-a|query_choice:A|query_kind:choice|query_kind:structured"
+        result = HDS候補横断調停(
+            ("A", "B"),
+            (HDS候補証拠("A", source_a, 10.0, ("a",), "document"),),
+            証拠重み=(1.0,),
+            証拠上限=1,
+        )
+        self.assertAlmostEqual(result["A"].合計得点, 10.0)
+
+    def test_複数候補queryで取得したsourceは単一候補の自己選択とは扱わない(self) -> None:
+        shared = "document:provider|origin|id-x|query_choice:A|query_choice:B|query_kind:choice"
+        result = HDS候補横断調停(
+            ("A", "B"),
+            (HDS候補証拠("A", shared, 6.0, ("a",), "document"),),
+            証拠重み=(1.0,),
+            証拠上限=1,
+        )
+        self.assertAlmostEqual(result["A"].合計得点, 6.0)
+
+    def test_A用queryで得たsourceがBを支持する場合は対抗証拠として弱化しない(self) -> None:
+        source_a = "document:provider|origin|id-a|query_choice:A|query_kind:fallback_choice"
+        result = HDS候補横断調停(
+            ("A", "B"),
+            (HDS候補証拠("B", source_a, 7.0, ("b",), "document"),),
+            証拠重み=(1.0,),
+            証拠上限=1,
+        )
+        self.assertAlmostEqual(result["B"].合計得点, 7.0)
+
 
 if __name__ == "__main__":
     unittest.main()
