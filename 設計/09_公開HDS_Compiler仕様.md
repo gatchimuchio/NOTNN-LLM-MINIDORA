@@ -1,4 +1,4 @@
-# 公開HDS Compiler仕様 v0.1
+# 公開HDS Compiler仕様 v0.2
 
 ## 1. 位置づけ
 
@@ -6,7 +6,7 @@
 
 このCompilerはフル公開対象である。性能改善、試験、第三者監査、派生実装を許容する。
 
-ただし公開対象は **自然言語→HDS-IRの有限Projection実装** であり、HDS本体の上流理論・導出規則・非公開解析正本ではない。
+ただし公開対象は **自然言語→HDS-IRの有限Projection実装と、その公開Failure Signature再利用契約** であり、HDS本体の上流理論・導出規則・非公開解析正本ではない。
 
 ## 2. 言語
 
@@ -17,7 +17,7 @@
 
 ## 3. Compiler責任
 
-入力から観測できる範囲で次をHDS-IRへ射影する。
+入力から観測できる範囲で次をHDS-IRまたは公開Front-End成果へ射影する。
 
 1. 原文 / 正規化文
 2. 入力言語
@@ -30,10 +30,21 @@
 9. 数量 / 単位 / 比較
 10. 共参照と未解残差
 11. Projection履歴
+12. 状態遷移graph
+13. 定義 / 前提 / 射程 / 不確実性の構造Record
+14. Failure Signature候補
+15. Checklist / Gate routing / fallback監査R probe
+16. CognitiveWorld差分 / 旧世界保持 / 再解釈要求
+17. 明示Failure Signature Bankへの帰還
+18. 反復SignatureからのCompiler改善候補生成
 
 未知情報を補完して確定しない。
 
-Architecture v1の履歴は [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) に保持し、現行Architecture v1.1は [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) を正本とする。
+Architecture履歴は以下へ保持する。
+
+- v1: [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md)
+- v1.1: [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md)
+- 現行v1.2: [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md)
 
 ## 4. R性能との関係
 
@@ -58,6 +69,8 @@ K / J
 ```
 
 性能改善では、検索件数を闇雲に増やす前にCompilerの役割分別・関係方向・条件・不足情報の純度を上げる。
+
+v1.1以降の監査R probeはprimary queryへ常時混入させず、主検索不足時のfallbackに限定する。
 
 ## 5. 選択問題
 
@@ -92,21 +105,45 @@ K / J
 - 未観測値
 - 矛盾
 - 条件不足
+- 状態遷移端点未固定
+- 有限Projectionによる意味損失
 
 実行を阻害しない未分別情報は残差として保持し、必要に応じて次turnやRで再開放する。
 
-## 9. 非責任
+## 9. Failure Signature帰還
+
+Failure Signature Bankはglobal暗黙状態にしない。
+
+通常の `コンパイル()` / `詳細コンパイル()` はBankを参照せず決定論的である。Failure Signatureを蓄積する場合だけ、呼出側が明示BankとRun参照を渡す。
+
+同一Runの重複観測を二重計上しない。独立Runで同一構造原因が反復した場合にのみSignatureをACTIVEへ昇格できる。
+
+共通起動条件と局所起動条件を分離し、原症状・局所条件・由来候補ID・Run履歴を削除しない。
+
+## 10. 改善候補
+
+ACTIVE Failure Signatureから公開Compilerの改善候補を生成できる。
+
+候補対象は、座標生成規則、作用素集合、保持構造、Domain Adapter、Identity Lock、Framework Projection、Checklist等とする。
+
+改善候補は自動適用しない。反復確認、既存正例・負例・境界例への回帰、HDS本体または権限を持つ上位判断主体の採否を要求する。
+
+## 11. 非責任
 
 公開Compilerは以下を主張しない。
 
 - HDS本体そのもの
 - HDSの全理論の完全実装
+- HDS本体の最終Gate判定アルゴリズム
+- PrincipleStateの最終昇格規則
+- Failure Signature改善候補の自動採用
+- Compiler自身の自動自己改変
 - 全自然言語の完全解析
 - 全言語への対応
 - ベンチ正答を知ること
 - 外部Dataなしで未知事実を生成すること
 
-## 10. 改善優先順位
+## 12. 改善優先順位
 
 1. 検索焦点 / 不足情報
 2. 対象・作用・対象先の分離
@@ -118,8 +155,10 @@ K / J
 8. Data HDS-IRの意味接続率
 9. R queryの構造利用率
 10. K/Jへ到達する独立証拠率
+11. Failure Signature反復から得られる抽出規則改善候補
+12. 回帰確認済み改善候補の選択的採用
 
-## 11. 不足スロット
+## 13. 不足スロット
 
 関係構造が高信頼に確定でき、始点または終点だけが疑問語で未観測の場合、疑問語を実体として確定しない。未知端点を `未観測` として保持し、既知端点・関係種別・検索述語・条件と結び付ける。
 
