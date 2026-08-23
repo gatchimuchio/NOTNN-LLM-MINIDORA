@@ -8,15 +8,16 @@
 
 1. [`02_Layer0責任契約.md`](02_Layer0責任契約.md) — Layer-0上位契約をMINIDORAへ写像する。
 2. [`03_日本語命令形P仕様.md`](03_日本語命令形P仕様.md) — 実行可能な命令形PとDataの分離を定める。
-3. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — Data / Knowledgeの外部参照層Rを定める。
-4. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — 公開HDS CompilerとRuntimeのHDS-IR境界を定める。
-5. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — フル公開する標準Compilerの責任・非責任・性能改善境界を定める。
-6. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) — v1の公開Front-End Architecture履歴を保持する。
-7. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) — Failure Signature候補、状態遷移graph、暗黙知構造、監査R probe、CognitiveWorld差分まで接続した履歴を保持する。
-8. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md) — Failure Signature Bank、反復昇格、改善候補帰還を定める現行Architecture正本。
-9. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
-10. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
-11. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
+3. [`13_共有言語基底P仕様.md`](13_共有言語基底P仕様.md) — HDS CompilerとMINIDORA/Cが共有する文字・基本文法・基底概念の常在言語資産を定める。
+4. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — Data / Knowledgeの外部参照層Rを定める。
+5. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — 公開HDS CompilerとRuntimeのHDS-IR境界を定める。
+6. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — フル公開する標準Compilerの責任・非責任・性能改善境界を定める。
+7. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) — v1の公開Front-End Architecture履歴を保持する。
+8. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) — Failure Signature候補、状態遷移graph、暗黙知構造、監査R probe、CognitiveWorld差分まで接続した履歴を保持する。
+9. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md) — Failure Signature Bank、反復昇格、改善候補帰還を定める現行Architecture正本。
+10. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
+11. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
+12. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
 
 番号は成立順・履歴を保持しているため、文書の読み順と完全には一致しない。整理目的だけで番号を振り直さない。
 
@@ -38,9 +39,11 @@ Layer-0そのものの論理正本は本ディレクトリではない。
 外部Layer-0上位契約
         ↓
 MINIDORA局所設計
-        ├─ 公開HDS Compiler
-        │      ↓
-        │    HDS-IR
+        ├─ 共有言語基底P
+        │      ├─ 公開HDS Compiler
+        │      │      ↓
+        │      │    HDS-IR
+        │      └─ MINIDORA / C意味処理
         ├─ P: どう処理するか
         ├─ R: 何について処理するか
         ├─ 主体主幹
@@ -73,6 +76,8 @@ tests/ + 評価/
 
 - Layer-0意味変更は外部正本を先に確認する。
 - PへDataを埋め込まない。
+- 共有言語基底Pへ百科事典的な世界知識を混入させない。
+- HDS CompilerとMINIDORA/Cは同じ言語基底版を参照する。
 - 公開HDS Compilerは通常のRuntime実装として変更・試験・監査してよい。
 - HDS本体の非公開正本を公開Compilerへ無断転記しない。
 - 日本語を基底・規定言語とし、多言語は実務上やむを得ない境界だけに限定する。

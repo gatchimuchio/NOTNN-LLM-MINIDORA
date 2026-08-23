@@ -16,6 +16,7 @@ from .hds_compiler_records import HDSCompiler成果
 from .hds_compiler_records_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規則改善候補
 from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
 from .hds_ir import HDSIR
+from .言語基底 import 言語基底P, 標準言語基底P
 
 
 class 公開HDSコンパイラ(_基礎HDSコンパイラ):
@@ -26,10 +27,22 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
     反復観測から改善候補を生成するが、Compiler実装へ自動適用しない。
 
     Compilerは真偽、原理の最終採用、改善候補の採用、行動、最終採否を決めない。
+    文字体系・基本文法・基底概念はMINIDORA Runtimeと同じ言語基底Pを参照する。
     """
 
     Architecture版 = "v1.2"
     基底言語 = "ja"
+
+    def __init__(
+        self,
+        方針: 公開HDSコンパイラ方針 | None = None,
+        言語基底P_: 言語基底P | None = None,
+    ) -> None:
+        super().__init__(方針)
+        self.言語基底P = 言語基底P_ or 標準言語基底P
+
+    def _入力言語(self, text: str) -> str:
+        return self.言語基底P.入力言語判定(text)
 
     def _完成(
         self,
