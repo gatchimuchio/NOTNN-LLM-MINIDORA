@@ -6,7 +6,71 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
+  apply-pr33-graph-fix:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 33
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 有向仮説がある候補では粗いgraph加点を抑止
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/minidora/k3_hds_native.py')
+          text = path.read_text(encoding='utf-8')
+          if 'hypothesis_edges_by_label: dict[str, tuple[HDS関係辺署名, ...]]' in text:
+              print('PATCH_ALREADY_APPLIED')
+              raise SystemExit(0)
+
+          replacements = [
+              (
+                  '        candidate_signatures: dict[str, HDS意味署名] = {}\n        for label, option in choices:\n',
+                  '        candidate_signatures: dict[str, HDS意味署名] = {}\n        hypothesis_edges_by_label: dict[str, tuple[HDS関係辺署名, ...]] = {}\n        for label, option in choices:\n',
+              ),
+              (
+                  '            hypothesis_relations, hypothesis_edges = _候補仮説関係(ir, option)\n            candidate_signatures[label] = HDS意味署名(\n',
+                  '            hypothesis_relations, hypothesis_edges = _候補仮説関係(ir, option)\n            hypothesis_edges_by_label[label] = hypothesis_edges\n            candidate_signatures[label] = HDS意味署名(\n',
+              ),
+              (
+                  '            graph_target = distinctive or candidate_signature.語\n            path = HDS意味経路探索(self.core, question_signature.語, graph_target, preferred_relations, 最大深さ=4)\n            if path.得点 <= 0 and 探索方針.graph深さ上限 > 4:\n',
+                  '            graph_target = distinctive or candidate_signature.語\n            graph_allowed = not hypothesis_edges_by_label.get(label)\n            path = HDS意味経路探索(self.core, question_signature.語, graph_target, preferred_relations, 最大深さ=4)\n            if graph_allowed and path.得点 <= 0 and 探索方針.graph深さ上限 > 4:\n',
+              ),
+              (
+                  '            graph_sources = {fact_sources[fid] for fid in path.事実ID if fid in fact_sources}\n            if path.得点 > 0:\n',
+                  '            graph_sources = ({fact_sources[fid] for fid in path.事実ID if fid in fact_sources} if graph_allowed else set())\n            if graph_allowed and path.得点 > 0:\n',
+              ),
+              (
+                  '            if distinctive and path.得点 > 0:\n                matched_distinctive_sources |= graph_sources\n',
+                  '            if distinctive and graph_allowed and path.得点 > 0:\n                matched_distinctive_sources |= graph_sources\n',
+              ),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit('GRAPH_FIX_MARKER_NOT_FOUND:\n' + old)
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          python -m py_compile src/minidora/k3_hds_native.py
+          git diff --check
+      - name: 実装差分を記録
+        run: |
+          if git diff --quiet -- src/minidora/k3_hds_native.py; then
+            exit 0
+          fi
+          git config user.name 'がっちむち♂'
+          git config user.email 'ohira.teppei@gmail.com'
+          git add src/minidora/k3_hds_native.py
+          git commit -m 'perf: 有向候補仮説を粗いgraph探索より優先'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
   test:
     strategy:
       fail-fast: false
