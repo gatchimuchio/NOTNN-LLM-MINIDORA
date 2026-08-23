@@ -5,10 +5,13 @@ from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
+from .choice_intent import HDS選択意図判定
 from .hds_adapter import HDS独立コンパイル
+from .hds_choice_hypothesis import HDS候補代入仮説群
 from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
+from .hds_direct_relation_verifier import HDS直接関係検証
 from .hds_ir import HDSIR, HDS実行核, HDS座標, 値状態
-from .k3_functional import K3相当能力核
+from .k3_functional import K3相当能力核, SemanticFrame
 from .k3_hds_native import HDSK3結果, HDSIRネイティブAdapter
 from .semantic_tokens import 意味語
 from .参照 import 参照記録
@@ -214,6 +217,49 @@ def _検索経路証拠(
     return tuple(out)
 
 
+def _直接関係で再判定(
+    question_ir: HDSIR,
+    verification_candidate_irs: dict[str, HDSIR],
+    working: K3相当能力核,
+    k3: HDSK3結果,
+) -> HDSK3結果:
+    # EXCEPTION問題では「支持された候補」を正答にしてはいけないため直接選択に使わない。
+    if HDS選択意図判定(question_ir.原文).種別 == "EXCEPTION":
+        return k3
+    direct, _diagnostics = HDS直接関係検証(working, verification_candidate_irs)
+    if direct is None:
+        return k3
+
+    frame = SemanticFrame(
+        kind="question",
+        intent="knowledge_query",
+        raw=question_ir.原文,
+        predicate="HDS_choice_selection",
+        args=(None,),
+        tags=("HDS-IR", "choice", "directed_relation_verification"),
+        language=getattr(question_ir, "入力言語", "en") or "en",
+    )
+    decision = working.J.decide(frame, (direct,))
+    if decision.status != "APPROVE" or decision.selected_candidate is None:
+        return k3
+
+    selected = decision.selected_candidate.answer
+    candidates = (direct, *tuple(candidate for candidate in k3.候補 if candidate.answer != selected))
+    reasons = tuple((*decision.reason_codes, "DIRECTED_RELATION_VERIFIED"))
+    return HDSK3結果(
+        decision.status,
+        selected,
+        decision,
+        candidates,
+        len(set(direct.proof_fact_ids)),
+        reasons,
+        k3.努力水準,
+        k3.探索深さ上限,
+        k3.証拠上限,
+        k3.候補診断,
+    )
+
+
 def HDS選択推論実行(
     question_ir: HDSIR,
     references: tuple[参照記録, ...],
@@ -250,6 +296,9 @@ def HDS選択推論実行(
         if any(residual.種別 == "semantic_loss" for residual in compiled.残差):
             return _suspend("HDS_CHOICE_SEMANTIC_LOSS", candidate_count=len(candidate_irs) + 1, parallel=parallel_safe, workers=worker_count)
         candidate_irs[label] = compiled
+
+    # 比較用仮説は直接構造検証だけに渡す。既存K3/Jのbaseline候補評価へ混入させない。
+    verification_candidate_irs = HDS候補代入仮説群(question_ir, candidate_irs)
 
     working = 基礎能力核.clone()
     HDS証拠状態複製(基礎能力核, working)
@@ -292,6 +341,7 @@ def HDS選択推論実行(
         blocked += route.証拠阻害事実数
 
     k3 = HDSIRネイティブAdapter(working).実行(question_ir, 候補IR=candidate_irs, 努力=努力)
+    k3 = _直接関係で再判定(question_ir, verification_candidate_irs, working, k3)
     choice_map = {label: content for label, content, _ in choices}
     content = choice_map.get(k3.回答ラベル) if k3.回答ラベル is not None else None
     reasons = list(k3.理由)
