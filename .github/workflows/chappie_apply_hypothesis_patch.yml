@@ -19,26 +19,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: 候補仮説射影を適用
+      - name: relation局所判定を修正
         run: |
           python - <<'PY'
           from pathlib import Path
-
           path = Path('src/minidora/k3_hds_native.py')
           text = path.read_text(encoding='utf-8')
-
-          marker = '''def _候補識別語(signatures: Mapping[str, HDS意味署名]) -> dict[str, frozenset[str]]:\n'''
-          helper = '''def _関係条件値(relation: object, key: str) -> str:\n    prefix = key + "="\n    for raw in getattr(relation, "条件", ()):\n        value = str(raw)\n        if value.startswith(prefix):\n            return value[len(prefix):].strip()\n    return ""\n\n\ndef _候補仮説関係(question_ir: HDSIR, candidate_text: str) -> tuple[frozenset[str], tuple[HDS関係辺署名, ...]]:\n    """問いで未観測の関係端点へ候補を代入し、候補ごとの構造仮説を作る。\n\n    Compilerが明示した `不足位置` だけを使用し、未知位置を推測しない。問い自体の\n    未観測関係を事実へ昇格させず、候補を代入した仮説署名として証拠照合にだけ使う。\n    """\n    candidate_terms = 意味語(candidate_text)\n    if not candidate_terms:\n        return frozenset(), ()\n\n    coords = question_ir.座標辞書()\n    relations: set[str] = set()\n    edges: list[HDS関係辺署名] = []\n    for relation in question_ir.関係:\n        relation_type = str(relation.種別)\n        if relation_type in _GENERIC_RELATIONS:\n            continue\n        missing = _関係条件値(relation, "不足位置")\n        if missing not in {"始点", "終点"}:\n            continue\n\n        if missing == "始点":\n            known = [\n                coords[cid] for cid in relation.終点\n                if cid in coords and coords[cid].値状態 not in _SIGNATURE_BLOCKING_STATES\n            ]\n            for endpoint in known:\n                edge = _辺署名(relation_type, candidate_text, endpoint.内容)\n                if edge is not None and edge not in edges:\n                    edges.append(edge)\n        else:\n            known = [\n                coords[cid] for cid in relation.始点\n                if cid in coords and coords[cid].値状態 not in _SIGNATURE_BLOCKING_STATES\n            ]\n            for endpoint in known:\n                edge = _辺署名(relation_type, endpoint.内容, candidate_text)\n                if edge is not None and edge not in edges:\n                    edges.append(edge)\n\n        if edges:\n            relations.add(relation_type)\n\n    return frozenset(relations), tuple(edges)\n\n\n'''
-          if marker not in text:
-              raise SystemExit('helper insertion marker not found')
-          text = text.replace(marker, helper + marker, 1)
-
-          old = '''        candidate_signatures: dict[str, HDS意味署名] = {}\n        for label, option in choices:\n            candidate_ir = (候補IR or {}).get(label)\n            candidate_signatures[label] = (\n                _意味署名(candidate_ir, fallback_text=option)\n                if candidate_ir is not None\n                else HDS意味署名(意味語(option), frozenset(), frozenset())\n            )\n'''
-          new = '''        candidate_signatures: dict[str, HDS意味署名] = {}\n        for label, option in choices:\n            candidate_ir = (候補IR or {}).get(label)\n            base_signature = (\n                _意味署名(candidate_ir, fallback_text=option)\n                if candidate_ir is not None\n                else HDS意味署名(意味語(option), frozenset(), frozenset())\n            )\n            hypothesis_relations, hypothesis_edges = _候補仮説関係(ir, option)\n            candidate_signatures[label] = HDS意味署名(\n                base_signature.語,\n                base_signature.関係種別 | hypothesis_relations,\n                base_signature.座標種別,\n                tuple(dict.fromkeys((*base_signature.関係辺, *hypothesis_edges))),\n            )\n'''
+          old = '''        if edges:\n            relations.add(relation_type)\n\n    return frozenset(relations), tuple(edges)\n'''
+          new = '''        if any(edge.関係 == relation_type for edge in edges):\n            relations.add(relation_type)\n\n    return frozenset(relations), tuple(edges)\n'''
           if old not in text:
-              raise SystemExit('candidate signature block not found')
-          text = text.replace(old, new, 1)
-          path.write_text(text, encoding='utf-8')
+              raise SystemExit('relation-local patch marker not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
           PY
           python -m py_compile src/minidora/k3_hds_native.py
           git diff --check
@@ -47,5 +38,5 @@ jobs:
           git config user.name 'がっちむち♂'
           git config user.email 'ohira.teppei@gmail.com'
           git add src/minidora/k3_hds_native.py
-          git commit -m 'perf: 問いの未知関係へ候補を仮説射影'
+          git commit -m 'fix: 候補仮説関係の局所生成だけを採用'
           git push origin HEAD:chappie/perf-v08-hypothesis-projection
