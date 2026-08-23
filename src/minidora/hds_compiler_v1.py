@@ -9,24 +9,26 @@ from .hds_compiler import 公開HDSコンパイラ方針
 from .hds_compiler_audit_ir import HDS監査参照IR射影
 from .hds_compiler_dynamics import HDS状態遷移IR射影, HDS状態遷移抽出
 from .hds_compiler_failure import HDSチェックリスト生成, HDS失敗署名候補生成, HDS監査参照候補生成
+from .hds_compiler_failure_bank import HDS失敗署名Bank
 from .hds_compiler_frontend import 公開HDSフロントエンド射影, 公開HDS詳細成果
 from .hds_compiler_history import HDS認知世界差分IR射影, HDS認知世界差分生成
 from .hds_compiler_records import HDSCompiler成果
+from .hds_compiler_records_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規則改善候補
 from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
 from .hds_ir import HDSIR
 
 
 class 公開HDSコンパイラ(_基礎HDSコンパイラ):
-    """MINIDORA公開標準HDS Compiler Architecture v1.1。
+    """MINIDORA公開標準HDS Compiler Architecture v1.2。
 
-    v1の開放多層Front-Endを維持しつつ、動態を状態遷移graphへ、暗黙知を構造Recordへ、
-    未閉包・残差をFailure Signature候補へ、監査要求を再利用可能ChecklistとR probeへ、
-    HDS履歴をCognitiveWorld差分・再解釈要求へ接続する。
+    v1.1の開放Front-Endを維持し、Failure Signatureを明示Bankへ帰還できるようにする。
+    Bankは呼出側が明示的に保持・注入する。通常コンパイルはBankを読まず決定論的である。
+    反復観測から改善候補を生成するが、Compiler実装へ自動適用しない。
 
-    Compilerは真偽、原理の最終採用、行動、最終採否を決めない。
+    Compilerは真偽、原理の最終採用、改善候補の採用、行動、最終採否を決めない。
     """
 
-    Architecture版 = "v1.1"
+    Architecture版 = "v1.2"
     基底言語 = "ja"
 
     def _完成(
@@ -98,8 +100,29 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         return self._完成(base, HDS履歴=HDS履歴)
 
     def 詳細問題IR(self, question: str, choices: Sequence[str]) -> HDSCompiler成果:
-        # 問題IRはself.コンパイル()を通るためv1.1 Projection済み。候補追加後に監査要求を再生成する。
+        # 問題IRはself.コンパイル()を通るため公開Projection済み。候補追加後に監査要求を再生成する。
         return self._完成(self.問題IR(question, choices))
 
+    def 失敗帰還(
+        self,
+        成果: HDSCompiler成果,
+        Bank: HDS失敗署名Bank,
+        *,
+        Run参照: str,
+    ) -> HDS失敗署名BankSnapshot:
+        """明示RunのFailure Signature候補だけをBankへ帰還する。
 
-__all__ = ["公開HDSコンパイラ方針", "公開HDSコンパイラ", "HDSCompiler成果"]
+        この操作はBankのみを更新し、Compiler規則・通常コンパイル結果を変更しない。
+        """
+        return Bank.観測(成果.失敗署名候補, Run参照=Run参照)
+
+    def 改善候補(self, Bank: HDS失敗署名Bank) -> tuple[HDS抽出規則改善候補, ...]:
+        return Bank.snapshot().改善候補
+
+
+__all__ = [
+    "公開HDSコンパイラ方針",
+    "公開HDSコンパイラ",
+    "HDSCompiler成果",
+    "HDS失敗署名Bank",
+]
