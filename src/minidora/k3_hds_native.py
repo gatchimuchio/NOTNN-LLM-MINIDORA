@@ -452,6 +452,9 @@ def _group_score(
     )
     question_direction_match = _edge_similarity(question.関係辺, evidence.関係辺)
     candidate_direction_match = _edge_similarity(candidate.関係辺, evidence.関係辺)
+    candidate_relation_overlap = bool(candidate.関係種別 & evidence.関係種別)
+    if candidate.関係辺 and evidence.関係辺 and candidate_relation_overlap and candidate_direction_match <= 0:
+        return 0.0
     direction_match = candidate_direction_match if candidate.関係辺 else question_direction_match
     structural_multiplier = 1.0 + 1.5 * relation_match + 0.5 * kind_match + 2.0 * direction_match
     scope_multiplier = 1.0
