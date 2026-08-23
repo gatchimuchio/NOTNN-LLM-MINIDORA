@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from .言語基底 import 標準言語基底P
+
 
 _WORD = re.compile(r"[A-Za-z0-9_+\-\.]+|[Α-Ωα-ωϐ-Ͽ]+|[ぁ-んァ-ヶー]+|[一-龥々]+")
 _MATH_NUMBER = r"[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?"
@@ -89,8 +91,8 @@ def 意味語(text: object) -> frozenset[str]:
     """HDS意味照合で共有する正規化語集合を返す。
 
     技術文では一文字の変数・列挙記号・ギリシャ文字・科学記数法自体が意味を持つ。
-    通常の一文字英単語は雑音として落としつつ、明示的な列挙・数式文脈だけは `atom:` /
-    `sym:` anchorとして保持する。選択QAの制御語は真偽証拠へ混ぜず、Compiler/J側の
+    日本語は共有言語基底Pを参照し、一文字漢字を意味記号として保持する一方、助詞など
+    文法機能だけの語は意味証拠へ混ぜない。選択QAの制御語はCompiler/J側の
     選択意図・否定・反転構造に責任を分離する。
     """
     raw = unicodedata.normalize("NFKC", str(text))
@@ -118,6 +120,15 @@ def 意味語(text: object) -> frozenset[str]:
             or re.fullmatch(r"[Α-Ωα-ωϐ-Ͽ]", original) is not None
         ):
             out.add(_記号語(original))
+            continue
+
+        # 日本語一文字漢字はそれ自体が意味記号になり得るため、英字と同じ長さ基準で捨てない。
+        if len(original) == 1 and 標準言語基底P.文字知識(original).体系 == "漢字":
+            out.add(original)
+            continue
+
+        # 助詞・否定・丁寧表現などの文法機能はCompiler側の構造へ責任分離する。
+        if 標準言語基底P.文法機能(original) is not None:
             continue
 
         value = value.strip("-")
