@@ -16,6 +16,14 @@ class 意味語正規化試験(unittest.TestCase):
     def test_機能語を意味照合へ混入しない(self) -> None:
         self.assertEqual(意味語("the engine of the system"), frozenset({"engine", "system"}))
 
+    def test_選択QA制御語を意味証拠へ混入しない(self) -> None:
+        terms = 意味語("Which of the following statements is most likely correct regarding catalytic inhibition?")
+        self.assertEqual(terms, frozenset({"catalytic", "inhibition"}))
+
+    def test_モーダルと回答操作語を落として対象語は保持する(self) -> None:
+        terms = 意味語("Select the best answer that could describe protein transport")
+        self.assertEqual(terms, frozenset({"protein", "transport"}))
+
     def test_日本語意味語は保持する(self) -> None:
         self.assertEqual(意味語("触媒 反応 促進"), frozenset({"触媒", "反応", "促進"}))
 
