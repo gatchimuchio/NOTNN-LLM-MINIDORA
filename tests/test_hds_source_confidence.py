@@ -35,7 +35,9 @@ class HDSSourceConfidence試験(unittest.TestCase):
         self.assertTrue(facts)
         self.assertTrue(all(abs(fact.confidence - 0.43) < 1e-9 for fact in facts))
         self.assertEqual(result.source_confidence, 0.5)
+        self.assertEqual(result.retrieval_independence, 1.0)
         self.assertTrue(all("source_confidence:0.500000" in fact.provenance for fact in facts))
+        self.assertTrue(all("retrieval_independence:1.000000" in fact.provenance for fact in facts))
 
     def test_R信頼係数は0から1へclampする(self) -> None:
         high = K3相当能力核()
@@ -45,6 +47,35 @@ class HDSSourceConfidence試験(unittest.TestCase):
         low = K3相当能力核()
         HDSIR知識Adapter(low).投入(_ir(), provenance=("fixture", "low"), 信頼係数=-1.0)
         self.assertTrue(all(fact.confidence == 0.0 for fact in HDS証拠事実(low)))
+
+    def test_候補指定queryだけで発見した資料は補助証拠へ減衰する(self) -> None:
+        core = K3相当能力核()
+        result = HDSIR知識Adapter(core).投入(
+            _ir(),
+            provenance=("fixture", "doc:choice", "query_choice:A", "query_kind:choice"),
+            信頼係数=0.8,
+        )
+        facts = [fact for fact in HDS証拠事実(core) if fact.predicate != "hds_residual"]
+        self.assertTrue(facts)
+        self.assertEqual(result.source_confidence, 0.8)
+        self.assertEqual(result.retrieval_independence, 0.25)
+        self.assertTrue(all(abs(fact.confidence - 0.2) < 1e-9 for fact in facts))
+        self.assertTrue(all("source_confidence:0.800000" in fact.provenance for fact in facts))
+        self.assertTrue(all("retrieval_independence:0.250000" in fact.provenance for fact in facts))
+
+    def test_同一資料が候補非依存queryでも発見された場合は減衰しない(self) -> None:
+        core = K3相当能力核()
+        result = HDSIR知識Adapter(core).投入(
+            _ir(),
+            provenance=(
+                "fixture", "doc:mixed", "query_choice:A", "query_kind:choice", "query_kind:structured",
+            ),
+            信頼係数=0.8,
+        )
+        facts = [fact for fact in HDS証拠事実(core) if fact.predicate != "hds_residual"]
+        self.assertTrue(facts)
+        self.assertEqual(result.retrieval_independence, 1.0)
+        self.assertTrue(all(abs(fact.confidence - 0.8) < 1e-9 for fact in facts))
 
 
 if __name__ == "__main__":
