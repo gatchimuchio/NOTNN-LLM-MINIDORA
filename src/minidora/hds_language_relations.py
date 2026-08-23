@@ -5,7 +5,7 @@ import re
 
 from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
 from .semantic_tokens import 意味語
-from .言語基底_英語 import 英語明示関係構文
+from .言語基底 import 言語基底P, 標準言語基底P
 
 
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
@@ -30,7 +30,7 @@ def _existing_signatures(ir: HDSIR) -> set[tuple[str, str, str]]:
     return out
 
 
-def HDS英語基底関係射影(ir: HDSIR) -> HDSIR:
+def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = None) -> HDSIR:
     """共有英語基底Pの明示構文だけを、確定HDS関係へ補完する。
 
     名詞共起・近接・分野知識から関係を推定しない。現行基礎Compilerが取りこぼしやすい
@@ -44,6 +44,9 @@ def HDS英語基底関係射影(ir: HDSIR) -> HDSIR:
     text = str(ir.正規化文 or ir.原文)
     if "?" in text or _QUESTION_START.search(text):
         return ir
+
+    language_p = 言語基底 or 標準言語基底P
+    syntaxes = language_p.英語関係構文()
 
     coords = list(ir.座標)
     relations = list(ir.関係)
@@ -71,7 +74,7 @@ def HDS英語基底関係射影(ir: HDSIR) -> HDSIR:
         )
         return cid
 
-    for syntax in 英語明示関係構文:
+    for syntax in syntaxes:
         for match in syntax.正規表現.finditer(text):
             subject = " ".join(match.group("s").split()).strip(" ,;:()[]")
             object_ = " ".join(match.group("o").split()).strip(" ,;:()[]")
