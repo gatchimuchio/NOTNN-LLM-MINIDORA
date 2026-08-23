@@ -51,6 +51,25 @@ def _candidates(question: HDSIR) -> dict[str, HDSIR]:
     return HDS候補代入仮説群(question, raw)
 
 
+def _assertion_candidate(obj: str, *, negative: bool = False) -> HDSIR:
+    coords = [
+        HDS座標("s", "対象.始点", "Alpha"),
+        HDS座標("o", "対象.終点", obj),
+    ]
+    if negative:
+        coords.append(HDS座標("neg", "状態.否定", "not"))
+    return _ir(
+        f"Alpha uses {obj}.",
+        tuple(coords),
+        (
+            HDS関係(
+                "candidate-rel", ("s",), ("o",), "使用",
+                値状態=値状態.確定, 由来="公開HDS Compiler",
+            ),
+        ),
+    )
+
+
 def _data(subject: str, obj: str) -> HDSIR:
     return _ir(
         f"{subject} uses {obj}.",
@@ -104,6 +123,47 @@ class HDS直接関係検証試験(unittest.TestCase):
         _candidate, diagnostics = HDS直接関係検証(core, _candidates(question))
         a = next(item for item in diagnostics if item.候補 == "A")
         self.assertEqual(a.独立出典数, 1)
+
+    def test_候補自身の完全命題は二独立sourceで直接検証できる(self) -> None:
+        core = K3相当能力核()
+        adapter = HDSIR知識Adapter(core)
+        adapter.投入(_data("Alpha", "engine"), provenance=("fixture", "doc:1"))
+        adapter.投入(_data("Alpha", "engine"), provenance=("fixture", "doc:2"))
+        candidates = {
+            "A": _assertion_candidate("engine"),
+            "B": _assertion_candidate("stone"),
+        }
+        candidate, diagnostics = HDS直接関係検証(core, candidates)
+        self.assertIsNotNone(candidate)
+        assert candidate is not None
+        self.assertEqual(candidate.answer, "A")
+        a = next(item for item in diagnostics if item.候補 == "A")
+        self.assertEqual(a.命題一致出典数, 2)
+        self.assertEqual(a.仮説一致出典数, 0)
+
+    def test_完全命題は単一sourceだけでは決め打ちしない(self) -> None:
+        core = K3相当能力核()
+        HDSIR知識Adapter(core).投入(_data("Alpha", "engine"), provenance=("fixture", "doc:1"))
+        candidates = {
+            "A": _assertion_candidate("engine"),
+            "B": _assertion_candidate("stone"),
+        }
+        candidate, diagnostics = HDS直接関係検証(core, candidates)
+        self.assertIsNone(candidate)
+        self.assertEqual(next(item for item in diagnostics if item.候補 == "A").命題一致出典数, 1)
+
+    def test_否定候補を肯定Dataから直接証明しない(self) -> None:
+        core = K3相当能力核()
+        adapter = HDSIR知識Adapter(core)
+        adapter.投入(_data("Alpha", "engine"), provenance=("fixture", "doc:1"))
+        adapter.投入(_data("Alpha", "engine"), provenance=("fixture", "doc:2"))
+        candidates = {
+            "A": _assertion_candidate("engine", negative=True),
+            "B": _assertion_candidate("stone"),
+        }
+        candidate, diagnostics = HDS直接関係検証(core, candidates)
+        self.assertIsNone(candidate)
+        self.assertEqual(next(item for item in diagnostics if item.候補 == "A").得点, 0.0)
 
 
 if __name__ == "__main__":
