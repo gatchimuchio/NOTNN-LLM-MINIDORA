@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from .hds_adapter import HDS独立コンパイル
+from .hds_choice_hypothesis import HDS候補代入仮説群
 from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
 from .hds_ir import HDSIR, HDS実行核, HDS座標, 値状態
 from .k3_functional import K3相当能力核
@@ -250,6 +251,9 @@ def HDS選択推論実行(
         if any(residual.種別 == "semantic_loss" for residual in compiled.残差):
             return _suspend("HDS_CHOICE_SEMANTIC_LOSS", candidate_count=len(candidate_irs) + 1, parallel=parallel_safe, workers=worker_count)
         candidate_irs[label] = compiled
+
+    # 問いが未知端点を明示している場合、各候補を同じ関係スロットへ代入した比較専用IRを作る。
+    candidate_irs = HDS候補代入仮説群(question_ir, candidate_irs)
 
     working = 基礎能力核.clone()
     HDS証拠状態複製(基礎能力核, working)
