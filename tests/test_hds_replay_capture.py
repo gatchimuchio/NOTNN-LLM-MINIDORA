@@ -121,7 +121,16 @@ class HDSReplay収録試験(unittest.TestCase):
         self.assertNotIn("content", row["data"][0])
         self.assertEqual(
             row["data"][0]["provenance"],
-            ["fixture", "fixture://doc1", "doc:1", "query_choice:A", "query_kind:choice"],
+            [
+                "fixture",
+                "fixture://doc1",
+                "doc:1",
+                "query_choice:A",
+                "query_kind:choice",
+                "query_kind:structured",
+                "query_kind:focus",
+                "query_choice:B",
+            ],
         )
 
     def test_問題IRを持たないlegacyCompilerは通常コンパイルへfallbackする(self) -> None:
