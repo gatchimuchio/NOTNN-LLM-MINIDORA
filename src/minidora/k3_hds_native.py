@@ -546,6 +546,7 @@ class HDSIRネイティブAdapter:
         fact_sources = _fact_source_map(self.core)
 
         candidate_signatures: dict[str, HDS意味署名] = {}
+        hypothesis_edges_by_label: dict[str, tuple[HDS関係辺署名, ...]] = {}
         for label, option in choices:
             candidate_ir = (候補IR or {}).get(label)
             base_signature = (
@@ -554,6 +555,7 @@ class HDSIRネイティブAdapter:
                 else HDS意味署名(意味語(option), frozenset(), frozenset())
             )
             hypothesis_relations, hypothesis_edges = _候補仮説関係(ir, option)
+            hypothesis_edges_by_label[label] = hypothesis_edges
             candidate_signatures[label] = HDS意味署名(
                 base_signature.語,
                 base_signature.関係種別 | hypothesis_relations,
@@ -617,16 +619,17 @@ class HDSIRネイティブAdapter:
 
             preferred_relations = question_signature.関係種別 | candidate_signature.関係種別
             graph_target = distinctive or candidate_signature.語
+            graph_allowed = not hypothesis_edges_by_label.get(label)
             path = HDS意味経路探索(self.core, question_signature.語, graph_target, preferred_relations, 最大深さ=4)
-            if path.得点 <= 0 and 探索方針.graph深さ上限 > 4:
+            if graph_allowed and path.得点 <= 0 and 探索方針.graph深さ上限 > 4:
                 path = HDS意味経路探索(
                     self.core, question_signature.語, graph_target, preferred_relations, 最大深さ=探索方針.graph深さ上限
                 )
 
             graph_score = 0.0
             graph_factor = 0.0
-            graph_sources = {fact_sources[fid] for fid in path.事実ID if fid in fact_sources}
-            if path.得点 > 0:
+            graph_sources = ({fact_sources[fid] for fid in path.事実ID if fid in fact_sources} if graph_allowed else set())
+            if graph_allowed and path.得点 > 0:
                 if graph_sources:
                     novel = graph_sources - selected_sources
                     novelty = len(novel) / len(graph_sources)
@@ -641,7 +644,7 @@ class HDSIRネイティブAdapter:
 
             independent_sources = selected_sources | graph_sources
             matched_distinctive_sources = selected_sources & distinctive_sources.get(label, set())
-            if distinctive and path.得点 > 0:
+            if distinctive and graph_allowed and path.得点 > 0:
                 matched_distinctive_sources |= graph_sources
 
             diagnostics.append(
