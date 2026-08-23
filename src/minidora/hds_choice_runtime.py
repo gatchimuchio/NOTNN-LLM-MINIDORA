@@ -219,14 +219,14 @@ def _検索経路証拠(
 
 def _直接関係で再判定(
     question_ir: HDSIR,
-    candidate_irs: dict[str, HDSIR],
+    verification_candidate_irs: dict[str, HDSIR],
     working: K3相当能力核,
     k3: HDSK3結果,
 ) -> HDSK3結果:
     # EXCEPTION問題では「支持された候補」を正答にしてはいけないため直接選択に使わない。
     if HDS選択意図判定(question_ir.原文).種別 == "EXCEPTION":
         return k3
-    direct, _diagnostics = HDS直接関係検証(working, candidate_irs)
+    direct, _diagnostics = HDS直接関係検証(working, verification_candidate_irs)
     if direct is None:
         return k3
 
@@ -297,8 +297,8 @@ def HDS選択推論実行(
             return _suspend("HDS_CHOICE_SEMANTIC_LOSS", candidate_count=len(candidate_irs) + 1, parallel=parallel_safe, workers=worker_count)
         candidate_irs[label] = compiled
 
-    # 問いが未知端点を明示している場合、各候補を同じ関係スロットへ代入した比較専用IRを作る。
-    candidate_irs = HDS候補代入仮説群(question_ir, candidate_irs)
+    # 比較用仮説は直接構造検証だけに渡す。既存K3/Jのbaseline候補評価へ混入させない。
+    verification_candidate_irs = HDS候補代入仮説群(question_ir, candidate_irs)
 
     working = 基礎能力核.clone()
     HDS証拠状態複製(基礎能力核, working)
@@ -341,7 +341,7 @@ def HDS選択推論実行(
         blocked += route.証拠阻害事実数
 
     k3 = HDSIRネイティブAdapter(working).実行(question_ir, 候補IR=candidate_irs, 努力=努力)
-    k3 = _直接関係で再判定(question_ir, candidate_irs, working, k3)
+    k3 = _直接関係で再判定(question_ir, verification_candidate_irs, working, k3)
     choice_map = {label: content for label, content, _ in choices}
     content = choice_map.get(k3.回答ラベル) if k3.回答ラベル is not None else None
     reasons = list(k3.理由)
