@@ -45,6 +45,7 @@ class HDS失敗署名記録:
     次探索軸: tuple[str, ...] = ()
     再利用チェック: tuple[str, ...] = ()
     反復回数: int = 1
+    独立Run数: int = 1
     状態: HDS失敗署名状態 = HDS失敗署名状態.候補
     由来候補ID: tuple[str, ...] = ()
 
@@ -58,7 +59,9 @@ class HDS抽出規則改善候補:
     提案: str
     根拠: tuple[str, ...] = ()
     反復回数: int = 1
+    独立Run数: int = 1
     状態: HDS失敗署名状態 = HDS失敗署名状態.候補
+    昇格可能: bool = False
     自動適用禁止: bool = True
     昇格条件: tuple[str, ...] = (
         "同型失敗の独立反復を確認する",
@@ -74,9 +77,11 @@ class HDS抽出規則改善候補:
 class HDS失敗署名BankSnapshot:
     版: str
     観測数: int
+    観測履歴: tuple[HDS失敗観測, ...] = ()
     署名: tuple[HDS失敗署名記録, ...] = ()
     改善候補: tuple[HDS抽出規則改善候補, ...] = ()
     旧記録保持: bool = True
+    自動自己改変禁止: bool = True
 
 
 __all__ = [
