@@ -16,7 +16,6 @@ from .hds_compiler_records import HDSCompiler成果
 from .hds_compiler_records_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規則改善候補
 from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
 from .hds_ir import HDSIR
-from .hds_relation_enrichment import HDS関係補完射影
 
 
 class 公開HDSコンパイラ(_基礎HDSコンパイラ):
@@ -38,8 +37,6 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         *,
         HDS履歴: tuple[HDSIR, ...] = (),
     ) -> HDSCompiler成果:
-        # 基礎Compilerが既に抽出した関係は保持し、科学・技術文の高確度な明示関係だけを補完する。
-        base = HDS関係補完射影(base)
         first = 公開HDSフロントエンド射影(base)
 
         graph = HDS状態遷移抽出(first.IR.正規化文 or first.IR.原文)
