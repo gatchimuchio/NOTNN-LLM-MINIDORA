@@ -9,6 +9,8 @@ _CHANNEL_PRIORITY = {
     "fact": 2,
     "document": 1,
 }
+_CANDIDATE_QUERY_KINDS = {"choice", "fallback_choice", "fallback_choice_only"}
+_SELF_QUERY_EVIDENCE_FACTOR = 0.18
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +66,49 @@ def _collapse_by_source(items: Iterable[HDS候補証拠]) -> dict[tuple[str, str
     return best
 
 
+def _検索由来(source_id: str) -> tuple[frozenset[str], frozenset[str]]:
+    """source provenanceから候補queryとquery種別を復元する。
+
+    source IDはHDS投入時に `query_choice:*` / `query_kind:*` を保持する。
+    ここでは検索経路を真偽へ昇格させず、選択バイアスの監査にだけ利用する。
+    """
+    choices: set[str] = set()
+    kinds: set[str] = set()
+    for raw in str(source_id).split("|"):
+        token = raw.strip()
+        if token.startswith("query_choice:"):
+            value = token.split(":", 1)[1].strip()
+            if value:
+                choices.add(value)
+        elif token.startswith("query_kind:"):
+            value = token.split(":", 1)[1].strip()
+            if value:
+                kinds.add(value)
+    return frozenset(choices), frozenset(kinds)
+
+
+def _検索選択偏り係数(label: str, source_id: str) -> float:
+    """候補自身を入れた検索だけで発見されたsourceの自己支持を弱化する。
+
+    候補Aをqueryへ含めた結果Aを含む資料が得られること自体は、Aが正しい証拠ではない。
+    そのため、A専用queryだけから得たsourceがAを支持する場合は弱い発見証拠に留める。
+
+    次は弱化しない。
+    - 一般queryでも同じsourceが取得された
+    - 複数候補queryで同じsourceが取得された
+    - A用queryで得たsourceが別候補Bを支持する（反証・対抗証拠）
+    - query provenanceを持たない既存/外部Fact
+    """
+    query_choices, query_kinds = _検索由来(source_id)
+    if not query_choices or label not in query_choices:
+        return 1.0
+    if len(query_choices) != 1:
+        return 1.0
+    if any(kind not in _CANDIDATE_QUERY_KINDS for kind in query_kinds):
+        return 1.0
+    return _SELF_QUERY_EVIDENCE_FACTOR
+
+
 def _識別係数(own: float, competitor: float, *, 支持候補数: int, 全候補数: int) -> float:
     """同一source内で候補を実際に識別できる差分だけを返す。
 
@@ -98,25 +143,27 @@ def HDS候補横断調停(
     証拠重み: Sequence[float],
     証拠上限: int,
 ) -> Mapping[str, HDS候補調停結果]:
-    """source単位で候補横断比較し、識別力の低い共通証拠を除去・減衰する。
+    """source単位で候補横断比較し、共通知識と検索選択バイアスを分離する。
 
-    一候補だけを支持するsourceは係数1.0。複数候補へ当たるsourceは、最大競合との差と
-    支持候補の広さから識別係数を決める。共通知識を負の証拠へ変換せず、候補差のない
-    大きな絶対得点をJ marginとprovenanceから除去する。
+    source得点へ先に検索選択偏り係数を適用し、その後で同一source内の候補差だけを識別力として
+    調停する。検索経路そのものを正答根拠にせず、一般query・複数候補query・対抗証拠は保持する。
     """
     labels = tuple(dict.fromkeys(str(x) for x in 候補群))
     collapsed = _collapse_by_source(証拠群)
 
+    effective: dict[tuple[str, str], float] = {}
     by_source: dict[str, dict[str, float]] = {}
     for (label, source_id), item in collapsed.items():
-        by_source.setdefault(source_id, {})[label] = max(0.0, float(item.得点))
+        score = max(0.0, float(item.得点)) * _検索選択偏り係数(label, source_id)
+        effective[(label, source_id)] = score
+        by_source.setdefault(source_id, {})[label] = score
 
     reconciled: dict[str, list[HDS調停済証拠]] = {label: [] for label in labels}
     for (label, source_id), item in collapsed.items():
         source_scores = by_source.get(source_id, {})
         competitors = [score for other, score in source_scores.items() if other != label]
         competitor = max(competitors, default=0.0)
-        own = max(0.0, float(item.得点))
+        own = effective.get((label, source_id), 0.0)
         if own <= 0:
             continue
         discrimination = _識別係数(
@@ -132,7 +179,7 @@ def HDS候補横断調停(
             HDS調停済証拠(
                 候補=label,
                 出典ID=source_id,
-                元得点=own,
+                元得点=max(0.0, float(item.得点)),
                 調停得点=adjusted,
                 競合得点=competitor,
                 識別係数=discrimination,
