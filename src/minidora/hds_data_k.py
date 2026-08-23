@@ -19,6 +19,8 @@ _SURFACE_ONLY_KINDS = {
 _EVIDENCE_ATTR = "_hds_evidence_facts"
 _GRAPH_REVISION_ATTR = "_hds_graph_revision"
 _GRAPH_CACHE_ATTR = "_hds_graph_index_cache"
+_CANDIDATE_QUERY_KINDS = {"choice", "fallback_choice", "fallback_choice_only"}
+_RETRIEVAL_SELECTION_FACTOR = 0.25
 
 
 def _predicate(kind: str) -> str:
@@ -58,6 +60,34 @@ def _state_marker(state: 値状態) -> str:
 
 def _source_marker(value: float) -> str:
     return f"source_confidence:{_source_confidence(value):.6f}"
+
+
+def _retrieval_marker(value: float) -> str:
+    return f"retrieval_independence:{min(1.0, max(0.0, float(value))):.6f}"
+
+
+def _retrieval_independence(provenance: Iterable[str]) -> float:
+    """検索選択と真偽証拠の独立性を保守的に評価する。
+
+    候補そのものを含むqueryでしか発見されていない資料は、その候補語・問い語との表層一致が
+    検索条件によって事前選択されている。この一致を独立な真偽証拠と同じ強度へ昇格させない。
+
+    同一資料がstructured/focus/entity等の候補非依存queryからも取得されている場合は、検索選択
+    への依存が解消されたとみなし従来強度を維持する。これは資料自体のsource confidenceとは
+    別軸であり、GPQAや正解ラベルには依存しない。
+    """
+    source = tuple(str(x) for x in provenance)
+    query_kinds = {
+        item.split(":", 1)[1]
+        for item in source
+        if item.startswith("query_kind:") and ":" in item
+    }
+    has_choice = any(item.startswith("query_choice:") for item in source)
+    candidate_only = bool(query_kinds & _CANDIDATE_QUERY_KINDS)
+    neutral = bool(query_kinds - _CANDIDATE_QUERY_KINDS)
+    if has_choice and candidate_only and not neutral:
+        return _RETRIEVAL_SELECTION_FACTOR
+    return 1.0
 
 
 def _証拠台帳(core: K3相当能力核) -> dict[str, Fact]:
@@ -121,14 +151,17 @@ class HDS知識投入結果:
     証拠事実数: int = 0
     証拠阻害事実数: int = 0
     source_confidence: float = 1.0
+    retrieval_independence: float = 1.0
 
 
 class HDSIR知識Adapter:
     """コンパイル済みHDS-IRをKへ投入する一般Adapter。
 
-    HDSの値状態confidenceとR側のsource confidenceを分離して受け取り、Kへ入るFact強度は
-    その積とする。source confidence=1.0なら従来挙動と同じ。残差影響構造は監査用に保持しつつ
-    確定回答証拠・graph経路へ昇格させない。Compilerの監査メタ座標も実世界Factへ昇格させない。
+    HDSの値状態confidence、R側のsource confidence、検索選択からの独立性を分離して扱う。
+    Kへ入るFact強度は三者の積とする。候補指定queryでしか見つからない資料は検索条件による
+    自己支持を避けるため補助証拠へ減衰し、候補非依存queryでも同じ資料が見つかった場合は
+    従来強度へ戻す。残差影響構造は監査用に保持しつつ確定回答証拠・graph経路へ昇格させない。
+    Compilerの監査メタ座標も実世界Factへ昇格させない。
     """
 
     def __init__(self, core: K3相当能力核) -> None:
@@ -143,7 +176,10 @@ class HDSIR知識Adapter:
     ) -> HDS知識投入結果:
         source = tuple(str(x) for x in provenance)
         source_confidence = _source_confidence(信頼係数)
+        retrieval_independence = _retrieval_independence(source)
+        effective_confidence = source_confidence * retrieval_independence
         source_marker = _source_marker(source_confidence)
+        retrieval_marker = _retrieval_marker(retrieval_independence)
         coords = ir.座標辞書()
         facts: list[Fact] = []
         coord_count = 0
@@ -164,8 +200,11 @@ class HDSIR知識Adapter:
             facts.append(Fact(
                 "hds_coordinate",
                 (kind, content),
-                confidence=_combined_confidence(coord.値状態, source_confidence),
-                provenance=source + ("HDS-IR", coord.座標ID, _state_marker(coord.値状態), source_marker, *residual_markers, _text(coord.由来), _text(coord.暫定性)),
+                confidence=_combined_confidence(coord.値状態, effective_confidence),
+                provenance=source + (
+                    "HDS-IR", coord.座標ID, _state_marker(coord.値状態), source_marker,
+                    retrieval_marker, *residual_markers, _text(coord.由来), _text(coord.暫定性),
+                ),
             ))
             coord_count += 1
 
@@ -183,8 +222,12 @@ class HDSIR知識Adapter:
             facts.append(Fact(
                 _predicate(relation.種別),
                 starts + ("→",) + ends,
-                confidence=_combined_confidence(relation.値状態, source_confidence),
-                provenance=source + ("HDS-IR", relation.関係ID, _state_marker(relation.値状態), source_marker, *residual_markers, "relation_type:" + _text(relation.種別), _text(relation.由来), _text(relation.暫定性)),
+                confidence=_combined_confidence(relation.値状態, effective_confidence),
+                provenance=source + (
+                    "HDS-IR", relation.関係ID, _state_marker(relation.値状態), source_marker,
+                    retrieval_marker, *residual_markers, "relation_type:" + _text(relation.種別),
+                    _text(relation.由来), _text(relation.暫定性),
+                ),
             ))
             relation_count += 1
 
@@ -192,8 +235,11 @@ class HDSIR知識Adapter:
             facts.append(Fact(
                 "hds_residual",
                 (_text(residual.種別), _text(residual.原文), _text(residual.理由), *tuple(_text(x) for x in residual.影響座標)),
-                confidence=0.35 * source_confidence,
-                provenance=source + ("HDS-IR", residual.残差ID, "value_state:留保", source_marker, *tuple("impact:" + str(x) for x in residual.影響座標)),
+                confidence=0.35 * effective_confidence,
+                provenance=source + (
+                    "HDS-IR", residual.残差ID, "value_state:留保", source_marker, retrieval_marker,
+                    *tuple("impact:" + str(x) for x in residual.影響座標),
+                ),
             ))
 
         ledger = _証拠台帳(self.core)
@@ -211,6 +257,7 @@ class HDSIR知識Adapter:
             証拠事実数=len(facts),
             証拠阻害事実数=blocked_count,
             source_confidence=source_confidence,
+            retrieval_independence=retrieval_independence,
         )
 
 
