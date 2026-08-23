@@ -45,7 +45,7 @@ _受動未知対象 = re.compile(
 )
 _能動未知対象 = re.compile(
     rf"^(?:which|what)\s+(?:of\s+the\s+following\s+)?{_型}\s+"
-    rf"(?:(?:is|are)\s+)?(?:(?P<degree>most|least)\s+likely\s+to|(?P<likelihood>likely|unlikely)\s+to)?"
+    rf"(?:(?:is|are)\s+)?(?:(?P<degree>most|least)\s+likely\s+to\s+|(?P<likelihood>likely|unlikely)\s+to\s+)?"
     rf"{_関係句}\s+(?P<o>.+)$",
     re.I,
 )
