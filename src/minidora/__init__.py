@@ -57,6 +57,7 @@ from .k3_functional import K3相当能力核, SystemResult as K3能力結果
 from .k3_hds_native import HDS候補診断, HDSK3結果, HDSIRネイティブAdapter
 from .k3_benchmark import run_k3_equivalence_benchmark
 from .言語 import 自然言語器, 言語計画
+from .言語基底 import 言語基底版, 文字知識, 語彙知識, 言語基底P, 標準言語基底P
 from .runtime import ミニドラ, 要求, 結果
 
 __all__ = [
@@ -81,5 +82,6 @@ __all__ = [
     "Trinity記憶監査", "記憶主体", "HDS判断主体", "Trinity文脈系",
     "K3相当能力核", "K3能力結果", "HDS候補診断", "HDSK3結果", "HDSIRネイティブAdapter", "run_k3_equivalence_benchmark",
     "自然言語器", "言語計画",
+    "言語基底版", "文字知識", "語彙知識", "言語基底P", "標準言語基底P",
     "ミニドラ", "要求", "結果",
 ]
