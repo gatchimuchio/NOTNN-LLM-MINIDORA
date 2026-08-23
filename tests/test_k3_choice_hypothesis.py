@@ -67,18 +67,6 @@ class HDS候補仮説射影試験(unittest.TestCase):
         )
         candidates = dict((_候補("A", "Regulator A"), _候補("B", "Regulator B")))
         result = HDSIRネイティブAdapter(core).実行(question, 候補IR=candidates)
-        print("HYPOTHESIS_DIAGNOSTICS", [
-            {
-                "label": row.候補,
-                "total": row.合計得点,
-                "evidence": row.証拠得点,
-                "graph": row.graph得点,
-                "sources": row.独立出典数,
-                "distinctive_sources": row.識別一致出典数,
-                "facts": row.根拠事実数,
-            }
-            for row in result.候補診断
-        ])
 
         self.assertEqual(result.状態, "APPROVE")
         self.assertEqual(result.回答ラベル, "B")
