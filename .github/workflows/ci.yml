@@ -6,7 +6,50 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
+  apply-pr33-patch:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 33
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 候補仮説の有向関係ゲートを適用
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/minidora/k3_hds_native.py')
+          text = path.read_text(encoding='utf-8')
+          if 'candidate_relation_overlap = bool(candidate.関係種別 & evidence.関係種別)' in text:
+              print('PATCH_ALREADY_APPLIED')
+              raise SystemExit(0)
+          old = '''    question_direction_match = _edge_similarity(question.関係辺, evidence.関係辺)\n    candidate_direction_match = _edge_similarity(candidate.関係辺, evidence.関係辺)\n    direction_match = candidate_direction_match if candidate.関係辺 else question_direction_match\n    structural_multiplier = 1.0 + 1.5 * relation_match + 0.5 * kind_match + 2.0 * direction_match\n'''
+          new = '''    question_direction_match = _edge_similarity(question.関係辺, evidence.関係辺)\n    candidate_direction_match = _edge_similarity(candidate.関係辺, evidence.関係辺)\n    candidate_relation_overlap = bool(candidate.関係種別 & evidence.関係種別)\n    if candidate.関係辺 and evidence.関係辺 and candidate_relation_overlap and candidate_direction_match <= 0:\n        return 0.0\n    direction_match = candidate_direction_match if candidate.関係辺 else question_direction_match\n    structural_multiplier = 1.0 + 1.5 * relation_match + 0.5 * kind_match + 2.0 * direction_match\n'''
+          if old not in text:
+              raise SystemExit('DIRECTED_GATE_MARKER_NOT_FOUND')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          python -m pip install -e .
+          python -m unittest tests.test_k3_choice_hypothesis -v
+          python -m unittest tests.test_k3_directed_relation -v
+          git diff --check
+      - name: 実装差分を記録
+        run: |
+          if git diff --quiet -- src/minidora/k3_hds_native.py; then
+            exit 0
+          fi
+          git config user.name 'がっちむち♂'
+          git config user.email 'ohira.teppei@gmail.com'
+          git add src/minidora/k3_hds_native.py
+          git commit -m 'perf: 候補仮説の有向関係不一致を支持から除外'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
   test:
     strategy:
       fail-fast: false
