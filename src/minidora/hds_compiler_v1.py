@@ -53,7 +53,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
     ) -> HDSCompiler成果:
         # 共有言語基底Pで、基礎Compilerが表面語形差だけで取りこぼした明示関係を補完する。
         # 世界知識や名詞共起からの推定は行わない。
-        base = HDS英語基底関係射影(base)
+        base = HDS英語基底関係射影(base, self.言語基底P)
         first = 公開HDSフロントエンド射影(base)
 
         graph = HDS状態遷移抽出(first.IR.正規化文 or first.IR.原文)
