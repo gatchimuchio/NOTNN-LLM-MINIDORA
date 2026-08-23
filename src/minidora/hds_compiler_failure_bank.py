@@ -63,6 +63,14 @@ def _改善提案(record: HDS失敗署名記録, target: HDS改善対象) -> str
     return "反復失敗から監査質問・必要証拠・停止/回復規則をChecklist候補として更新する"
 
 
+def _tuple_fields(payload: dict[str, object], names: tuple[str, ...]) -> dict[str, object]:
+    out = dict(payload)
+    for name in names:
+        if name in out and not isinstance(out[name], tuple):
+            out[name] = tuple(out[name] or ())
+    return out
+
+
 class HDS失敗署名Bank:
     """Failure Signatureを明示的に蓄積する公開Bank。
 
@@ -102,19 +110,19 @@ class HDS失敗署名Bank:
                 _unique(candidate.影響範囲),
             )
             self._observations[obs_id] = observation
-            self._records[key] = self._更新記録(candidate, observation)
+            self._records[key] = self._更新記録(candidate)
 
         self._改善候補再生成()
         return self.snapshot()
 
-    def _更新記録(self, candidate: HDS失敗署名候補, observation: HDS失敗観測) -> HDS失敗署名記録:
+    def _更新記録(self, candidate: HDS失敗署名候補) -> HDS失敗署名記録:
         key = _signature_key(candidate)
         previous = self._records.get(key)
         related = [obs for obs in self._observations.values() if (obs.失敗分類, obs.構造原因) == key]
         runs = _unique(obs.Run参照 for obs in related)
         symptoms = _unique(obs.症状 for obs in related)
         candidate_ids = _unique(obs.候補署名ID for obs in related)
-        condition_sets = [set(obs.起動条件) for obs in related if obs.起動条件]
+        condition_sets = [set(obs.起動条件) for obs in related]
         common = tuple(sorted(set.intersection(*condition_sets))) if condition_sets else ()
         all_conditions = set().union(*(set(obs.起動条件) for obs in related)) if related else set()
         local = tuple(sorted(all_conditions - set(common)))
@@ -183,17 +191,31 @@ class HDS失敗署名Bank:
     @classmethod
     def JSONから復元(cls, payload: str) -> "HDS失敗署名Bank":
         raw = json.loads(payload)
-        observations = tuple(HDS失敗観測(**item) for item in raw.get("観測履歴", ()))
+        observations = tuple(
+            HDS失敗観測(
+                **_tuple_fields(item, ("起動条件", "適用範囲"))
+            )
+            for item in raw.get("観測履歴", ())
+        )
         records = tuple(
             HDS失敗署名記録(
-                **{**item, "状態": HDS失敗署名状態(item.get("状態", HDS失敗署名状態.候補))}
+                **{
+                    **_tuple_fields(
+                        item,
+                        (
+                            "共通起動条件", "局所起動条件", "症状履歴", "Run履歴", "影響範囲",
+                            "非影響範囲", "違反前提", "回復", "次探索軸", "再利用チェック", "由来候補ID",
+                        ),
+                    ),
+                    "状態": HDS失敗署名状態(item.get("状態", HDS失敗署名状態.候補)),
+                }
             )
             for item in raw.get("署名", ())
         )
         improvements = tuple(
             HDS抽出規則改善候補(
                 **{
-                    **item,
+                    **_tuple_fields(item, ("失敗署名参照", "根拠", "昇格条件", "再開放条件")),
                     "改善対象": HDS改善対象(item["改善対象"]),
                     "状態": HDS失敗署名状態(item.get("状態", HDS失敗署名状態.候補)),
                 }
