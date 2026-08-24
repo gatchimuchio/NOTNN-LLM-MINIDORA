@@ -20,6 +20,7 @@ from .hds_language_coordination import HDS英語AND展開
 from .hds_language_relations import HDS英語基底関係射影
 from .hds_language_scope import HDS英語関係scope射影
 from .hds_language_semantic_bridge import HDS英日意味射影
+from .hds_semantic_topic_projection import HDS問い主題射影
 from .言語基底 import 言語基底P, 標準言語基底P
 
 
@@ -50,6 +51,10 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         # `A may inhibit B` / `A does not inhibit B` の助動・極性を実体端点から分離し、
         # relation条件へ結合する。自然言語の解釈はRuntimeへ持ち込まない。
         base = HDS英語関係scope射影(base)
+
+        # 目的.検索焦点はR/J向けの目的座標であり、意味主題の所有権を持たない。
+        # 既存の意味役割で未表現な焦点語だけを対象.主題語へ独立射影する。
+        base = HDS問い主題射影(base, 上限=self.方針.最大主題語数)
 
         first = 公開HDSフロントエンド射影(base)
         graph = HDS状態遷移抽出(first.IR.正規化文 or first.IR.原文)
