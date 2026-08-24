@@ -147,8 +147,12 @@ def _関係を座標へ閉じる(relations: tuple[HDS関係, ...], coordinate_id
     )
 
 
-def _K未対応scope(relation: HDS関係) -> bool:
-    """Compilerが明示したscopeだけを見て、Kがまだ表現できない関係を辺へ昇格させない。"""
+def _K未対応scope(relation: HDS関係, *, 否定可: bool = False) -> bool:
+    """Kが忠実に保持できないscopeだけを辺から除外する。
+
+    KのFactはpolarityを持つため、Data射影では明示否定を保持できる。
+    候補/質問の否定選択はJの補集合制御を維持するため、現段階では従来どおり通さない。
+    """
     for raw in relation.条件:
         value = str(raw)
         key, sep, payload = value.partition("=")
@@ -156,16 +160,20 @@ def _K未対応scope(relation: HDS関係) -> bool:
             continue
         key = key.strip()
         payload = payload.strip()
-        if key == "極性" and payload and payload != "肯定":
+        if key == "極性" and payload:
+            if payload == "肯定":
+                continue
+            if payload == "否定" and 否定可:
+                continue
             return True
         if key in _K_UNSUPPORTED_SCOPE_KEYS and payload:
             return True
     return False
 
 
-def _K関係射影(ir: HDSIR, coords: tuple[HDS座標, ...]) -> tuple[HDS関係, ...]:
+def _K関係射影(ir: HDSIR, coords: tuple[HDS座標, ...], *, 否定可: bool = False) -> tuple[HDS関係, ...]:
     closed = _関係を座標へ閉じる(ir.関係, {coord.座標ID for coord in coords})
-    return tuple(relation for relation in closed if not _K未対応scope(relation))
+    return tuple(relation for relation in closed if not _K未対応scope(relation, 否定可=否定可))
 
 
 def HDSR質問射影(ir: HDSIR) -> HDSIR:
@@ -265,9 +273,12 @@ def HDSK候補代入可能(ir: HDSIR) -> bool:
 
 
 def HDSKData射影(ir: HDSIR) -> HDSIR:
-    """R取得DataからKへ投入してよい世界事実意味だけを残す。"""
+    """R取得DataからKへ投入してよい世界事実意味だけを残す。
+
+    明示否定はK Fact.polarityへ写せるため関係を保持する。様相・条件scope等は引き続き除外する。
+    """
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
-    semantic_relations = _K関係射影(ir, semantic_coords)
+    semantic_relations = _K関係射影(ir, semantic_coords, 否定可=True)
     return replace(ir, 座標=semantic_coords, 関係=semantic_relations, 意味作用履歴=())
 
 
