@@ -21,9 +21,9 @@ _型 = r"(?P<o>[A-Za-z][A-Za-z0-9_-]*(?:\s+[A-Za-z][A-Za-z0-9_-]*){0,5})"
 _要求型 = r"(?P<kind>[A-Za-z][A-Za-z0-9_-]*(?:\s+[A-Za-z][A-Za-z0-9_-]*){0,3})"
 
 _単純分類 = re.compile(rf"^{_主体}\s+(?:is|was)\s+(?:a|an)\s+{_型}$", re.I)
-_型分類 = re.compile(rf"^{_主体}\s+(?:is|was)\s+(?:a|an\s+)?(?:type|kind|form|class|example)\s+of\s+{_型}$", re.I)
-_未知単純 = re.compile(rf"^which\s+(?:(?:of\s+the\s+following)\s+)?{_要求型}?\s*(?:is|was)\s+(?:a|an)\s+{_型}$", re.I)
-_未知型分類 = re.compile(rf"^which\s+(?:(?:of\s+the\s+following)\s+)?{_要求型}?\s*(?:is|was)\s+(?:a|an\s+)?(?:type|kind|form|class|example)\s+of\s+{_型}$", re.I)
+_型分類 = re.compile(rf"^{_主体}\s+(?:is|was)\s+(?:(?:a|an)\s+)?(?:type|kind|form|class|example)\s+of\s+{_型}$", re.I)
+_未知単純 = re.compile(rf"^which\s+(?:(?:of\s+the\s+following)\s+)?(?:{_要求型}\s+)?(?:is|was)\s+(?:a|an)\s+{_型}$", re.I)
+_未知型分類 = re.compile(rf"^which\s+(?:(?:of\s+the\s+following)\s+)?(?:{_要求型}\s+)?(?:is|was)\s+(?:(?:a|an)\s+)?(?:type|kind|form|class|example)\s+of\s+{_型}$", re.I)
 
 
 def _norm(value: object) -> str:
