@@ -19,6 +19,24 @@ def _条件値(relation: HDS関係, key: str) -> str:
     return ""
 
 
+def _synthetic_relation_ir(*, start: str = "Compound A", end: str = "Enzyme X", conditions: tuple[str, ...] = (), extra: tuple[HDS座標, ...] = ()) -> HDSIR:
+    return HDSIR(
+        原文=f"{start} inhibits {end}.",
+        正規化文=f"{start} inhibits {end}.",
+        認知世界ID="test",
+        座標=(
+            HDS座標("s", "対象.始点", start),
+            HDS座標("o", "対象.終点", end),
+            HDS座標("v", "関係.述語", "inhibit"),
+            *extra,
+        ),
+        関係=(HDS関係("r", ("s",), ("o",), "阻害", 条件=conditions),),
+        残差=(),
+        意味作用履歴=(),
+        実行核=HDS実行核(),
+    )
+
+
 class Runtime射影V15試験(unittest.TestCase):
     def setUp(self) -> None:
         self.compiler = 公開HDSコンパイラ()
@@ -76,7 +94,7 @@ class Runtime射影V15試験(unittest.TestCase):
         for candidate in ("compound a", "compound b", "compound c", "compound d"):
             self.assertTrue(any(candidate in q and "inhibit" in q and "enzyme x" in q for q in queries), queries)
 
-    def test_R射影は完全質問文を検索fallbackへ残さない(self) -> None:
+    def test_R射影は選択極性と完全質問文を検索fallbackへ残さない(self) -> None:
         original = self.compiler.問題IR(
             "Which molecule is least likely to inhibit Enzyme X?",
             ("Compound A", "Compound B", "Compound C", "Compound D"),
@@ -85,6 +103,7 @@ class Runtime射影V15試験(unittest.TestCase):
         self.assertIn("least likely", original.原文.casefold())
         self.assertNotIn("least likely", projected.原文.casefold())
         self.assertNotIn("which", projected.原文.casefold())
+        self.assertFalse(any(str(coord.種別) == "条件.検索極性" for coord in projected.座標))
         self.assertIn("inhibit", projected.原文.casefold())
         self.assertIn("enzyme x", projected.原文.casefold())
         for query in HDS参照問合せ候補(projected):
@@ -126,6 +145,28 @@ class Runtime射影V15試験(unittest.TestCase):
             self.assertEqual({coord.座標ID for coord in projected.座標}, {"s", "o"})
             self.assertEqual(len(projected.関係), 1)
             self.assertEqual(projected.関係[0].種別, "阻害")
+
+    def test_Kは明示肯定関係だけを有向Fact候補へ残す(self) -> None:
+        projected = HDSKData射影(_synthetic_relation_ir())
+        self.assertEqual(len(projected.関係), 1)
+        self.assertEqual(projected.関係[0].種別, "阻害")
+
+    def test_Kは否定scopeを肯定関係へ潰さない(self) -> None:
+        projected = HDSKData射影(_synthetic_relation_ir(conditions=("極性=否定",)))
+        self.assertEqual(projected.関係, ())
+        self.assertTrue(any(str(coord.内容) == "Compound A" for coord in projected.座標))
+        self.assertTrue(any(str(coord.内容) == "Enzyme X" for coord in projected.座標))
+
+    def test_Kはmodalを含む偽端点を有向関係へしない(self) -> None:
+        projected = HDSKData射影(_synthetic_relation_ir(start="Compound A may"))
+        self.assertEqual(projected.関係, ())
+        self.assertTrue(any("Compound A" in str(coord.内容) for coord in projected.座標))
+
+    def test_Kは不確実性scopeが両端へ掛かる関係を無条件Factへしない(self) -> None:
+        scope = HDS座標("scope", "不確実性.明示", "Compound A may inhibit Enzyme X.", 値状態.推定)
+        projected = HDSKData射影(_synthetic_relation_ir(extra=(scope,)))
+        self.assertEqual(projected.関係, ())
+        self.assertTrue(any(str(coord.種別) == "不確実性.明示" for coord in projected.座標))
 
     def test_片端が非意味メタなら関係自体をKへ流さない(self) -> None:
         ir = HDSIR(
