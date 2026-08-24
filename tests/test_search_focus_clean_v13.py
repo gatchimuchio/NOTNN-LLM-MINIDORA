@@ -7,16 +7,26 @@ from minidora.hds_reference import HDS参照問合せ候補
 from minidora.言語基底_英日意味 import 英日意味フレーム抽出
 
 
+def _英日検索焦点(ir):
+    rows = [coord for coord in ir.座標 if str(coord.座標ID).startswith("lang-sem:search")]
+    if len(rows) != 1:
+        raise AssertionError(f"expected one lang-sem search focus, got {len(rows)}")
+    return rows[0]
+
+
 class 検索焦点接続V13試験(unittest.TestCase):
     def setUp(self) -> None:
         self.compiler = 公開HDSコンパイラ()
 
     def test_英語正規化表層を目的検索焦点として保持する(self) -> None:
         question = "Which of the following statements best describes cellular respiration?"
+        frame = 英日意味フレーム抽出(question)
+        expected = " ".join(token for token in frame.外部検索語 if not token.startswith("rel:"))
         ir = self.compiler.問題IR(question, ("Choice A", "Choice B", "Choice C", "Choice D"))
-        focus = [coord for coord in ir.座標 if str(coord.種別) == "目的.検索焦点"]
-        self.assertEqual(len(focus), 1)
-        self.assertEqual(str(focus[0].内容), "cellular respiration")
+        focus = _英日検索焦点(ir)
+        self.assertEqual(str(focus.種別), "目的.検索焦点")
+        self.assertEqual(str(focus.内容), expected)
+        self.assertEqual(str(focus.由来), "共有言語基底P")
         self.assertFalse(any(str(coord.種別) == "検索.英語正規化" for coord in ir.座標))
 
     def test_検索焦点内容は英日意味フレームの外部検索語と一致する(self) -> None:
@@ -24,8 +34,15 @@ class 検索焦点接続V13試験(unittest.TestCase):
         frame = 英日意味フレーム抽出(question)
         expected = " ".join(token for token in frame.外部検索語 if not token.startswith("rel:"))
         ir = self.compiler.コンパイル(question)
-        focus = next(coord for coord in ir.座標 if str(coord.種別) == "目的.検索焦点")
+        focus = _英日検索焦点(ir)
         self.assertEqual(str(focus.内容), expected)
+
+    def test_既存検索焦点とlang_sem焦点は共存できる(self) -> None:
+        question = "Which mechanism best explains signal propagation through the system?"
+        ir = self.compiler.コンパイル(question)
+        focus = [coord for coord in ir.座標 if str(coord.種別) == "目的.検索焦点"]
+        self.assertGreaterEqual(len(focus), 2)
+        self.assertTrue(any(str(coord.座標ID).startswith("lang-sem:search") for coord in focus))
 
     def test_一般質問では正規化検索焦点がprimary_queryへ入る(self) -> None:
         question = "Which of the following statements best describes cellular respiration?"
