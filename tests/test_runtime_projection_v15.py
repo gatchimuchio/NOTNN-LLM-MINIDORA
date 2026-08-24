@@ -4,7 +4,8 @@ import unittest
 
 from minidora import 公開HDSコンパイラ
 from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
-from minidora.hds_runtime_projection import HDSKData射影, HDSK候補射影, HDSK質問射影
+from minidora.hds_reference import HDS参照問合せ候補
+from minidora.hds_runtime_projection import HDSKData射影, HDSK候補射影, HDSK質問射影, HDSR質問射影
 
 
 def _条件値(relation: HDS関係, key: str) -> str:
@@ -33,7 +34,7 @@ class Runtime射影V15試験(unittest.TestCase):
         unknown = [coords[cid] for cid in relation.始点 if cid in coords]
         self.assertTrue(any(coord.値状態 == 値状態.未観測 for coord in unknown))
 
-    def test_関係質問では検索制御目的メタをKへ混ぜない(self) -> None:
+    def test_関係質問では検索制御メタをKへ混ぜない(self) -> None:
         original = self.compiler.問題IR(
             "Which molecule is least likely to inhibit Enzyme X?",
             ("A", "B", "C", "D"),
@@ -42,10 +43,9 @@ class Runtime射影V15試験(unittest.TestCase):
         kinds = {str(coord.種別) for coord in projected.座標 if not coord.座標ID.startswith("choice:")}
         self.assertFalse(any(kind.startswith("検索.") for kind in kinds))
         self.assertFalse(any(kind.startswith("制御.") for kind in kinds))
-        # 未知端点は関係形を保つため残せるが、未観測なのでK意味語にはならない。
         self.assertTrue(any(coord.値状態 == 値状態.未観測 for coord in projected.座標 if not coord.座標ID.startswith("choice:")))
 
-    def test_非関係質問ではCompilerの検索表層だけを照合焦点へ使う(self) -> None:
+    def test_非関係質問ではCompilerの検索表層だけをK照合焦点へ使う(self) -> None:
         original = self.compiler.問題IR(
             "Which of the following statements best describes cellular respiration?",
             ("A", "B", "C", "D"),
@@ -55,6 +55,33 @@ class Runtime射影V15試験(unittest.TestCase):
         self.assertTrue(focus)
         self.assertTrue(any("cellular" in str(coord.内容).casefold() and "respiration" in str(coord.内容).casefold() for coord in focus))
         self.assertEqual(projected.関係, ())
+
+    def test_R関係質問は検索述語既知端点候補を保持する(self) -> None:
+        original = self.compiler.問題IR(
+            "Which molecule inhibits Enzyme X?",
+            ("Compound A", "Compound B", "Compound C", "Compound D"),
+        )
+        projected = HDSR質問射影(original)
+        relation = next(r for r in projected.関係 if _条件値(r, "不足位置") == "始点")
+        self.assertEqual(str(relation.種別), "阻害")
+        self.assertEqual(_条件値(relation, "検索述語"), "inhibit")
+        self.assertEqual(sum(1 for coord in projected.座標 if coord.座標ID.startswith("choice:")), 4)
+        queries = tuple(q.casefold() for q in HDS参照問合せ候補(projected))
+        for candidate in ("compound a", "compound b", "compound c", "compound d"):
+            self.assertTrue(any(candidate in q and "inhibit" in q and "enzyme x" in q for q in queries), queries)
+
+    def test_R一般質問は検索表層を残し制御監査を捨てる(self) -> None:
+        original = self.compiler.問題IR(
+            "Which of the following statements best describes cellular respiration?",
+            ("A", "B", "C", "D"),
+        )
+        projected = HDSR質問射影(original)
+        nonchoice = [coord for coord in projected.座標 if not coord.座標ID.startswith("choice:")]
+        self.assertTrue(any(str(coord.種別).startswith("検索.") for coord in nonchoice))
+        self.assertFalse(any(str(coord.種別).startswith("制御.") for coord in nonchoice))
+        self.assertFalse(any(str(coord.種別).startswith("監査.") for coord in nonchoice))
+        queries = tuple(q.casefold() for q in HDS参照問合せ候補(projected))
+        self.assertTrue(any("cellular respiration" in q for q in queries[:2]), queries[:2])
 
     def test_候補とDataでは検索制御目的監査をKへ入れない(self) -> None:
         ir = HDSIR(
