@@ -22,20 +22,12 @@ def _norm(value: object) -> str:
     return " ".join(str(value).split()).strip()
 
 
-def _条件値(relation: HDS関係, key: str) -> str:
-    prefix = key + "="
-    for raw in relation.条件:
-        value = str(raw)
-        if value.startswith(prefix):
-            return value[len(prefix):].strip()
-    return ""
-
-
 def _意味条件(frame: 英日意味フレーム, *, question: bool) -> tuple[str, ...]:
     out: list[str] = []
     for control in frame.制御:
         kind = str(control.種別)
         canonical = str(control.正本)
+        surface = _norm(control.表層)
         # 選択反転・least likelyはJの候補選択制御であり、関係そのものの極性ではない。
         if kind == "選択":
             continue
@@ -43,16 +35,28 @@ def _意味条件(frame: 英日意味フレーム, *, question: bool) -> tuple[s
             continue
         if kind == "否定":
             out.append("極性=否定")
+            if surface:
+                out.append(f"極性表層={surface}")
         elif kind == "量化":
             out.append(f"量化={canonical}")
+            if surface:
+                out.append(f"量化表層={surface}")
         elif kind == "比較":
             out.append(f"比較={canonical}")
+            if surface:
+                out.append(f"比較表層={surface}")
         elif kind == "条件":
             out.append(f"条件種別={canonical}")
+            if surface:
+                out.append(f"条件接続表層={surface}")
         elif kind == "様相":
             out.append(f"様相={canonical}")
+            if surface:
+                out.append(f"様相表層={surface}")
         elif kind == "蓋然性":
             out.append(f"蓋然性={canonical}")
+            if surface:
+                out.append(f"蓋然性表層={surface}")
     return tuple(dict.fromkeys(out))
 
 
@@ -83,7 +87,8 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
     """英語表層を日本語正本の意味フレームへ有限射影する。
 
     全文翻訳は行わない。否定・比較・条件・様相・量化・関係質問を日本語正本の意味として
-    HDSへ保持し、外部Rへ戻す英語検索表層は別座標に分離する。v0.4では関係scopeも保持する。
+    HDSへ保持し、外部Rへ戻す英語検索表層は別情報として分離する。v0.6ではscopeの原英語表層も
+    復号用に保持するが、日本語正本のscope同一性そのものには使用しない。
     """
     language = str(getattr(ir, "入力言語", "") or "").casefold()
     if not language.startswith("en"):
@@ -128,9 +133,9 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
                 ("normalized",),
                 (),
                 " / ".join(frame.正本意味),
-                保持構造=("原文", "外部英語表層", "日本語意味正本", "関係scope"),
+                保持構造=("原文", "外部英語表層", "日本語意味正本", "関係scope", "scope復号表層"),
                 損失=(),
-                検証=("世界知識非追加", "外部検索表層分離", "制御scope保持"),
+                検証=("世界知識非追加", "外部検索表層分離", "制御scope保持", "復号表層非正本化"),
             )
         )
 
