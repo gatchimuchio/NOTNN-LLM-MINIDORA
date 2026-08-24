@@ -10,6 +10,7 @@ from .言語基底 import 言語基底P, 標準言語基底P
 
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
 _QUESTION_START = re.compile(r"^\s*(?:which|what|who|where|when|why|how)\b", re.I)
+_DERIVED_ACTIVE_FALSE = re.compile(r"\b(?:is|are|was|were)\s*$", re.I)
 
 
 def _norm(value: object) -> str:
@@ -63,15 +64,7 @@ def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = 
             cid = f"{base}:{serial}"
             serial += 1
         existing_ids.add(cid)
-        coords.append(
-            HDS座標(
-                cid,
-                kind,
-                content,
-                値状態.確定,
-                由来="共有言語基底P",
-            )
-        )
+        coords.append(HDS座標(cid, kind, content, 値状態.確定, 由来="共有言語基底P"))
         return cid
 
     for syntax in syntaxes:
@@ -82,14 +75,18 @@ def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = 
             if not subject or not object_ or not predicate:
                 continue
 
-            # `X caused by Y` のような縮約受動を active の caused と誤認しない。
+            # `X caused by Y` のような縮約受動をactiveのcausedと誤認しない。
             if not syntax.反転 and object_.casefold().startswith("by "):
+                continue
+
+            # `A is derived from B` は専用copular規則でA→Bを作る。
+            # activeの `derived from` が `A is` を始点として二重生成する経路だけを止める。
+            if predicate.casefold() == "derived from" and _DERIVED_ACTIVE_FALSE.search(subject):
                 continue
 
             if syntax.反転:
                 subject, object_ = object_, subject
 
-            # 機能語だけの端点や同一端点は確定関係へ上げない。
             if not 意味語(subject) or not 意味語(object_):
                 continue
             if _norm(subject) == _norm(object_):

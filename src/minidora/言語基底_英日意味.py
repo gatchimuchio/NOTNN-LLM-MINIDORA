@@ -36,7 +36,7 @@ class 英日意味フレーム:
 _語 = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
 _末尾疑問符 = re.compile(r"[?？]+$")
 _文分割 = re.compile(r"(?<=[?!.。？！])\s+|\n+")
-_関係句 = r"(?P<v>[A-Za-z]+(?:\s+(?:to|in|on|with|against|from))?)"
+_関係句 = r"(?P<v>[A-Za-z]+(?:\s+(?:to|in|on|with|against|from|of))?)"
 _型 = r"(?P<kind>[A-Za-z][A-Za-z0-9 _-]{0,72}?)"
 _助動 = r"(?:(?:would|could|may|might|can|must)\s+)?"
 _受動助動 = r"(?:is|are|was|were|has\s+been|have\s+been|had\s+been|(?:would|could|may|might|can|must)\s+be)"
@@ -176,30 +176,14 @@ def _質問関係(text: str) -> 英日関係質問 | None:
         relation = _関係句意味(match.group("v"))
         if relation is not None:
             kind, predicate = relation
-            return 英日関係質問(
-                kind,
-                "終点",
-                _要求型(match.group("kind")),
-                _端点(match.group("s")),
-                predicate,
-                _反転(match, raw),
-                True,
-            )
+            return 英日関係質問(kind, "終点", _要求型(match.group("kind")), _端点(match.group("s")), predicate, _反転(match, raw), True)
 
     match = _能動未知終点.fullmatch(raw)
     if match:
         relation = _関係句意味(match.group("v"))
         if relation is not None:
             kind, predicate = relation
-            return 英日関係質問(
-                kind,
-                "終点",
-                _要求型(match.group("kind")),
-                _端点(match.group("s")),
-                predicate,
-                _反転(match, raw),
-                False,
-            )
+            return 英日関係質問(kind, "終点", _要求型(match.group("kind")), _端点(match.group("s")), predicate, _反転(match, raw), False)
 
     match = _無型未知終点.fullmatch(raw)
     if match:
@@ -213,15 +197,7 @@ def _質問関係(text: str) -> 英日関係質問 | None:
         relation = _関係句意味(match.group("v"))
         if relation is not None:
             kind, predicate = relation
-            return 英日関係質問(
-                kind,
-                "始点",
-                _要求型(match.group("kind")),
-                _端点(match.group("o")),
-                predicate,
-                _反転(match, raw),
-                False,
-            )
+            return 英日関係質問(kind, "始点", _要求型(match.group("kind")), _端点(match.group("o")), predicate, _反転(match, raw), False)
     return None
 
 
@@ -261,25 +237,13 @@ def _検索語(text: str) -> tuple[str, ...]:
 
 
 def 英日意味フレーム抽出(text: str) -> 英日意味フレーム:
-    # 背景説明の否定・比較等を最終質問の制御へ誤伝播させない。
     focus = _質問焦点(text)
     controls = _制御(focus)
     question = _質問関係(focus)
     canonical: list[str] = [f"{item.種別}:{item.正本}" for item in controls]
     if question is not None:
-        canonical.extend(
-            (
-                f"関係:{question.種別}",
-                f"不足位置:{question.未知位置}",
-                f"要求型:{question.要求型}" if question.要求型 else "要求型:未特定",
-            )
-        )
+        canonical.extend((f"関係:{question.種別}", f"不足位置:{question.未知位置}", f"要求型:{question.要求型}" if question.要求型 else "要求型:未特定"))
     return 英日意味フレーム(tuple(canonical), _検索語(focus), controls, question)
 
 
-__all__ = [
-    "英日意味制御",
-    "英日関係質問",
-    "英日意味フレーム",
-    "英日意味フレーム抽出",
-]
+__all__ = ["英日意味制御", "英日関係質問", "英日意味フレーム", "英日意味フレーム抽出"]
