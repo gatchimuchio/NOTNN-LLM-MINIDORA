@@ -4,7 +4,7 @@ from dataclasses import replace
 import re
 import unicodedata
 
-from .hds_ir import HDSIR, HDS関係
+from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
 
 
 _MODAL = {
@@ -16,6 +16,13 @@ _MODAL = {
     "must": "必要",
     "should": "必要",
 }
+_AUX_TAIL = re.compile(
+    r"^(?P<base>.+?)\s+"
+    r"(?:(?P<do>does|do|did)\s+(?P<do_not>not)|"
+    r"(?P<modal>can|could|may|might|would|must|should)(?:\s+(?P<modal_not>not))?(?:\s+be)?|"
+    r"(?P<be>is|are|was|were)\s+(?P<be_not>not))$",
+    re.I,
+)
 
 
 def _norm(value: object) -> str:
@@ -39,107 +46,136 @@ def _条件追加(relation: HDS関係, *items: str) -> HDS関係:
     return replace(relation, 条件=tuple(conditions))
 
 
-def _phrase_pattern(value: str) -> str:
-    words = [re.escape(word) for word in _norm(value).split() if word]
-    return r"\s+".join(words)
+def _端点scope(content: str) -> tuple[str, tuple[str, ...]]:
+    """関係regexが実体へ吸収した助動/否定だけを実体から分離する。"""
+    value = _norm(content)
+    match = _AUX_TAIL.fullmatch(value)
+    if match is None:
+        return value, ()
 
+    base = _norm(match.group("base"))
+    if not base:
+        return value, ()
 
-def _predicate_pattern(value: str) -> str:
-    words = _norm(value).casefold().split()
-    if not words:
-        return ""
-    head = re.escape(words[0])
-    # Compilerが正規化済みの検索述語を持つため、語形差は最小限だけ許容する。
-    head = rf"{head}(?:s|ed|ing)?"
-    if len(words) == 1:
-        return head
-    return head + r"\s+" + r"\s+".join(re.escape(word) for word in words[1:])
-
-
-def _relation_scope(text: str, relation: HDS関係, coords: dict[str, object]) -> tuple[str, ...]:
-    predicate = _条件値(relation, "検索述語")
-    if not predicate:
-        return ()
-    starts = [_norm(getattr(coords[cid], "内容", "")) for cid in relation.始点 if cid in coords]
-    ends = [_norm(getattr(coords[cid], "内容", "")) for cid in relation.終点 if cid in coords]
-    if len(starts) != 1 or len(ends) != 1 or not starts[0] or not ends[0]:
-        return ()
-
-    start = _phrase_pattern(starts[0])
-    end = _phrase_pattern(ends[0])
-    pred = _predicate_pattern(predicate)
-    if not start or not end or not pred:
-        return ()
-
-    out: list[str] = []
-
-    # semantic direction: start -> end
-    active_neg = re.compile(rf"\b{start}\s+(?:does|do|did)\s+not\s+{pred}\s+{end}\b", re.I)
-    active_modal = re.compile(rf"\b{start}\s+(?P<m>can|could|may|might|would|must|should)\s+(?:not\s+)?{pred}\s+{end}\b", re.I)
-    active_modal_neg = re.compile(rf"\b{start}\s+(?P<m>can|could|may|might|would|must|should)\s+not\s+{pred}\s+{end}\b", re.I)
-
-    # passive surface reverses semantic endpoints: end is grammatical subject, start follows by.
-    passive_neg = re.compile(rf"\b{end}\s+(?:is|are|was|were)\s+not\s+{pred}(?:ed|d)?\s+by\s+{start}\b", re.I)
-    passive_modal = re.compile(rf"\b{end}\s+(?P<m>can|could|may|might|would|must|should)\s+(?:not\s+)?be\s+{pred}(?:ed|d)?\s+by\s+{start}\b", re.I)
-    passive_modal_neg = re.compile(rf"\b{end}\s+(?P<m>can|could|may|might|would|must|should)\s+not\s+be\s+{pred}(?:ed|d)?\s+by\s+{start}\b", re.I)
-
-    if active_neg.search(text) or passive_neg.search(text) or active_modal_neg.search(text) or passive_modal_neg.search(text):
-        out.append("極性=否定")
-
-    modal_match = active_modal.search(text) or passive_modal.search(text)
-    if modal_match:
-        modal_surface = modal_match.group("m").casefold()
+    conditions: list[str] = []
+    if match.group("do_not") or match.group("modal_not") or match.group("be_not"):
+        conditions.append("極性=否定")
+    modal_surface = (match.group("modal") or "").casefold()
+    if modal_surface:
         modal = _MODAL.get(modal_surface)
         if modal:
-            out.extend((f"様相={modal}", f"様相表層={modal_surface}"))
+            conditions.extend((f"様相={modal}", f"様相表層={modal_surface}"))
+    return base, tuple(conditions)
 
-    # 条件句は、同じ文中で関係節の前に明示された場合だけscopeへ結ぶ。
-    # 自由な談話条件や後続文への伝播はしない。
-    relation_surface = re.compile(
-        rf"\b(?:{start}\b.*?{pred}\b.*?{end}|{end}\b.*?{pred}\b.*?by\s+{start})",
+
+def _条件scope(text: str, start: str, end: str, predicate: str) -> tuple[str, ...]:
+    """同じ文の関係節より前にある明示条件句だけを関係へ結ぶ。"""
+    if not start or not end or not predicate:
+        return ()
+    start_p = re.escape(start)
+    end_p = re.escape(end)
+    pred_head = re.escape(predicate.split()[0])
+    relation = re.search(
+        rf"\b{start_p}\b[^.;!?]{{0,120}}\b{pred_head}(?:s|ed|ing)?\b[^.;!?]{{0,160}}\b{end_p}\b",
+        text,
         re.I,
     )
-    rel_match = relation_surface.search(text)
-    if rel_match:
-        prefix = text[: rel_match.start()]
-        cond_match = re.search(
-            r"(?:^|[.;]\s*)(?P<c>(?:if|when|under|given|assuming)\b[^.;,]{1,180})\s*,\s*$",
-            prefix,
-            re.I,
-        )
-        if cond_match:
-            out.append("条件scope=" + _norm(cond_match.group("c")))
-
-    return tuple(dict.fromkeys(out))
+    if relation is None:
+        return ()
+    prefix = text[: relation.start()]
+    condition = re.search(
+        r"(?:^|[.;]\s*)(?P<c>(?:if|when|under|given|assuming)\b[^.;,]{1,180})\s*,\s*$",
+        prefix,
+        re.I,
+    )
+    if condition is None:
+        return ()
+    return ("条件scope=" + _norm(condition.group("c")),)
 
 
 def HDS英語関係scope射影(ir: HDSIR) -> HDSIR:
-    """英語表層の明示scopeを、Compilerが既に確定した関係へ局所結合する。
+    """英語関係の実体端点と作用scopeをCompiler内で分離・結合する。
 
-    Runtimeへ自然言語再解析を持ち込まないためのCompiler責務である。
-    新しい世界関係は生成せず、既存relationの条件だけを補う。
-    疑問文は質問意味Compilerへ委ね、この層では宣言文だけを対象とする。
+    - 新しい世界関係は作らない。
+    - 既存relationの汚染端点を正規化し、明示された極性/様相/条件をrelation.条件へ移す。
+    - Runtimeは自然言語を再解析せず、この構造だけを読む。
+    - 疑問文は質問意味Compilerへ委ね、この層では宣言文だけを対象にする。
     """
     if not str(getattr(ir, "入力言語", "")).casefold().startswith("en"):
         return ir
-    text = _norm(ir.正規化文 or ir.原文)
-    if not text or "?" in str(ir.正規化文 or ir.原文):
+    raw = str(ir.正規化文 or ir.原文)
+    if not raw or "?" in raw:
         return ir
+    text = _norm(raw)
 
-    coords = ir.座標辞書()
+    coords = list(ir.座標)
+    coord_map = ir.座標辞書()
+    existing = {(str(c.種別), _norm(c.内容)): c.座標ID for c in coords}
+    counter = 0
+
+    def endpoint_coord(original_id: str, content: str) -> str:
+        nonlocal counter
+        original = coord_map.get(original_id)
+        if original is None:
+            return original_id
+        normalized = _norm(content)
+        if normalized == _norm(original.内容):
+            return original_id
+        key = (str(original.種別), normalized)
+        if key in existing:
+            return existing[key]
+        cid = f"scope:endpoint:{counter}"
+        counter += 1
+        while any(c.座標ID == cid for c in coords):
+            cid = f"scope:endpoint:{counter}"
+            counter += 1
+        coords.append(
+            HDS座標(
+                cid,
+                str(original.種別),
+                normalized,
+                original.値状態,
+                原文範囲=original.原文範囲,
+                由来="公開HDS Compiler.scope分離",
+                暫定性=original.暫定性,
+                再開放条件=original.再開放条件,
+            )
+        )
+        existing[key] = cid
+        return cid
+
     changed = False
     relations: list[HDS関係] = []
     for relation in ir.関係:
-        additions = _relation_scope(text, relation, coords)
-        if additions:
-            updated = _条件追加(relation, *additions, "scope結合=Compiler")
-            changed = changed or updated != relation
-            relations.append(updated)
-        else:
+        if len(relation.始点) != 1 or len(relation.終点) != 1:
             relations.append(relation)
+            continue
+        sid, oid = relation.始点[0], relation.終点[0]
+        start_coord = coord_map.get(sid)
+        end_coord = coord_map.get(oid)
+        if start_coord is None or end_coord is None:
+            relations.append(relation)
+            continue
+
+        start, start_scope = _端点scope(str(start_coord.内容))
+        end, end_scope = _端点scope(str(end_coord.内容))
+        scope = tuple(dict.fromkeys((*start_scope, *end_scope)))
+        predicate = _条件値(relation, "検索述語")
+        scope = tuple(dict.fromkeys((*scope, *_条件scope(text, start, end, predicate))))
+
+        new_sid = endpoint_coord(sid, start)
+        new_oid = endpoint_coord(oid, end)
+        updated = relation
+        if (new_sid, new_oid) != (sid, oid):
+            updated = replace(updated, 始点=(new_sid,), 終点=(new_oid,))
+        if scope:
+            updated = _条件追加(updated, *scope, "scope結合=Compiler")
+        changed = changed or updated != relation
+        relations.append(updated)
+
     if not changed:
         return ir
-    return replace(ir, 関係=tuple(relations))
+    return replace(ir, 座標=tuple(coords), 関係=tuple(relations))
 
 
 __all__ = ["HDS英語関係scope射影"]
