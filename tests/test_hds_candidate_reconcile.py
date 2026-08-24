@@ -21,6 +21,46 @@ class HDS候補横断調停試験(unittest.TestCase):
         self.assertAlmostEqual(result["A"].合計得点, 5.0)
         self.assertEqual(result["A"].採用証拠[0].経路, "fact")
 
+    def test_同一sourceでは有向構造Factを高得点documentより優先する(self) -> None:
+        result = HDS候補横断調停(
+            ("A", "B"),
+            (
+                HDS候補証拠("A", "doc:1", 3.5, ("rel-a",), "structural_fact"),
+                HDS候補証拠("A", "doc:1", 9.0, ("bag-a",), "document"),
+            ),
+            証拠重み=(1.0,),
+            証拠上限=1,
+        )
+        self.assertEqual(result["A"].採用証拠[0].経路, "structural_fact")
+        self.assertEqual(result["A"].採用証拠[0].事実ID, ("rel-a",))
+        self.assertAlmostEqual(result["A"].合計得点, 3.5)
+
+    def test_構造一致が無ければ通常factとdocumentは高得点を採用する(self) -> None:
+        result = HDS候補横断調停(
+            ("A", "B"),
+            (
+                HDS候補証拠("A", "doc:1", 3.5, ("fact-a",), "fact"),
+                HDS候補証拠("A", "doc:1", 9.0, ("bag-a",), "document"),
+            ),
+            証拠重み=(1.0,),
+            証拠上限=1,
+        )
+        self.assertEqual(result["A"].採用証拠[0].経路, "document")
+        self.assertAlmostEqual(result["A"].合計得点, 9.0)
+
+    def test_directはstructural_factより優先する(self) -> None:
+        result = HDS候補横断調停(
+            ("A", "B"),
+            (
+                HDS候補証拠("A", "doc:1", 2.0, ("direct-a",), "direct"),
+                HDS候補証拠("A", "doc:1", 8.0, ("rel-a",), "structural_fact"),
+            ),
+            証拠重み=(1.0,),
+            証拠上限=1,
+        )
+        self.assertEqual(result["A"].採用証拠[0].経路, "direct")
+        self.assertAlmostEqual(result["A"].合計得点, 2.0)
+
     def test_全候補共通sourceはmarginとprovenanceへ残さない(self) -> None:
         result = HDS候補横断調停(
             ("A", "B"),
