@@ -11,15 +11,16 @@
 3. [`13_共有言語基底P仕様.md`](13_共有言語基底P仕様.md) — HDS CompilerとMINIDORA/Cが共有する文字・基本文法・基底概念の常在言語資産を定める。
 4. [`14_英日意味コンパイル仕様_v0_3.md`](14_英日意味コンパイル仕様_v0_3.md) — 外部英語表層を日本語正本の意味フレームへ射影し、R境界で英語検索表層へ戻す責任を定める。
 5. [`15_関係Scope意味転送仕様_v0_4.md`](15_関係Scope意味転送仕様_v0_4.md) — 関係へ掛かる極性・様相・量化・条件をHDS-IRからKまで損失なく転送する責任を定める。
-6. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — Data / Knowledgeの外部参照層Rを定める。
-7. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — 公開HDS CompilerとRuntimeのHDS-IR境界を定める。
-8. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — フル公開する標準Compilerの責任・非責任・性能改善境界を定める。
-9. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) — v1の公開Front-End Architecture履歴を保持する。
-10. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) — Failure Signature候補、状態遷移graph、暗黙知構造、監査R probe、CognitiveWorld差分まで接続した履歴を保持する。
-11. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md) — Failure Signature Bank、反復昇格、改善候補帰還を定める現行Architecture正本。
-12. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
-13. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
-14. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
+6. [`16_関係Scope認識推論仕様_v0_5.md`](16_関係Scope認識推論仕様_v0_5.md) — 転送済みscopeを比較・直接検証で使用し、scope未対応graphへ誤投入しない責任を定める。
+7. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — Data / Knowledgeの外部参照層Rを定める。
+8. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — 公開HDS CompilerとRuntimeのHDS-IR境界を定める。
+9. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — フル公開する標準Compilerの責任・非責任・性能改善境界を定める。
+10. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) — v1の公開Front-End Architecture履歴を保持する。
+11. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) — Failure Signature候補、状態遷移graph、暗黙知構造、監査R probe、CognitiveWorld差分まで接続した履歴を保持する。
+12. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md) — Failure Signature Bank、反復昇格、改善候補帰還を定める現行Architecture正本。
+13. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
+14. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
+15. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
 
 番号は成立順・履歴を保持しているため、文書の読み順と完全には一致しない。整理目的だけで番号を振り直さない。
 
@@ -52,7 +53,11 @@ MINIDORA局所設計
         │      │    HDS-IR
         │      └─ MINIDORA / C意味処理
         ├─ HDS-IR → K Adapter
-        │      └─ relation.conditionsを保持してK graphへ転送
+        │      ├─ relation.conditionsを保持
+        │      └─ scope付き関係を実効関係へ分離
+        ├─ Scope認識比較
+        │      ├─ 関係 / 方向 / scope一致
+        │      └─ scope未対応graphへの誤投入禁止
         ├─ P: どう処理するか
         ├─ R: 何について処理するか
         ├─ 主体主幹
@@ -92,6 +97,8 @@ tests/ + 評価/
 - 関係の極性・様相・量化・条件を関係本体から切り離して無意味化しない。
 - HDS-IRの `relation.conditions` をHDS→K境界で破棄しない。
 - 肯定関係と否定関係をK graph上の同一predicateへ潰さない。
+- 様相・量化・比較・条件の異なる関係を直接構造一致として加点しない。
+- scopeを理解しない汎用graphへscope付き関係を無条件辺として流さない。
 - `least likely` 等の選択反転と、`does not` 等の関係否定を同一視しない。
 - 公開HDS Compilerは通常のRuntime実装として変更・試験・監査してよい。
 - HDS本体の非公開正本を公開Compilerへ無断転記しない。
