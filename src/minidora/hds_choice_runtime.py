@@ -219,7 +219,9 @@ def HDS選択推論実行(
             return _suspend("HDS_CHOICE_SEMANTIC_LOSS", candidate_count=len(candidate_irs) + 1, parallel=parallel_safe, workers=worker_count)
         candidate_irs[label] = compiled
 
-    # Kへ入る質問・候補表現を最初に確定し、baseline照合と直接検証で同じ契約を使う。
+    # Kへ入る質問・候補表現を最初に確定する。
+    # 実体候補は問いの未知端点へ代入して候補ごとの有向比較構造を閉じ、
+    # baseline照合と直接検証の双方へ同じ候補IRを渡す。
     k_question_ir = HDSK質問射影(question_ir)
     k_candidate_irs = {label: HDSK候補射影(candidate_ir) for label, candidate_ir in candidate_irs.items()}
     verification_candidate_irs = _検証候補群(k_question_ir, candidate_irs, k_candidate_irs)
@@ -256,7 +258,7 @@ def HDS選択推論実行(
     # query routeはRの監査/provenanceであり世界Factではない。Kへ擬似証拠として投入しない。
     k3 = HDSIRネイティブAdapter(working).実行(
         k_question_ir,
-        候補IR=k_candidate_irs,
+        候補IR=verification_candidate_irs,
         努力=努力,
     )
     k3 = _直接関係で再判定(question_ir, verification_candidate_irs, working, k3)
