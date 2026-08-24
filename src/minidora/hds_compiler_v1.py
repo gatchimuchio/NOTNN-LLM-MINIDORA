@@ -18,6 +18,7 @@ from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
 from .hds_ir import HDSIR
 from .hds_language_comparisons import HDS英語比較射影
 from .hds_language_relations import HDS英語基底関係射影
+from .hds_language_relative_clauses import HDS英語関係節射影
 from .hds_language_semantic_bridge import HDS英日意味射影
 from .言語基底 import 言語基底P, 標準言語基底P
 
@@ -31,7 +32,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
 
     Compilerは真偽、原理の最終採用、改善候補の採用、行動、最終採否を決めない。
     文字体系・基本文法・基底概念はMINIDORA Runtimeと同じ言語基底Pを参照する。
-    英語入力は全文翻訳ではなく、日本語正本の意味フレーム・比較関係・relation scopeへ有限射影する。
+    英語入力は全文翻訳ではなく、日本語正本の意味フレーム・比較関係・明示照応・relation scopeへ有限射影する。
     """
 
     Architecture版 = "v1.2"
@@ -56,6 +57,10 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
     ) -> HDSCompiler成果:
         # 明示関係を補完し、旧Compilerの否定/modal偽陽性を除去する。
         base = HDS英語基底関係射影(base, self.言語基底P)
+
+        # `A, which inhibits B, ...` のように先行詞が局所文法上明示された関係節だけを解決する。
+        # 自由代名詞 it/this/that 等は推測しない。
+        base = HDS英語関係節射影(base)
 
         # 記号比較だけでなく `A is greater than B` 等の自然言語比較を同じHDS関係へ落とす。
         base = HDS英語比較射影(base)
