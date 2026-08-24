@@ -18,9 +18,15 @@ def _条件値(relation, key: str) -> str:
 
 
 def _関係(ir, kind: str):
-    candidates = [relation for relation in ir.関係 if str(relation.種別) == kind and str(relation.由来) == "共有言語基底P"]
+    candidates = [
+        relation
+        for relation in ir.関係
+        if str(relation.種別) == kind
+        and str(relation.由来) in {"公開HDS Compiler", "共有言語基底P"}
+        and relation.値状態.value == "確定"
+    ]
     if len(candidates) != 1:
-        raise AssertionError(f"expected exactly one shared relation: {kind}, got {len(candidates)}")
+        raise AssertionError(f"expected exactly one canonical relation: {kind}, got {len(candidates)}")
     return candidates[0]
 
 
@@ -60,9 +66,11 @@ class 関係ScopeV04試験(unittest.TestCase):
         self.assertEqual(_条件値(relation, "極性"), "肯定")
         self.assertEqual(_条件値(relation, "様相"), "可能")
 
-    def test_単一条件命題では条件表層を関係へscopeする(self) -> None:
+    def test_単一条件命題では既存関係へ条件scopeを付与する(self) -> None:
         ir = self.compiler.コンパイル("If condition X, Protein A inhibits Protein B.")
         relation = _関係(ir, "阻害")
+        # 同一意味の関係を共有P側で二重生成せず、既存関係へscopeする。
+        self.assertEqual(str(relation.由来), "公開HDS Compiler")
         self.assertEqual(_条件値(relation, "条件種別"), "条件")
         self.assertIn("condition X", _条件値(relation, "条件表層"))
 
