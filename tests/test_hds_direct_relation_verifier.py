@@ -51,7 +51,7 @@ def _candidates(question: HDSIR) -> dict[str, HDSIR]:
     return HDS候補代入仮説群(question, raw)
 
 
-def _assertion_candidate(obj: str, *, negative: bool = False) -> HDSIR:
+def _assertion_candidate(obj: str, *, negative: bool = False, origin: str = "公開HDS Compiler") -> HDSIR:
     coords = [
         HDS座標("s", "対象.始点", "Alpha"),
         HDS座標("o", "対象.終点", obj),
@@ -64,7 +64,7 @@ def _assertion_candidate(obj: str, *, negative: bool = False) -> HDSIR:
         (
             HDS関係(
                 "candidate-rel", ("s",), ("o",), "使用",
-                値状態=値状態.確定, 由来="公開HDS Compiler",
+                値状態=値状態.確定, 由来=origin,
             ),
         ),
     )
@@ -140,6 +140,35 @@ class HDS直接関係検証試験(unittest.TestCase):
         a = next(item for item in diagnostics if item.候補 == "A")
         self.assertEqual(a.命題一致出典数, 2)
         self.assertEqual(a.仮説一致出典数, 0)
+
+    def test_共有言語基底P由来の安全な完全命題も二独立sourceで検証する(self) -> None:
+        core = K3相当能力核()
+        adapter = HDSIR知識Adapter(core)
+        adapter.投入(_data("Alpha", "engine"), provenance=("fixture", "doc:1"))
+        adapter.投入(_data("Alpha", "engine"), provenance=("fixture", "doc:2"))
+        candidates = {
+            "A": _assertion_candidate("engine", origin="共有言語基底P"),
+            "B": _assertion_candidate("stone", origin="共有言語基底P"),
+        }
+        candidate, diagnostics = HDS直接関係検証(core, candidates)
+        self.assertIsNotNone(candidate)
+        assert candidate is not None
+        self.assertEqual(candidate.answer, "A")
+        a = next(item for item in diagnostics if item.候補 == "A")
+        self.assertEqual(a.命題一致出典数, 2)
+
+    def test_Runtimeや未知由来の候補関係を命題として採用しない(self) -> None:
+        core = K3相当能力核()
+        adapter = HDSIR知識Adapter(core)
+        adapter.投入(_data("Alpha", "engine"), provenance=("fixture", "doc:1"))
+        adapter.投入(_data("Alpha", "engine"), provenance=("fixture", "doc:2"))
+        candidates = {
+            "A": _assertion_candidate("engine", origin="HDS Runtime K質問射影"),
+            "B": _assertion_candidate("stone", origin="HDS Runtime K質問射影"),
+        }
+        candidate, diagnostics = HDS直接関係検証(core, candidates)
+        self.assertIsNone(candidate)
+        self.assertTrue(all(item.命題一致出典数 == 0 for item in diagnostics))
 
     def test_完全命題は単一sourceだけでは決め打ちしない(self) -> None:
         core = K3相当能力核()

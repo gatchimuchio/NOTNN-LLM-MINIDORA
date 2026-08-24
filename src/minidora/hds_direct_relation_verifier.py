@@ -17,7 +17,7 @@ _BLOCKING_PROVENANCE = {
     "value_state:留保",
 }
 _HYPOTHESIS_ORIGIN = "HDS候補代入仮説"
-_PUBLIC_COMPILER_ORIGIN = "公開HDS Compiler"
+_ASSERTION_ORIGINS = frozenset({"公開HDS Compiler", "共有言語基底P"})
 _GENERIC_RELATIONS = {
     "意味原子→節",
     "談話順序",
@@ -82,6 +82,12 @@ def _否定候補(ir: HDSIR) -> bool:
 
 
 def _candidate_edges(ir: HDSIR) -> tuple[_候補辺, ...]:
+    """K射影後の候補IRから直接検証可能な有向辺だけを読む。
+
+    共有言語基底Pの関係はCompilerと同じ意味正本資産から生じるため、K射影でscope安全性を
+    通過した後は公開Compiler関係と同じ assertion として扱う。Runtime/J専用由来はここへ
+    許可しない。
+    """
     coords = ir.座標辞書()
     out: list[_候補辺] = []
     negative = _否定候補(ir)
@@ -91,8 +97,8 @@ def _candidate_edges(ir: HDSIR) -> tuple[_候補辺, ...]:
             mode = "hypothesis"
             if relation.値状態 not in {値状態.推定, 値状態.確定}:
                 continue
-        elif origin == _PUBLIC_COMPILER_ORIGIN:
-            # 否定候補を肯定命題として直接証明しない。否定は別の反証経路で扱う。
+        elif origin in _ASSERTION_ORIGINS:
+            # 否定候補を肯定命題として直接証明しない。K射影で未対応scope辺は既に除外済み。
             if negative or relation.値状態 != 値状態.確定:
                 continue
             if str(relation.種別) in _GENERIC_RELATIONS:
@@ -145,7 +151,7 @@ def HDS直接関係検証(
     """候補の有向HDS関係とData関係が直接一致する場合だけ候補証拠を返す。
 
     二つの経路を扱う。
-    - 問いの未知端点へ候補を代入した仮説関係: 1独立sourceから直接検証可能。
+    - 問いの未知端点へ実体候補を代入した仮説関係: 1独立sourceから直接検証可能。
     - 候補自身が表す完全命題の関係: 検索自己確認を避けるため2独立source以上を要求。
 
     候補語の共起、検索hit数、文書全体の語集合は使わない。関係種別・始点・終点が同時に
