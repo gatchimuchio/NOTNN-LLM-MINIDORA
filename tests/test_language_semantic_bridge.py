@@ -24,6 +24,14 @@ def _意味関係(ir):
     )
 
 
+def _英日検索焦点(ir):
+    return next(
+        coord
+        for coord in ir.座標
+        if str(coord.座標ID).startswith("lang-sem:search")
+    )
+
+
 class 英日意味コンパイル試験(unittest.TestCase):
     def setUp(self) -> None:
         self.compiler = 公開HDSコンパイラ()
@@ -105,7 +113,9 @@ class 英日意味コンパイル試験(unittest.TestCase):
         lowered = tuple(query.casefold() for query in queries)
         for candidate in ("compound a", "compound b", "compound c", "compound d"):
             self.assertTrue(any(candidate in query and "inhibit" in query and "enzyme x" in query for query in lowered))
-        self.assertTrue(any(coord.種別 == "検索.英語正規化" for coord in ir.座標))
+        search_focus = _英日検索焦点(ir)
+        self.assertEqual(str(search_focus.種別), "目的.検索焦点")
+        self.assertEqual(str(search_focus.由来), "共有言語基底P")
 
     def test_関係を含まない英文から有向関係を捏造しない(self) -> None:
         ir = self.compiler.コンパイル("Which statement is most likely correct regarding entropy?")
