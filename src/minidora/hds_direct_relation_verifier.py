@@ -5,7 +5,14 @@ import math
 from typing import Mapping
 
 from .hds_data_k import HDS証拠事実
-from .hds_ir import HDSIR, HDS関係, 値状態
+from .hds_ir import HDSIR, 値状態
+from .hds_relation_scope import (
+    HDS実効関係名,
+    HDS関係Scope,
+    HDS関係Scope一致,
+    HDS関係Scope抽出,
+    K事実関係Scope抽出,
+)
 from .k3_functional import Candidate, K3相当能力核
 from .semantic_tokens import 意味語
 
@@ -43,9 +50,19 @@ class HDS直接関係診断:
 @dataclass(frozen=True, slots=True)
 class _候補辺:
     関係: str
+    scope: HDS関係Scope
     始点語: frozenset[str]
     終点語: frozenset[str]
     種別: str
+
+
+@dataclass(frozen=True, slots=True)
+class _事実辺:
+    fact: object
+    関係: str
+    scope: HDS関係Scope
+    始点語: frozenset[str]
+    終点語: frozenset[str]
 
 
 def _coverage(query: frozenset[str], evidence: frozenset[str]) -> float:
@@ -59,22 +76,6 @@ def _relation_name(predicate: str) -> str | None:
     if not str(predicate).startswith(prefix):
         return None
     return str(predicate)[len(prefix):].replace("_", " ")
-
-
-def _relation_condition(relation: HDS関係, key: str) -> str:
-    prefix = key + "="
-    for raw in relation.条件:
-        value = str(raw)
-        if value.startswith(prefix):
-            return value[len(prefix):].strip()
-    return ""
-
-
-def _effective_relation(relation: HDS関係) -> str:
-    kind = str(relation.種別)
-    if _relation_condition(relation, "極性") == "否定":
-        return "否定." + kind
-    return kind
 
 
 def _fact_blocked(fact: object) -> bool:
@@ -113,12 +114,15 @@ def _candidate_edges(ir: HDSIR) -> tuple[_候補辺, ...]:
                 continue
             if str(relation.種別) in _GENERIC_RELATIONS:
                 continue
-            # 旧Projectionで否定がrelationへscopeされていない場合だけ、肯定命題への誤昇格を防ぐ。
-            if global_negative and not _relation_condition(relation, "極性"):
-                continue
             mode = "assertion"
         else:
             continue
+
+        scope = HDS関係Scope抽出(relation)
+        # 旧Projectionの全体否定がrelationへscopeされていない場合だけ安全側で直接証明を止める。
+        if global_negative and not scope.非既定:
+            continue
+        effective_relation = HDS実効関係名(relation.種別, scope)
 
         starts = [coords[cid] for cid in relation.始点 if cid in coords]
         ends = [coords[cid] for cid in relation.終点 if cid in coords]
@@ -127,13 +131,13 @@ def _candidate_edges(ir: HDSIR) -> tuple[_候補辺, ...]:
                 start_terms = 意味語(start.内容)
                 end_terms = 意味語(end.内容)
                 if start_terms and end_terms:
-                    edge = _候補辺(_effective_relation(relation), start_terms, end_terms, mode)
+                    edge = _候補辺(effective_relation, scope, start_terms, end_terms, mode)
                     if edge not in out:
                         out.append(edge)
     return tuple(out)
 
 
-def _fact_edges(fact: object) -> tuple[str, frozenset[str], frozenset[str]] | None:
+def _fact_edge(fact: object) -> _事実辺 | None:
     if _fact_blocked(fact):
         return None
     relation = _relation_name(str(getattr(fact, "predicate", "")))
@@ -151,7 +155,7 @@ def _fact_edges(fact: object) -> tuple[str, frozenset[str], frozenset[str]] | No
     end_terms = 意味語(" ".join(ends))
     if not start_terms or not end_terms:
         return None
-    return relation, start_terms, end_terms
+    return _事実辺(fact, relation, K事実関係Scope抽出(fact), start_terms, end_terms)
 
 
 def HDS直接関係検証(
@@ -161,22 +165,12 @@ def HDS直接関係検証(
     最小端点被覆: float = 0.60,
     最小優位差: float = 0.15,
 ) -> tuple[Candidate | None, tuple[HDS直接関係診断, ...]]:
-    """候補の有向HDS関係とData関係が直接一致する場合だけ候補証拠を返す。
+    """候補とDataの関係・方向・scopeが直接一致する場合だけ候補証拠を返す。
 
-    二つの経路を扱う。
-    - 問いの未知端点へ候補を代入した仮説関係: 1独立sourceから直接検証可能。
-    - 候補自身が表す完全命題の関係: 検索自己確認を避けるため2独立source以上を要求。
-
-    極性も関係型の一部として扱うため、肯定の `阻害` と否定の `否定.阻害` は一致しない。
-    候補語の共起、検索hit数、文書全体の語集合は使わない。
+    scopeは極性だけでなく、様相・量化・比較・条件・蓋然性を含む。ここでは
+    `現実なら可能` 等の追加推論を行わず、観測された意味条件が一致した時だけ直接一致とする。
     """
-    facts = tuple(HDS証拠事実(core))
-    fact_edges: list[tuple[object, str, frozenset[str], frozenset[str]]] = []
-    for fact in facts:
-        edge = _fact_edges(fact)
-        if edge is not None:
-            relation, starts, ends = edge
-            fact_edges.append((fact, relation, starts, ends))
+    fact_edges = tuple(edge for fact in HDS証拠事実(core) if (edge := _fact_edge(fact)) is not None)
 
     diagnostics: list[HDS直接関係診断] = []
     eligible: dict[str, bool] = {}
@@ -184,17 +178,19 @@ def HDS直接関係検証(
         candidate_edges = _candidate_edges(candidate_ir)
         per_source: dict[str, tuple[float, str, str]] = {}
         for expected in candidate_edges:
-            for fact, fact_relation, actual_start, actual_end in fact_edges:
-                if expected.関係 != fact_relation:
+            for actual in fact_edges:
+                if expected.関係 != actual.関係:
                     continue
-                start_cov = _coverage(expected.始点語, actual_start)
-                end_cov = _coverage(expected.終点語, actual_end)
+                if not HDS関係Scope一致(expected.scope, actual.scope):
+                    continue
+                start_cov = _coverage(expected.始点語, actual.始点語)
+                end_cov = _coverage(expected.終点語, actual.終点語)
                 if start_cov < 最小端点被覆 or end_cov < 最小端点被覆:
                     continue
-                confidence = max(0.0, min(1.0, float(getattr(fact, "confidence", 1.0))))
+                confidence = max(0.0, min(1.0, float(getattr(actual.fact, "confidence", 1.0))))
                 score = math.sqrt(start_cov * end_cov) * confidence
-                source = _source_id(fact)
-                fid = str(getattr(fact, "fact_id", ""))
+                source = _source_id(actual.fact)
+                fid = str(getattr(actual.fact, "fact_id", ""))
                 old = per_source.get(source)
                 if old is None or score > old[0] or (score == old[0] and expected.種別 == "hypothesis"):
                     per_source[source] = (score, fid, expected.種別)
@@ -209,10 +205,7 @@ def HDS直接関係検証(
         is_eligible = hypothesis_sources >= 1 or assertion_sources >= 2
         eligible[str(label)] = is_eligible
         diagnostics.append(
-            HDS直接関係診断(
-                str(label), aggregate, len(per_source), proof,
-                hypothesis_sources, assertion_sources,
-            )
+            HDS直接関係診断(str(label), aggregate, len(per_source), proof, hypothesis_sources, assertion_sources)
         )
 
     ranked = sorted(diagnostics, key=lambda item: (-item.得点, -item.独立出典数, item.候補))
@@ -236,7 +229,7 @@ def HDS直接関係検証(
             "HDS-IR",
             "K",
             "DIRECTED_ENDPOINT_MATCH",
-            "SCOPED_RELATION_POLARITY",
+            "EXACT_RELATION_SCOPE_MATCH",
             "SOURCE_DEDUPLICATED",
             "NO_GUESS",
             "hypothesis_sources:" + str(top.仮説一致出典数),
