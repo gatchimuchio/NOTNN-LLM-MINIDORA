@@ -10,6 +10,7 @@ class 英語関係構文:
     種別: str
     正規表現: re.Pattern[str]
     反転: bool = False
+    極性: str = "肯定"
 
 
 # 世界知識ではなく、英語という言語体系の基底知識だけを保持する。
@@ -120,6 +121,9 @@ def 英語語形数() -> int:
 _SUBJECT = r"(?P<s>[^?!.;,\n]{1,120}?)"
 _OBJECT = r"(?P<o>[^?!.;,\n]{1,120})"
 _AUX = r"(?:is|are|was|were|be|been|being|has\s+been|have\s+been|had\s+been)"
+_NEG_ACTIVE_AUX = r"(?:do|does|did|can|could|may|might|must|will|would|should)\s+not"
+_NEG_ACTIVE_CONTRACTION = r"(?:don't|doesn't|didn't|can't|cannot|couldn't|won't|wouldn't|shouldn't|mustn't)"
+_NEG_PASSIVE_AUX = r"(?:is|are|was|were|has\s+been|have\s+been|had\s+been)\s+not"
 
 
 def _active(forms: str) -> re.Pattern[str]:
@@ -127,11 +131,44 @@ def _active(forms: str) -> re.Pattern[str]:
 
 
 def _passive(forms: str) -> re.Pattern[str]:
-    return re.compile(rf"{_SUBJECT}\s+(?P<v>{_AUX}\s+(?:{forms})\s+by)\s+{_OBJECT}", re.I)
+    return re.compile(rf"{_SUBJECT}\s+{_AUX}\s+(?P<v>{forms})\s+by\s+{_OBJECT}", re.I)
+
+
+def _negative_active(forms: str) -> re.Pattern[str]:
+    return re.compile(
+        rf"{_SUBJECT}\s+(?:{_NEG_ACTIVE_AUX}|{_NEG_ACTIVE_CONTRACTION})\s+(?P<v>{forms})\s+{_OBJECT}",
+        re.I,
+    )
+
+
+def _negative_passive(forms: str) -> re.Pattern[str]:
+    return re.compile(rf"{_SUBJECT}\s+{_NEG_PASSIVE_AUX}\s+(?P<v>{forms})\s+by\s+{_OBJECT}", re.I)
 
 
 # 高確度の明示構文だけを扱う。名詞共起や近接だけから関係を推定しない。
+# 否定構文を肯定関係へ誤射影しないため、否定構文を先に列挙する。
 英語明示関係構文 = (
+    英語関係構文("因果", _negative_active(r"cause|lead\s+to|result\s+in"), False, "否定"),
+    英語関係構文("因果", _negative_passive(r"caused"), True, "否定"),
+    英語関係構文("増加", _negative_active(r"increase|raise|enhance"), False, "否定"),
+    英語関係構文("増加", _negative_passive(r"increased|raised|enhanced"), True, "否定"),
+    英語関係構文("減少", _negative_active(r"decrease|reduce|lower"), False, "否定"),
+    英語関係構文("減少", _negative_passive(r"decreased|reduced|lowered"), True, "否定"),
+    英語関係構文("阻害", _negative_active(r"inhibit|suppress|block"), False, "否定"),
+    英語関係構文("阻害", _negative_passive(r"inhibited|suppressed|blocked"), True, "否定"),
+    英語関係構文("活性化", _negative_active(r"activate|stimulate"), False, "否定"),
+    英語関係構文("活性化", _negative_passive(r"activated|stimulated"), True, "否定"),
+    英語関係構文("生成", _negative_active(r"produce|generate"), False, "否定"),
+    英語関係構文("生成", _negative_passive(r"produced|generated"), True, "否定"),
+    英語関係構文("要求", _negative_active(r"require|need|depend\s+on"), False, "否定"),
+    英語関係構文("要求", _negative_passive(r"required|needed"), True, "否定"),
+    英語関係構文("包含", _negative_active(r"contain|include|comprise"), False, "否定"),
+    英語関係構文("使用", _negative_active(r"use|utilize|employ"), False, "否定"),
+    英語関係構文("使用", _negative_passive(r"used|utilized|employed"), True, "否定"),
+    英語関係構文("防止", _negative_active(r"prevent|protect\s+against|protect\s+from"), False, "否定"),
+    英語関係構文("防止", _negative_passive(r"prevented|protected"), True, "否定"),
+    英語関係構文("相関", _negative_active(r"associate\s+with|correlate\s+with|relate\s+to"), False, "否定"),
+
     英語関係構文("因果", _active(r"cause|causes|caused|causing|lead\s+to|leads\s+to|led\s+to|leading\s+to|result\s+in|results\s+in|resulted\s+in|resulting\s+in")),
     英語関係構文("因果", _passive(r"caused"), True),
     英語関係構文("増加", _active(r"increase|increases|increased|increasing|raise|raises|raised|raising|enhance|enhances|enhanced|enhancing")),
