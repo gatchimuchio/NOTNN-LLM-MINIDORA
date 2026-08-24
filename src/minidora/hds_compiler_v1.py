@@ -30,7 +30,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
 
     Compilerは真偽、原理の最終採用、改善候補の採用、行動、最終採否を決めない。
     文字体系・基本文法・基底概念はMINIDORA Runtimeと同じ言語基底Pを参照する。
-    英語入力は全文翻訳ではなく、日本語正本の意味フレームへ有限射影してから後段へ渡す。
+    英語入力は全文翻訳ではなく、日本語正本の意味フレームと関係scopeへ有限射影して後段へ渡す。
     """
 
     Architecture版 = "v1.2"
@@ -53,13 +53,13 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         *,
         HDS履歴: tuple[HDSIR, ...] = (),
     ) -> HDSCompiler成果:
-        # 英語表層を先に日本語正本の意味フレームへ射影する。
-        # 全文翻訳ではなく、問いの未知端点・関係・反転等を意味構造として固定する。
-        base = HDS英日意味射影(base)
-
-        # 語形差だけで取りこぼした英語宣言文の明示関係を補完する。
-        # 世界知識や名詞共起からの推定は行わない。
+        # まず英語宣言文の明示関係を極性付きで補完し、旧Compilerの否定偽陽性を除去する。
+        # 疑問文はこの層では確定関係へ上げない。
         base = HDS英語基底関係射影(base, self.言語基底P)
+
+        # その後、英語表層を日本語正本の意味フレームへ射影する。
+        # 関係が既に存在する宣言文では、否定・様相・量化・条件等をその関係scopeへ接続する。
+        base = HDS英日意味射影(base)
         first = 公開HDSフロントエンド射影(base)
 
         graph = HDS状態遷移抽出(first.IR.正規化文 or first.IR.原文)
@@ -68,7 +68,6 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         tacit = HDS暗黙知抽出(ir.正規化文 or ir.原文)
         ir = HDS暗黙知IR射影(ir, tacit)
 
-        # v1.1で追加した残差・関係を含めてv1監査要求を再計算する。
         refreshed = 公開HDS詳細成果(ir)
         signatures = HDS失敗署名候補生成(refreshed.IR, refreshed.認知世界)
         checklist = HDSチェックリスト生成(refreshed.監査要求, signatures)
@@ -123,7 +122,6 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         return self._完成(base, HDS履歴=HDS履歴)
 
     def 詳細問題IR(self, question: str, choices: Sequence[str]) -> HDSCompiler成果:
-        # 問題IRはself.コンパイル()を通るため公開Projection済み。候補追加後に監査要求を再生成する。
         return self._完成(self.問題IR(question, choices))
 
     def 失敗帰還(
@@ -133,10 +131,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         *,
         Run参照: str,
     ) -> HDS失敗署名BankSnapshot:
-        """明示RunのFailure Signature候補だけをBankへ帰還する。
-
-        この操作はBankのみを更新し、Compiler規則・通常コンパイル結果を変更しない。
-        """
+        """明示RunのFailure Signature候補だけをBankへ帰還する。"""
         return Bank.観測(成果.失敗署名候補, Run参照=Run参照)
 
     def 改善候補(self, Bank: HDS失敗署名Bank) -> tuple[HDS抽出規則改善候補, ...]:
