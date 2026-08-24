@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
-import re
 
 from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
-from .semantic_tokens import 意味語
 
 
 _K_SEMANTIC_PREFIXES = (
@@ -33,13 +31,7 @@ _R_FALLBACK_SEMANTIC_PREFIXES = (
 )
 _R_CONTROL_CONDITION_KINDS = frozenset({"条件.検索極性"})
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
-_K_UNSUPPORTED_SCOPE_SURFACE = re.compile(
-    r"\b(?:not|never|cannot|can't|can\s+not|does\s+not|do\s+not|did\s+not|"
-    r"may|might|could|would|can|must|should|unless)\b",
-    re.I,
-)
 _K_UNSUPPORTED_SCOPE_KEYS = frozenset({"様相", "量化", "条件scope", "scope", "条件作用"})
-_K_SCOPE_COORD_KINDS = frozenset({"不確実性.明示", "前提.明示", "射程.明示", "動態.分岐", "状態.否定"})
 _CANDIDATE_ASSERTION_PREFIXES = (
     "状態.", "条件.", "動態.", "不確実性.", "前提.", "射程.", "論証.",
 )
@@ -155,31 +147,8 @@ def _関係を座標へ閉じる(relations: tuple[HDS関係, ...], coordinate_id
     )
 
 
-def _scope座標が関係へ掛かる(ir: HDSIR, relation: HDS関係, coords: dict[str, HDS座標]) -> bool:
-    endpoint_terms: list[frozenset[str]] = []
-    for cid in (*relation.始点, *relation.終点):
-        coord = coords.get(cid)
-        if coord is None:
-            continue
-        terms = 意味語(coord.内容)
-        if terms:
-            endpoint_terms.append(terms)
-    if len(endpoint_terms) < 2:
-        return False
-
-    for scope in ir.座標:
-        if str(scope.種別) not in _K_SCOPE_COORD_KINDS:
-            continue
-        scope_terms = 意味語(scope.内容)
-        if not scope_terms:
-            continue
-        if all(terms & scope_terms for terms in endpoint_terms):
-            return True
-    return False
-
-
-def _K未対応scope(ir: HDSIR, relation: HDS関係, coords: dict[str, HDS座標]) -> bool:
-    """Kがまだ論理関係として表現できないscopeを無条件Factへ潰さない。"""
+def _K未対応scope(relation: HDS関係) -> bool:
+    """Compilerが明示したscopeだけを見て、Kがまだ表現できない関係を辺へ昇格させない。"""
     for raw in relation.条件:
         value = str(raw)
         key, sep, payload = value.partition("=")
@@ -191,20 +160,12 @@ def _K未対応scope(ir: HDSIR, relation: HDS関係, coords: dict[str, HDS座標
             return True
         if key in _K_UNSUPPORTED_SCOPE_KEYS and payload:
             return True
-
-    # scope coordinateはK出力から除外するが、判定は完全IRを見て行う。
-    full_coords = ir.座標辞書()
-    for cid in (*relation.始点, *relation.終点):
-        coord = full_coords.get(cid) or coords.get(cid)
-        if coord is not None and _K_UNSUPPORTED_SCOPE_SURFACE.search(str(coord.内容)):
-            return True
-    return _scope座標が関係へ掛かる(ir, relation, full_coords)
+    return False
 
 
 def _K関係射影(ir: HDSIR, coords: tuple[HDS座標, ...]) -> tuple[HDS関係, ...]:
-    coord_map = {coord.座標ID: coord for coord in coords}
-    closed = _関係を座標へ閉じる(ir.関係, set(coord_map))
-    return tuple(relation for relation in closed if not _K未対応scope(ir, relation, coord_map))
+    closed = _関係を座標へ閉じる(ir.関係, {coord.座標ID for coord in coords})
+    return tuple(relation for relation in closed if not _K未対応scope(relation))
 
 
 def HDSR質問射影(ir: HDSIR) -> HDSIR:
@@ -265,6 +226,7 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
                 暫定性="RELATION_TYPE_KNOWN_ENDPOINT_OPEN",
             )
             for relation in question_relations
+            if not _K未対応scope(relation)
         )
         return replace(ir, 座標=_座標重複除去(choices, endpoints), 関係=projected_relations, 意味作用履歴=())
 
@@ -303,11 +265,7 @@ def HDSK候補代入可能(ir: HDSIR) -> bool:
 
 
 def HDSKData射影(ir: HDSIR) -> HDSIR:
-    """R取得DataからKへ投入してよい世界事実意味だけを残す。
-
-    scopeや論証等の未結合全文座標はKへ渡さない。K未対応scopeを含む関係はFactへ縮退せず、
-    対象・実体・述語・属性・値等の意味核だけを残す。
-    """
+    """R取得DataからKへ投入してよい世界事実意味だけを残す。"""
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
     semantic_relations = _K関係射影(ir, semantic_coords)
     return replace(ir, 座標=semantic_coords, 関係=semantic_relations, 意味作用履歴=())
