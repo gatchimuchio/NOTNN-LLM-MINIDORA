@@ -173,17 +173,17 @@ class Runtime射影V15試験(unittest.TestCase):
         self.assertEqual(len(projected.関係), 1)
         self.assertEqual(projected.関係[0].種別, "阻害")
         self.assertEqual(_条件値(projected.関係[0], "極性"), "否定")
-        self.assertTrue(any(str(c.内容) == "Compound A" for c in projected.座標))
-        self.assertTrue(any(str(c.内容) == "Enzyme X" for c in projected.座標))
 
-    def test_Kは様相scopeを無条件関係へ潰さない(self) -> None:
+    def test_Kは様相scopeを無条件化せず修飾付き関係として保持する(self) -> None:
         projected = HDSKData射影(_synthetic_relation_ir(conditions=("様相=可能",)))
-        self.assertEqual(projected.関係, ())
+        self.assertEqual(len(projected.関係), 1)
+        self.assertEqual(_条件値(projected.関係[0], "様相"), "可能")
         self.assertTrue(any(str(c.内容) == "Compound A" for c in projected.座標))
 
-    def test_Kは条件scopeを無条件関係へ潰さない(self) -> None:
+    def test_Kは条件scopeを無条件化せず修飾付き関係として保持する(self) -> None:
         projected = HDSKData射影(_synthetic_relation_ir(conditions=("条件scope=if condition X",)))
-        self.assertEqual(projected.関係, ())
+        self.assertEqual(len(projected.関係), 1)
+        self.assertEqual(_条件値(projected.関係[0], "条件scope"), "if condition X")
         self.assertTrue(any(str(c.内容) == "Enzyme X" for c in projected.座標))
 
     def test_片端が非意味メタなら関係自体をKへ流さない(self) -> None:
