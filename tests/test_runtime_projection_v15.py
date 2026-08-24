@@ -47,15 +47,19 @@ class Runtime射影V15試験(unittest.TestCase):
         self.assertFalse(any(kind.startswith("制御.") for kind in kinds))
         self.assertTrue(any(coord.値状態 == 値状態.未観測 for coord in projected.座標 if not coord.座標ID.startswith("choice:")))
 
-    def test_非関係質問ではCompilerの検索表層だけをK照合焦点へ使う(self) -> None:
+    def test_非関係質問ではCompiler主題語だけをK照合核へ使う(self) -> None:
         original = self.compiler.問題IR(
             "Which of the following statements best describes cellular respiration?",
             ("A", "B", "C", "D"),
         )
         projected = HDSK質問射影(original)
-        focus = [coord for coord in projected.座標 if str(coord.種別) == "対象.照合焦点"]
-        self.assertTrue(focus)
-        self.assertTrue(any("cellular" in str(coord.内容).casefold() and "respiration" in str(coord.内容).casefold() for coord in focus))
+        topics = [coord for coord in projected.座標 if not coord.座標ID.startswith("choice:")]
+        self.assertTrue(topics)
+        self.assertTrue(all(str(coord.種別) == "対象.主題語" for coord in topics))
+        joined = " ".join(str(coord.内容).casefold() for coord in topics)
+        self.assertIn("cellular", joined)
+        self.assertIn("respiration", joined)
+        self.assertFalse(any(str(coord.種別).startswith("検索.") for coord in projected.座標))
         self.assertEqual(projected.関係, ())
 
     def test_R関係質問は検索述語既知端点候補を保持する(self) -> None:
