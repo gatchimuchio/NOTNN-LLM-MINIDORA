@@ -44,6 +44,7 @@ _K_UNSUPPORTED_SCOPE_SURFACE = re.compile(
 )
 _K_UNSUPPORTED_SCOPE_KEYS = frozenset({"様相", "量化", "条件scope", "scope", "条件作用"})
 _K_SCOPE_COORD_KINDS = frozenset({"不確実性.明示", "前提.明示", "射程.明示", "動態.分岐"})
+_K_CANDIDATE_ASSERTION_PREFIXES = ("状態.", "条件.", "動態.", "不確実性.", "前提.", "射程.")
 
 
 def _条件値(relation: HDS関係, key: str) -> str:
@@ -84,8 +85,7 @@ def _文字列重複除去(values: tuple[str, ...]) -> tuple[str, ...]:
 
 
 def _R利用座標(coord: HDS座標) -> bool:
-    kind = str(coord.種別)
-    return kind not in _R_CONTROL_CONDITION_KINDS
+    return str(coord.種別) not in _R_CONTROL_CONDITION_KINDS
 
 
 def _R検索表層(coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ...] = ()) -> str:
@@ -186,9 +186,7 @@ def _K未対応scope(ir: HDSIR, relation: HDS関係, coords: dict[str, HDS座標
 
     for cid in (*relation.始点, *relation.終点):
         coord = coords.get(cid)
-        if coord is None:
-            continue
-        if _K_UNSUPPORTED_SCOPE_SURFACE.search(str(coord.内容)):
+        if coord is not None and _K_UNSUPPORTED_SCOPE_SURFACE.search(str(coord.内容)):
             return True
     return _scope座標が関係へ掛かる(ir, relation, coords)
 
@@ -282,6 +280,21 @@ def HDSK候補射影(ir: HDSIR) -> HDSIR:
     return replace(ir, 座標=semantic_coords, 関係=semantic_relations, 意味作用履歴=())
 
 
+def HDSK候補代入可能(ir: HDSIR) -> bool:
+    """候補が未知端点へ代入する実体句として扱える時だけTrueを返す。
+
+    自身の関係、述語、否定・条件・不確実性等を持つ候補は命題として扱い、
+    問いの未知端点へ文字列ごと押し込まない。
+    """
+    if ir.関係:
+        return False
+    for coord in ir.座標:
+        kind = str(coord.種別)
+        if kind == "関係.述語" or kind.startswith(_K_CANDIDATE_ASSERTION_PREFIXES):
+            return False
+    return any(_K意味座標(coord) and str(coord.内容).strip() for coord in ir.座標)
+
+
 def HDSKData射影(ir: HDSIR) -> HDSIR:
     """R取得DataからKへ投入してよい世界事実意味だけを残す。
 
@@ -292,4 +305,4 @@ def HDSKData射影(ir: HDSIR) -> HDSIR:
     return replace(ir, 座標=semantic_coords, 関係=semantic_relations, 意味作用履歴=())
 
 
-__all__ = ["HDSR質問射影", "HDSK質問射影", "HDSK候補射影", "HDSKData射影"]
+__all__ = ["HDSR質問射影", "HDSK質問射影", "HDSK候補射影", "HDSK候補代入可能", "HDSKData射影"]
