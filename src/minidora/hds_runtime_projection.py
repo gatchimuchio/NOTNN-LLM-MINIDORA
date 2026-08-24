@@ -31,7 +31,7 @@ _R_FALLBACK_SEMANTIC_PREFIXES = (
 )
 _R_CONTROL_CONDITION_KINDS = frozenset({"条件.検索極性"})
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
-_K_UNSUPPORTED_SCOPE_KEYS = frozenset({"様相", "量化", "条件scope", "scope", "条件作用"})
+_K_QUALIFIER_SCOPE_KEYS = frozenset({"様相", "量化", "条件scope", "scope", "条件作用"})
 _CANDIDATE_ASSERTION_PREFIXES = (
     "状態.", "条件.", "動態.", "不確実性.", "前提.", "射程.", "論証.",
 )
@@ -147,11 +147,17 @@ def _関係を座標へ閉じる(relations: tuple[HDS関係, ...], coordinate_id
     )
 
 
-def _K未対応scope(relation: HDS関係, *, 否定可: bool = False) -> bool:
-    """Kが忠実に保持できないscopeだけを辺から除外する。
+def _K未対応scope(
+    relation: HDS関係,
+    *,
+    否定可: bool = False,
+    修飾可: bool = False,
+) -> bool:
+    """K経路が損失なく保持できないscopeだけを辺から除外する。
 
-    KのFactはpolarityを持つため、Data射影では明示否定を保持できる。
-    候補/質問の否定選択はJの補集合制御を維持するため、現段階では従来どおり通さない。
+    - Data否定はFact.polarityへ保持できる。
+    - Dataの様相/条件/量化等はv0.18のHDS修飾Factへ保持できる。
+    - 質問/候補はJの選択意味との接続があるため、現段階では従来どおり強いK関係へ通さない。
     """
     for raw in relation.条件:
         value = str(raw)
@@ -166,14 +172,26 @@ def _K未対応scope(relation: HDS関係, *, 否定可: bool = False) -> bool:
             if payload == "否定" and 否定可:
                 continue
             return True
-        if key in _K_UNSUPPORTED_SCOPE_KEYS and payload:
+        if key in _K_QUALIFIER_SCOPE_KEYS and payload:
+            if 修飾可:
+                continue
             return True
     return False
 
 
-def _K関係射影(ir: HDSIR, coords: tuple[HDS座標, ...], *, 否定可: bool = False) -> tuple[HDS関係, ...]:
+def _K関係射影(
+    ir: HDSIR,
+    coords: tuple[HDS座標, ...],
+    *,
+    否定可: bool = False,
+    修飾可: bool = False,
+) -> tuple[HDS関係, ...]:
     closed = _関係を座標へ閉じる(ir.関係, {coord.座標ID for coord in coords})
-    return tuple(relation for relation in closed if not _K未対応scope(relation, 否定可=否定可))
+    return tuple(
+        relation
+        for relation in closed
+        if not _K未対応scope(relation, 否定可=否定可, 修飾可=修飾可)
+    )
 
 
 def HDSR質問射影(ir: HDSIR) -> HDSIR:
@@ -275,10 +293,12 @@ def HDSK候補代入可能(ir: HDSIR) -> bool:
 def HDSKData射影(ir: HDSIR) -> HDSIR:
     """R取得DataからKへ投入してよい世界事実意味だけを残す。
 
-    明示否定はK Fact.polarityへ写せるため関係を保持する。様相・条件scope等は引き続き除外する。
+    - 明示否定はFact.polarityへ写せるため保持する。
+    - 様相/条件/量化等はHDS修飾Factへ写せるため関係自体を保持する。
+    - 修飾付き関係はcanonical無条件Kへは入らず、HDS証拠台帳へだけ保存される。
     """
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
-    semantic_relations = _K関係射影(ir, semantic_coords, 否定可=True)
+    semantic_relations = _K関係射影(ir, semantic_coords, 否定可=True, 修飾可=True)
     return replace(ir, 座標=semantic_coords, 関係=semantic_relations, 意味作用履歴=())
 
 
