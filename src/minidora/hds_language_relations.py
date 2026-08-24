@@ -34,18 +34,25 @@ def _極性(relation: HDS関係) -> str:
     return _条件値(relation, "極性") or "肯定"
 
 
-def _existing_signatures(ir: HDSIR) -> set[tuple[str, str, str, str]]:
-    coords = ir.座標辞書()
+def _signatures(coords: tuple[HDS座標, ...] | list[HDS座標], relations: tuple[HDS関係, ...] | list[HDS関係]) -> set[tuple[str, str, str, str]]:
+    coord_map = {coord.座標ID: coord for coord in coords}
     out: set[tuple[str, str, str, str]] = set()
-    for relation in ir.関係:
+    for relation in relations:
         if relation.値状態 in _BLOCKING:
             continue
-        starts = [coords[cid] for cid in relation.始点 if cid in coords and coords[cid].値状態 not in _BLOCKING]
-        ends = [coords[cid] for cid in relation.終点 if cid in coords and coords[cid].値状態 not in _BLOCKING]
+        starts = [coord_map[cid] for cid in relation.始点 if cid in coord_map and coord_map[cid].値状態 not in _BLOCKING]
+        ends = [coord_map[cid] for cid in relation.終点 if cid in coord_map and coord_map[cid].値状態 not in _BLOCKING]
         for start in starts:
             for end in ends:
                 out.add((str(relation.種別), _極性(relation), _norm(start.内容), _norm(end.内容)))
     return out
+
+
+def _legacy_negative_false_positive(relation: HDS関係, coords: dict[str, HDS座標]) -> bool:
+    if str(relation.由来) != "公開HDS Compiler" or _条件値(relation, "極性"):
+        return False
+    starts = [coords[cid] for cid in relation.始点 if cid in coords]
+    return any(_NEGATIVE_TAIL.search(str(start.内容)) for start in starts)
 
 
 def _検索述語(surface: str, language_p: 言語基底P) -> str:
@@ -64,7 +71,8 @@ def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = 
 
     名詞共起・近接・分野知識から関係を推定しない。現行基礎Compilerが取りこぼしやすい
     過去形・進行形・受動態・否定態など、言語形だけが異なる明示関係を対象とする。
-    疑問文は未知端点処理を基礎Compiler/英日意味射影へ委ね、ここでは宣言文だけを補完する。
+    否定補助語を主語末尾へ取り込んだ旧Compilerの肯定偽陽性もここで除去する。
+    疑問文は未知端点処理を基礎Compiler/英日意味射影へ委ねる。
     """
     language = str(getattr(ir, "入力言語", "") or "").casefold()
     if not language.startswith("en"):
@@ -78,10 +86,13 @@ def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = 
     syntaxes = language_p.英語関係構文()
 
     coords = list(ir.座標)
-    relations = list(ir.関係)
+    coord_map = {coord.座標ID: coord for coord in coords}
+    original_relations = list(ir.関係)
+    relations = [relation for relation in original_relations if not _legacy_negative_false_positive(relation, coord_map)]
+    removed = len(original_relations) - len(relations)
     existing_ids = {coord.座標ID for coord in coords}
     existing_relation_ids = {relation.関係ID for relation in relations}
-    signatures = _existing_signatures(ir)
+    signatures = _signatures(coords, relations)
     added = 0
 
     def add_coord(kind: str, content: str, suffix: str) -> str:
@@ -111,18 +122,14 @@ def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = 
             if not subject or not object_ or not predicate:
                 continue
 
-            # `A does not inhibit B` を肯定active側が `A does not` -> `inhibit` と誤分解しない。
+            # 否定文を肯定active側が `A does not` -> `inhibit` と誤分解しない。
             if syntax.極性 == "肯定" and _NEGATIVE_TAIL.search(subject):
                 continue
-
-            # `X caused by Y` のような縮約受動をactive側のcausedと誤認しない。
             if not syntax.反転 and object_.casefold().startswith("by "):
                 continue
-
             if syntax.反転:
                 subject, object_ = object_, subject
 
-            # 機能語だけの端点や同一端点は確定関係へ上げない。
             if not 意味語(subject) or not 意味語(object_):
                 continue
             if _norm(subject) == _norm(object_):
@@ -142,14 +149,17 @@ def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = 
                 serial += 1
             existing_relation_ids.add(rid)
             search_predicate = _検索述語(predicate, language_p)
-            conditions = [f"検索述語={search_predicate or predicate}", f"極性={syntax.極性}", "由来=共有言語基底P"]
             relations.append(
                 HDS関係(
                     rid,
                     (sid,),
                     (oid,),
                     syntax.種別,
-                    条件=tuple(conditions),
+                    条件=(
+                        f"検索述語={search_predicate or predicate}",
+                        f"極性={syntax.極性}",
+                        "由来=共有言語基底P",
+                    ),
                     値状態=値状態.確定,
                     由来="共有言語基底P",
                 )
@@ -157,7 +167,7 @@ def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = 
             signatures.add(signature)
             added += 1
 
-    if not added:
+    if not added and not removed:
         return ir
     return replace(ir, 座標=tuple(coords), 関係=tuple(relations))
 
