@@ -5,7 +5,7 @@ import unittest
 from minidora import 公開HDSコンパイラ
 from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
 from minidora.hds_reference import HDS参照問合せ候補
-from minidora.hds_runtime_projection import HDSKData射影, HDSK候補射影, HDSK質問射影, HDSR質問射影
+from minidora.hds_runtime_projection import HDSKData射影, HDSK候補代入可能, HDSK候補射影, HDSK質問射影, HDSR質問射影
 from minidora.trinity_context import Trinity文脈系
 from minidora.採否 import 実行状態, 採否結果
 
@@ -31,6 +31,19 @@ def _synthetic_relation_ir(*, start: str = "Compound A", end: str = "Enzyme X", 
             *extra,
         ),
         関係=(HDS関係("r", ("s",), ("o",), "阻害", 条件=conditions),),
+        残差=(),
+        意味作用履歴=(),
+        実行核=HDS実行核(),
+    )
+
+
+def _entity_ir(text: str = "Compound A") -> HDSIR:
+    return HDSIR(
+        原文=text,
+        正規化文=text,
+        認知世界ID="test",
+        座標=(HDS座標("e", "対象.主題語", text),),
+        関係=(),
         残差=(),
         意味作用履歴=(),
         実行核=HDS実行核(),
@@ -145,6 +158,40 @@ class Runtime射影V15試験(unittest.TestCase):
             self.assertEqual({coord.座標ID for coord in projected.座標}, {"s", "o"})
             self.assertEqual(len(projected.関係), 1)
             self.assertEqual(projected.関係[0].種別, "阻害")
+
+    def test_実体候補だけ未知端点へ代入可能とする(self) -> None:
+        self.assertTrue(HDSK候補代入可能(_entity_ir("Compound A")))
+        self.assertFalse(HDSK候補代入可能(_synthetic_relation_ir()))
+
+    def test_否定や条件を持つ候補は実体句として代入しない(self) -> None:
+        negative = HDSIR(
+            原文="Compound A does not inhibit Enzyme X.",
+            正規化文="Compound A does not inhibit Enzyme X.",
+            認知世界ID="test",
+            座標=(
+                HDS座標("topic", "対象.主題語", "Compound A"),
+                HDS座標("neg", "状態.否定", "not"),
+            ),
+            関係=(),
+            残差=(),
+            意味作用履歴=(),
+            実行核=HDS実行核(),
+        )
+        conditional = HDSIR(
+            原文="under condition X, Compound A",
+            正規化文="under condition X, Compound A",
+            認知世界ID="test",
+            座標=(
+                HDS座標("topic", "対象.主題語", "Compound A"),
+                HDS座標("condition", "条件.前提", "condition X"),
+            ),
+            関係=(),
+            残差=(),
+            意味作用履歴=(),
+            実行核=HDS実行核(),
+        )
+        self.assertFalse(HDSK候補代入可能(negative))
+        self.assertFalse(HDSK候補代入可能(conditional))
 
     def test_Kは明示肯定関係だけを有向Fact候補へ残す(self) -> None:
         projected = HDSKData射影(_synthetic_relation_ir())
