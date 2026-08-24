@@ -23,6 +23,7 @@ class 英日関係質問:
     検索述語: str
     反転: bool = False
     受動: bool = False
+    極性: str = "肯定"
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,7 +40,37 @@ _文分割 = re.compile(r"(?<=[?!.。？！])\s+|\n+")
 _関係句 = r"(?P<v>[A-Za-z]+(?:\s+(?:to|in|on|with|against|from))?)"
 _型 = r"(?P<kind>[A-Za-z][A-Za-z0-9 _-]{0,72}?)"
 _助動 = r"(?:(?:would|could|may|might|can|must)\s+)?"
+_否定助動 = r"(?:does|do|did|can|could|may|might|must|will|would|should)\s+not\s+"
 _受動助動 = r"(?:is|are|was|were|has\s+been|have\s+been|had\s+been|(?:would|could|may|might|can|must)\s+be)"
+_受動否定助動 = r"(?:(?:is|are|was|were|has\s+been|have\s+been|had\s+been)\s+not|(?:would|could|may|might|can|must)\s+not\s+be)"
+
+_受動未知対象否定 = re.compile(
+    rf"^(?:which|what)\s+(?:of\s+the\s+following\s+)?{_型}\s+"
+    rf"{_受動否定助動}\s+{_関係句}\s+by\s+(?P<s>.+)$",
+    re.I,
+)
+_選択肢受動否定 = re.compile(
+    rf"^(?:which|what)\s+of\s+the\s+following\s+"
+    rf"{_受動否定助動}\s+{_関係句}\s+by\s+(?P<s>.+)$",
+    re.I,
+)
+_選択肢能動否定 = re.compile(
+    rf"^(?:which|what)\s+of\s+the\s+following\s+{_否定助動}{_関係句}\s+(?P<o>.+)$",
+    re.I,
+)
+_能動未知対象否定 = re.compile(
+    rf"^(?:which|what)\s+(?:of\s+the\s+following\s+)?{_型}\s+{_否定助動}{_関係句}\s+(?P<o>.+)$",
+    re.I,
+)
+_能動未知終点否定 = re.compile(
+    rf"^(?:which|what)\s+(?:of\s+the\s+following\s+)?{_型}\s+"
+    rf"(?:does|do|did)\s+(?P<s>.+?)\s+not\s+{_関係句}$",
+    re.I,
+)
+_無型未知終点否定 = re.compile(
+    rf"^(?:what|which)\s+(?:does|do|did)\s+(?P<s>.+?)\s+not\s+{_関係句}$",
+    re.I,
+)
 
 _受動未知対象 = re.compile(
     rf"^(?:which|what)\s+(?:of\s+the\s+following\s+)?{_型}\s+"
@@ -75,7 +106,7 @@ _選択肢受動 = re.compile(
 
 _制御規則 = (
     ("選択", re.compile(r"\b(?:least\s+likely|unlikely|except|most\s+unlikely)\b", re.I), "反転"),
-    ("否定", re.compile(r"\b(?:not|no|never|without|cannot|can't|does\s+not|is\s+not)\b", re.I), "否定"),
+    ("否定", re.compile(r"\b(?:not|no|never|without|cannot|can't|does\s+not|do\s+not|did\s+not|is\s+not|are\s+not|was\s+not|were\s+not)\b", re.I), "否定"),
     ("量化", re.compile(r"\b(?:all|each|every)\b", re.I), "全称"),
     ("量化", re.compile(r"\b(?:some|any)\b", re.I), "不定"),
     ("量化", re.compile(r"\b(?:none|neither)\b", re.I), "全否定"),
@@ -99,7 +130,7 @@ _検索除外 = frozenset(
         "why", "how", "this", "that", "these", "those", "it", "its", "do", "does", "did", "has", "have",
         "had", "would", "could", "may", "might", "can", "must", "most", "least", "likely", "unlikely",
         "following", "statement", "statements", "answer", "answers", "option", "options", "choice", "choices",
-        "correct", "incorrect", "true", "false", "best", "select", "choose",
+        "correct", "incorrect", "true", "false", "best", "select", "choose", "not",
     }
 )
 
@@ -157,6 +188,46 @@ def _反転(match: re.Match[str] | None, raw: str) -> bool:
 def _質問関係(text: str) -> 英日関係質問 | None:
     raw = _端点(text)
 
+    for pattern, missing, kind_value, passive in (
+        (_選択肢受動否定, "終点", "選択肢", True),
+        (_選択肢能動否定, "始点", "選択肢", False),
+    ):
+        match = pattern.fullmatch(raw)
+        if match:
+            relation = _関係句意味(match.group("v"))
+            if relation is not None:
+                kind, predicate = relation
+                endpoint = match.group("s") if passive else match.group("o")
+                return 英日関係質問(kind, missing, kind_value, _端点(endpoint), predicate, False, passive, "否定")
+
+    match = _受動未知対象否定.fullmatch(raw)
+    if match:
+        relation = _関係句意味(match.group("v"))
+        if relation is not None:
+            kind, predicate = relation
+            return 英日関係質問(kind, "終点", _要求型(match.group("kind")), _端点(match.group("s")), predicate, False, True, "否定")
+
+    match = _能動未知対象否定.fullmatch(raw)
+    if match:
+        relation = _関係句意味(match.group("v"))
+        if relation is not None:
+            kind, predicate = relation
+            return 英日関係質問(kind, "始点", _要求型(match.group("kind")), _端点(match.group("o")), predicate, False, False, "否定")
+
+    match = _能動未知終点否定.fullmatch(raw)
+    if match:
+        relation = _関係句意味(match.group("v"))
+        if relation is not None:
+            kind, predicate = relation
+            return 英日関係質問(kind, "終点", _要求型(match.group("kind")), _端点(match.group("s")), predicate, False, False, "否定")
+
+    match = _無型未知終点否定.fullmatch(raw)
+    if match:
+        relation = _関係句意味(match.group("v"))
+        if relation is not None:
+            kind, predicate = relation
+            return 英日関係質問(kind, "終点", "", _端点(match.group("s")), predicate, False, False, "否定")
+
     match = _選択肢受動.fullmatch(raw)
     if match:
         relation = _関係句意味(match.group("v"))
@@ -176,30 +247,14 @@ def _質問関係(text: str) -> 英日関係質問 | None:
         relation = _関係句意味(match.group("v"))
         if relation is not None:
             kind, predicate = relation
-            return 英日関係質問(
-                kind,
-                "終点",
-                _要求型(match.group("kind")),
-                _端点(match.group("s")),
-                predicate,
-                _反転(match, raw),
-                True,
-            )
+            return 英日関係質問(kind, "終点", _要求型(match.group("kind")), _端点(match.group("s")), predicate, _反転(match, raw), True)
 
     match = _能動未知終点.fullmatch(raw)
     if match:
         relation = _関係句意味(match.group("v"))
         if relation is not None:
             kind, predicate = relation
-            return 英日関係質問(
-                kind,
-                "終点",
-                _要求型(match.group("kind")),
-                _端点(match.group("s")),
-                predicate,
-                _反転(match, raw),
-                False,
-            )
+            return 英日関係質問(kind, "終点", _要求型(match.group("kind")), _端点(match.group("s")), predicate, _反転(match, raw), False)
 
     match = _無型未知終点.fullmatch(raw)
     if match:
@@ -213,15 +268,7 @@ def _質問関係(text: str) -> 英日関係質問 | None:
         relation = _関係句意味(match.group("v"))
         if relation is not None:
             kind, predicate = relation
-            return 英日関係質問(
-                kind,
-                "始点",
-                _要求型(match.group("kind")),
-                _端点(match.group("o")),
-                predicate,
-                _反転(match, raw),
-                False,
-            )
+            return 英日関係質問(kind, "始点", _要求型(match.group("kind")), _端点(match.group("o")), predicate, _反転(match, raw), False)
     return None
 
 
@@ -270,6 +317,7 @@ def 英日意味フレーム抽出(text: str) -> 英日意味フレーム:
         canonical.extend(
             (
                 f"関係:{question.種別}",
+                f"極性:{question.極性}",
                 f"不足位置:{question.未知位置}",
                 f"要求型:{question.要求型}" if question.要求型 else "要求型:未特定",
             )
