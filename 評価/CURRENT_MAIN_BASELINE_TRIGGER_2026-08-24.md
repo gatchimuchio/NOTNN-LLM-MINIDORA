@@ -6,3 +6,4 @@
 - purpose: current main baseline measurement only
 - merge: prohibited
 - after measurement: close PR
+- trigger revision: 2
