@@ -57,6 +57,15 @@ def _compile_patterns() -> tuple[tuple[str, re.Pattern[str], re.Pattern[str], re
 
 _比較規則 = _compile_patterns()
 _等価動詞 = re.compile(rf"^(?P<s>{_端点})\s+(?P<v>equals|equaled|equalled)\s+(?P<o>{_端点})$", re.I)
+_等価動詞未知始点 = re.compile(
+    rf"^(?:which|what)\s+(?:(?:of\s+the\s+following)\s+)?(?P<kind>{_型})?\s*"
+    rf"(?P<v>equals|equaled|equalled)\s+(?P<o>{_端点})$",
+    re.I,
+)
+_等価動詞未知終点 = re.compile(
+    rf"^(?:what|which)\s+(?:does|do|did)\s+(?P<s>{_端点})\s+(?P<v>equal)$",
+    re.I,
+)
 
 
 def _focus_sentences(text: str) -> tuple[str, ...]:
@@ -75,12 +84,41 @@ def _requested_type(value: object) -> str:
 def 英語比較意味抽出(text: str) -> tuple[英語比較意味, ...]:
     """世界知識を使わず、明示された英語比較だけを意味関係へ戻す。"""
     out: list[英語比較意味] = []
-    for sentence in _focus_sentences(text):
+    sentences = _focus_sentences(text)
+    for index, sentence in enumerate(sentences):
         if not sentence:
             continue
-        is_question = "?" in str(text) and sentence == _focus_sentences(text)[-1]
+        is_question = "?" in str(text) and index == len(sentences) - 1
 
-        if not is_question:
+        if is_question:
+            match = _等価動詞未知始点.fullmatch(sentence)
+            if match:
+                requested = _requested_type(match.groupdict().get("kind") or "")
+                out.append(
+                    英語比較意味(
+                        "等価",
+                        requested,
+                        _normalize(match.group("o")),
+                        "equal to",
+                        "始点",
+                        requested,
+                    )
+                )
+                continue
+            match = _等価動詞未知終点.fullmatch(sentence)
+            if match:
+                out.append(
+                    英語比較意味(
+                        "等価",
+                        _normalize(match.group("s")),
+                        "未特定",
+                        "equal to",
+                        "終点",
+                        "未特定",
+                    )
+                )
+                continue
+        else:
             eq = _等価動詞.fullmatch(sentence)
             if eq:
                 item = 英語比較意味("等価", _normalize(eq.group("s")), _normalize(eq.group("o")), "equal to")
@@ -91,26 +129,28 @@ def 英語比較意味抽出(text: str) -> tuple[英語比較意味, ...]:
             if is_question:
                 match = unknown_start.fullmatch(sentence)
                 if match:
+                    requested = _requested_type(match.groupdict().get("kind") or "")
                     item = 英語比較意味(
                         kind,
-                        _requested_type(match.groupdict().get("kind") or ""),
+                        requested,
                         _normalize(match.group("o")),
                         _normalize(match.group("v")).casefold(),
                         "始点",
-                        _requested_type(match.groupdict().get("kind") or ""),
+                        requested,
                     )
                     if item not in out:
                         out.append(item)
                     continue
                 match = unknown_end.fullmatch(sentence)
                 if match:
+                    requested = _requested_type(match.groupdict().get("kind") or "")
                     item = 英語比較意味(
                         kind,
                         _normalize(match.group("s")),
-                        _requested_type(match.groupdict().get("kind") or ""),
+                        requested,
                         _normalize(match.group("v")).casefold(),
                         "終点",
-                        _requested_type(match.groupdict().get("kind") or ""),
+                        requested,
                     )
                     if item not in out:
                         out.append(item)
