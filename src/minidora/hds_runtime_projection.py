@@ -58,6 +58,43 @@ def _座標重複除去(*groups: tuple[HDS座標, ...]) -> tuple[HDS座標, ...]
     return tuple(out)
 
 
+def _文字列重複除去(values: tuple[str, ...]) -> tuple[str, ...]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in values:
+        value = " ".join(str(raw).split()).strip()
+        if not value:
+            continue
+        key = value.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(value)
+    return tuple(out)
+
+
+def _R検索表層(
+    coords: tuple[HDS座標, ...],
+    relations: tuple[HDS関係, ...] = (),
+) -> str:
+    """R Projection自身のraw/focus用表層を、検索責務の情報だけから組み立てる。"""
+    search = tuple(str(coord.内容) for coord in coords if str(coord.種別).startswith("検索."))
+    predicates = tuple(_条件値(relation, "検索述語") for relation in relations)
+    known_endpoints = tuple(
+        str(coord.内容)
+        for coord in coords
+        if str(coord.種別).startswith(("対象.", "実体.", "状態.", "属性.", "値."))
+        and coord.値状態 not in _BLOCKING
+    )
+    context = tuple(
+        str(coord.内容)
+        for coord in coords
+        if str(coord.種別).startswith(("条件.", "時刻.", "時間.", "範囲."))
+        and coord.値状態 not in {値状態.矛盾, 値状態.留保}
+    )
+    return " ".join(_文字列重複除去((*search, *predicates, *known_endpoints, *context)))
+
+
 def _K意味座標(coord: HDS座標) -> bool:
     kind = str(coord.種別)
     if kind in _SURFACE_ONLY_KINDS:
@@ -101,9 +138,9 @@ def _関係を座標へ閉じる(relations: tuple[HDS関係, ...], coordinate_id
 def HDSR質問射影(ir: HDSIR) -> HDSIR:
     """質問HDS-IRからRが検索query生成に必要な最小構造だけを返す。
 
-    関係質問では「候補集合 + 検索述語付き関係 + 既知/未知端点 + 検索条件」を保持する。
-    一般質問ではCompilerが生成した `検索.*` を最優先し、無い場合だけ対象・状態等へ縮退する。
-    選択制御・監査・保持・帰還等は検索対象ではないため除外する。
+    Projectionの `原文/正規化文` も検索核だけから再生成する。
+    これにより検索器がfallbackで完全質問文を読み直す裏口を閉じる。
+    元の完全IRはJ/M側にそのまま残る。
     """
     choices = tuple(coord for coord in ir.座標 if coord.座標ID.startswith("choice:"))
     question_relations = _質問関係(ir)
@@ -119,16 +156,29 @@ def HDSR質問射影(ir: HDSIR) -> HDSIR:
     if question_relations:
         endpoint_ids = _関係座標ID(question_relations)
         endpoints = tuple(coords_by_id[cid] for cid in endpoint_ids if cid in coords_by_id)
+        projected_coords = _座標重複除去(choices, endpoints, context)
+        surface = _R検索表層(projected_coords, question_relations)
         return replace(
             ir,
-            座標=_座標重複除去(choices, endpoints, context),
+            原文=surface,
+            正規化文=surface,
+            座標=projected_coords,
             関係=question_relations,
             意味作用履歴=(),
         )
 
     search_focus = tuple(coord for coord in context if str(coord.種別).startswith("検索."))
     if search_focus:
-        return replace(ir, 座標=_座標重複除去(choices, search_focus), 関係=(), 意味作用履歴=())
+        projected_coords = _座標重複除去(choices, search_focus)
+        surface = _R検索表層(projected_coords)
+        return replace(
+            ir,
+            原文=surface,
+            正規化文=surface,
+            座標=projected_coords,
+            関係=(),
+            意味作用履歴=(),
+        )
 
     fallback = tuple(
         coord
@@ -139,7 +189,16 @@ def HDSR質問射影(ir: HDSIR) -> HDSIR:
     )
     fallback_ids = {coord.座標ID for coord in fallback}
     relations = _関係を座標へ閉じる(ir.関係, fallback_ids)
-    return replace(ir, 座標=_座標重複除去(choices, fallback), 関係=relations, 意味作用履歴=())
+    projected_coords = _座標重複除去(choices, fallback)
+    surface = _R検索表層(projected_coords, relations)
+    return replace(
+        ir,
+        原文=surface,
+        正規化文=surface,
+        座標=projected_coords,
+        関係=relations,
+        意味作用履歴=(),
+    )
 
 
 def HDSK質問射影(ir: HDSIR) -> HDSIR:
