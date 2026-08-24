@@ -6,6 +6,8 @@ from minidora import 公開HDSコンパイラ
 from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
 from minidora.hds_reference import HDS参照問合せ候補
 from minidora.hds_runtime_projection import HDSKData射影, HDSK候補射影, HDSK質問射影, HDSR質問射影
+from minidora.trinity_context import Trinity文脈系
+from minidora.採否 import 実行状態, 採否結果
 
 
 def _条件値(relation: HDS関係, key: str) -> str:
@@ -70,6 +72,20 @@ class Runtime射影V15試験(unittest.TestCase):
         for candidate in ("compound a", "compound b", "compound c", "compound d"):
             self.assertTrue(any(candidate in q and "inhibit" in q and "enzyme x" in q for q in queries), queries)
 
+    def test_R射影は完全質問文を検索fallbackへ残さない(self) -> None:
+        original = self.compiler.問題IR(
+            "Which molecule is least likely to inhibit Enzyme X?",
+            ("Compound A", "Compound B", "Compound C", "Compound D"),
+        )
+        projected = HDSR質問射影(original)
+        self.assertIn("least likely", original.原文.casefold())
+        self.assertNotIn("least likely", projected.原文.casefold())
+        self.assertNotIn("which", projected.原文.casefold())
+        self.assertIn("inhibit", projected.原文.casefold())
+        self.assertIn("enzyme x", projected.原文.casefold())
+        for query in HDS参照問合せ候補(projected):
+            self.assertNotIn("least likely", query.casefold())
+
     def test_R一般質問は検索表層を残し制御監査を捨てる(self) -> None:
         original = self.compiler.問題IR(
             "Which of the following statements best describes cellular respiration?",
@@ -80,6 +96,7 @@ class Runtime射影V15試験(unittest.TestCase):
         self.assertTrue(any(str(coord.種別).startswith("検索.") for coord in nonchoice))
         self.assertFalse(any(str(coord.種別).startswith("制御.") for coord in nonchoice))
         self.assertFalse(any(str(coord.種別).startswith("監査.") for coord in nonchoice))
+        self.assertNotIn("which of the following", projected.原文.casefold())
         queries = tuple(q.casefold() for q in HDS参照問合せ候補(projected))
         self.assertTrue(any("cellular respiration" in q for q in queries[:2]), queries[:2])
 
@@ -123,6 +140,19 @@ class Runtime射影V15試験(unittest.TestCase):
         projected = HDSKData射影(ir)
         self.assertEqual({coord.座標ID for coord in projected.座標}, {"s"})
         self.assertEqual(projected.関係, ())
+
+    def test_Mは射影ではなく完全IRを保持する(self) -> None:
+        original = self.compiler.問題IR(
+            "Which molecule is least likely to inhibit Enzyme X?",
+            ("A", "B", "C", "D"),
+        )
+        trinity = Trinity文脈系()
+        trinity.帰還(採否結果(実行状態.保留, ("test",)), None, original)
+        stored = trinity.記憶主体.IR履歴[-1]
+        self.assertEqual(stored, original)
+        self.assertTrue(any(str(coord.種別).startswith("制御.") for coord in stored.座標))
+        self.assertTrue(any(str(coord.種別).startswith("検索.") for coord in stored.座標))
+        self.assertIn("least likely", stored.原文.casefold())
 
 
 if __name__ == "__main__":
