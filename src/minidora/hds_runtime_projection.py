@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import re
 
 from .hds_compiler_records import HDS_COMPILER_META_PREFIXES
 from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
@@ -34,6 +35,12 @@ _R_FALLBACK_SEMANTIC_PREFIXES = (
     "値.",
 )
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
+_K_UNSUPPORTED_SCOPE_SURFACE = re.compile(
+    r"\b(?:not|never|cannot|can't|can\s+not|does\s+not|do\s+not|did\s+not|"
+    r"may|might|could|would|can|must|should|unless)\b",
+    re.I,
+)
+_K_UNSUPPORTED_SCOPE_KEYS = frozenset({"様相", "量化", "条件scope", "scope", "条件作用"})
 
 
 def _条件値(relation: HDS関係, key: str) -> str:
@@ -74,7 +81,6 @@ def _文字列重複除去(values: tuple[str, ...]) -> tuple[str, ...]:
 
 
 def _R検索表層(coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ...] = ()) -> str:
-    """R Projection自身のraw/focus用表層を、検索責務の情報だけから組み立てる。"""
     search = tuple(str(coord.内容) for coord in coords if str(coord.種別).startswith("検索."))
     predicates = tuple(_条件値(relation, "検索述語") for relation in relations)
     known_endpoints = tuple(
@@ -124,21 +130,45 @@ def _関係座標ID(relations: tuple[HDS関係, ...]) -> set[str]:
 
 
 def _関係を座標へ閉じる(relations: tuple[HDS関係, ...], coordinate_ids: set[str]) -> tuple[HDS関係, ...]:
-    out: list[HDS関係] = []
-    for relation in relations:
-        endpoints = tuple((*relation.始点, *relation.終点))
-        if endpoints and all(cid in coordinate_ids for cid in endpoints):
-            out.append(relation)
-    return tuple(out)
+    return tuple(
+        relation
+        for relation in relations
+        if (*relation.始点, *relation.終点)
+        and all(cid in coordinate_ids for cid in (*relation.始点, *relation.終点))
+    )
+
+
+def _K未対応scope(relation: HDS関係, coords: dict[str, HDS座標]) -> bool:
+    """Kがまだ論理関係として表現できないscopeを無条件Factへ潰さない。"""
+    for raw in relation.条件:
+        value = str(raw)
+        key, sep, payload = value.partition("=")
+        if not sep:
+            continue
+        key = key.strip()
+        payload = payload.strip()
+        if key == "極性" and payload and payload != "肯定":
+            return True
+        if key in _K_UNSUPPORTED_SCOPE_KEYS and payload:
+            return True
+
+    for cid in (*relation.始点, *relation.終点):
+        coord = coords.get(cid)
+        if coord is None:
+            continue
+        if _K_UNSUPPORTED_SCOPE_SURFACE.search(str(coord.内容)):
+            return True
+    return False
+
+
+def _K関係射影(relations: tuple[HDS関係, ...], coords: tuple[HDS座標, ...]) -> tuple[HDS関係, ...]:
+    coord_map = {coord.座標ID: coord for coord in coords}
+    closed = _関係を座標へ閉じる(relations, set(coord_map))
+    return tuple(relation for relation in closed if not _K未対応scope(relation, coord_map))
 
 
 def HDSR質問射影(ir: HDSIR) -> HDSIR:
-    """質問HDS-IRからRが検索query生成に必要な最小構造だけを返す。
-
-    Projectionの `原文/正規化文` も検索核だけから再生成する。
-    これにより検索器がfallbackで完全質問文を読み直す裏口を閉じる。
-    元の完全IRはJ/M側にそのまま残る。
-    """
+    """質問HDS-IRからRが検索query生成に必要な最小構造だけを返す。"""
     choices = tuple(coord for coord in ir.座標 if coord.座標ID.startswith("choice:"))
     question_relations = _質問関係(ir)
     coords_by_id = ir.座標辞書()
@@ -155,14 +185,7 @@ def HDSR質問射影(ir: HDSIR) -> HDSIR:
         endpoints = tuple(coords_by_id[cid] for cid in endpoint_ids if cid in coords_by_id)
         projected_coords = _座標重複除去(choices, endpoints, context)
         surface = _R検索表層(projected_coords, question_relations)
-        return replace(
-            ir,
-            原文=surface,
-            正規化文=surface,
-            座標=projected_coords,
-            関係=question_relations,
-            意味作用履歴=(),
-        )
+        return replace(ir, 原文=surface, 正規化文=surface, 座標=projected_coords, 関係=question_relations, 意味作用履歴=())
 
     search_focus = tuple(coord for coord in context if str(coord.種別).startswith("検索."))
     if search_focus:
@@ -177,18 +200,10 @@ def HDSR質問射影(ir: HDSIR) -> HDSIR:
         and coord.値状態 not in _BLOCKING
         and str(coord.内容).strip()
     )
-    fallback_ids = {coord.座標ID for coord in fallback}
-    relations = _関係を座標へ閉じる(ir.関係, fallback_ids)
+    relations = _関係を座標へ閉じる(ir.関係, {coord.座標ID for coord in fallback})
     projected_coords = _座標重複除去(choices, fallback)
     surface = _R検索表層(projected_coords, relations)
-    return replace(
-        ir,
-        原文=surface,
-        正規化文=surface,
-        座標=projected_coords,
-        関係=relations,
-        意味作用履歴=(),
-    )
+    return replace(ir, 原文=surface, 正規化文=surface, 座標=projected_coords, 関係=relations, 意味作用履歴=())
 
 
 def HDSK質問射影(ir: HDSIR) -> HDSIR:
@@ -211,7 +226,6 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
         )
         return replace(ir, 座標=_座標重複除去(choices, endpoints), 関係=projected_relations, 意味作用履歴=())
 
-    # 一般質問ではR専用の検索表層を借りず、Compilerが既に持つ主題語だけをK照合核にする。
     topic = tuple(
         coord
         for coord in ir.座標
@@ -223,24 +237,24 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
         return replace(ir, 座標=_座標重複除去(choices, topic), 関係=(), 意味作用履歴=())
 
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
-    semantic_ids = {coord.座標ID for coord in semantic_coords}
-    semantic_relations = _関係を座標へ閉じる(ir.関係, semantic_ids)
+    semantic_relations = _K関係射影(ir.関係, semantic_coords)
     return replace(ir, 座標=_座標重複除去(choices, semantic_coords), 関係=semantic_relations, 意味作用履歴=())
 
 
 def HDSK候補射影(ir: HDSIR) -> HDSIR:
-    """候補IRから候補識別と明示命題に必要な意味だけを残す。"""
+    """候補IRから候補識別とKが表現可能な明示命題だけを残す。"""
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
-    semantic_ids = {coord.座標ID for coord in semantic_coords}
-    semantic_relations = _関係を座標へ閉じる(ir.関係, semantic_ids)
+    semantic_relations = _K関係射影(ir.関係, semantic_coords)
     return replace(ir, 座標=semantic_coords, 関係=semantic_relations, 意味作用履歴=())
 
 
 def HDSKData射影(ir: HDSIR) -> HDSIR:
-    """R取得DataからKへ投入してよい世界事実意味だけを残す。"""
+    """R取得DataからKへ投入してよい世界事実意味だけを残す。
+
+    K未対応の否定・様相・条件scopeは関係Factへ縮退させず、端点語の証拠だけを残す。
+    """
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
-    semantic_ids = {coord.座標ID for coord in semantic_coords}
-    semantic_relations = _関係を座標へ閉じる(ir.関係, semantic_ids)
+    semantic_relations = _K関係射影(ir.関係, semantic_coords)
     return replace(ir, 座標=semantic_coords, 関係=semantic_relations, 意味作用履歴=())
 
 
