@@ -13,15 +13,16 @@
 5. [`15_関係Scope意味転送仕様_v0_4.md`](15_関係Scope意味転送仕様_v0_4.md) — 関係へ掛かる極性・様相・量化・条件をHDS-IRからKまで損失なく転送する責任を定める。
 6. [`16_関係Scope認識推論仕様_v0_5.md`](16_関係Scope認識推論仕様_v0_5.md) — 転送済みscopeを比較・直接検証で使用し、scope未対応graphへ誤投入しない責任を定める。
 7. [`17_Scope対応R復号仕様_v0_6.md`](17_Scope対応R復号仕様_v0_6.md) — 日本語正本のscopeをR境界でだけ原英語に近い検索表層へ復号し、検索時の意味損失を防ぐ。
-8. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — Data / Knowledgeの外部参照層Rを定める。
-9. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — 公開HDS CompilerとRuntimeのHDS-IR境界を定める。
-10. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — フル公開する標準Compilerの責任・非責任・性能改善境界を定める。
-11. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) — v1の公開Front-End Architecture履歴を保持する。
-12. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) — Failure Signature候補、状態遷移graph、暗黙知構造、監査R probe、CognitiveWorld差分まで接続した履歴を保持する。
-13. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md) — Failure Signature Bank、反復昇格、改善候補帰還を定める現行Architecture正本。
-14. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
-15. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
-16. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
+8. [`18_自然言語比較コンパイル仕様_v0_7.md`](18_自然言語比較コンパイル仕様_v0_7.md) — greater/lower/equal等の自然言語比較を有向の日本語正本関係へ落とす。
+9. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — Data / Knowledgeの外部参照層Rを定める。
+10. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — 公開HDS CompilerとRuntimeのHDS-IR境界を定める。
+11. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — フル公開する標準Compilerの責任・非責任・性能改善境界を定める。
+12. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md) — v1の公開Front-End Architecture履歴を保持する。
+13. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md) — Failure Signature候補、状態遷移graph、暗黙知構造、監査R probe、CognitiveWorld差分まで接続した履歴を保持する。
+14. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md) — Failure Signature Bank、反復昇格、改善候補帰還を定める現行Architecture正本。
+15. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gateを定める。
+16. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 日本語基底と、実務上必要な多言語表層・J/C/M文脈循環を定める。
+17. [`05_完成判定関門.md`](05_完成判定関門.md) — 上記を横断して、プロトタイプ以後の製品・最終完成条件を定める。
 
 番号は成立順・履歴を保持しているため、文書の読み順と完全には一致しない。整理目的だけで番号を振り直さない。
 
@@ -47,6 +48,8 @@ MINIDORA局所設計
         │      ├─ 英日意味コンパイル
         │      │      ↓
         │      │    日本語意味正本
+        │      ├─ 自然言語比較
+        │      │      └─ 比較.大 / 比較.小 / 比較.以上 / 比較.以下 / 等価 / 不同
         │      ├─ 関係Scope意味転送
         │      │      └─ 極性 / 様相 / 量化 / 条件
         │      ├─ 公開HDS Compiler
@@ -96,6 +99,8 @@ tests/ + 評価/
 - 共有言語基底Pへ百科事典的な世界知識を混入させない。
 - HDS CompilerとMINIDORA/Cは同じ言語基底版を参照する。
 - 英語表層を内部意味正本へ直接昇格させず、日本語正本の意味フレームを介す。
+- 自然言語比較は比較軸が明示された場合だけ関係化し、世界知識から大小を補わない。
+- 比較関係の意味をrelation種別とscopeへ二重格納しない。
 - 日本語意味正本を英語R検索queryへ無差別に混入させない。
 - R検索復号用の英語表層を日本語意味正本そのものとして扱わない。
 - 明示否定・様相をR検索query生成時に無言で落とさない。
