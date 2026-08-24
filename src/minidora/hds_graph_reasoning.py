@@ -65,6 +65,9 @@ def _fact_blocked(fact: object) -> bool:
     provenance = {str(x) for x in getattr(fact, "provenance", ())}
     if provenance & _BLOCKING_PROVENANCE:
         return True
+    if "relation_scope_sensitive:true" in provenance:
+        # 現行汎用graphはscopeを状態として持たないため、条件付き辺を無条件辺へ降格させない。
+        return True
     return any(item.startswith("residual_blocked:") for item in provenance)
 
 
