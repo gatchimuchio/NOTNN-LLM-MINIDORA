@@ -25,9 +25,20 @@ _型分類 = re.compile(rf"^{_主体}\s+(?:is|was)\s+(?:(?:a|an)\s+)?(?:type|kin
 _未知単純 = re.compile(rf"^which\s+(?:(?:of\s+the\s+following)\s+)?(?:{_要求型}\s+)?(?:is|was)\s+(?:a|an)\s+{_型}$", re.I)
 _未知型分類 = re.compile(rf"^which\s+(?:(?:of\s+the\s+following)\s+)?(?:{_要求型}\s+)?(?:is|was)\s+(?:(?:a|an)\s+)?(?:type|kind|form|class|example)\s+of\s+{_型}$", re.I)
 
+_単純分類禁止語 = frozenset({
+    "of", "in", "on", "at", "for", "from", "with", "without", "by", "to", "into", "through", "via",
+})
+
 
 def _norm(value: object) -> str:
     return " ".join(unicodedata.normalize("NFKC", str(value)).split()).strip(" ,;:()[]")
+
+
+def _単純分類先(value: object) -> bool:
+    tokens = tuple(_norm(value).casefold().split())
+    if not tokens or len(tokens) > 6:
+        return False
+    return not any(token in _単純分類禁止語 for token in tokens)
 
 
 def _sentences(text: str) -> tuple[str, ...]:
@@ -43,23 +54,33 @@ def 英語分類意味抽出(text: str) -> tuple[英語分類意味, ...]:
     for index, sentence in enumerate(sentences):
         is_question = "?" in str(text) and index == len(sentences) - 1
         if is_question:
-            for pattern, predicate in ((_未知型分類, "is a type of"), (_未知単純, "is a")):
+            for pattern, predicate, simple in (
+                (_未知型分類, "is a type of", False),
+                (_未知単純, "is a", True),
+            ):
                 match = pattern.fullmatch(sentence)
                 if not match:
                     continue
                 target = _norm(match.group("o"))
+                if simple and not _単純分類先(target):
+                    continue
                 requested = _norm(match.groupdict().get("kind") or "") or "選択肢"
                 item = 英語分類意味(requested, target, True, requested, predicate)
                 if item not in out:
                     out.append(item)
                 break
         else:
-            for pattern, predicate in ((_型分類, "is a type of"), (_単純分類, "is a")):
+            for pattern, predicate, simple in (
+                (_型分類, "is a type of", False),
+                (_単純分類, "is a", True),
+            ):
                 match = pattern.fullmatch(sentence)
                 if not match:
                     continue
                 subject = _norm(match.group("s"))
                 target = _norm(match.group("o"))
+                if simple and not _単純分類先(target):
+                    continue
                 if subject and target and subject.casefold() != target.casefold():
                     item = 英語分類意味(subject, target, False, "", predicate)
                     if item not in out:
