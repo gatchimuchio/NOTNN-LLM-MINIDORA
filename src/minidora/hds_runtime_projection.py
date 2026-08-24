@@ -5,6 +5,7 @@ import re
 
 from .hds_compiler_records import HDS_COMPILER_META_PREFIXES
 from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
+from .semantic_tokens import 意味語
 
 
 _SURFACE_ONLY_KINDS = {
@@ -34,6 +35,7 @@ _R_FALLBACK_SEMANTIC_PREFIXES = (
     "属性.",
     "値.",
 )
+_R_CONTROL_CONDITION_KINDS = frozenset({"条件.検索極性"})
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
 _K_UNSUPPORTED_SCOPE_SURFACE = re.compile(
     r"\b(?:not|never|cannot|can't|can\s+not|does\s+not|do\s+not|did\s+not|"
@@ -41,6 +43,7 @@ _K_UNSUPPORTED_SCOPE_SURFACE = re.compile(
     re.I,
 )
 _K_UNSUPPORTED_SCOPE_KEYS = frozenset({"様相", "量化", "条件scope", "scope", "条件作用"})
+_K_SCOPE_COORD_KINDS = frozenset({"不確実性.明示", "前提.明示", "射程.明示", "動態.分岐"})
 
 
 def _条件値(relation: HDS関係, key: str) -> str:
@@ -80,6 +83,11 @@ def _文字列重複除去(values: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(out)
 
 
+def _R利用座標(coord: HDS座標) -> bool:
+    kind = str(coord.種別)
+    return kind not in _R_CONTROL_CONDITION_KINDS
+
+
 def _R検索表層(coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ...] = ()) -> str:
     search = tuple(str(coord.内容) for coord in coords if str(coord.種別).startswith("検索."))
     predicates = tuple(_条件値(relation, "検索述語") for relation in relations)
@@ -93,6 +101,7 @@ def _R検索表層(coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ..
         str(coord.内容)
         for coord in coords
         if str(coord.種別).startswith(("条件.", "時刻.", "時間.", "範囲."))
+        and _R利用座標(coord)
         and coord.値状態 not in {値状態.矛盾, 値状態.留保}
     )
     return " ".join(_文字列重複除去((*search, *predicates, *known_endpoints, *context)))
@@ -138,7 +147,30 @@ def _関係を座標へ閉じる(relations: tuple[HDS関係, ...], coordinate_id
     )
 
 
-def _K未対応scope(relation: HDS関係, coords: dict[str, HDS座標]) -> bool:
+def _scope座標が関係へ掛かる(ir: HDSIR, relation: HDS関係, coords: dict[str, HDS座標]) -> bool:
+    endpoint_terms: list[frozenset[str]] = []
+    for cid in (*relation.始点, *relation.終点):
+        coord = coords.get(cid)
+        if coord is None:
+            continue
+        terms = 意味語(coord.内容)
+        if terms:
+            endpoint_terms.append(terms)
+    if len(endpoint_terms) < 2:
+        return False
+
+    for scope in ir.座標:
+        if str(scope.種別) not in _K_SCOPE_COORD_KINDS:
+            continue
+        scope_terms = 意味語(scope.内容)
+        if not scope_terms:
+            continue
+        if all(terms & scope_terms for terms in endpoint_terms):
+            return True
+    return False
+
+
+def _K未対応scope(ir: HDSIR, relation: HDS関係, coords: dict[str, HDS座標]) -> bool:
     """Kがまだ論理関係として表現できないscopeを無条件Factへ潰さない。"""
     for raw in relation.条件:
         value = str(raw)
@@ -158,13 +190,13 @@ def _K未対応scope(relation: HDS関係, coords: dict[str, HDS座標]) -> bool:
             continue
         if _K_UNSUPPORTED_SCOPE_SURFACE.search(str(coord.内容)):
             return True
-    return False
+    return _scope座標が関係へ掛かる(ir, relation, coords)
 
 
-def _K関係射影(relations: tuple[HDS関係, ...], coords: tuple[HDS座標, ...]) -> tuple[HDS関係, ...]:
+def _K関係射影(ir: HDSIR, coords: tuple[HDS座標, ...]) -> tuple[HDS関係, ...]:
     coord_map = {coord.座標ID: coord for coord in coords}
-    closed = _関係を座標へ閉じる(relations, set(coord_map))
-    return tuple(relation for relation in closed if not _K未対応scope(relation, coord_map))
+    closed = _関係を座標へ閉じる(ir.関係, set(coord_map))
+    return tuple(relation for relation in closed if not _K未対応scope(ir, relation, coord_map))
 
 
 def HDSR質問射影(ir: HDSIR) -> HDSIR:
@@ -176,6 +208,7 @@ def HDSR質問射影(ir: HDSIR) -> HDSIR:
         coord
         for coord in ir.座標
         if str(coord.種別).startswith(_R_CONTEXT_PREFIXES)
+        and _R利用座標(coord)
         and coord.値状態 not in {値状態.矛盾, 値状態.留保}
         and str(coord.内容).strip()
     )
@@ -197,6 +230,7 @@ def HDSR質問射影(ir: HDSIR) -> HDSIR:
         coord
         for coord in ir.座標
         if str(coord.種別).startswith((*_R_FALLBACK_SEMANTIC_PREFIXES, *_R_CONTEXT_PREFIXES))
+        and _R利用座標(coord)
         and coord.値状態 not in _BLOCKING
         and str(coord.内容).strip()
     )
@@ -237,14 +271,14 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
         return replace(ir, 座標=_座標重複除去(choices, topic), 関係=(), 意味作用履歴=())
 
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
-    semantic_relations = _K関係射影(ir.関係, semantic_coords)
+    semantic_relations = _K関係射影(ir, semantic_coords)
     return replace(ir, 座標=_座標重複除去(choices, semantic_coords), 関係=semantic_relations, 意味作用履歴=())
 
 
 def HDSK候補射影(ir: HDSIR) -> HDSIR:
     """候補IRから候補識別とKが表現可能な明示命題だけを残す。"""
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
-    semantic_relations = _K関係射影(ir.関係, semantic_coords)
+    semantic_relations = _K関係射影(ir, semantic_coords)
     return replace(ir, 座標=semantic_coords, 関係=semantic_relations, 意味作用履歴=())
 
 
@@ -254,7 +288,7 @@ def HDSKData射影(ir: HDSIR) -> HDSIR:
     K未対応の否定・様相・条件scopeは関係Factへ縮退させず、端点語の証拠だけを残す。
     """
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
-    semantic_relations = _K関係射影(ir.関係, semantic_coords)
+    semantic_relations = _K関係射影(ir, semantic_coords)
     return replace(ir, 座標=semantic_coords, 関係=semantic_relations, 意味作用履歴=())
 
 
