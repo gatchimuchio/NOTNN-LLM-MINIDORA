@@ -22,6 +22,19 @@ def _候補表層(ir: HDSIR) -> str:
     return " ".join(str(ir.正規化文 or ir.原文).split()).strip()
 
 
+def _質問関係(question_ir: HDSIR) -> tuple[HDS関係, ...]:
+    """英日意味正本関係があれば表層由来の重複関係より優先する。"""
+    canonical = tuple(
+        relation
+        for relation in question_ir.関係
+        if _条件値(relation, "英日意味射影")
+        and _条件値(relation, "不足位置") in {"始点", "終点"}
+    )
+    if canonical:
+        return canonical
+    return tuple(question_ir.関係)
+
+
 def HDS候補代入仮説(question_ir: HDSIR, label: str, candidate_ir: HDSIR) -> HDSIR:
     """問いの未知関係端点へ候補を代入した、比較専用の仮説関係を候補IRへ追加する。
 
@@ -61,7 +74,7 @@ def HDS候補代入仮説(question_ir: HDSIR, label: str, candidate_ir: HDSIR) -
         )
         return cid
 
-    for qrelation in question_ir.関係:
+    for qrelation in _質問関係(question_ir):
         missing = _条件値(qrelation, "不足位置")
         if missing not in {"始点", "終点"}:
             continue

@@ -17,6 +17,7 @@ from .hds_compiler_records_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規
 from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
 from .hds_ir import HDSIR
 from .hds_language_relations import HDS英語基底関係射影
+from .hds_language_semantic_bridge import HDS英日意味射影
 from .言語基底 import 言語基底P, 標準言語基底P
 
 
@@ -29,6 +30,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
 
     Compilerは真偽、原理の最終採用、改善候補の採用、行動、最終採否を決めない。
     文字体系・基本文法・基底概念はMINIDORA Runtimeと同じ言語基底Pを参照する。
+    英語入力は全文翻訳ではなく、日本語正本の意味フレームへ有限射影してから後段へ渡す。
     """
 
     Architecture版 = "v1.2"
@@ -51,7 +53,11 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         *,
         HDS履歴: tuple[HDSIR, ...] = (),
     ) -> HDSCompiler成果:
-        # 共有言語基底Pで、基礎Compilerが表面語形差だけで取りこぼした明示関係を補完する。
+        # 英語表層を先に日本語正本の意味フレームへ射影する。
+        # 全文翻訳ではなく、問いの未知端点・関係・反転等を意味構造として固定する。
+        base = HDS英日意味射影(base)
+
+        # 語形差だけで取りこぼした英語宣言文の明示関係を補完する。
         # 世界知識や名詞共起からの推定は行わない。
         base = HDS英語基底関係射影(base, self.言語基底P)
         first = 公開HDSフロントエンド射影(base)
