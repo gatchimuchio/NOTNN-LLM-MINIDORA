@@ -3,21 +3,87 @@ from __future__ import annotations
 from dataclasses import replace
 
 from .hds_ir import HDSIR, HDS座標, HDS関係, HDS意味作用, 値状態
-from .言語基底_英日意味 import 英日意味フレーム抽出
+from .言語基底_英日意味 import 英日意味フレーム, 英日意味フレーム抽出
 
 
-_VERSION = "v0.3"
+_VERSION = "v0.4"
+_GENERIC_RELATIONS = {
+    "意味原子→節",
+    "談話順序",
+    "節→述語",
+    "候補→集合",
+    "問い×候補→選択目的",
+    "共参照",
+    "数量単位",
+}
 
 
 def _norm(value: object) -> str:
     return " ".join(str(value).split()).strip()
 
 
+def _条件値(relation: HDS関係, key: str) -> str:
+    prefix = key + "="
+    for raw in relation.条件:
+        value = str(raw)
+        if value.startswith(prefix):
+            return value[len(prefix):].strip()
+    return ""
+
+
+def _意味条件(frame: 英日意味フレーム, *, question: bool) -> tuple[str, ...]:
+    out: list[str] = []
+    for control in frame.制御:
+        kind = str(control.種別)
+        canonical = str(control.正本)
+        # 選択反転・least likelyはJの候補選択制御であり、関係そのものの極性ではない。
+        if kind == "選択":
+            continue
+        if question and kind == "蓋然性":
+            continue
+        if kind == "否定":
+            out.append("極性=否定")
+        elif kind == "量化":
+            out.append(f"量化={canonical}")
+        elif kind == "比較":
+            out.append(f"比較={canonical}")
+        elif kind == "条件":
+            out.append(f"条件種別={canonical}")
+        elif kind == "様相":
+            out.append(f"様相={canonical}")
+        elif kind == "蓋然性":
+            out.append(f"蓋然性={canonical}")
+    return tuple(dict.fromkeys(out))
+
+
+def _scope_existing_relation(relations: list[HDS関係], coords: list[HDS座標], frame: 英日意味フレーム) -> list[HDS関係]:
+    """短い単一命題だけ、制御意味をその関係へscopeする。複数関係では誤scopeを避ける。"""
+    candidates = [
+        relation
+        for relation in relations
+        if relation.値状態 == 値状態.確定
+        and str(relation.由来) in {"公開HDS Compiler", "共有言語基底P"}
+        and str(relation.種別) not in _GENERIC_RELATIONS
+    ]
+    if len(candidates) != 1:
+        return relations
+
+    target = candidates[0]
+    inherited = list(target.条件)
+    inherited.extend(_意味条件(frame, question=False))
+    # 宣言文では基礎Compilerが保持した条件表層も、単一関係なら同じscopeへ接続する。
+    for coord in coords:
+        if str(coord.種別) == "条件.前提" and str(coord.内容).strip():
+            inherited.append("条件表層=" + _norm(coord.内容))
+    merged = tuple(dict.fromkeys(str(value) for value in inherited if str(value)))
+    return [replace(relation, 条件=merged) if relation is target else relation for relation in relations]
+
+
 def HDS英日意味射影(ir: HDSIR) -> HDSIR:
     """英語表層を日本語正本の意味フレームへ有限射影する。
 
     全文翻訳は行わない。否定・比較・条件・様相・量化・関係質問を日本語正本の意味として
-    HDSへ保持し、外部Rへ戻す英語検索表層は別座標に分離する。世界知識は追加しない。
+    HDSへ保持し、外部Rへ戻す英語検索表層は別座標に分離する。v0.4では関係scopeも保持する。
     """
     language = str(getattr(ir, "入力言語", "") or "").casefold()
     if not language.startswith("en"):
@@ -54,7 +120,6 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
         )
         return candidate
 
-    # 日本語正本の意味は検索queryへ混ぜず、意味作用履歴として保持する。
     if frame.正本意味:
         operations.append(
             HDS意味作用(
@@ -63,14 +128,13 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
                 ("normalized",),
                 (),
                 " / ".join(frame.正本意味),
-                保持構造=("原文", "外部英語表層", "日本語意味正本"),
+                保持構造=("原文", "外部英語表層", "日本語意味正本", "関係scope"),
                 損失=(),
-                検証=("世界知識非追加", "外部検索表層分離"),
+                検証=("世界知識非追加", "外部検索表層分離", "制御scope保持"),
             )
         )
 
     if frame.外部検索語:
-        # R境界へ戻すための英語だけを検索可能座標として保持する。
         external = " ".join(token for token in frame.外部検索語 if not token.startswith("rel:"))
         if external:
             add_coord("lang-sem:search", "検索.英語正規化", external)
@@ -78,21 +142,11 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
     question = frame.関係質問
     if question is not None and question.既知端点:
         if question.未知位置 == "始点":
-            start_id = add_coord(
-                "lang-sem:unknown:start",
-                "目的.未知始点",
-                question.要求型 or "未特定",
-                値状態.未観測,
-            )
+            start_id = add_coord("lang-sem:unknown:start", "目的.未知始点", question.要求型 or "未特定", 値状態.未観測)
             end_id = add_coord("lang-sem:known:end", "対象.終点", question.既知端点)
         else:
             start_id = add_coord("lang-sem:known:start", "対象.始点", question.既知端点)
-            end_id = add_coord(
-                "lang-sem:unknown:end",
-                "目的.未知終点",
-                question.要求型 or "未特定",
-                値状態.未観測,
-            )
+            end_id = add_coord("lang-sem:unknown:end", "目的.未知終点", question.要求型 or "未特定", 値状態.未観測)
 
         add_coord("lang-sem:missing", "目的.不足位置", question.未知位置)
         if question.要求型:
@@ -103,27 +157,31 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
         while rid in existing_relation_ids:
             rid = f"lang-sem:relation-question:{serial}"
             serial += 1
+        conditions = tuple(dict.fromkeys((
+            f"検索述語={question.検索述語}",
+            f"極性={question.極性}",
+            f"不足位置={question.未知位置}",
+            f"英日意味射影={_VERSION}",
+            f"受動態={str(question.受動).lower()}",
+            *_意味条件(frame, question=True),
+        )))
         semantic_relation = HDS関係(
             rid,
             (start_id,),
             (end_id,),
             question.種別,
-            条件=(
-                f"検索述語={question.検索述語}",
-                f"不足位置={question.未知位置}",
-                f"英日意味射影={_VERSION}",
-                f"受動態={str(question.受動).lower()}",
-            ),
+            条件=conditions,
             値状態=値状態.未観測,
             由来="共有言語基底P",
             暫定性="EN_TO_JA_SEMANTIC_PROJECTION",
         )
-        # 検索ではこの意味正本関係を最初に使う。
         relations.insert(0, semantic_relation)
 
         if question.反転:
             if not any(str(coord.種別) == "制御.選択意図" and str(coord.内容) == "反転" for coord in coords):
                 add_coord("lang-sem:selection", "制御.選択意図", "反転")
+    else:
+        relations = _scope_existing_relation(relations, coords, frame)
 
     return replace(ir, 座標=tuple(coords), 関係=tuple(relations), 意味作用履歴=tuple(operations))
 
