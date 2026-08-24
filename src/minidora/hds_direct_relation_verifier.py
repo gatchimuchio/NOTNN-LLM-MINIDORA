@@ -5,7 +5,7 @@ import math
 from typing import Mapping
 
 from .hds_data_k import HDS証拠事実
-from .hds_ir import HDSIR, 値状態
+from .hds_ir import HDSIR, HDS関係, 値状態
 from .k3_functional import Candidate, K3相当能力核
 from .semantic_tokens import 意味語
 
@@ -18,6 +18,7 @@ _BLOCKING_PROVENANCE = {
 }
 _HYPOTHESIS_ORIGIN = "HDS候補代入仮説"
 _PUBLIC_COMPILER_ORIGIN = "公開HDS Compiler"
+_LANGUAGE_BASE_ORIGIN = "共有言語基底P"
 _GENERIC_RELATIONS = {
     "意味原子→節",
     "談話順序",
@@ -60,6 +61,22 @@ def _relation_name(predicate: str) -> str | None:
     return str(predicate)[len(prefix):].replace("_", " ")
 
 
+def _relation_condition(relation: HDS関係, key: str) -> str:
+    prefix = key + "="
+    for raw in relation.条件:
+        value = str(raw)
+        if value.startswith(prefix):
+            return value[len(prefix):].strip()
+    return ""
+
+
+def _effective_relation(relation: HDS関係) -> str:
+    kind = str(relation.種別)
+    if _relation_condition(relation, "極性") == "否定":
+        return "否定." + kind
+    return kind
+
+
 def _fact_blocked(fact: object) -> bool:
     provenance = {str(x) for x in getattr(fact, "provenance", ())}
     return bool(provenance & _BLOCKING_PROVENANCE) or any(
@@ -84,18 +101,20 @@ def _否定候補(ir: HDSIR) -> bool:
 def _candidate_edges(ir: HDSIR) -> tuple[_候補辺, ...]:
     coords = ir.座標辞書()
     out: list[_候補辺] = []
-    negative = _否定候補(ir)
+    global_negative = _否定候補(ir)
     for relation in ir.関係:
         origin = str(relation.由来)
         if origin == _HYPOTHESIS_ORIGIN:
             mode = "hypothesis"
             if relation.値状態 not in {値状態.推定, 値状態.確定}:
                 continue
-        elif origin == _PUBLIC_COMPILER_ORIGIN:
-            # 否定候補を肯定命題として直接証明しない。否定は別の反証経路で扱う。
-            if negative or relation.値状態 != 値状態.確定:
+        elif origin in {_PUBLIC_COMPILER_ORIGIN, _LANGUAGE_BASE_ORIGIN}:
+            if relation.値状態 != 値状態.確定:
                 continue
             if str(relation.種別) in _GENERIC_RELATIONS:
+                continue
+            # 旧Projectionで否定がrelationへscopeされていない場合だけ、肯定命題への誤昇格を防ぐ。
+            if global_negative and not _relation_condition(relation, "極性"):
                 continue
             mode = "assertion"
         else:
@@ -108,7 +127,7 @@ def _candidate_edges(ir: HDSIR) -> tuple[_候補辺, ...]:
                 start_terms = 意味語(start.内容)
                 end_terms = 意味語(end.内容)
                 if start_terms and end_terms:
-                    edge = _候補辺(str(relation.種別), start_terms, end_terms, mode)
+                    edge = _候補辺(_effective_relation(relation), start_terms, end_terms, mode)
                     if edge not in out:
                         out.append(edge)
     return tuple(out)
@@ -148,8 +167,8 @@ def HDS直接関係検証(
     - 問いの未知端点へ候補を代入した仮説関係: 1独立sourceから直接検証可能。
     - 候補自身が表す完全命題の関係: 検索自己確認を避けるため2独立source以上を要求。
 
-    候補語の共起、検索hit数、文書全体の語集合は使わない。関係種別・始点・終点が同時に
-    一致したFactだけをsource単位で集約し、同等の対抗候補が残る場合は候補を返さない。
+    極性も関係型の一部として扱うため、肯定の `阻害` と否定の `否定.阻害` は一致しない。
+    候補語の共起、検索hit数、文書全体の語集合は使わない。
     """
     facts = tuple(HDS証拠事実(core))
     fact_edges: list[tuple[object, str, frozenset[str], frozenset[str]]] = []
@@ -217,6 +236,7 @@ def HDS直接関係検証(
             "HDS-IR",
             "K",
             "DIRECTED_ENDPOINT_MATCH",
+            "SCOPED_RELATION_POLARITY",
             "SOURCE_DEDUPLICATED",
             "NO_GUESS",
             "hypothesis_sources:" + str(top.仮説一致出典数),
