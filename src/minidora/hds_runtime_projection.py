@@ -45,6 +45,19 @@ def _条件値(relation: HDS関係, key: str) -> str:
     return ""
 
 
+def _座標重複除去(*groups: tuple[HDS座標, ...]) -> tuple[HDS座標, ...]:
+    out: list[HDS座標] = []
+    seen: set[str] = set()
+    for group in groups:
+        for coord in group:
+            cid = str(coord.座標ID)
+            if cid in seen:
+                continue
+            seen.add(cid)
+            out.append(coord)
+    return tuple(out)
+
+
 def _K意味座標(coord: HDS座標) -> bool:
     kind = str(coord.種別)
     if kind in _SURFACE_ONLY_KINDS:
@@ -108,14 +121,14 @@ def HDSR質問射影(ir: HDSIR) -> HDSIR:
         endpoints = tuple(coords_by_id[cid] for cid in endpoint_ids if cid in coords_by_id)
         return replace(
             ir,
-            座標=tuple(dict.fromkeys((*choices, *endpoints, *context))),
+            座標=_座標重複除去(choices, endpoints, context),
             関係=question_relations,
             意味作用履歴=(),
         )
 
     search_focus = tuple(coord for coord in context if str(coord.種別).startswith("検索."))
     if search_focus:
-        return replace(ir, 座標=tuple((*choices, *search_focus)), 関係=(), 意味作用履歴=())
+        return replace(ir, 座標=_座標重複除去(choices, search_focus), 関係=(), 意味作用履歴=())
 
     fallback = tuple(
         coord
@@ -126,7 +139,7 @@ def HDSR質問射影(ir: HDSIR) -> HDSIR:
     )
     fallback_ids = {coord.座標ID for coord in fallback}
     relations = _関係を座標へ閉じる(ir.関係, fallback_ids)
-    return replace(ir, 座標=tuple((*choices, *fallback)), 関係=relations, 意味作用履歴=())
+    return replace(ir, 座標=_座標重複除去(choices, fallback), 関係=relations, 意味作用履歴=())
 
 
 def HDSK質問射影(ir: HDSIR) -> HDSIR:
@@ -147,7 +160,7 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
             )
             for relation in question_relations
         )
-        return replace(ir, 座標=tuple((*choices, *endpoints)), 関係=projected_relations, 意味作用履歴=())
+        return replace(ir, 座標=_座標重複除去(choices, endpoints), 関係=projected_relations, 意味作用履歴=())
 
     search_focus = tuple(
         coord
@@ -164,12 +177,12 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
             )
             for coord in search_focus
         )
-        return replace(ir, 座標=tuple((*choices, *projected)), 関係=(), 意味作用履歴=())
+        return replace(ir, 座標=_座標重複除去(choices, projected), 関係=(), 意味作用履歴=())
 
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
     semantic_ids = {coord.座標ID for coord in semantic_coords}
     semantic_relations = _関係を座標へ閉じる(ir.関係, semantic_ids)
-    return replace(ir, 座標=tuple((*choices, *semantic_coords)), 関係=semantic_relations, 意味作用履歴=())
+    return replace(ir, 座標=_座標重複除去(choices, semantic_coords), 関係=semantic_relations, 意味作用履歴=())
 
 
 def HDSK候補射影(ir: HDSIR) -> HDSIR:
