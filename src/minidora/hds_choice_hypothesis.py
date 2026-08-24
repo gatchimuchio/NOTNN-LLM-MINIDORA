@@ -35,13 +35,23 @@ def _質問関係(question_ir: HDSIR) -> tuple[HDS関係, ...]:
     return tuple(question_ir.関係)
 
 
+def _仮説条件(qrelation: HDS関係, missing: str) -> tuple[str, ...]:
+    inherited = tuple(
+        str(condition)
+        for condition in qrelation.条件
+        if str(condition)
+        and not str(condition).startswith("不足位置=")
+        and not str(condition).startswith("由来=")
+    )
+    return tuple(dict.fromkeys(("由来=候補代入", f"不足位置={missing}", *inherited)))
+
+
 def HDS候補代入仮説(question_ir: HDSIR, label: str, candidate_ir: HDSIR) -> HDSIR:
     """問いの未知関係端点へ候補を代入した、比較専用の仮説関係を候補IRへ追加する。
 
     Compilerが `不足位置=始点|終点` として明示した未観測端点だけを対象とする。
-    仮説は `推定` として候補IRにだけ保持し、Kの事実へ投入しない。従って候補を真と
-    仮定する処理ではなく、各候補を同じ問い構造へ代入してDataの関係構造と比較するための
-    一時Projectionである。
+    極性・様相・検索述語等の意味条件も問いから継承し、候補代入時に落とさない。
+    仮説は `推定` として候補IRにだけ保持し、Kの事実へ投入しない。
     """
     candidate = _候補表層(candidate_ir)
     if not candidate:
@@ -109,7 +119,7 @@ def HDS候補代入仮説(question_ir: HDSIR, label: str, candidate_ir: HDSIR) -
                         (sid,),
                         (oid,),
                         str(qrelation.種別),
-                        条件=("由来=候補代入", "不足位置=終点"),
+                        条件=_仮説条件(qrelation, "終点"),
                         値状態=値状態.推定,
                         由来="HDS候補代入仮説",
                         暫定性="CANDIDATE_SUBSTITUTION_HYPOTHESIS",
@@ -135,7 +145,7 @@ def HDS候補代入仮説(question_ir: HDSIR, label: str, candidate_ir: HDSIR) -
                         (sid,),
                         (oid,),
                         str(qrelation.種別),
-                        条件=("由来=候補代入", "不足位置=始点"),
+                        条件=_仮説条件(qrelation, "始点"),
                         値状態=値状態.推定,
                         由来="HDS候補代入仮説",
                         暫定性="CANDIDATE_SUBSTITUTION_HYPOTHESIS",
