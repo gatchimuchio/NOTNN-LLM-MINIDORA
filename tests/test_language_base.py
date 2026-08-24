@@ -53,14 +53,22 @@ class 言語基底P試験(unittest.TestCase):
         self.assertIn("generate", 標準言語基底P.英語関係族()["生成"])
         self.assertTrue(標準言語基底P.英語関係構文())
 
+    def test_v03で一般関係も同じPへ追加する(self) -> None:
+        self.assertEqual(標準言語基底P.英語基本形("interactions"), "interact")
+        self.assertEqual(標準言語基底P.英語関係概念("interacts"), "相互作用")
+        self.assertEqual(標準言語基底P.英語関係概念("bound"), "結合")
+        self.assertEqual(標準言語基底P.英語関係概念("located"), "位置")
+        self.assertEqual(標準言語基底P.英語関係概念("derived"), "由来")
+        self.assertIn("rel:相互作用", 意味語("interactions"))
+
     def test_言語基底版と統計を機械取得できる(self) -> None:
         stats = 標準言語基底P.統計()
-        self.assertEqual(stats["版"], "v0.2")
+        self.assertEqual(stats["版"], "v0.3")
         self.assertGreaterEqual(stats["ひらがな"], 46)
         self.assertGreaterEqual(stats["カタカナ"], 46)
         self.assertGreater(stats["日本語基底語彙"], 0)
         self.assertGreater(stats["英語基底機能"], 0)
-        self.assertGreater(stats["英語関係族"], 0)
+        self.assertGreaterEqual(stats["英語関係族"], 17)
         self.assertGreater(stats["英語関係基本形"], 0)
 
 
