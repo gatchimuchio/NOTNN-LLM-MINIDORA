@@ -76,6 +76,18 @@ _英語基本形表 = {
     "correlation": "correlate", "correlations": "correlate", "correlative": "correlate",
     "relate": "relate", "relates": "relate", "related": "relate", "relating": "relate",
     "relation": "relate", "relations": "relate", "relational": "relate",
+    # 分野横断の一般関係
+    "bind": "bind", "binds": "bind", "bound": "bind", "binding": "bind", "bindings": "bind",
+    "interact": "interact", "interacts": "interact", "interacted": "interact", "interacting": "interact",
+    "interaction": "interact", "interactions": "interact",
+    "consist": "consist", "consists": "consist", "consisted": "consist", "consisting": "consist",
+    "compose": "compose", "composes": "compose", "composed": "compose", "composing": "compose",
+    "composition": "compose", "compositions": "compose",
+    "belong": "belong", "belongs": "belong", "belonged": "belong", "belonging": "belong",
+    "locate": "locate", "locates": "locate", "located": "locate", "locating": "locate",
+    "location": "locate", "locations": "locate",
+    "derive": "derive", "derives": "derive", "derived": "derive", "deriving": "derive",
+    "derivation": "derive", "derivations": "derive",
 }
 
 
@@ -91,6 +103,12 @@ _英語関係族 = {
     "使用": frozenset({"use", "utilize", "employ"}),
     "防止": frozenset({"prevent", "protect"}),
     "相関": frozenset({"associate", "correlate", "relate"}),
+    "結合": frozenset({"bind"}),
+    "相互作用": frozenset({"interact"}),
+    "構成": frozenset({"consist", "compose"}),
+    "所属": frozenset({"belong"}),
+    "位置": frozenset({"locate"}),
+    "由来": frozenset({"derive"}),
 }
 
 _基本形から関係 = {
@@ -152,6 +170,15 @@ def _passive(forms: str) -> re.Pattern[str]:
     英語関係構文("防止", _active(r"prevent|prevents|prevented|preventing|protect\s+against|protects\s+against|protected\s+against|protecting\s+against|protect\s+from|protects\s+from|protected\s+from|protecting\s+from")),
     英語関係構文("防止", _passive(r"prevented|protected"), True),
     英語関係構文("相関", _active(r"associate\s+with|associates\s+with|associated\s+with|associating\s+with|correlate\s+with|correlates\s+with|correlated\s+with|correlating\s+with|relate\s+to|relates\s+to|related\s+to|relating\s+to")),
+    英語関係構文("結合", _active(r"bind\s+to|binds\s+to|binding\s+to")),
+    英語関係構文("結合", re.compile(rf"{_SUBJECT}\s+(?P<v>is\s+bound\s+to|are\s+bound\s+to|was\s+bound\s+to|were\s+bound\s+to)\s+{_OBJECT}", re.I)),
+    英語関係構文("相互作用", _active(r"interact\s+with|interacts\s+with|interacted\s+with|interacting\s+with")),
+    英語関係構文("構成", _active(r"consist\s+of|consists\s+of|consisted\s+of|consisting\s+of")),
+    英語関係構文("構成", re.compile(rf"{_SUBJECT}\s+(?P<v>is\s+composed\s+of|are\s+composed\s+of|was\s+composed\s+of|were\s+composed\s+of)\s+{_OBJECT}", re.I)),
+    英語関係構文("所属", _active(r"belong\s+to|belongs\s+to|belonged\s+to|belonging\s+to")),
+    英語関係構文("位置", re.compile(rf"{_SUBJECT}\s+(?P<v>is\s+located\s+in|are\s+located\s+in|was\s+located\s+in|were\s+located\s+in)\s+{_OBJECT}", re.I)),
+    英語関係構文("由来", _active(r"derive\s+from|derives\s+from|derived\s+from|deriving\s+from")),
+    英語関係構文("由来", re.compile(rf"{_SUBJECT}\s+(?P<v>is\s+derived\s+from|are\s+derived\s+from|was\s+derived\s+from|were\s+derived\s+from)\s+{_OBJECT}", re.I)),
 )
 
 
