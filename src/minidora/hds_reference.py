@@ -182,7 +182,6 @@ def _候補query片(choice: str, distinctive: tuple[str, ...]) -> str:
     return _切詰め(differential or surface, 160)
 
 
-
 def _関係条件値(relation: object, key: str) -> str:
     prefix = key + "="
     for raw in getattr(relation, "条件", ()):
@@ -192,8 +191,43 @@ def _関係条件値(relation: object, key: str) -> str:
     return ""
 
 
+def _検索scope述語(relation: object, predicate: str) -> str:
+    """日本語正本scopeを、R境界でだけ原英語に近い検索表層へ復号する。"""
+    base = " ".join(str(predicate).split()).strip()
+    if not base:
+        return ""
+
+    polarity = _関係条件値(relation, "極性") or "肯定"
+    negative_surface = _関係条件値(relation, "極性表層")
+    modality_surface = _関係条件値(relation, "様相表層")
+
+    if polarity == "否定":
+        neg = " ".join(negative_surface.split()).strip().casefold()
+        modal = " ".join(modality_surface.split()).strip()
+        if modal:
+            # `could not inhibit` 等。control抽出が `not` のみを保持しても意味順を復元する。
+            return f"{modal} not {base}"
+        if neg and neg not in {"not", "no", "never", "without"}:
+            return f"{negative_surface} {base}"
+        return f"not {base}"
+
+    if modality_surface:
+        return f"{modality_surface} {base}"
+    return base
+
+
+def _検索scope文脈(relation: object) -> tuple[str, ...]:
+    """predicate外に残す方が自然なscope表層だけを返す。"""
+    values = (
+        _関係条件値(relation, "条件表層"),
+        _関係条件値(relation, "比較表層"),
+        _関係条件値(relation, "量化表層"),
+    )
+    return _unique(value for value in values if value)
+
+
 def _不足スロット候補query(ir: HDSIR, choice: str) -> str:
-    """Compilerが確定した関係の未知端点だけを候補で埋め、R用表層へ戻す。"""
+    """未知端点へ候補を入れ、relation scopeを保持したR用表層へ戻す。"""
     coords = ir.座標辞書()
     groups, _ = _役割語群(ir)
     conditions = groups["条件"]
@@ -202,14 +236,16 @@ def _不足スロット候補query(ir: HDSIR, choice: str) -> str:
         predicate = _関係条件値(relation, "検索述語")
         if position not in {"始点", "終点"} or not predicate:
             continue
+        rendered_predicate = _検索scope述語(relation, predicate)
+        scope_context = _検索scope文脈(relation)
         starts = [coords[cid] for cid in relation.始点 if cid in coords]
         ends = [coords[cid] for cid in relation.終点 if cid in coords]
         if position == "始点":
             known = next((str(coord.内容) for coord in ends if coord.値状態 not in _BLOCKING_STATES), "")
-            parts = (choice, predicate, known, *conditions)
+            parts = (choice, rendered_predicate, known, *scope_context, *conditions)
         else:
             known = next((str(coord.内容) for coord in starts if coord.値状態 not in _BLOCKING_STATES), "")
-            parts = (known, predicate, choice, *conditions)
+            parts = (known, rendered_predicate, choice, *scope_context, *conditions)
         query = _切詰め(" ".join(_unique(parts)), 360)
         if query:
             return query
