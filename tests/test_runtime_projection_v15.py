@@ -168,9 +168,11 @@ class Runtime射影V15試験(unittest.TestCase):
         self.assertEqual(len(projected.関係), 1)
         self.assertEqual(projected.関係[0].種別, "阻害")
 
-    def test_Kは否定scopeを肯定関係へ潰さない(self) -> None:
+    def test_Kは否定scopeを肯定関係へ潰さず極性付きで保持する(self) -> None:
         projected = HDSKData射影(_synthetic_relation_ir(conditions=("極性=否定",)))
-        self.assertEqual(projected.関係, ())
+        self.assertEqual(len(projected.関係), 1)
+        self.assertEqual(projected.関係[0].種別, "阻害")
+        self.assertEqual(_条件値(projected.関係[0], "極性"), "否定")
         self.assertTrue(any(str(c.内容) == "Compound A" for c in projected.座標))
         self.assertTrue(any(str(c.内容) == "Enzyme X" for c in projected.座標))
 

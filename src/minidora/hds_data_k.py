@@ -5,7 +5,7 @@ import re
 from typing import Iterable
 
 from .hds_compiler_records import HDS_COMPILER_META_PREFIXES
-from .hds_ir import HDSIR, 値状態
+from .hds_ir import HDSIR, HDS関係, 値状態
 from .k3_functional import Fact, K3相当能力核
 
 
@@ -60,6 +60,25 @@ def _source_marker(value: float) -> str:
     return f"source_confidence:{_source_confidence(value):.6f}"
 
 
+def _relation_condition(relation: HDS関係, key: str) -> str:
+    prefix = key + "="
+    for raw in relation.条件:
+        value = _text(raw)
+        if value.startswith(prefix):
+            return value[len(prefix):].strip()
+    return ""
+
+
+def _relation_polarity(relation: HDS関係) -> bool:
+    """HDS正本の極性をK Fact.polarityへ写す。未指定/肯定はTrue、明示否定だけFalse。"""
+    value = _relation_condition(relation, "極性")
+    return value != "否定"
+
+
+def _polarity_marker(value: bool) -> str:
+    return "relation_polarity:" + ("positive" if value else "negative")
+
+
 def _証拠台帳(core: K3相当能力核) -> dict[str, Fact]:
     ledger = getattr(core.K, _EVIDENCE_ATTR, None)
     if ledger is None:
@@ -75,9 +94,17 @@ def _graph索引無効化(core: K3相当能力核) -> None:
         delattr(core.K, _GRAPH_CACHE_ATTR)
 
 
-def HDS証拠事実(core: K3相当能力核) -> tuple[Fact, ...]:
+def HDS証拠事実(core: K3相当能力核, *, 極性: bool | None = True) -> tuple[Fact, ...]:
+    """HDS証拠台帳を返す。
+
+    既定はpositiveのみ。現行の候補比較・Graph・direct verifierが否定Factを肯定支持へ誤利用しないためである。
+    `極性=False`で否定Fact、`極性=None`で全Factを監査・将来の否定推論用に取得できる。
+    """
     ledger = getattr(core.K, _EVIDENCE_ATTR, {})
-    return tuple(ledger.values())
+    values = tuple(ledger.values())
+    if 極性 is None:
+        return values
+    return tuple(fact for fact in values if bool(fact.polarity) is bool(極性))
 
 
 def HDS証拠状態複製(source: K3相当能力核, destination: K3相当能力核) -> None:
@@ -127,8 +154,10 @@ class HDSIR知識Adapter:
     """コンパイル済みHDS-IRをKへ投入する一般Adapter。
 
     HDSの値状態confidenceとR側のsource confidenceを分離して受け取り、Kへ入るFact強度は
-    その積とする。source confidence=1.0なら従来挙動と同じ。残差影響構造は監査用に保持しつつ
-    確定回答証拠・graph経路へ昇格させない。Compilerの監査メタ座標も実世界Factへ昇格させない。
+    その積とする。HDS関係の明示極性はK Fact.polarityへ写す。否定Factも証拠台帳へ保持するが、
+    現行positive候補比較・Graph・direct verifierは `HDS証拠事実()` の既定positive viewだけを見る。
+    残差影響構造は監査用に保持しつつ確定回答証拠・graph経路へ昇格させない。
+    Compilerの監査メタ座標も実世界Factへ昇格させない。
     """
 
     def __init__(self, core: K3相当能力核) -> None:
@@ -180,11 +209,17 @@ class HDSIR知識Adapter:
             residual_markers = _残差marker(source_blocked, affected_kinds)
             if residual_markers:
                 blocked_count += 1
+            polarity = _relation_polarity(relation)
             facts.append(Fact(
                 _predicate(relation.種別),
                 starts + ("→",) + ends,
+                polarity=polarity,
                 confidence=_combined_confidence(relation.値状態, source_confidence),
-                provenance=source + ("HDS-IR", relation.関係ID, _state_marker(relation.値状態), source_marker, *residual_markers, "relation_type:" + _text(relation.種別), _text(relation.由来), _text(relation.暫定性)),
+                provenance=source + (
+                    "HDS-IR", relation.関係ID, _state_marker(relation.値状態), source_marker,
+                    *residual_markers, "relation_type:" + _text(relation.種別), _polarity_marker(polarity),
+                    _text(relation.由来), _text(relation.暫定性),
+                ),
             ))
             relation_count += 1
 

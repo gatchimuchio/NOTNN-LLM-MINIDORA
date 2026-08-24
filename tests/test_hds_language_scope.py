@@ -38,7 +38,11 @@ class HDS英語RelationScope試験(unittest.TestCase):
         self.assertEqual(str(coords[relation.終点[0]].内容), "Enzyme X")
         self.assertEqual(_条件値(relation, "極性"), "否定")
         self.assertEqual(_条件値(relation, "scope結合"), "Compiler")
-        self.assertEqual(HDSKData射影(ir).関係, ())
+
+        # v0.17: Kはpolarityを表現できるため、Dataでは否定関係を捨てない。
+        projected = HDSKData射影(ir)
+        negative = [r for r in projected.関係 if str(r.種別) == "阻害" and _条件値(r, "極性") == "否定"]
+        self.assertEqual(len(negative), 1)
         self.assertIn("Compound A", _K内容(ir))
         self.assertNotIn("Compound A does not", _K内容(ir))
         self.assertTrue(any(str(c.種別) == "表層.端点原形" and str(c.内容) == "Compound A does not" for c in ir.座標))
