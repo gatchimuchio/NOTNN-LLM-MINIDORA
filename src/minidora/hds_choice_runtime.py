@@ -11,6 +11,7 @@ from .hds_choice_hypothesis import HDS候補代入仮説群
 from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
 from .hds_direct_relation_verifier import HDS直接関係検証
 from .hds_ir import HDSIR, HDS実行核, HDS座標, 値状態
+from .hds_runtime_projection import HDSKData射影, HDSK候補射影, HDSK質問射影
 from .k3_functional import K3相当能力核, SemanticFrame
 from .k3_hds_native import HDSK3結果, HDSIRネイティブAdapter
 from .semantic_tokens import 意味語
@@ -185,7 +186,6 @@ def _検索経路証拠(
     ranking = counts.most_common()
     top_label, top_count = ranking[0]
     second_count = ranking[1][1] if len(ranking) > 1 else 0
-    # 単発hit・同数hit・候補差がないhitは採用しない。
     if top_count < 2 or top_count <= second_count:
         return ()
 
@@ -223,7 +223,6 @@ def _直接関係で再判定(
     working: K3相当能力核,
     k3: HDSK3結果,
 ) -> HDSK3結果:
-    # EXCEPTION問題では「支持された候補」を正答にしてはいけないため直接選択に使わない。
     if HDS選択意図判定(question_ir.原文).種別 == "EXCEPTION":
         return k3
     direct, _diagnostics = HDS直接関係検証(working, verification_candidate_irs)
@@ -297,7 +296,8 @@ def HDS選択推論実行(
             return _suspend("HDS_CHOICE_SEMANTIC_LOSS", candidate_count=len(candidate_irs) + 1, parallel=parallel_safe, workers=worker_count)
         candidate_irs[label] = compiled
 
-    # 比較用仮説は直接構造検証だけに渡す。既存K3/Jのbaseline候補評価へ混入させない。
+    # J/M/直接検証は元IRを保持する。Kの候補比較だけを最小意味核へ射影する。
+    k_candidate_irs = {label: HDSK候補射影(candidate_ir) for label, candidate_ir in candidate_irs.items()}
     verification_candidate_irs = HDS候補代入仮説群(question_ir, candidate_irs)
 
     working = 基礎能力核.clone()
@@ -319,8 +319,9 @@ def HDS選択推論実行(
         if isinstance(compiled, Exception):
             data_failed += 1
             continue
+        # R取得Dataは世界事実としてKへ渡してよい意味だけへ射影する。
         result = ingest.投入(
-            compiled,
+            HDSKData射影(compiled),
             provenance=_参照provenance(record),
             信頼係数=record.信頼,
         )
@@ -329,7 +330,7 @@ def HDS選択推論実行(
         evidence += result.証拠事実数
         blocked += result.証拠阻害事実数
 
-    # R経路は本文の候補差分意味一致まで確認した弱い補助証拠としてのみ重ねる。
+    # R経路は既に弱い補助証拠として別設計されているため、その専用IRは維持する。
     for record, route_ir in _検索経路証拠(question_ir, choices, references):
         route = ingest.投入(
             route_ir,
@@ -340,7 +341,12 @@ def HDS選択推論実行(
         evidence += route.証拠事実数
         blocked += route.証拠阻害事実数
 
-    k3 = HDSIRネイティブAdapter(working).実行(question_ir, 候補IR=candidate_irs, 努力=努力)
+    # C/Kへは質問の最小意味核だけを渡す。R/J/Mは元question_irを保持する。
+    k3 = HDSIRネイティブAdapter(working).実行(
+        HDSK質問射影(question_ir),
+        候補IR=k_candidate_irs,
+        努力=努力,
+    )
     k3 = _直接関係で再判定(question_ir, verification_candidate_irs, working, k3)
     choice_map = {label: content for label, content, _ in choices}
     content = choice_map.get(k3.回答ラベル) if k3.回答ラベル is not None else None
