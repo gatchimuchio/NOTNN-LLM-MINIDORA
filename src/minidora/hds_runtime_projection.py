@@ -73,10 +73,7 @@ def _文字列重複除去(values: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(out)
 
 
-def _R検索表層(
-    coords: tuple[HDS座標, ...],
-    relations: tuple[HDS関係, ...] = (),
-) -> str:
+def _R検索表層(coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ...] = ()) -> str:
     """R Projection自身のraw/focus用表層を、検索責務の情報だけから組み立てる。"""
     search = tuple(str(coord.内容) for coord in coords if str(coord.種別).startswith("検索."))
     predicates = tuple(_条件値(relation, "検索述語") for relation in relations)
@@ -171,14 +168,7 @@ def HDSR質問射影(ir: HDSIR) -> HDSIR:
     if search_focus:
         projected_coords = _座標重複除去(choices, search_focus)
         surface = _R検索表層(projected_coords)
-        return replace(
-            ir,
-            原文=surface,
-            正規化文=surface,
-            座標=projected_coords,
-            関係=(),
-            意味作用履歴=(),
-        )
+        return replace(ir, 原文=surface, 正規化文=surface, 座標=projected_coords, 関係=(), 意味作用履歴=())
 
     fallback = tuple(
         coord
@@ -221,22 +211,16 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
         )
         return replace(ir, 座標=_座標重複除去(choices, endpoints), 関係=projected_relations, 意味作用履歴=())
 
-    search_focus = tuple(
+    # 一般質問ではR専用の検索表層を借りず、Compilerが既に持つ主題語だけをK照合核にする。
+    topic = tuple(
         coord
         for coord in ir.座標
-        if str(coord.種別).startswith("検索.") and coord.値状態 not in _BLOCKING and str(coord.内容).strip()
+        if str(coord.種別) == "対象.主題語"
+        and coord.値状態 not in _BLOCKING
+        and str(coord.内容).strip()
     )
-    if search_focus:
-        projected = tuple(
-            replace(
-                coord,
-                種別="対象.照合焦点",
-                由来="HDS Runtime K質問射影",
-                暫定性="SEARCH_SURFACE_AS_MATCH_FOCUS",
-            )
-            for coord in search_focus
-        )
-        return replace(ir, 座標=_座標重複除去(choices, projected), 関係=(), 意味作用履歴=())
+    if topic:
+        return replace(ir, 座標=_座標重複除去(choices, topic), 関係=(), 意味作用履歴=())
 
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
     semantic_ids = {coord.座標ID for coord in semantic_coords}
