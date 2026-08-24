@@ -7,6 +7,7 @@ from .hds_adapter import HDSコンパイラProtocol, HDS文脈
 from .hds_choice_runtime import HDS選択実行結果, HDS選択問題, HDS選択推論実行
 from .hds_ir import HDSIR
 from .hds_reference import HDS参照検索
+from .hds_runtime_projection import HDSR質問射影
 from .k3_functional import K3相当能力核, SystemResult as K3能力結果
 from .layer0 import Layer0
 from .multilingual_surface import 表面化 as 多言語表面化
@@ -289,7 +290,7 @@ class ミニドラ:
         参照: tuple[参照記録, ...] = ()
         if self.参照供給器 is not None:
             if hds_ir is not None:
-                参照 = HDS参照検索(self.参照供給器, hds_ir)
+                参照 = HDS参照検索(self.参照供給器, HDSR質問射影(hds_ir))
             else:
                 参照 = self.参照供給器.検索(要求_.問合せ)
         if 参照必須 and not 参照:
