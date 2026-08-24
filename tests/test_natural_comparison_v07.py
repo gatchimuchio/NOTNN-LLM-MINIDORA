@@ -57,6 +57,10 @@ class 自然言語比較V07試験(unittest.TestCase):
         self.assertEqual(_条件値(eq, "検索述語"), "equal to")
         self.assertEqual(_条件値(ne, "検索述語"), "different from")
 
+    def test_equals動詞の宣言文も等価へ射影する(self) -> None:
+        relation = _比較関係(self.compiler.コンパイル("Expression A equals Expression B."), "等価")
+        self.assertEqual(_条件値(relation, "検索述語"), "equal to")
+
     def test_比較質問を未知始点へ落とす(self) -> None:
         ir = self.compiler.コンパイル("Which quantity is greater than threshold X?")
         relation = _比較関係(ir, "比較.大")
@@ -65,6 +69,22 @@ class 自然言語比較V07試験(unittest.TestCase):
         self.assertEqual(coords[relation.始点[0]].種別, "目的.未知始点")
         self.assertEqual(coords[relation.始点[0]].内容, "quantity")
         self.assertEqual(coords[relation.終点[0]].内容, "threshold X")
+
+    def test_equals質問を未知始点へ落とす(self) -> None:
+        ir = self.compiler.コンパイル("Which expression equals zero?")
+        relation = _比較関係(ir, "等価")
+        coords = ir.座標辞書()
+        self.assertEqual(_条件値(relation, "不足位置"), "始点")
+        self.assertEqual(coords[relation.始点[0]].内容, "expression")
+        self.assertEqual(coords[relation.終点[0]].内容, "zero")
+
+    def test_what_does_equal質問を未知終点へ落とす(self) -> None:
+        ir = self.compiler.コンパイル("What does Expression A equal?")
+        relation = _比較関係(ir, "等価")
+        coords = ir.座標辞書()
+        self.assertEqual(_条件値(relation, "不足位置"), "終点")
+        self.assertEqual(coords[relation.始点[0]].内容, "Expression A")
+        self.assertEqual(coords[relation.終点[0]].種別, "目的.未知終点")
 
     def test_比較質問の候補queryを関係方向付きで生成する(self) -> None:
         ir = self.compiler.問題IR(
