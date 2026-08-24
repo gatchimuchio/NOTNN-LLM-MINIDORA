@@ -70,10 +70,11 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
         )
 
     if frame.外部検索語:
-        # R境界へ戻すための英語だけを検索可能座標として保持する。
+        # R境界へ戻す英語正規化表層は、単なる「その他」ではなく検索目的そのものとして保持する。
+        # hds_reference側は目的座標を焦点群へ置くため、追加推論なしでR queryの上流へ直結できる。
         external = " ".join(token for token in frame.外部検索語 if not token.startswith("rel:"))
         if external:
-            add_coord("lang-sem:search", "検索.英語正規化", external)
+            add_coord("lang-sem:search", "目的.検索焦点", external)
 
     question = frame.関係質問
     if question is not None and question.既知端点:
