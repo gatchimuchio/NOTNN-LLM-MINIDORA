@@ -4,7 +4,7 @@ from dataclasses import replace
 import re
 import unicodedata
 
-from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
+from .hds_ir import HDSIR, HDS座標, HDS関係
 
 
 _MODAL = {
@@ -96,10 +96,10 @@ def _条件scope(text: str, start: str, end: str, predicate: str) -> tuple[str, 
 def HDS英語関係scope射影(ir: HDSIR) -> HDSIR:
     """英語関係の実体端点と作用scopeをCompiler内で分離・結合する。
 
-    - 新しい世界関係は作らない。
-    - 既存relationの汚染端点を正規化し、明示された極性/様相/条件をrelation.条件へ移す。
-    - Runtimeは自然言語を再解析せず、この構造だけを読む。
-    - 疑問文は質問意味Compilerへ委ね、この層では宣言文だけを対象にする。
+    新しい世界関係は作らない。既存relationの汚染端点を正規化し、明示された極性・様相・
+    条件をrelation.条件へ移す。汚染された元端点は完全IRから消さず `表層.端点原形` へ
+    降格し、意味対象として下流へ再流入しないようにする。Runtimeは自然言語を再解析しない。
+    疑問文は質問意味Compilerへ委ねる。
     """
     if not str(getattr(ir, "入力言語", "")).casefold().startswith("en"):
         return ir
@@ -112,6 +112,7 @@ def HDS英語関係scope射影(ir: HDSIR) -> HDSIR:
     coord_map = ir.座標辞書()
     existing = {(str(c.種別), _norm(c.内容)): c.座標ID for c in coords}
     counter = 0
+    demote_ids: set[str] = set()
 
     def endpoint_coord(original_id: str, content: str) -> str:
         nonlocal counter
@@ -121,6 +122,9 @@ def HDS英語関係scope射影(ir: HDSIR) -> HDSIR:
         normalized = _norm(content)
         if normalized == _norm(original.内容):
             return original_id
+
+        # 元端点は観測表層として保持するが、正本の意味対象からは外す。
+        demote_ids.add(original_id)
         key = (str(original.種別), normalized)
         if key in existing:
             return existing[key]
@@ -172,6 +176,20 @@ def HDS英語関係scope射影(ir: HDSIR) -> HDSIR:
             updated = _条件追加(updated, *scope, "scope結合=Compiler")
         changed = changed or updated != relation
         relations.append(updated)
+
+    if demote_ids:
+        coords = [
+            replace(
+                coord,
+                種別="表層.端点原形",
+                由来="公開HDS Compiler.scope分離",
+                暫定性="SURFACE_ENDPOINT_BEFORE_SCOPE_SEPARATION",
+            )
+            if coord.座標ID in demote_ids
+            else coord
+            for coord in coords
+        ]
+        changed = True
 
     if not changed:
         return ir
