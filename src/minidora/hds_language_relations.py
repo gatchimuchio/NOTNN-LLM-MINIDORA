@@ -6,6 +6,7 @@ import re
 from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
 from .semantic_tokens import 意味語
 from .言語基底 import 言語基底P, 標準言語基底P
+from .言語基底_英語_scope import 英語様相関係構文
 
 
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
@@ -15,6 +16,7 @@ _NEGATIVE_TAIL = re.compile(
     r"don't|doesn't|didn't|can't|cannot|couldn't|won't|wouldn't|shouldn't|mustn't)\s*$",
     re.I,
 )
+_MODAL_TAIL = re.compile(r"\b(?:can|could|may|might|must|would)\s*$", re.I)
 
 
 def _norm(value: object) -> str:
@@ -48,11 +50,15 @@ def _signatures(coords: tuple[HDS座標, ...] | list[HDS座標], relations: tupl
     return out
 
 
-def _legacy_negative_false_positive(relation: HDS関係, coords: dict[str, HDS座標]) -> bool:
+def _legacy_scope_false_positive(relation: HDS関係, coords: dict[str, HDS座標]) -> bool:
+    """旧active抽出が否定補助語/modalを主語末尾へ飲み込んだ偽陽性だけを除去する。"""
     if str(relation.由来) != "公開HDS Compiler" or _条件値(relation, "極性"):
         return False
     starts = [coords[cid] for cid in relation.始点 if cid in coords]
-    return any(_NEGATIVE_TAIL.search(str(start.内容)) for start in starts)
+    return any(
+        _NEGATIVE_TAIL.search(str(start.内容)) or _MODAL_TAIL.search(str(start.内容))
+        for start in starts
+    )
 
 
 def _検索述語(surface: str, language_p: 言語基底P) -> str:
@@ -69,10 +75,9 @@ def _検索述語(surface: str, language_p: 言語基底P) -> str:
 def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = None) -> HDSIR:
     """共有英語基底Pの明示構文だけを、極性付きHDS関係へ補完する。
 
-    名詞共起・近接・分野知識から関係を推定しない。現行基礎Compilerが取りこぼしやすい
-    過去形・進行形・受動態・否定態など、言語形だけが異なる明示関係を対象とする。
-    否定補助語を主語末尾へ取り込んだ旧Compilerの肯定偽陽性もここで除去する。
-    疑問文は未知端点処理を基礎Compiler/英日意味射影へ委ねる。
+    過去形・進行形・受動態・否定態・様相態の表面差を吸収するが、名詞共起や分野知識から
+    関係を推定しない。旧Compilerが否定/modalを主語へ取り込んだ偽陽性も除去する。
+    疑問文は未知端点処理を英日意味射影へ委ねる。
     """
     language = str(getattr(ir, "入力言語", "") or "").casefold()
     if not language.startswith("en"):
@@ -83,12 +88,13 @@ def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = 
         return ir
 
     language_p = 言語基底 or 標準言語基底P
-    syntaxes = language_p.英語関係構文()
+    # modal専用構文を先に使い、その後に共有P本体の否定→肯定構文を適用する。
+    syntaxes = (*英語様相関係構文, *language_p.英語関係構文())
 
     coords = list(ir.座標)
     coord_map = {coord.座標ID: coord for coord in coords}
     original_relations = list(ir.関係)
-    relations = [relation for relation in original_relations if not _legacy_negative_false_positive(relation, coord_map)]
+    relations = [relation for relation in original_relations if not _legacy_scope_false_positive(relation, coord_map)]
     removed = len(original_relations) - len(relations)
     existing_ids = {coord.座標ID for coord in coords}
     existing_relation_ids = {relation.関係ID for relation in relations}
@@ -103,15 +109,7 @@ def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = 
             cid = f"{base}:{serial}"
             serial += 1
         existing_ids.add(cid)
-        coords.append(
-            HDS座標(
-                cid,
-                kind,
-                content,
-                値状態.確定,
-                由来="共有言語基底P",
-            )
-        )
+        coords.append(HDS座標(cid, kind, content, 値状態.確定, 由来="共有言語基底P"))
         return cid
 
     for syntax in syntaxes:
@@ -122,8 +120,8 @@ def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = 
             if not subject or not object_ or not predicate:
                 continue
 
-            # 否定文を肯定active側が `A does not` -> `inhibit` と誤分解しない。
-            if syntax.極性 == "肯定" and _NEGATIVE_TAIL.search(subject):
+            # 汎用active側が旧式に否定/modalを主語へ取り込む経路を遮断する。
+            if (_NEGATIVE_TAIL.search(subject) or _MODAL_TAIL.search(subject)):
                 continue
             if not syntax.反転 and object_.casefold().startswith("by "):
                 continue
