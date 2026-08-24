@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
+import json
 import re
 from typing import Iterable
 
@@ -19,6 +21,7 @@ _SURFACE_ONLY_KINDS = {
 _EVIDENCE_ATTR = "_hds_evidence_facts"
 _GRAPH_REVISION_ATTR = "_hds_graph_revision"
 _GRAPH_CACHE_ATTR = "_hds_graph_index_cache"
+_RELATION_QUALIFIER_KEYS = frozenset({"様相", "条件scope", "量化", "scope", "条件作用"})
 
 
 def _predicate(kind: str) -> str:
@@ -70,13 +73,71 @@ def _relation_condition(relation: HDS関係, key: str) -> str:
 
 
 def _relation_polarity(relation: HDS関係) -> bool:
-    """HDS正本の極性をK Fact.polarityへ写す。未指定/肯定はTrue、明示否定だけFalse。"""
     value = _relation_condition(relation, "極性")
     return value != "否定"
 
 
+def _relation_qualifiers(relation: HDS関係) -> tuple[tuple[str, str], ...]:
+    """HDS relation条件のうち、世界関係の意味identityに属する修飾だけを正規化する。"""
+    out: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for raw in relation.条件:
+        value = _text(raw)
+        key, sep, payload = value.partition("=")
+        if not sep:
+            continue
+        key = key.strip()
+        payload = payload.strip()
+        if key not in _RELATION_QUALIFIER_KEYS or not payload:
+            continue
+        item = (key, payload)
+        if item in seen:
+            continue
+        seen.add(item)
+        out.append(item)
+    return tuple(sorted(out))
+
+
 def _polarity_marker(value: bool) -> str:
     return "relation_polarity:" + ("positive" if value else "negative")
+
+
+def _qualifier_markers(values: tuple[tuple[str, str], ...]) -> tuple[str, ...]:
+    return tuple(f"relation_qualifier:{key}={value}" for key, value in values)
+
+
+def _qualified_fact_id(
+    predicate: str,
+    args: tuple[str, ...],
+    polarity: bool,
+    qualifiers: tuple[tuple[str, str], ...],
+    provenance: tuple[str, ...],
+) -> str:
+    raw = json.dumps((predicate, args, polarity, qualifiers, provenance), ensure_ascii=False, sort_keys=True, default=str)
+    return "HF-" + sha256(raw.encode("utf-8")).hexdigest()[:12]
+
+
+@dataclass(frozen=True)
+class HDS修飾Fact(Fact):
+    """既存K Factへ無条件化せず保持するHDS関係Fact。
+
+    qualifiersはHDS証拠台帳上の意味identityであり、現行canonical Kの無条件推論へは投入しない。
+    """
+
+    qualifiers: tuple[tuple[str, str], ...] = ()
+
+    def __post_init__(self) -> None:
+        normalized = tuple(sorted((str(k).strip(), str(v).strip()) for k, v in self.qualifiers if str(k).strip() and str(v).strip()))
+        object.__setattr__(self, "qualifiers", normalized)
+        if not self.fact_id:
+            object.__setattr__(
+                self,
+                "fact_id",
+                _qualified_fact_id(self.predicate, self.args, self.polarity, normalized, self.provenance),
+            )
+
+    def key(self) -> tuple[str, tuple[str, ...], bool, tuple[tuple[str, str], ...]]:
+        return self.predicate, self.args, self.polarity, self.qualifiers
 
 
 def _証拠台帳(core: K3相当能力核) -> dict[str, Fact]:
@@ -94,17 +155,33 @@ def _graph索引無効化(core: K3相当能力核) -> None:
         delattr(core.K, _GRAPH_CACHE_ATTR)
 
 
-def HDS証拠事実(core: K3相当能力核, *, 極性: bool | None = True) -> tuple[Fact, ...]:
-    """HDS証拠台帳を返す。
+def _normalize_requested_qualifiers(values: tuple[tuple[str, str], ...]) -> tuple[tuple[str, str], ...]:
+    return tuple(sorted((str(k).strip(), str(v).strip()) for k, v in values if str(k).strip() and str(v).strip()))
 
-    既定はpositiveのみ。現行の候補比較・Graph・direct verifierが否定Factを肯定支持へ誤利用しないためである。
-    `極性=False`で否定Fact、`極性=None`で全Factを監査・将来の否定推論用に取得できる。
+
+def HDS証拠事実(
+    core: K3相当能力核,
+    *,
+    極性: bool | None = True,
+    修飾: tuple[tuple[str, str], ...] | None = (),
+) -> tuple[Fact, ...]:
+    """HDS証拠台帳を極性・関係修飾のviewで返す。
+
+    既定は positive かつ無修飾のみ。したがって現行候補比較・Graph・direct verifierへ
+    否定Factやmodal/条件付きFactは流れない。
+
+    - `極性=None`: 正負を問わない
+    - `修飾=None`: 修飾を問わない
+    - `修飾=(("様相", "可能"),)`: その修飾identityだけ
     """
     ledger = getattr(core.K, _EVIDENCE_ATTR, {})
     values = tuple(ledger.values())
-    if 極性 is None:
-        return values
-    return tuple(fact for fact in values if bool(fact.polarity) is bool(極性))
+    if 極性 is not None:
+        values = tuple(fact for fact in values if bool(fact.polarity) is bool(極性))
+    if 修飾 is not None:
+        requested = _normalize_requested_qualifiers(修飾)
+        values = tuple(fact for fact in values if tuple(getattr(fact, "qualifiers", ())) == requested)
+    return values
 
 
 def HDS証拠状態複製(source: K3相当能力核, destination: K3相当能力核) -> None:
@@ -148,16 +225,15 @@ class HDS知識投入結果:
     証拠事実数: int = 0
     証拠阻害事実数: int = 0
     source_confidence: float = 1.0
+    修飾関係事実数: int = 0
 
 
 class HDSIR知識Adapter:
     """コンパイル済みHDS-IRをKへ投入する一般Adapter。
 
-    HDSの値状態confidenceとR側のsource confidenceを分離して受け取り、Kへ入るFact強度は
-    その積とする。HDS関係の明示極性はK Fact.polarityへ写す。否定Factも証拠台帳へ保持するが、
-    現行positive候補比較・Graph・direct verifierは `HDS証拠事実()` の既定positive viewだけを見る。
-    残差影響構造は監査用に保持しつつ確定回答証拠・graph経路へ昇格させない。
-    Compilerの監査メタ座標も実世界Factへ昇格させない。
+    無修飾のFactは従来canonical Kへ投入する。modal/条件/量化等の関係修飾を持つFactは
+    `HDS修飾Fact` としてHDS証拠台帳へ保持するが、無条件のcanonical Kへは投入しない。
+    これにより意味を失わず、既存推論へ誤混入させない。
     """
 
     def __init__(self, core: K3相当能力核) -> None:
@@ -175,8 +251,10 @@ class HDSIR知識Adapter:
         source_marker = _source_marker(source_confidence)
         coords = ir.座標辞書()
         facts: list[Fact] = []
+        canonical_facts: list[Fact] = []
         coord_count = 0
         relation_count = 0
+        qualified_relation_count = 0
         blocked_count = 0
         source_blocked, impacted = _残差阻害(ir)
 
@@ -190,12 +268,14 @@ class HDSIR知識Adapter:
             residual_markers = _残差marker(source_blocked, impacted.get(coord.座標ID, ()))
             if residual_markers:
                 blocked_count += 1
-            facts.append(Fact(
+            fact = Fact(
                 "hds_coordinate",
                 (kind, content),
                 confidence=_combined_confidence(coord.値状態, source_confidence),
                 provenance=source + ("HDS-IR", coord.座標ID, _state_marker(coord.値状態), source_marker, *residual_markers, _text(coord.由来), _text(coord.暫定性)),
-            ))
+            )
+            facts.append(fact)
+            canonical_facts.append(fact)
             coord_count += 1
 
         for relation in ir.関係:
@@ -210,32 +290,49 @@ class HDSIR知識Adapter:
             if residual_markers:
                 blocked_count += 1
             polarity = _relation_polarity(relation)
-            facts.append(Fact(
-                _predicate(relation.種別),
-                starts + ("→",) + ends,
-                polarity=polarity,
-                confidence=_combined_confidence(relation.値状態, source_confidence),
-                provenance=source + (
-                    "HDS-IR", relation.関係ID, _state_marker(relation.値状態), source_marker,
-                    *residual_markers, "relation_type:" + _text(relation.種別), _polarity_marker(polarity),
-                    _text(relation.由来), _text(relation.暫定性),
-                ),
-            ))
+            qualifiers = _relation_qualifiers(relation)
+            provenance_value = source + (
+                "HDS-IR", relation.関係ID, _state_marker(relation.値状態), source_marker,
+                *residual_markers, "relation_type:" + _text(relation.種別), _polarity_marker(polarity),
+                *_qualifier_markers(qualifiers), _text(relation.由来), _text(relation.暫定性),
+            )
+            if qualifiers:
+                fact = HDS修飾Fact(
+                    _predicate(relation.種別),
+                    starts + ("→",) + ends,
+                    polarity=polarity,
+                    confidence=_combined_confidence(relation.値状態, source_confidence),
+                    provenance=provenance_value,
+                    qualifiers=qualifiers,
+                )
+                qualified_relation_count += 1
+            else:
+                fact = Fact(
+                    _predicate(relation.種別),
+                    starts + ("→",) + ends,
+                    polarity=polarity,
+                    confidence=_combined_confidence(relation.値状態, source_confidence),
+                    provenance=provenance_value,
+                )
+                canonical_facts.append(fact)
+            facts.append(fact)
             relation_count += 1
 
         for residual in ir.残差:
-            facts.append(Fact(
+            fact = Fact(
                 "hds_residual",
                 (_text(residual.種別), _text(residual.原文), _text(residual.理由), *tuple(_text(x) for x in residual.影響座標)),
                 confidence=0.35 * source_confidence,
                 provenance=source + ("HDS-IR", residual.残差ID, "value_state:留保", source_marker, *tuple("impact:" + str(x) for x in residual.影響座標)),
-            ))
+            )
+            facts.append(fact)
+            canonical_facts.append(fact)
 
         ledger = _証拠台帳(self.core)
         for fact in facts:
             ledger.setdefault(fact.fact_id, fact)
 
-        added = self.core.K.add_many(facts)
+        added = self.core.K.add_many(canonical_facts)
         _graph索引無効化(self.core)
         return HDS知識投入結果(
             追加事実数=added,
@@ -246,11 +343,13 @@ class HDSIR知識Adapter:
             証拠事実数=len(facts),
             証拠阻害事実数=blocked_count,
             source_confidence=source_confidence,
+            修飾関係事実数=qualified_relation_count,
         )
 
 
 __all__ = [
     "HDS知識投入結果",
+    "HDS修飾Fact",
     "HDSIR知識Adapter",
     "HDS証拠事実",
     "HDS証拠状態複製",

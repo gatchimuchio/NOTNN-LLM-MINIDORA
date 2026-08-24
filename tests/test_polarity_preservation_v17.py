@@ -65,9 +65,17 @@ class PolarityPreservationV17試験(unittest.TestCase):
         self.assertTrue(any(f.predicate == "hds_relation_阻害" and not f.polarity for f in negative_evidence))
         self.assertGreater(len(all_evidence), len(default_evidence))
 
-    def test_modal関係はまだK辺へ昇格しない(self) -> None:
+    def test_modal関係は消さず無条件canonical_Kへ昇格しない(self) -> None:
         projected = HDSKData射影(self.compiler.コンパイル("Compound A may inhibit Enzyme X."))
-        self.assertFalse(any(str(relation.種別) == "阻害" for relation in projected.関係))
+        self.assertTrue(any(str(relation.種別) == "阻害" for relation in projected.関係))
+
+        core = K3相当能力核()
+        HDSIR知識Adapter(core).投入(projected, provenance=("fixture", "modal"))
+        pattern = ("Compound A", "→", "Enzyme X")
+        self.assertEqual(core.K.find("hds_relation_阻害", pattern, polarity=True), [])
+        self.assertFalse(any(f.predicate == "hds_relation_阻害" for f in HDS証拠事実(core)))
+        qualified = HDS証拠事実(core, 極性=True, 修飾=(("様相", "可能"),))
+        self.assertTrue(any(f.predicate == "hds_relation_阻害" for f in qualified))
 
 
 if __name__ == "__main__":
