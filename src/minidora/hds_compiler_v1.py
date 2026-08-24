@@ -16,6 +16,7 @@ from .hds_compiler_records import HDSCompiler成果
 from .hds_compiler_records_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規則改善候補
 from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
 from .hds_ir import HDSIR
+from .hds_language_comparisons import HDS英語比較射影
 from .hds_language_relations import HDS英語基底関係射影
 from .hds_language_semantic_bridge import HDS英日意味射影
 from .言語基底 import 言語基底P, 標準言語基底P
@@ -53,12 +54,14 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         *,
         HDS履歴: tuple[HDSIR, ...] = (),
     ) -> HDSCompiler成果:
-        # 英語表層を先に日本語正本の意味フレームへ射影する。
-        # 全文翻訳ではなく、問いの未知端点・関係・反転等を意味構造として固定する。
+        # v0.3正本の英日意味射影はそのまま維持する。
         base = HDS英日意味射影(base)
 
+        # `A > B` だけでなく `A is greater than B` 等の明示比較を同じHDS関係へ落とす。
+        # 世界知識や暗黙の大小関係は追加しない。
+        base = HDS英語比較射影(base)
+
         # 語形差だけで取りこぼした英語宣言文の明示関係を補完する。
-        # 世界知識や名詞共起からの推定は行わない。
         base = HDS英語基底関係射影(base, self.言語基底P)
         first = 公開HDSフロントエンド射影(base)
 
@@ -68,7 +71,6 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         tacit = HDS暗黙知抽出(ir.正規化文 or ir.原文)
         ir = HDS暗黙知IR射影(ir, tacit)
 
-        # v1.1で追加した残差・関係を含めてv1監査要求を再計算する。
         refreshed = 公開HDS詳細成果(ir)
         signatures = HDS失敗署名候補生成(refreshed.IR, refreshed.認知世界)
         checklist = HDSチェックリスト生成(refreshed.監査要求, signatures)
@@ -96,13 +98,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         HDS履歴: tuple[HDSIR, ...] = (),
         文脈: HDS文脈 | None = None,
     ) -> HDSIR:
-        base = _基礎HDSコンパイラ.コンパイル(
-            self,
-            入力,
-            前回結果=前回結果,
-            HDS履歴=HDS履歴,
-            文脈=文脈,
-        )
+        base = _基礎HDSコンパイラ.コンパイル(self, 入力, 前回結果=前回結果, HDS履歴=HDS履歴, 文脈=文脈)
         return self._完成(base, HDS履歴=HDS履歴).IR
 
     def 詳細コンパイル(
@@ -113,17 +109,10 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         HDS履歴: tuple[HDSIR, ...] = (),
         文脈: HDS文脈 | None = None,
     ) -> HDSCompiler成果:
-        base = _基礎HDSコンパイラ.コンパイル(
-            self,
-            入力,
-            前回結果=前回結果,
-            HDS履歴=HDS履歴,
-            文脈=文脈,
-        )
+        base = _基礎HDSコンパイラ.コンパイル(self, 入力, 前回結果=前回結果, HDS履歴=HDS履歴, 文脈=文脈)
         return self._完成(base, HDS履歴=HDS履歴)
 
     def 詳細問題IR(self, question: str, choices: Sequence[str]) -> HDSCompiler成果:
-        # 問題IRはself.コンパイル()を通るため公開Projection済み。候補追加後に監査要求を再生成する。
         return self._完成(self.問題IR(question, choices))
 
     def 失敗帰還(
@@ -133,19 +122,10 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         *,
         Run参照: str,
     ) -> HDS失敗署名BankSnapshot:
-        """明示RunのFailure Signature候補だけをBankへ帰還する。
-
-        この操作はBankのみを更新し、Compiler規則・通常コンパイル結果を変更しない。
-        """
         return Bank.観測(成果.失敗署名候補, Run参照=Run参照)
 
     def 改善候補(self, Bank: HDS失敗署名Bank) -> tuple[HDS抽出規則改善候補, ...]:
         return Bank.snapshot().改善候補
 
 
-__all__ = [
-    "公開HDSコンパイラ方針",
-    "公開HDSコンパイラ",
-    "HDSCompiler成果",
-    "HDS失敗署名Bank",
-]
+__all__ = ["公開HDSコンパイラ方針", "公開HDSコンパイラ", "HDSCompiler成果", "HDS失敗署名Bank"]
