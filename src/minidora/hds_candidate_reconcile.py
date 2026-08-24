@@ -5,10 +5,12 @@ from typing import Iterable, Mapping, Sequence
 
 
 _CHANNEL_PRIORITY = {
-    "direct": 3,
+    "direct": 4,
+    "structural_fact": 3,
     "fact": 2,
     "document": 1,
 }
+_SEMANTIC_DOMINANT_CHANNELS = frozenset({"direct", "structural_fact"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,10 +46,11 @@ class HDS候補調停結果:
 
 
 def _collapse_by_source(items: Iterable[HDS候補証拠]) -> dict[tuple[str, str], HDS候補証拠]:
-    """同一候補・同一sourceでは最強の一経路だけを残す。
+    """同一候補・同一sourceでは意味精度の最も高い一経路だけを残す。
 
-    factとdocument集約、directとfact等が同じsourceを二重加点しないための境界。
-    同点なら direct > fact > document を優先する。
+    direct と structural_fact は、同じsourceから作られた通常fact/document bagより意味束縛が
+    強い。そのため絶対得点量ではなく意味精度を優先する。通常factとdocumentの間は従来どおり
+    得点比較し、同点時だけ経路優先度を使う。
     """
     best: dict[tuple[str, str], HDS候補証拠] = {}
     for item in items:
@@ -56,24 +59,28 @@ def _collapse_by_source(items: Iterable[HDS候補証拠]) -> dict[tuple[str, str
         if old is None:
             best[key] = item
             continue
+
+        old_priority = _CHANNEL_PRIORITY.get(old.経路, 0)
+        new_priority = _CHANNEL_PRIORITY.get(item.経路, 0)
+        old_dominant = old.経路 in _SEMANTIC_DOMINANT_CHANNELS
+        new_dominant = item.経路 in _SEMANTIC_DOMINANT_CHANNELS
+
+        if new_dominant or old_dominant:
+            if new_priority > old_priority:
+                best[key] = item
+            elif new_priority == old_priority and item.得点 > old.得点:
+                best[key] = item
+            continue
+
         if item.得点 > old.得点:
             best[key] = item
             continue
-        if item.得点 == old.得点 and _CHANNEL_PRIORITY.get(item.経路, 0) > _CHANNEL_PRIORITY.get(old.経路, 0):
+        if item.得点 == old.得点 and new_priority > old_priority:
             best[key] = item
     return best
 
 
 def _識別係数(own: float, competitor: float, *, 支持候補数: int, 全候補数: int) -> float:
-    """同一source内で候補を実際に識別できる差分だけを返す。
-
-    一候補だけを支持するsourceは従来どおり1.0。同じsourceが複数候補を支持する場合は、
-    絶対一致量ではなく最大競合候補に対する相対優位だけを識別力とする。完全同点または
-    競合側が同等以上なら、そのsourceは当該候補の選択marginへ寄与しない。
-
-    これにより「全候補へ同じ資料が高一致した」という共通知識を、検索順位や僅かな共通語差で
-    擬似的な正答根拠へ昇格させない。
-    """
     if own <= 0:
         return 0.0
     if competitor <= 0:
@@ -98,12 +105,7 @@ def HDS候補横断調停(
     証拠重み: Sequence[float],
     証拠上限: int,
 ) -> Mapping[str, HDS候補調停結果]:
-    """source単位で候補横断比較し、識別力の低い共通証拠を除去・減衰する。
-
-    一候補だけを支持するsourceは係数1.0。複数候補へ当たるsourceは、最大競合との差と
-    支持候補の広さから識別係数を決める。共通知識を負の証拠へ変換せず、候補差のない
-    大きな絶対得点をJ marginとprovenanceから除去する。
-    """
+    """source単位で候補横断比較し、識別力の低い共通証拠を除去・減衰する。"""
     labels = tuple(dict.fromkeys(str(x) for x in 候補群))
     collapsed = _collapse_by_source(証拠群)
 
