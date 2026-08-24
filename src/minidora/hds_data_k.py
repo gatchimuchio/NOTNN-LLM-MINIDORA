@@ -5,7 +5,7 @@ import re
 from typing import Iterable
 
 from .hds_compiler_records import HDS_COMPILER_META_PREFIXES
-from .hds_ir import HDSIR, 値状態
+from .hds_ir import HDSIR, HDS関係, 値状態
 from .k3_functional import Fact, K3相当能力核
 
 
@@ -30,6 +30,23 @@ def _text(value: object) -> str:
     if value is None:
         return ""
     return re.sub(r"\s+", " ", str(value)).strip()
+
+
+def _relation_condition(relation: HDS関係, key: str) -> str:
+    prefix = key + "="
+    for raw in relation.条件:
+        value = _text(raw)
+        if value.startswith(prefix):
+            return value[len(prefix):].strip()
+    return ""
+
+
+def _effective_relation_kind(relation: HDS関係) -> str:
+    """Kのgraphで意味の異なる関係を同じ辺へ潰さないための実効関係名。"""
+    kind = _text(relation.種別) or "unknown"
+    if _relation_condition(relation, "極性") == "否定":
+        return "否定." + kind
+    return kind
 
 
 def _confidence(state: 値状態) -> float:
@@ -127,8 +144,8 @@ class HDSIR知識Adapter:
     """コンパイル済みHDS-IRをKへ投入する一般Adapter。
 
     HDSの値状態confidenceとR側のsource confidenceを分離して受け取り、Kへ入るFact強度は
-    その積とする。source confidence=1.0なら従来挙動と同じ。残差影響構造は監査用に保持しつつ
-    確定回答証拠・graph経路へ昇格させない。Compilerの監査メタ座標も実世界Factへ昇格させない。
+    その積とする。関係の極性・検索述語・条件等もprovenanceへ保持し、否定関係はK graph上でも
+    肯定関係と別predicateへ分離する。残差影響構造は監査用に保持しつつ確定回答証拠へ昇格させない。
     """
 
     def __init__(self, core: K3相当能力核) -> None:
@@ -180,11 +197,28 @@ class HDSIR知識Adapter:
             residual_markers = _残差marker(source_blocked, affected_kinds)
             if residual_markers:
                 blocked_count += 1
+            effective_kind = _effective_relation_kind(relation)
+            condition_markers = tuple(
+                "relation_condition:" + _text(condition)
+                for condition in relation.条件
+                if _text(condition)
+            )
             facts.append(Fact(
-                _predicate(relation.種別),
+                _predicate(effective_kind),
                 starts + ("→",) + ends,
                 confidence=_combined_confidence(relation.値状態, source_confidence),
-                provenance=source + ("HDS-IR", relation.関係ID, _state_marker(relation.値状態), source_marker, *residual_markers, "relation_type:" + _text(relation.種別), _text(relation.由来), _text(relation.暫定性)),
+                provenance=source + (
+                    "HDS-IR",
+                    relation.関係ID,
+                    _state_marker(relation.値状態),
+                    source_marker,
+                    *residual_markers,
+                    "relation_type:" + _text(relation.種別),
+                    "relation_effective_type:" + effective_kind,
+                    *condition_markers,
+                    _text(relation.由来),
+                    _text(relation.暫定性),
+                ),
             ))
             relation_count += 1
 
