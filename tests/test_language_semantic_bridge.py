@@ -20,7 +20,7 @@ def _意味関係(ir):
     return next(
         relation
         for relation in ir.関係
-        if _条件値(relation, "英日意味射影") == "v0.3"
+        if _条件値(relation, "英日意味射影") == "v0.4"
     )
 
 
@@ -32,11 +32,13 @@ class 英日意味コンパイル試験(unittest.TestCase):
         text = "Which molecule is least likely to inhibit enzyme X?"
         frame = 英日意味フレーム抽出(text)
         self.assertIsNotNone(frame.関係質問)
+        assert frame.関係質問 is not None
         self.assertEqual(frame.関係質問.種別, "阻害")
         self.assertEqual(frame.関係質問.未知位置, "始点")
         self.assertEqual(frame.関係質問.要求型, "molecule")
         self.assertEqual(frame.関係質問.既知端点, "enzyme X")
         self.assertTrue(frame.関係質問.反転)
+        self.assertEqual(frame.関係質問.修飾, ())
 
         ir = self.compiler.コンパイル(text)
         relation = _意味関係(ir)
@@ -53,19 +55,43 @@ class 英日意味コンパイル試験(unittest.TestCase):
         )
         frame = 英日意味フレーム抽出(text)
         self.assertIsNotNone(frame.関係質問)
+        assert frame.関係質問 is not None
         self.assertEqual(frame.関係質問.種別, "阻害")
         self.assertFalse(frame.関係質問.反転)
+        self.assertEqual(frame.関係質問.修飾, ())
         self.assertNotIn("否定:否定", frame.正本意味)
         self.assertIn("蓋然性:最大", frame.正本意味)
 
-    def test_型なし選択肢質問とmodalも未知始点へ落とす(self) -> None:
-        frame = 英日意味フレーム抽出("Which of the following could inhibit enzyme X?")
+    def test_背景文のmodalを最終質問relationへ伝染させない(self) -> None:
+        text = "Prior work may be incomplete. Which molecule inhibits enzyme X?"
+        frame = 英日意味フレーム抽出(text)
         self.assertIsNotNone(frame.関係質問)
+        assert frame.関係質問 is not None
+        self.assertEqual(frame.関係質問.修飾, ())
+
+    def test_型なし選択肢質問とmodalも未知始点へ落とす(self) -> None:
+        text = "Which of the following could inhibit enzyme X?"
+        frame = 英日意味フレーム抽出(text)
+        self.assertIsNotNone(frame.関係質問)
+        assert frame.関係質問 is not None
         self.assertEqual(frame.関係質問.種別, "阻害")
         self.assertEqual(frame.関係質問.未知位置, "始点")
         self.assertEqual(frame.関係質問.要求型, "選択肢")
         self.assertEqual(frame.関係質問.既知端点, "enzyme X")
         self.assertIn("様相:可能", frame.正本意味)
+        self.assertEqual(frame.関係質問.修飾, (("様相", "可能"),))
+
+        relation = _意味関係(self.compiler.コンパイル(text))
+        self.assertEqual(_条件値(relation, "様相"), "可能")
+
+    def test_mustを必要scopeとして質問relationへ結ぶ(self) -> None:
+        text = "Which compound must inhibit enzyme X?"
+        frame = 英日意味フレーム抽出(text)
+        self.assertIsNotNone(frame.関係質問)
+        assert frame.関係質問 is not None
+        self.assertEqual(frame.関係質問.修飾, (("様相", "必要"),))
+        relation = _意味関係(self.compiler.コンパイル(text))
+        self.assertEqual(_条件値(relation, "様相"), "必要")
 
     def test_受動態は意味方向へ反転して未知終点を保持する(self) -> None:
         ir = self.compiler.コンパイル("Which protein is inhibited by compound X?")
@@ -80,12 +106,40 @@ class 英日意味コンパイル試験(unittest.TestCase):
         self.assertEqual(end.種別, "目的.未知終点")
         self.assertEqual(end.内容, "protein")
 
-    def test_modal受動態も意味方向へ反転する(self) -> None:
-        frame = 英日意味フレーム抽出("Which protein could be inhibited by compound X?")
+    def test_modal受動態も意味方向とscopeを保持する(self) -> None:
+        text = "Which protein could be inhibited by compound X?"
+        frame = 英日意味フレーム抽出(text)
         self.assertIsNotNone(frame.関係質問)
+        assert frame.関係質問 is not None
         self.assertTrue(frame.関係質問.受動)
         self.assertEqual(frame.関係質問.未知位置, "終点")
         self.assertEqual(frame.関係質問.既知端点, "compound X")
+        self.assertEqual(frame.関係質問.修飾, (("様相", "可能"),))
+        relation = _意味関係(self.compiler.コンパイル(text))
+        self.assertEqual(_条件値(relation, "様相"), "可能")
+
+    def test_先頭条件scopeを質問本体から分離してrelationへ戻す(self) -> None:
+        text = "Under low pH, which compound may inhibit enzyme X?"
+        frame = 英日意味フレーム抽出(text)
+        self.assertIsNotNone(frame.関係質問)
+        assert frame.関係質問 is not None
+        self.assertEqual(frame.関係質問.種別, "阻害")
+        self.assertEqual(frame.関係質問.既知端点, "enzyme X")
+        self.assertIn(("様相", "可能"), frame.関係質問.修飾)
+        self.assertIn(("条件scope", "Under low pH"), frame.関係質問.修飾)
+
+        relation = _意味関係(self.compiler.コンパイル(text))
+        self.assertEqual(_条件値(relation, "様相"), "可能")
+        self.assertEqual(_条件値(relation, "条件scope"), "Under low pH")
+
+    def test_量化を質問relationの修飾へ結ぶ(self) -> None:
+        text = "Which enzyme inhibits all targets?"
+        frame = 英日意味フレーム抽出(text)
+        self.assertIsNotNone(frame.関係質問)
+        assert frame.関係質問 is not None
+        self.assertIn(("量化", "全称"), frame.関係質問.修飾)
+        relation = _意味関係(self.compiler.コンパイル(text))
+        self.assertEqual(_条件値(relation, "量化"), "全称")
 
     def test_目的語質問も未知終点へ落とす(self) -> None:
         ir = self.compiler.コンパイル("What molecule does enzyme X produce?")

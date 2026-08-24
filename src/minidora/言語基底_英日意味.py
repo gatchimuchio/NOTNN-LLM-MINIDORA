@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import re
 import unicodedata
 
@@ -23,6 +23,7 @@ class 英日関係質問:
     検索述語: str
     反転: bool = False
     受動: bool = False
+    修飾: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +41,12 @@ _関係句 = r"(?P<v>[A-Za-z]+(?:\s+(?:to|in|on|with|against|from|of))?)"
 _型 = r"(?P<kind>[A-Za-z][A-Za-z0-9 _-]{0,72}?)"
 _助動 = r"(?:(?:would|could|may|might|can|must)\s+)?"
 _受動助動 = r"(?:is|are|was|were|has\s+been|have\s+been|had\s+been|(?:would|could|may|might|can|must)\s+be)"
+
+_先頭条件付き質問 = re.compile(
+    r"^(?P<c>(?:(?:if|when|under|given|assuming|unless)\b|in\s+the\s+(?:presence|absence)\s+of\b)[^?？]{1,180}?)[,;]\s*"
+    r"(?P<q>(?:which|what)\b.+)$",
+    re.I,
+)
 
 _受動未知対象 = re.compile(
     rf"^(?:which|what)\s+(?:of\s+the\s+following\s+)?{_型}\s+"
@@ -154,6 +161,17 @@ def _反転(match: re.Match[str] | None, raw: str) -> bool:
     return "least likely" in lowered or "most unlikely" in lowered or " except" in (" " + lowered)
 
 
+def _質問本体と条件scope(text: str) -> tuple[str, tuple[str, ...]]:
+    """最終質問の先頭に明示された局所条件だけを質問本体から分離する。"""
+    raw = _端点(text)
+    match = _先頭条件付き質問.fullmatch(raw)
+    if match is None:
+        return raw, ()
+    condition = _正規化(match.group("c")).strip(" ,;:")
+    question = _正規化(match.group("q"))
+    return question, ((condition,) if condition else ())
+
+
 def _質問関係(text: str) -> 英日関係質問 | None:
     raw = _端点(text)
 
@@ -214,6 +232,28 @@ def _制御(text: str) -> tuple[英日意味制御, ...]:
     return tuple(out)
 
 
+def _関係質問修飾(
+    controls: tuple[英日意味制御, ...],
+    condition_scopes: tuple[str, ...],
+) -> tuple[tuple[str, str], ...]:
+    """質問に明示された関係修飾だけをHDS relation identityへ射影する。"""
+    out: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for item in controls:
+        if item.種別 not in {"様相", "量化"}:
+            continue
+        pair = (item.種別, item.正本)
+        if pair not in seen:
+            seen.add(pair)
+            out.append(pair)
+    for condition in condition_scopes:
+        pair = ("条件scope", condition)
+        if condition and pair not in seen:
+            seen.add(pair)
+            out.append(pair)
+    return tuple(out)
+
+
 def _検索語(text: str) -> tuple[str, ...]:
     out: list[str] = []
     seen: set[str] = set()
@@ -239,10 +279,17 @@ def _検索語(text: str) -> tuple[str, ...]:
 def 英日意味フレーム抽出(text: str) -> 英日意味フレーム:
     focus = _質問焦点(text)
     controls = _制御(focus)
-    question = _質問関係(focus)
+    question_body, condition_scopes = _質問本体と条件scope(focus)
+    question = _質問関係(question_body)
+    if question is not None:
+        question = replace(question, 修飾=_関係質問修飾(controls, condition_scopes))
+
     canonical: list[str] = [f"{item.種別}:{item.正本}" for item in controls]
+    if condition_scopes:
+        canonical.extend(f"条件scope:{scope}" for scope in condition_scopes)
     if question is not None:
         canonical.extend((f"関係:{question.種別}", f"不足位置:{question.未知位置}", f"要求型:{question.要求型}" if question.要求型 else "要求型:未特定"))
+        canonical.extend(f"関係修飾:{key}={value}" for key, value in question.修飾)
     return 英日意味フレーム(tuple(canonical), _検索語(focus), controls, question)
 
 

@@ -6,7 +6,7 @@ from .hds_ir import HDSIR, HDS座標, HDS関係, HDS意味作用, 値状態
 from .言語基底_英日意味 import 英日意味フレーム抽出
 
 
-_VERSION = "v0.3"
+_VERSION = "v0.4"
 
 
 def _norm(value: object) -> str:
@@ -18,6 +18,9 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
 
     全文翻訳は行わない。否定・比較・条件・様相・量化・関係質問を日本語正本の意味として
     HDSへ保持し、外部Rへ戻す英語検索表層は別座標に分離する。世界知識は追加しない。
+
+    v0.4では、質問に明示された様相・量化・局所条件scopeを、質問全体のメタではなく
+    `関係質問` そのものの条件へ結び付ける。背景文の制御は最終質問へ伝染させない。
     """
     language = str(getattr(ir, "入力言語", "") or "").casefold()
     if not language.startswith("en"):
@@ -54,7 +57,6 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
         )
         return candidate
 
-    # 日本語正本の意味は検索queryへ混ぜず、意味作用履歴として保持する。
     if frame.正本意味:
         operations.append(
             HDS意味作用(
@@ -63,14 +65,13 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
                 ("normalized",),
                 (),
                 " / ".join(frame.正本意味),
-                保持構造=("原文", "外部英語表層", "日本語意味正本"),
+                保持構造=("原文", "外部英語表層", "日本語意味正本", "質問関係修飾"),
                 損失=(),
-                検証=("世界知識非追加", "外部検索表層分離"),
+                検証=("世界知識非追加", "外部検索表層分離", "背景制御非伝染"),
             )
         )
 
     if frame.外部検索語:
-        # R境界へ戻すための英語だけを検索可能座標として保持する。
         external = " ".join(token for token in frame.外部検索語 if not token.startswith("rel:"))
         if external:
             add_coord("lang-sem:search", "検索.英語正規化", external)
@@ -103,22 +104,25 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
         while rid in existing_relation_ids:
             rid = f"lang-sem:relation-question:{serial}"
             serial += 1
+
+        relation_conditions = [
+            f"検索述語={question.検索述語}",
+            f"不足位置={question.未知位置}",
+            f"英日意味射影={_VERSION}",
+            f"受動態={str(question.受動).lower()}",
+        ]
+        relation_conditions.extend(f"{key}={value}" for key, value in question.修飾)
+
         semantic_relation = HDS関係(
             rid,
             (start_id,),
             (end_id,),
             question.種別,
-            条件=(
-                f"検索述語={question.検索述語}",
-                f"不足位置={question.未知位置}",
-                f"英日意味射影={_VERSION}",
-                f"受動態={str(question.受動).lower()}",
-            ),
+            条件=tuple(dict.fromkeys(relation_conditions)),
             値状態=値状態.未観測,
             由来="共有言語基底P",
             暫定性="EN_TO_JA_SEMANTIC_PROJECTION",
         )
-        # 検索ではこの意味正本関係を最初に使う。
         relations.insert(0, semantic_relation)
 
         if question.反転:
