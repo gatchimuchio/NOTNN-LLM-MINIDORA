@@ -20,7 +20,7 @@ def _意味関係(ir):
     return next(
         relation
         for relation in ir.関係
-        if _条件値(relation, "英日意味射影") == "v0.3"
+        if _条件値(relation, "英日意味射影") == "v0.4"
     )
 
 
@@ -37,14 +37,31 @@ class 英日意味コンパイル試験(unittest.TestCase):
         self.assertEqual(frame.関係質問.要求型, "molecule")
         self.assertEqual(frame.関係質問.既知端点, "enzyme X")
         self.assertTrue(frame.関係質問.反転)
+        self.assertEqual(frame.関係質問.極性, "肯定")
 
         ir = self.compiler.コンパイル(text)
         relation = _意味関係(ir)
         self.assertEqual(relation.種別, "阻害")
         self.assertEqual(_条件値(relation, "不足位置"), "始点")
         self.assertEqual(_条件値(relation, "検索述語"), "inhibit")
+        self.assertEqual(_条件値(relation, "極性"), "肯定")
+        # least likelyはJ側の反転制御であり、阻害関係そのものを否定しない。
+        self.assertEqual(_条件値(relation, "蓋然性"), "")
         self.assertTrue(any(coord.種別 == "制御.選択意図" and coord.内容 == "反転" for coord in ir.座標))
         self.assertTrue(any("関係:阻害" in op.変換 and "蓋然性:最小" in op.変換 for op in ir.意味作用履歴))
+
+    def test_明示否定質問は反転ではなく否定関係として保持する(self) -> None:
+        text = "Which molecule does not inhibit enzyme X?"
+        frame = 英日意味フレーム抽出(text)
+        self.assertIsNotNone(frame.関係質問)
+        self.assertFalse(frame.関係質問.反転)
+        self.assertEqual(frame.関係質問.極性, "否定")
+        self.assertEqual(frame.関係質問.未知位置, "始点")
+
+        ir = self.compiler.コンパイル(text)
+        relation = _意味関係(ir)
+        self.assertEqual(relation.種別, "阻害")
+        self.assertEqual(_条件値(relation, "極性"), "否定")
 
     def test_背景文の否定を最終質問の制御へ伝染させない(self) -> None:
         text = (
@@ -59,13 +76,16 @@ class 英日意味コンパイル試験(unittest.TestCase):
         self.assertIn("蓋然性:最大", frame.正本意味)
 
     def test_型なし選択肢質問とmodalも未知始点へ落とす(self) -> None:
-        frame = 英日意味フレーム抽出("Which of the following could inhibit enzyme X?")
+        text = "Which of the following could inhibit enzyme X?"
+        frame = 英日意味フレーム抽出(text)
         self.assertIsNotNone(frame.関係質問)
         self.assertEqual(frame.関係質問.種別, "阻害")
         self.assertEqual(frame.関係質問.未知位置, "始点")
         self.assertEqual(frame.関係質問.要求型, "選択肢")
         self.assertEqual(frame.関係質問.既知端点, "enzyme X")
         self.assertIn("様相:可能", frame.正本意味)
+        relation = _意味関係(self.compiler.コンパイル(text))
+        self.assertEqual(_条件値(relation, "様相"), "可能")
 
     def test_受動態は意味方向へ反転して未知終点を保持する(self) -> None:
         ir = self.compiler.コンパイル("Which protein is inhibited by compound X?")
