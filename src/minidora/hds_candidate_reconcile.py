@@ -44,10 +44,11 @@ class HDS候補調停結果:
 
 
 def _collapse_by_source(items: Iterable[HDS候補証拠]) -> dict[tuple[str, str], HDS候補証拠]:
-    """同一候補・同一sourceでは最強の一経路だけを残す。
+    """同一候補・同一sourceでは最も意味粒度の細かい一経路だけを残す。
 
-    factとdocument集約、directとfact等が同じsourceを二重加点しないための境界。
-    同点なら direct > fact > document を優先する。
+    優先順は direct > atomic fact > document集約。
+    同じsource内では集約bagの得点量がatomic構造Factを上書きしてはならない。
+    同じ粒度同士でのみ得点を比較する。
     """
     best: dict[tuple[str, str], HDS候補証拠] = {}
     for item in items:
@@ -56,10 +57,18 @@ def _collapse_by_source(items: Iterable[HDS候補証拠]) -> dict[tuple[str, str
         if old is None:
             best[key] = item
             continue
+
+        new_priority = _CHANNEL_PRIORITY.get(item.経路, 0)
+        old_priority = _CHANNEL_PRIORITY.get(old.経路, 0)
+        if new_priority != old_priority:
+            if new_priority > old_priority:
+                best[key] = item
+            continue
+
         if item.得点 > old.得点:
             best[key] = item
             continue
-        if item.得点 == old.得点 and _CHANNEL_PRIORITY.get(item.経路, 0) > _CHANNEL_PRIORITY.get(old.経路, 0):
+        if item.得点 == old.得点 and item.事実ID < old.事実ID:
             best[key] = item
     return best
 
@@ -100,7 +109,8 @@ def HDS候補横断調停(
 ) -> Mapping[str, HDS候補調停結果]:
     """source単位で候補横断比較し、識別力の低い共通証拠を除去・減衰する。
 
-    一候補だけを支持するsourceは係数1.0。複数候補へ当たるsourceは、最大競合との差と
+    同一source内ではまず意味粒度を優先し、direct > atomic fact > document集約の順に一経路へ閉じる。
+    その後、一候補だけを支持するsourceは係数1.0。複数候補へ当たるsourceは最大競合との差と
     支持候補の広さから識別係数を決める。共通知識を負の証拠へ変換せず、候補差のない
     大きな絶対得点をJ marginとprovenanceから除去する。
     """
