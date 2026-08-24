@@ -209,11 +209,13 @@ class Runtime射影V15試験(unittest.TestCase):
         self.assertEqual(projected.関係, ())
         self.assertTrue(any("Compound A" in str(coord.内容) for coord in projected.座標))
 
-    def test_Kは不確実性scopeが両端へ掛かる関係を無条件Factへしない(self) -> None:
+    def test_Kは不確実性scopeを関係にも独立座標にも昇格しない(self) -> None:
         scope = HDS座標("scope", "不確実性.明示", "Compound A may inhibit Enzyme X.", 値状態.推定)
         projected = HDSKData射影(_synthetic_relation_ir(extra=(scope,)))
         self.assertEqual(projected.関係, ())
-        self.assertTrue(any(str(coord.種別) == "不確実性.明示" for coord in projected.座標))
+        self.assertFalse(any(str(coord.種別) == "不確実性.明示" for coord in projected.座標))
+        self.assertTrue(any(str(coord.内容) == "Compound A" for coord in projected.座標))
+        self.assertTrue(any(str(coord.内容) == "Enzyme X" for coord in projected.座標))
 
     def test_片端が非意味メタなら関係自体をKへ流さない(self) -> None:
         ir = HDSIR(
