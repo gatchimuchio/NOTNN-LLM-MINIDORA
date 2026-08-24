@@ -164,17 +164,21 @@ def _直接関係で再判定(
     )
 
 
-def _検証候補群(k_question_ir: HDSIR, candidates: dict[str, HDSIR]) -> dict[str, HDSIR]:
-    """実体句だけを問いの未知端点へ代入し、命題候補は自身の構造を維持する。"""
+def _検証候補群(
+    k_question_ir: HDSIR,
+    full_candidates: dict[str, HDSIR],
+    k_candidates: dict[str, HDSIR],
+) -> dict[str, HDSIR]:
+    """完全IRで実体/命題を判定し、K射影済み実体句だけを未知端点へ代入する。"""
     substitutable = {
-        label: candidate_ir
-        for label, candidate_ir in candidates.items()
-        if HDSK候補代入可能(candidate_ir)
+        label: k_candidates[label]
+        for label, full_ir in full_candidates.items()
+        if label in k_candidates and HDSK候補代入可能(full_ir)
     }
     substituted = HDS候補代入仮説群(k_question_ir, substitutable)
     return {
         label: substituted.get(label, candidate_ir)
-        for label, candidate_ir in candidates.items()
+        for label, candidate_ir in k_candidates.items()
     }
 
 
@@ -218,7 +222,7 @@ def HDS選択推論実行(
     # Kへ入る質問・候補表現を最初に確定し、baseline照合と直接検証で同じ契約を使う。
     k_question_ir = HDSK質問射影(question_ir)
     k_candidate_irs = {label: HDSK候補射影(candidate_ir) for label, candidate_ir in candidate_irs.items()}
-    verification_candidate_irs = _検証候補群(k_question_ir, k_candidate_irs)
+    verification_candidate_irs = _検証候補群(k_question_ir, candidate_irs, k_candidate_irs)
 
     working = 基礎能力核.clone()
     HDS証拠状態複製(基礎能力核, working)
