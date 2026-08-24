@@ -21,6 +21,46 @@ class HDS候補横断調停試験(unittest.TestCase):
         self.assertAlmostEqual(result["A"].合計得点, 5.0)
         self.assertEqual(result["A"].採用証拠[0].経路, "fact")
 
+    def test_同一sourceでは高得点documentよりatomic_factを優先する(self) -> None:
+        result = HDS候補横断調停(
+            ("A", "B"),
+            (
+                HDS候補証拠("A", "doc:1", 3.0, ("relation-fact",), "fact"),
+                HDS候補証拠("A", "doc:1", 9.0, ("f1", "f2", "f3"), "document"),
+            ),
+            証拠重み=(1.0,),
+            証拠上限=1,
+        )
+        self.assertEqual(result["A"].採用証拠[0].経路, "fact")
+        self.assertEqual(result["A"].採用証拠[0].事実ID, ("relation-fact",))
+        self.assertAlmostEqual(result["A"].合計得点, 3.0)
+
+    def test_directは高得点factより優先する(self) -> None:
+        result = HDS候補横断調停(
+            ("A", "B"),
+            (
+                HDS候補証拠("A", "doc:1", 2.0, ("direct",), "direct"),
+                HDS候補証拠("A", "doc:1", 8.0, ("fact",), "fact"),
+            ),
+            証拠重み=(1.0,),
+            証拠上限=1,
+        )
+        self.assertEqual(result["A"].採用証拠[0].経路, "direct")
+        self.assertAlmostEqual(result["A"].合計得点, 2.0)
+
+    def test_同じ粒度のfact同士は高得点を使う(self) -> None:
+        result = HDS候補横断調停(
+            ("A", "B"),
+            (
+                HDS候補証拠("A", "doc:1", 3.0, ("f-low",), "fact"),
+                HDS候補証拠("A", "doc:1", 5.0, ("f-high",), "fact"),
+            ),
+            証拠重み=(1.0,),
+            証拠上限=1,
+        )
+        self.assertEqual(result["A"].採用証拠[0].事実ID, ("f-high",))
+        self.assertAlmostEqual(result["A"].合計得点, 5.0)
+
     def test_全候補共通sourceはmarginとprovenanceへ残さない(self) -> None:
         result = HDS候補横断調停(
             ("A", "B"),
