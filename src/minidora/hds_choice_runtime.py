@@ -296,9 +296,9 @@ def HDS選択推論実行(
             return _suspend("HDS_CHOICE_SEMANTIC_LOSS", candidate_count=len(candidate_irs) + 1, parallel=parallel_safe, workers=worker_count)
         candidate_irs[label] = compiled
 
-    # J/M/直接検証は元IRを保持する。Kの候補比較だけを最小意味核へ射影する。
+    # Kへ入る候補表現は全経路で同じ射影を使う。J/M監査用の元IRはcandidate_irsへ保持する。
     k_candidate_irs = {label: HDSK候補射影(candidate_ir) for label, candidate_ir in candidate_irs.items()}
-    verification_candidate_irs = HDS候補代入仮説群(question_ir, candidate_irs)
+    verification_candidate_irs = HDS候補代入仮説群(question_ir, k_candidate_irs)
 
     working = 基礎能力核.clone()
     HDS証拠状態複製(基礎能力核, working)
@@ -319,7 +319,6 @@ def HDS選択推論実行(
         if isinstance(compiled, Exception):
             data_failed += 1
             continue
-        # R取得Dataは世界事実としてKへ渡してよい意味だけへ射影する。
         result = ingest.投入(
             HDSKData射影(compiled),
             provenance=_参照provenance(record),
@@ -330,7 +329,7 @@ def HDS選択推論実行(
         evidence += result.証拠事実数
         blocked += result.証拠阻害事実数
 
-    # R経路は既に弱い補助証拠として別設計されているため、その専用IRは維持する。
+    # 検索経路は真偽Factとは別の低信頼補助証拠として明示分離された既存経路だけを維持する。
     for record, route_ir in _検索経路証拠(question_ir, choices, references):
         route = ingest.投入(
             route_ir,
@@ -341,7 +340,6 @@ def HDS選択推論実行(
         evidence += route.証拠事実数
         blocked += route.証拠阻害事実数
 
-    # C/Kへは質問の最小意味核だけを渡す。R/J/Mは元question_irを保持する。
     k3 = HDSIRネイティブAdapter(working).実行(
         HDSK質問射影(question_ir),
         候補IR=k_candidate_irs,
