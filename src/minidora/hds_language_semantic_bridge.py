@@ -28,7 +28,6 @@ def _意味条件(frame: 英日意味フレーム, *, question: bool) -> tuple[s
         kind = str(control.種別)
         canonical = str(control.正本)
         surface = _norm(control.表層)
-        # 選択反転・least likelyはJの候補選択制御であり、関係そのものの極性ではない。
         if kind == "選択":
             continue
         if question and kind == "蓋然性":
@@ -74,8 +73,14 @@ def _scope_existing_relation(relations: list[HDS関係], coords: list[HDS座標]
 
     target = candidates[0]
     inherited = list(target.条件)
-    inherited.extend(_意味条件(frame, question=False))
-    # 宣言文では基礎Compilerが保持した条件表層も、単一関係なら同じscopeへ接続する。
+    semantic_conditions = list(_意味条件(frame, question=False))
+    # 比較の方向・閾値意味を relation.種別 自体が既に持つ場合、同じ意味をscopeへ二重格納しない。
+    if str(target.種別).startswith("比較."):
+        semantic_conditions = [
+            value for value in semantic_conditions
+            if not str(value).startswith(("比較=", "比較表層="))
+        ]
+    inherited.extend(semantic_conditions)
     for coord in coords:
         if str(coord.種別) == "条件.前提" and str(coord.内容).strip():
             inherited.append("条件表層=" + _norm(coord.内容))
@@ -84,12 +89,7 @@ def _scope_existing_relation(relations: list[HDS関係], coords: list[HDS座標]
 
 
 def HDS英日意味射影(ir: HDSIR) -> HDSIR:
-    """英語表層を日本語正本の意味フレームへ有限射影する。
-
-    全文翻訳は行わない。否定・比較・条件・様相・量化・関係質問を日本語正本の意味として
-    HDSへ保持し、外部Rへ戻す英語検索表層は別情報として分離する。v0.6ではscopeの原英語表層も
-    復号用に保持するが、日本語正本のscope同一性そのものには使用しない。
-    """
+    """英語表層を日本語正本の意味フレームへ有限射影する。"""
     language = str(getattr(ir, "入力言語", "") or "").casefold()
     if not language.startswith("en"):
         return ir
