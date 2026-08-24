@@ -3,23 +3,19 @@ from __future__ import annotations
 from dataclasses import replace
 import re
 
-from .hds_compiler_records import HDS_COMPILER_META_PREFIXES
 from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
 from .semantic_tokens import 意味語
 
 
-_SURFACE_ONLY_KINDS = {
-    "source_text",
-    "language.input",
-    "language.normalized",
-    "対象.原文保持",
-    "文脈.言語",
-}
-_K_NON_SEMANTIC_PREFIXES = HDS_COMPILER_META_PREFIXES + (
-    "検索.",
-    "制御.",
-    "目的.",
+_K_SEMANTIC_PREFIXES = (
+    "対象.",
+    "実体.",
+    "関係.述語",
+    "属性.",
+    "値.",
+    "状態.",
 )
+_K_EXCLUDED_KINDS = frozenset({"状態.否定"})
 _R_CONTEXT_PREFIXES = (
     "検索.",
     "条件.",
@@ -43,8 +39,10 @@ _K_UNSUPPORTED_SCOPE_SURFACE = re.compile(
     re.I,
 )
 _K_UNSUPPORTED_SCOPE_KEYS = frozenset({"様相", "量化", "条件scope", "scope", "条件作用"})
-_K_SCOPE_COORD_KINDS = frozenset({"不確実性.明示", "前提.明示", "射程.明示", "動態.分岐"})
-_K_CANDIDATE_ASSERTION_PREFIXES = ("状態.", "条件.", "動態.", "不確実性.", "前提.", "射程.")
+_K_SCOPE_COORD_KINDS = frozenset({"不確実性.明示", "前提.明示", "射程.明示", "動態.分岐", "状態.否定"})
+_CANDIDATE_ASSERTION_PREFIXES = (
+    "状態.", "条件.", "動態.", "不確実性.", "前提.", "射程.", "論証.",
+)
 
 
 def _条件値(relation: HDS関係, key: str) -> str:
@@ -109,9 +107,19 @@ def _R検索表層(coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ..
 
 def _K意味座標(coord: HDS座標) -> bool:
     kind = str(coord.種別)
-    if kind in _SURFACE_ONLY_KINDS:
+    if kind in _K_EXCLUDED_KINDS:
         return False
-    return not kind.startswith(_K_NON_SEMANTIC_PREFIXES)
+    return kind.startswith(_K_SEMANTIC_PREFIXES)
+
+
+def _候補は命題(ir: HDSIR) -> bool:
+    if ir.関係:
+        return True
+    for coord in ir.座標:
+        kind = str(coord.種別)
+        if kind == "関係.述語" or kind.startswith(_CANDIDATE_ASSERTION_PREFIXES):
+            return True
+    return False
 
 
 def _質問関係(ir: HDSIR) -> tuple[HDS関係, ...]:
@@ -184,11 +192,13 @@ def _K未対応scope(ir: HDSIR, relation: HDS関係, coords: dict[str, HDS座標
         if key in _K_UNSUPPORTED_SCOPE_KEYS and payload:
             return True
 
+    # scope coordinateはK出力から除外するが、判定は完全IRを見て行う。
+    full_coords = ir.座標辞書()
     for cid in (*relation.始点, *relation.終点):
-        coord = coords.get(cid)
+        coord = full_coords.get(cid) or coords.get(cid)
         if coord is not None and _K_UNSUPPORTED_SCOPE_SURFACE.search(str(coord.内容)):
             return True
-    return _scope座標が関係へ掛かる(ir, relation, coords)
+    return _scope座標が関係へ掛かる(ir, relation, full_coords)
 
 
 def _K関係射影(ir: HDSIR, coords: tuple[HDS座標, ...]) -> tuple[HDS関係, ...]:
@@ -281,24 +291,22 @@ def HDSK候補射影(ir: HDSIR) -> HDSIR:
 
 
 def HDSK候補代入可能(ir: HDSIR) -> bool:
-    """候補が未知端点へ代入する実体句として扱える時だけTrueを返す。
-
-    自身の関係、述語、否定・条件・不確実性等を持つ候補は命題として扱い、
-    問いの未知端点へ文字列ごと押し込まない。
-    """
-    if ir.関係:
+    """完全候補IRが未知端点へ代入する実体句として扱える時だけTrue。"""
+    if _候補は命題(ir):
         return False
-    for coord in ir.座標:
-        kind = str(coord.種別)
-        if kind == "関係.述語" or kind.startswith(_K_CANDIDATE_ASSERTION_PREFIXES):
-            return False
-    return any(_K意味座標(coord) and str(coord.内容).strip() for coord in ir.座標)
+    return any(
+        str(coord.種別).startswith(("対象.", "実体."))
+        and coord.値状態 not in _BLOCKING
+        and str(coord.内容).strip()
+        for coord in ir.座標
+    )
 
 
 def HDSKData射影(ir: HDSIR) -> HDSIR:
     """R取得DataからKへ投入してよい世界事実意味だけを残す。
 
-    K未対応の否定・様相・条件scopeは関係Factへ縮退させず、端点語の証拠だけを残す。
+    scopeや論証等の未結合全文座標はKへ渡さない。K未対応scopeを含む関係はFactへ縮退せず、
+    対象・実体・述語・属性・値等の意味核だけを残す。
     """
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
     semantic_relations = _K関係射影(ir, semantic_coords)
