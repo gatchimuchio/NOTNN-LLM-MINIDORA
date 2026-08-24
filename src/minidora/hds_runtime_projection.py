@@ -62,24 +62,16 @@ def _関係座標ID(relations: tuple[HDS関係, ...]) -> set[str]:
 
 
 def _関係を座標へ閉じる(relations: tuple[HDS関係, ...], coordinate_ids: set[str]) -> tuple[HDS関係, ...]:
-    return tuple(
-        relation
-        for relation in relations
-        if any(cid in coordinate_ids for cid in (*relation.始点, *relation.終点))
-    )
+    out: list[HDS関係] = []
+    for relation in relations:
+        endpoints = tuple((*relation.始点, *relation.終点))
+        if endpoints and all(cid in coordinate_ids for cid in endpoints):
+            out.append(relation)
+    return tuple(out)
 
 
 def HDSK質問射影(ir: HDSIR) -> HDSIR:
-    """質問HDS-IRから、C/Kが候補比較に必要な最小意味核だけを返す。
-
-    優先順位:
-    1. 未知スロット関係がある場合: choice + その関係 + 既知/未知端点だけ。
-       未知なのは端点であり関係種別ではないため、K射影では関係種別を確定として保持する。
-    2. 関係質問でない場合: Compilerが作った検索専用表層を照合焦点へ写す。
-    3. それも無い場合: 検索/制御/目的/監査/表層を除いた意味座標・関係へ縮約する。
-
-    元IRは変更しない。J/M/Rは元IRを使用する。
-    """
+    """質問HDS-IRからC/Kの候補比較に必要な最小意味核だけを返す。"""
     choices = tuple(coord for coord in ir.座標 if coord.座標ID.startswith("choice:"))
     question_relations = _質問関係(ir)
     coords_by_id = ir.座標辞書()
@@ -96,12 +88,7 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
             )
             for relation in question_relations
         )
-        return replace(
-            ir,
-            座標=tuple((*choices, *endpoints)),
-            関係=projected_relations,
-            意味作用履歴=(),
-        )
+        return replace(ir, 座標=tuple((*choices, *endpoints)), 関係=projected_relations, 意味作用履歴=())
 
     search_focus = tuple(
         coord
@@ -123,16 +110,11 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
     semantic_ids = {coord.座標ID for coord in semantic_coords}
     semantic_relations = _関係を座標へ閉じる(ir.関係, semantic_ids)
-    return replace(
-        ir,
-        座標=tuple((*choices, *semantic_coords)),
-        関係=semantic_relations,
-        意味作用履歴=(),
-    )
+    return replace(ir, 座標=tuple((*choices, *semantic_coords)), 関係=semantic_relations, 意味作用履歴=())
 
 
 def HDSK候補射影(ir: HDSIR) -> HDSIR:
-    """候補IRから、候補識別と明示命題に必要な意味だけを残す。"""
+    """候補IRから候補識別と明示命題に必要な意味だけを残す。"""
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
     semantic_ids = {coord.座標ID for coord in semantic_coords}
     semantic_relations = _関係を座標へ閉じる(ir.関係, semantic_ids)
@@ -140,11 +122,7 @@ def HDSK候補射影(ir: HDSIR) -> HDSIR:
 
 
 def HDSKData射影(ir: HDSIR) -> HDSIR:
-    """R取得DataからKへ投入してよい事実意味だけを残す。
-
-    検索語・選択目的・制御・監査は取得経路/判断の情報であり、世界事実ではないためKへ入れない。
-    残差と値状態は証拠境界として保持する。
-    """
+    """R取得DataからKへ投入してよい世界事実意味だけを残す。"""
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
     semantic_ids = {coord.座標ID for coord in semantic_coords}
     semantic_relations = _関係を座標へ閉じる(ir.関係, semantic_ids)
