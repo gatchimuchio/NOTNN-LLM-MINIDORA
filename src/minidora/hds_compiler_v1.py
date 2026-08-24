@@ -16,6 +16,7 @@ from .hds_compiler_records import HDSCompiler成果
 from .hds_compiler_records_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規則改善候補
 from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
 from .hds_ir import HDSIR
+from .hds_language_comparisons import HDS英語比較射影
 from .hds_language_relations import HDS英語基底関係射影
 from .hds_language_semantic_bridge import HDS英日意味射影
 from .言語基底 import 言語基底P, 標準言語基底P
@@ -30,7 +31,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
 
     Compilerは真偽、原理の最終採用、改善候補の採用、行動、最終採否を決めない。
     文字体系・基本文法・基底概念はMINIDORA Runtimeと同じ言語基底Pを参照する。
-    英語入力は全文翻訳ではなく、日本語正本の意味フレームと関係scopeへ有限射影して後段へ渡す。
+    英語入力は全文翻訳ではなく、日本語正本の意味フレーム・比較関係・relation scopeへ有限射影する。
     """
 
     Architecture版 = "v1.2"
@@ -53,12 +54,13 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         *,
         HDS履歴: tuple[HDSIR, ...] = (),
     ) -> HDSCompiler成果:
-        # まず英語宣言文の明示関係を極性付きで補完し、旧Compilerの否定偽陽性を除去する。
-        # 疑問文はこの層では確定関係へ上げない。
+        # 明示関係を補完し、旧Compilerの否定/modal偽陽性を除去する。
         base = HDS英語基底関係射影(base, self.言語基底P)
 
-        # その後、英語表層を日本語正本の意味フレームへ射影する。
-        # 関係が既に存在する宣言文では、否定・様相・量化・条件等をその関係scopeへ接続する。
+        # 記号比較だけでなく `A is greater than B` 等の自然言語比較を同じHDS関係へ落とす。
+        base = HDS英語比較射影(base)
+
+        # 英語表層を日本語正本の意味フレームへ射影し、relation scopeを接続する。
         base = HDS英日意味射影(base)
         first = 公開HDSフロントエンド射影(base)
 
