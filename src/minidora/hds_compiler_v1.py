@@ -16,6 +16,7 @@ from .hds_compiler_records import HDSCompiler成果
 from .hds_compiler_records_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規則改善候補
 from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
 from .hds_ir import HDSIR
+from .hds_language_classification import HDS英語分類射影
 from .hds_language_coordination import HDS英語AND展開
 from .hds_language_relations import HDS英語基底関係射影
 from .hds_language_semantic_bridge import HDS英日意味射影
@@ -38,6 +39,10 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
     def _完成(self, base: HDSIR, *, HDS履歴: tuple[HDSIR, ...] = ()) -> HDSCompiler成果:
         base = HDS英日意味射影(base)
         base = HDS英語基底関係射影(base, self.言語基底P)
+
+        # 入力に明示された `A is a B` 等だけを分類関係として保持する。
+        # 暗黙分類や前置詞付き役割句はここで推測しない。
+        base = HDS英語分類射影(base)
 
         # `A and B inhibit C` 等の明示ANDで一体化した端点を、確定関係だけ個別辺へ展開する。
         # OR・未知端点・複雑な名詞句は展開しない。
