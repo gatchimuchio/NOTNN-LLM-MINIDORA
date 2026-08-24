@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import Counter
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -10,11 +9,10 @@ from .hds_adapter import HDS独立コンパイル
 from .hds_choice_hypothesis import HDS候補代入仮説群
 from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
 from .hds_direct_relation_verifier import HDS直接関係検証
-from .hds_ir import HDSIR, HDS実行核, HDS座標, 値状態
+from .hds_ir import HDSIR, 値状態
 from .hds_runtime_projection import HDSKData射影, HDSK候補射影, HDSK質問射影
 from .k3_functional import K3相当能力核, SemanticFrame
 from .k3_hds_native import HDSK3結果, HDSIRネイティブAdapter
-from .semantic_tokens import 意味語
 from .参照 import 参照記録
 
 
@@ -111,14 +109,6 @@ def _一括コンパイル(
         return tuple(out)
 
 
-def _参照候補群(record: 参照記録) -> tuple[str, ...]:
-    return tuple(dict.fromkeys(
-        str(value)
-        for key, value in record.条件
-        if str(key) == "hds_query_choice" and str(value)
-    ))
-
-
 def _参照provenance(record: 参照記録) -> tuple[str, ...]:
     markers: list[str] = []
     for key, value in record.条件:
@@ -132,98 +122,13 @@ def _参照provenance(record: 参照記録) -> tuple[str, ...]:
     return tuple((record.供給器, record.由来, record.識別子, *dict.fromkeys(markers)))
 
 
-def _候補識別語(choices: tuple[tuple[str, str, 値状態], ...]) -> dict[str, frozenset[str]]:
-    """各候補について、他候補にはない意味語だけを返す。
-
-    検索経路そのものを真偽証拠へ誤昇格させないため、識別語が存在しない候補は空集合の
-    まま返す。全文signatureへのfallbackは行わない。
-    """
-    signatures = {label: set(意味語(content)) for label, content, _ in choices}
-    labels = tuple(signatures)
-    out: dict[str, frozenset[str]] = {}
-    for label in labels:
-        others: set[str] = set()
-        for other in labels:
-            if other != label:
-                others.update(signatures[other])
-        out[label] = frozenset(signatures[label] - others)
-    return out
-
-
-def _参照意味語(record: 参照記録) -> frozenset[str]:
-    return 意味語(" ".join((str(record.対象), str(record.内容))))
-
-
-def _検索経路証拠(
-    question_ir: HDSIR,
-    choices: tuple[tuple[str, str, 値状態], ...],
-    references: tuple[参照記録, ...],
-) -> tuple[tuple[参照記録, HDSIR], ...]:
-    """候補固有query + 本文意味一致 + 複数独立文書が揃った時だけ弱い経路証拠を作る。
-
-    検索順位やhit数だけを候補の真偽へ変換しない。候補固有queryで得た文書であっても、
-    文書自身がその候補の「他候補との差分意味」に触れていなければ経路証拠には数えない。
-    同一文書が複数候補queryで取得された場合も固有支持から除外する。
-    """
-    choice_map = {label: content for label, content, _ in choices}
-    distinctive = _候補識別語(choices)
-    exclusive: list[tuple[str, 参照記録]] = []
-    for record in references:
-        labels = _参照候補群(record)
-        if len(labels) != 1 or labels[0] not in choice_map:
-            continue
-        label = labels[0]
-        required = distinctive.get(label, frozenset())
-        if not required:
-            continue
-        if not (required & _参照意味語(record)):
-            continue
-        exclusive.append((label, record))
-
-    counts = Counter(label for label, _ in exclusive)
-    if not counts:
-        return ()
-    ranking = counts.most_common()
-    top_label, top_count = ranking[0]
-    second_count = ranking[1][1] if len(ranking) > 1 else 0
-    if top_count < 2 or top_count <= second_count:
-        return ()
-
-    focus = " ".join(str(question_ir.正規化文 or question_ir.原文).split())[:1200]
-    candidate = choice_map[top_label]
-    out: list[tuple[参照記録, HDSIR]] = []
-    for label, record in exclusive:
-        if label != top_label:
-            continue
-        ir = HDSIR(
-            原文=f"retrieval-route:{label}",
-            正規化文=f"retrieval-route:{label}",
-            認知世界ID="hds:r-query-route",
-            座標=(
-                HDS座標("q", "対象.検索焦点", focus, 値状態.推定, 由来="HDS参照検索経路"),
-                HDS座標("c", "文脈.検索候補", candidate, 値状態.推定, 由来="HDS参照検索経路"),
-            ),
-            関係=(),
-            残差=(),
-            意味作用履歴=(),
-            実行核=HDS実行核(),
-            初期状態={},
-            参照必須=False,
-            種別="retrieval_route_evidence",
-            閉包状態="PROVISIONAL",
-            入力言語=question_ir.入力言語,
-        )
-        out.append((record, ir))
-    return tuple(out)
-
-
 def _直接関係で再判定(
-    question_ir: HDSIR,
+    judgment_ir: HDSIR,
     verification_candidate_irs: dict[str, HDSIR],
     working: K3相当能力核,
     k3: HDSK3結果,
 ) -> HDSK3結果:
-    if HDS選択意図判定(question_ir.原文).種別 == "EXCEPTION":
+    if HDS選択意図判定(judgment_ir.原文).種別 == "EXCEPTION":
         return k3
     direct, _diagnostics = HDS直接関係検証(working, verification_candidate_irs)
     if direct is None:
@@ -232,11 +137,11 @@ def _直接関係で再判定(
     frame = SemanticFrame(
         kind="question",
         intent="knowledge_query",
-        raw=question_ir.原文,
+        raw=judgment_ir.原文,
         predicate="HDS_choice_selection",
         args=(None,),
         tags=("HDS-IR", "choice", "directed_relation_verification"),
-        language=getattr(question_ir, "入力言語", "en") or "en",
+        language=getattr(judgment_ir, "入力言語", "en") or "en",
     )
     decision = working.J.decide(frame, (direct,))
     if decision.status != "APPROVE" or decision.selected_candidate is None:
@@ -296,9 +201,10 @@ def HDS選択推論実行(
             return _suspend("HDS_CHOICE_SEMANTIC_LOSS", candidate_count=len(candidate_irs) + 1, parallel=parallel_safe, workers=worker_count)
         candidate_irs[label] = compiled
 
-    # Kへ入る候補表現は全経路で同じ射影を使う。J/M監査用の元IRはcandidate_irsへ保持する。
+    # Kへ入る質問・候補表現を最初に確定し、baseline照合と直接検証で同じ契約を使う。
+    k_question_ir = HDSK質問射影(question_ir)
     k_candidate_irs = {label: HDSK候補射影(candidate_ir) for label, candidate_ir in candidate_irs.items()}
-    verification_candidate_irs = HDS候補代入仮説群(question_ir, k_candidate_irs)
+    verification_candidate_irs = HDS候補代入仮説群(k_question_ir, k_candidate_irs)
 
     working = 基礎能力核.clone()
     HDS証拠状態複製(基礎能力核, working)
@@ -329,19 +235,9 @@ def HDS選択推論実行(
         evidence += result.証拠事実数
         blocked += result.証拠阻害事実数
 
-    # 検索経路は真偽Factとは別の低信頼補助証拠として明示分離された既存経路だけを維持する。
-    for record, route_ir in _検索経路証拠(question_ir, choices, references):
-        route = ingest.投入(
-            route_ir,
-            provenance=_参照provenance(record),
-            信頼係数=min(0.18, max(0.0, float(record.信頼)) * 0.18),
-        )
-        added += route.追加事実数
-        evidence += route.証拠事実数
-        blocked += route.証拠阻害事実数
-
+    # query routeはRの監査/provenanceであり世界Factではない。Kへ擬似証拠として投入しない。
     k3 = HDSIRネイティブAdapter(working).実行(
-        HDSK質問射影(question_ir),
+        k_question_ir,
         候補IR=k_candidate_irs,
         努力=努力,
     )
