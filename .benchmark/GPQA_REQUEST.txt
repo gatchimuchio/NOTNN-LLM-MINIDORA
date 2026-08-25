@@ -1,0 +1,6 @@
+MINIDORA GPQA benchmark request
+requested_at_jst: 2026-08-26T05:33:00+09:00
+benchmark: GPQA Diamond
+scope: full 198 questions
+target: current main
+reason: post-v0.4 rebuild measurement
