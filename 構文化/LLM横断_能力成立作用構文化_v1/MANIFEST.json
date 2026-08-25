@@ -1,0 +1,71 @@
+{
+  "name": "LLM横断・能力成立作用構文化 v1",
+  "version": "v1",
+  "date_jst": "2026-08-26",
+  "status": "第二巡構文化完了・実装未適用",
+  "language": "ja",
+  "license": "CC-BY-4.0",
+  "repository": "gatchimuchio/NOTNN-LLM-MINIDORA",
+  "parent": "構文化/LLM横断_HDS日本語構文化_相対化ベンチマーク_v0_1",
+  "target_count": 10,
+  "targets": [
+    "OpenAI GPT-5.6 Sol",
+    "Claude Fable 5 / Mythos 5",
+    "Google Gemini 3.7 Flash / 3.1 Pro",
+    "DeepSeek V4",
+    "Qwen3.6-35B-A3B",
+    "Grok 4.6",
+    "Llama 3 70B (2024-04)",
+    "OLMo 3",
+    "Apertus 1.5 70B",
+    "K2-V2 70B"
+  ],
+  "excluded": {
+    "name": "K3 v2 full-weight",
+    "reason": "別正本でD4全量固定済み。ユーザー指示により今回の第二巡対象外"
+  },
+  "observation_depth": {
+    "D3_or_equivalent": [
+      "DeepSeek V4",
+      "Qwen3.6-35B-A3B",
+      "Llama 3 70B (2024-04)",
+      "OLMo 3",
+      "Apertus 1.5 70B",
+      "K2-V2 70B"
+    ],
+    "D2": [
+      "OpenAI GPT-5.6 Sol",
+      "Claude Fable 5 / Mythos 5",
+      "Google Gemini 3.7 Flash / 3.1 Pro",
+      "Grok 4.6"
+    ]
+  },
+  "files": [
+    "README.md",
+    "00_統合報告.md",
+    "01_OpenAI_GPT-5_6_Sol.md",
+    "02_Claude_Fable_5_Mythos_5.md",
+    "03_Google_Gemini_3_x.md",
+    "04_DeepSeek_V4.md",
+    "05_Qwen3_6-35B-A3B.md",
+    "06_Grok_4_6.md",
+    "07_Llama_3_70B_2024-04.md",
+    "08_OLMo_3.md",
+    "09_Apertus_1_5_70B.md",
+    "10_K2-V2_70B.md",
+    "11_MINIDORA射影候補.md",
+    "作用相対座標_v1.json",
+    "MANIFEST.json"
+  ],
+  "epistemic_rule": "観測事実 / 直接作用 / 比較推定 / 未観測を分離し、未観測内部を外部能力から逆推定しない",
+  "implementation_changes": false,
+  "minidora_projection_status": "候補のみ。11_MINIDORA射影候補.mdから別工程で採否・実装する",
+  "benchmark_trigger": "本構文化自体はGPQA対策ではない。現行GPQA 19/198の診断を再設計優先度へ用いるだけ",
+  "completion_checks": [
+    "K3が対象へ混入していない",
+    "10モデルすべてに第二巡記録がある",
+    "D2内部architectureを推定していない",
+    "部品名をLLM普遍条件へ昇格していない",
+    "MINIDORA実装へ自動適用していない"
+  ]
+}

@@ -1,0 +1,209 @@
+{
+  "schema": "minidora.cross_llm.capability_action_structuring.v1",
+  "date_jst": "2026-08-26",
+  "language": "ja",
+  "license": "CC-BY-4.0",
+  "purpose": "K3を除く既存横断観測10モデルを、部品分類ではなく能力成立までの情報作用として再構文化する",
+  "parent_observation": "構文化/LLM横断_HDS日本語構文化_相対化ベンチマーク_v0_1",
+  "excluded": ["K3 v2 full-weight"],
+  "epistemic_levels": [
+    "観測事実",
+    "直接作用",
+    "比較推定",
+    "未観測"
+  ],
+  "axes": {
+    "B0": "観測境界",
+    "B1": "状態保持",
+    "B2": "局所更新・参照",
+    "B3": "大域再照合",
+    "B4": "深さ輸送",
+    "B5": "幅選択",
+    "B6": "未確定差の共存",
+    "B7": "未来補助",
+    "B8": "形成作用",
+    "B9": "展開後制御"
+  },
+  "models": [
+    {
+      "name": "OpenAI GPT-5.6 Sol",
+      "observation_depth": "D2",
+      "state_retention": "未観測",
+      "local_operator": "未観測",
+      "global_reconciliation": "未観測",
+      "depth_transport": "未観測",
+      "width_selection": "未観測",
+      "future_aux": "serving側draft/speculatorは観測。core内部とは分離",
+      "formation": "task successとefficiencyをtraining objectiveとして扱う",
+      "deployment_control": "model / inference / agentic harnessを分離。cache/routing/speculative decoding/tool orchestration等",
+      "key_action": "模型能力・推論効率化・長期作業harnessを別成立物として扱う",
+      "minidora_projection": ["外部長期状態管理を模型核外へ分離", "efficiencyを意味削除と同一視しない"]
+    },
+    {
+      "name": "Claude Fable 5 / Mythos 5",
+      "observation_depth": "D2",
+      "state_retention": "未観測",
+      "local_operator": "未観測",
+      "global_reconciliation": "未観測",
+      "depth_transport": "未観測",
+      "width_selection": "未観測",
+      "future_aux": "未観測",
+      "formation": "内部全量未観測",
+      "deployment_control": "同一underlying modelへclassifier / safeguard / fallback差",
+      "key_action": "同一coreでも外部Gateだけで可観測能力・拒否・routingが変わる",
+      "minidora_projection": ["core成立差と外部Gate結果を別記録", "答えないと知らないを分離"]
+    },
+    {
+      "name": "Google Gemini 3.7 Flash / 3.1 Pro",
+      "observation_depth": "D2",
+      "state_retention": "未観測",
+      "local_operator": "未観測",
+      "global_reconciliation": "未観測",
+      "depth_transport": "未観測",
+      "width_selection": "未観測",
+      "future_aux": "thinking levelによるtest-time effort制御を観測。内部機構は未観測",
+      "formation": "版依存/posttrainingは観測、recipe全量は未観測",
+      "deployment_control": "multimodal / tools / App/API/Vertex等をcore内部topologyから分離",
+      "key_action": "同一model familyでもtest-time computeと外部tool条件で可観測能力が変化",
+      "minidora_projection": ["effort controllerをruntime制御として分離", "modality adapterを共通内部状態へ接続"]
+    },
+    {
+      "name": "DeepSeek V4",
+      "observation_depth": "D3相当",
+      "state_retention": "local detail + compressed long-range state + mHC multiple residual streams",
+      "local_operator": "sliding-window local branch",
+      "global_reconciliation": "CSA top-k compressed retrieval / HCA dense compressed retrieval",
+      "depth_transport": "mHC multiple parallel residual streams and constrained mixing",
+      "width_selection": "MoE / shared-common path + routed expert path",
+      "future_aux": "未確認部は未観測として保持",
+      "formation": "large-scale pretraining + posttraining",
+      "deployment_control": "Transformers実装まで観測、production harnessは別",
+      "key_action": "局所高解像度・圧縮長距離・複数深さstreamを別に保持して後段再結合",
+      "minidora_projection": ["局所Dataと圧縮長距離stateを分離", "複数working track", "共通+条件付き専門作用"]
+    },
+    {
+      "name": "Qwen3.6-35B-A3B",
+      "observation_depth": "D3",
+      "state_retention": "Gated DeltaNet recurrent/linear state update",
+      "local_operator": "3層の圧縮状態更新",
+      "global_reconciliation": "4層ごとのfull attention",
+      "depth_transport": "standard residual block",
+      "width_selection": "256 experts / 8 routed + shared expert",
+      "future_aux": "MTP 1 layer",
+      "formation": "post-trained open checkpoint",
+      "deployment_control": "vLLM/SGLang等はcore外",
+      "key_action": "圧縮状態を連続更新し、周期的global再照合と共通/専門経路を併用",
+      "minidora_projection": ["更新可能な圧縮作業state", "条件付きglobal/raw再照合", "共通+専門作用"]
+    },
+    {
+      "name": "Grok 4.6",
+      "observation_depth": "D2",
+      "state_retention": "未観測",
+      "local_operator": "未観測",
+      "global_reconciliation": "未観測",
+      "depth_transport": "未観測",
+      "width_selection": "未観測",
+      "future_aux": "未観測",
+      "formation": "model-generated reasoning/technical data、SFT trajectories、agentic RL across environments",
+      "deployment_control": "Build/API/multi-agent orchestration",
+      "key_action": "harnessがdeploymentだけでなくtraining trajectory生成にも参加する",
+      "minidora_projection": ["experience trajectoryを監査可能に保存", "失敗signatureから改善候補を形成し自動採用しない"]
+    },
+    {
+      "name": "Llama 3 70B (2024-04)",
+      "observation_depth": "D3",
+      "state_retention": "standard residual + high-dimensional hidden state",
+      "local_operator": "局所専用作用なし。global causal attentionで近傍も参照",
+      "global_reconciliation": "全attention層で前方context全体へ再参照可能",
+      "depth_transport": "80-layer standard residual stack",
+      "width_selection": "Dense FFN",
+      "future_aux": "主config上独立MTPなし",
+      "formation": "pretraining/posttrainingが同じgeometryへ具体的関係を形成",
+      "deployment_control": "runtime guard/toolsはcore外",
+      "key_action": "前状態を早期離散化せず、全層で再参照・再作用できるDense基準点",
+      "minidora_projection": ["未確定working stateを保持", "同一Dataへ複数作用から再アクセス"]
+    },
+    {
+      "name": "OLMo 3",
+      "observation_depth": "D3",
+      "state_retention": "residual hidden state + local raw-window reuse",
+      "local_operator": "3×sliding attention, window 4096",
+      "global_reconciliation": "1×full attention every four layers",
+      "depth_transport": "standard residual",
+      "width_selection": "Dense FFN",
+      "future_aux": "variant/training差から分離",
+      "formation": "Base/Instruct/Think等で形成履歴差",
+      "deployment_control": "open checkpoint/runtimeはcore外",
+      "key_action": "局所で数段構成した差を周期的にglobal contextへ再接続",
+      "minidora_projection": ["局所作業域", "大域再照合", "不一致時に局所状態を再検討可能に保持"]
+    },
+    {
+      "name": "Apertus 1.5 70B",
+      "observation_depth": "D3",
+      "state_retention": "same decoder lineage standard residual hidden state",
+      "local_operator": "中央decoderはglobal attention系。局所専用周期は未観測",
+      "global_reconciliation": "中央decoder global attention系",
+      "depth_transport": "standard residual",
+      "width_selection": "Dense FFN",
+      "future_aux": "thinking modeはposttraining/servingと分離。内部機構未観測",
+      "formation": "continued pretraining + multimodal mix + posttraining",
+      "deployment_control": "tool/thinking modeはruntime条件として分離",
+      "key_action": "中央geometryを維持しながら入力前段と形成履歴で能力範囲を拡張",
+      "minidora_projection": ["modality adapter", "architecture変更と関係獲得を分離"]
+    },
+    {
+      "name": "K2-V2 70B",
+      "observation_depth": "D3",
+      "state_retention": "Llama系standard residual hidden state",
+      "local_operator": "global causal attention系",
+      "global_reconciliation": "各attention層で広域参照可能",
+      "depth_transport": "80-layer standard residual",
+      "width_selection": "Dense FFN",
+      "future_aux": "主config上独立MTPなし",
+      "formation": "domain knowledge/reasoning/long-context/tool-useを段階的に形成",
+      "deployment_control": "external tool/harnessはcore外",
+      "key_action": "Llama3に近いgeometryでも形成履歴により能力差が成立",
+      "minidora_projection": ["関係形成工程を独立化", "architecture-equivalenceとcapability-equivalenceを分離"]
+    }
+  ],
+  "cross_model_findings": [
+    "能力成立作用を部品名へ還元しない",
+    "中間状態へ後段から再作用できる経路が公開weight系に横断して存在する",
+    "局所処理と大域再照合の方式は複数あり普遍部品ではない",
+    "深さ輸送と系列参照は独立に設計できる",
+    "MoE専門化は有効だが普遍条件ではない",
+    "architectureが近くても形成履歴で能力差が生じる",
+    "deployment controlはcore能力と別に可観測挙動を変える"
+  ],
+  "minidora_priority": {
+    "P0": [
+      "未確定Working Relation Store",
+      "同一情報への複数回再作用",
+      "早期確定の遅延",
+      "候補集合の共同競合状態"
+    ],
+    "P1": [
+      "局所作業域と大域再照合",
+      "Data/experienceからの関係形成工程",
+      "共通作用と条件付き専門作用"
+    ],
+    "P2": [
+      "未来整合性補助",
+      "modality adapter",
+      "外部長期状態管理"
+    ]
+  },
+  "non_requirements": [
+    "neural network",
+    "probability distribution",
+    "sampling",
+    "Transformer",
+    "Attention",
+    "sliding window",
+    "Gated DeltaNet",
+    "MoE",
+    "mHC",
+    "MTP",
+    "fixed 3:1 schedule"
+  ]
+}
