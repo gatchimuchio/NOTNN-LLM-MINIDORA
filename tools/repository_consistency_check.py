@@ -7,6 +7,14 @@ from pathlib import Path
 from urllib.parse import unquote
 
 
+def _標準出力UTF8化() -> None:
+    """監査出力をOS既定コードページから分離する。"""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="strict")
+
+
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
@@ -167,6 +175,7 @@ def _check_language_and_hds_boundary(errors: list[str]) -> None:
 
 
 def main() -> int:
+    _標準出力UTF8化()
     errors: list[str] = []
 
     for path in REQUIRED_PATHS:
