@@ -11,6 +11,12 @@ from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
 from .hds_direct_relation_verifier import HDS直接関係検証
 from .hds_ir import HDSIR, 値状態
 from .hds_runtime_projection import HDSKData射影, HDSK候補代入可能, HDSK候補射影, HDSK質問射影
+from .hds作業状態 import (
+    HDS一時証拠統合,
+    HDS作業状態構築,
+    HDS候補共同状態更新,
+    HDS寄与Gate再照合,
+)
 from .k3_functional import K3相当能力核, SemanticFrame
 from .k3_hds_native import HDSK3結果, HDSIRネイティブAdapter
 from .参照 import 参照記録
@@ -36,6 +42,17 @@ class HDS選択実行結果:
     K証拠阻害事実数: int
     コンパイル並列: bool = False
     コンパイル最大並列: int = 1
+    作業関係生成数: int = 0
+    作業関係再利用数: int = 0
+    作業関係K昇格数: int = 0
+    作業関係再検証後破棄数: int = 0
+    checkpoint数: int = 0
+    checkpoint再活性数: int = 0
+    大域再照合数: int = 0
+    候補横断更新数: int = 0
+    専門作用起動数: int = 0
+    遍歴後SUSPEND数: int = 0
+    一時証拠数: int = 0
 
 
 def HDS選択問題(ir: HDSIR) -> bool:
@@ -182,6 +199,38 @@ def _検証候補群(
     }
 
 
+def _候補強度(result: HDSK3結果) -> tuple[int, int, float, int, float]:
+    diagnostics = tuple(result.候補診断)
+    if not diagnostics:
+        return (0, 0, 0.0, 0, 0.0)
+    ordered = sorted(diagnostics, key=lambda item: (-item.合計得点, item.候補))
+    top = next((item for item in diagnostics if item.候補 == result.回答ラベル), ordered[0])
+    second = max((item.合計得点 for item in diagnostics if item.候補 != top.候補), default=0.0)
+    margin = top.合計得点 - second
+    return (
+        top.独立出典数,
+        top.識別一致出典数,
+        margin,
+        top.根拠事実数,
+        top.合計得点,
+    )
+
+
+def _再作用結果選択(initial: HDSK3結果, rechecked: HDSK3結果) -> HDSK3結果:
+    """一時作業証拠は明確な初回判断を無条件に上書きしない。"""
+    if "DIRECTED_RELATION_VERIFIED" in initial.理由:
+        return initial
+    if rechecked.状態 != "APPROVE" or rechecked.回答ラベル is None:
+        return initial
+    if initial.状態 != "APPROVE" or initial.回答ラベル is None:
+        return rechecked
+    if rechecked.回答ラベル == initial.回答ラベル:
+        return rechecked
+    if "DIRECTED_RELATION_VERIFIED" in rechecked.理由:
+        return rechecked
+    return rechecked if _候補強度(rechecked) > _候補強度(initial) else initial
+
+
 def HDS選択推論実行(
     question_ir: HDSIR,
     references: tuple[参照記録, ...],
@@ -255,23 +304,67 @@ def HDS選択推論実行(
         evidence += result.証拠事実数
         blocked += result.証拠阻害事実数
 
-    # query routeはRの監査/provenanceであり世界Factではない。Kへ擬似証拠として投入しない。
-    k3 = HDSIRネイティブAdapter(working).実行(
+    # 確定Kとは分離した作業台帳を作り、初回判断をcheckpointする。
+    作業 = HDS作業状態構築(working)
+    initial = HDSIRネイティブAdapter(working).実行(
         k_question_ir,
         候補IR=verification_candidate_irs,
         努力=努力,
     )
-    k3 = _直接関係で再判定(question_ir, verification_candidate_irs, working, k3)
+    initial = _直接関係で再判定(question_ir, verification_candidate_irs, working, initial)
+    HDS候補共同状態更新(作業, initial.候補診断, 段階="CANDIDATE_INITIAL")
+
+    # 寄与Gateは真偽を確定しない。独立出典で再照合できた未確定関係だけを、
+    # 同一request内の別cloneへ一時証拠として渡して二巡目を行う。
+    temporary = HDS寄与Gate再照合(作業)
+    k3 = initial
+    rechecked_selected = False
+    rechecked_override = False
+    if temporary:
+        rechecked_core = working.clone()
+        HDS証拠状態複製(working, rechecked_core)
+        HDS一時証拠統合(rechecked_core, temporary)
+        作業.統計.checkpoint再活性数 += 1
+        作業.統計.大域再照合数 += 1
+        rechecked = HDSIRネイティブAdapter(rechecked_core).実行(
+            k_question_ir,
+            候補IR=verification_candidate_irs,
+            努力=努力,
+        )
+        rechecked = _直接関係で再判定(question_ir, verification_candidate_irs, rechecked_core, rechecked)
+        HDS候補共同状態更新(作業, rechecked.候補診断, 段階="CANDIDATE_RECHECK")
+        selected = _再作用結果選択(initial, rechecked)
+        rechecked_selected = selected is rechecked
+        rechecked_override = bool(
+            rechecked_selected
+            and initial.回答ラベル is not None
+            and rechecked.回答ラベル is not None
+            and initial.回答ラベル != rechecked.回答ラベル
+        )
+        if not rechecked_selected and rechecked.回答ラベル != initial.回答ラベル:
+            作業.統計.作業関係再検証後破棄数 += len(temporary)
+        k3 = selected
+
+    if k3.状態 != "APPROVE":
+        作業.統計.遍歴後SUSPEND数 = 1
+
     choice_map = {label: content for label, content, _ in choices}
     content = choice_map.get(k3.回答ラベル) if k3.回答ラベル is not None else None
     reasons = list(k3.理由)
+    if temporary:
+        reasons.append("WORKING_RECHECK")
+    if rechecked_selected:
+        reasons.append("WORKING_RECHECK_SELECTED")
+    if rechecked_override:
+        reasons.append("WORKING_RECHECK_OVERRIDE")
     if data_failed:
         reasons.append(f"DATA_COMPILE_PARTIAL:{data_failed}")
+    stats = 作業.統計
     return HDS選択実行結果(
         k3.状態,
         k3.回答ラベル,
         content,
-        tuple(reasons),
+        tuple(dict.fromkeys(reasons)),
         k3,
         len(candidate_irs),
         data_compiled,
@@ -281,6 +374,17 @@ def HDS選択推論実行(
         blocked,
         parallel_safe,
         worker_count,
+        stats.作業関係生成数,
+        stats.作業関係再利用数,
+        stats.作業関係K昇格数,
+        stats.作業関係再検証後破棄数,
+        stats.checkpoint数,
+        stats.checkpoint再活性数,
+        stats.大域再照合数,
+        stats.候補横断更新数,
+        stats.専門作用起動数,
+        stats.遍歴後SUSPEND数,
+        stats.一時証拠数,
     )
 
 
