@@ -4,12 +4,31 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from .模型 import MINIDORA模型核, 成立候補, 言語状態, 標準模型核
-from .semantic_tokens import 意味語
 from .言語基底 import 標準言語基底P
 from .言語基底_英語 import 英語語形数
 
 
-規模測定版 = "v1"
+規模測定版 = "v2"
+
+_関係代表表層 = {
+    "因果": "causes",
+    "増加": "increases",
+    "減少": "decreases",
+    "阻害": "inhibits",
+    "活性化": "activates",
+    "生成": "produces",
+    "要求": "requires",
+    "包含": "contains",
+    "使用": "uses",
+    "防止": "prevents",
+    "相関": "correlates with",
+    "結合": "binds to",
+    "相互作用": "interacts with",
+    "構成": "consists of",
+    "所属": "belongs to",
+    "位置": "is located in",
+    "由来": "derives from",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,9 +48,9 @@ class 規模測定結果:
         return asdict(self)
 
 
-def _内部署名(kernel: MINIDORA模型核, text: str, system: str) -> tuple[str, ...]:
+def _内部署名(kernel: MINIDORA模型核, text: str, system: str) -> tuple[object, ...]:
     state = kernel.言語対応.内部化(言語状態(text, system))
-    return tuple(sorted(state.意味語集合))
+    return (tuple(sorted(state.意味語集合)), state.構造署名)
 
 
 def _状態域測定(kernel: MINIDORA模型核) -> dict[str, Any]:
@@ -41,13 +60,8 @@ def _状態域測定(kernel: MINIDORA模型核) -> dict[str, Any]:
         rows.append(("自然言語:ja", f"対象{i} 状態{i % 23} 関係{i % 17}"))
         rows.append(("program:python", f"value_{i} = item_{i % 31} + {i % 13}"))
 
-    signatures = {
-        (system, _内部署名(kernel, text, system))
-        for system, text in rows
-    }
-
-    long_text = "語" * 10000
-    long_ok = bool(_内部署名(kernel, long_text, "自然言語:ja"))
+    signatures = {(system, _内部署名(kernel, text, system)) for system, text in rows}
+    long_ok = bool(_内部署名(kernel, "語" * 10000, "自然言語:ja"))
 
     history = tuple(言語状態(f"履歴{i}", "自然言語:ja") for i in range(256))
     context = kernel.文脈化(言語状態("現在", "自然言語:ja"), history)
@@ -59,56 +73,63 @@ def _状態域測定(kernel: MINIDORA模型核) -> dict[str, Any]:
         "一万文字状態受理": long_ok,
         "履歴深さ256受理": len(context.履歴) == 256,
         "明示固定文脈長上限": None,
-        "観測": "文字列長・履歴長に模型核固有の一点上限は置かれておらず、複数言語体系の状態を同じ言語対応で内部化できる",
+        "観測": "意味集合だけでなく順序・関係構造を保持し、複数言語体系の開放状態を同じ模型核へ写せる",
     }
 
 
-def _関係域測定(kernel: MINIDORA模型核) -> dict[str, Any]:
-    families = 標準言語基底P.英語関係族()
-    recognized: list[str] = []
-    for kind, lemmas in sorted(families.items()):
-        lemma = sorted(lemmas)[0]
-        if f"rel:{kind}" in 意味語(f"A {lemma} B"):
-            recognized.append(kind)
-
-    direction_same = _内部署名(kernel, "A causes B", "自然言語:en") == _内部署名(kernel, "B causes A", "自然言語:en")
-    polarity_same = _内部署名(kernel, "A causes B", "自然言語:en") == _内部署名(kernel, "A does not cause B", "自然言語:en")
-
-    candidates = (
-        成立候補("A", 言語状態("alpha", "自然言語:en")),
-        成立候補("B", 言語状態("beta", "自然言語:en")),
+def _winner(kernel: MINIDORA模型核, current: str, candidates: tuple[str, str], *, history: tuple[str, ...] = ()) -> str | None:
+    items = (
+        成立候補("A", 言語状態(candidates[0], "自然言語:en")),
+        成立候補("B", 言語状態(candidates[1], "自然言語:en")),
     )
-    r1 = kernel.評価言語状態(
-        言語状態("current", "自然言語:en"),
-        candidates,
-        履歴=(言語状態("alpha", "自然言語:en"), 言語状態("beta", "自然言語:en")),
-    ).候補辞書()
-    r2 = kernel.評価言語状態(
-        言語状態("current", "自然言語:en"),
-        candidates,
-        履歴=(言語状態("beta", "自然言語:en"), 言語状態("alpha", "自然言語:en")),
-    ).候補辞書()
+    result = kernel.評価言語状態(
+        言語状態(current, "自然言語:en"),
+        items,
+        履歴=tuple(言語状態(item, "自然言語:en") for item in history),
+    )
+    return result.最有力候補ID
 
-    c1 = kernel.評価言語状態(
-        言語状態("current", "自然言語:en"),
-        candidates,
-        条件=("alpha", "beta"),
-    ).候補辞書()
-    c2 = kernel.評価言語状態(
-        言語状態("current", "自然言語:en"),
-        candidates,
-        条件=("beta", "alpha"),
-    ).候補辞書()
+
+def _関係域測定(kernel: MINIDORA模型核) -> dict[str, Any]:
+    recognized: list[str] = []
+    structure_signatures: set[tuple[object, ...]] = set()
+    generated = 0
+
+    for kind, phrase in _関係代表表層.items():
+        sample = kernel.言語対応.内部化(言語状態(f"A {phrase} B", "自然言語:en"))
+        if any(item.種別 == kind for item in sample.関係構造):
+            recognized.append(kind)
+        for i in range(32):
+            generated += 1
+            state = kernel.言語対応.内部化(
+                言語状態(f"entity_{i} {phrase} target_{(i * 7) % 37}", "自然言語:en")
+            )
+            structure_signatures.add(state.構造署名)
+
+    direction = _winner(kernel, "A causes B", ("A causes B", "B causes A")) == "A"
+    polarity = _winner(kernel, "A causes B", ("A causes B", "A does not cause B")) == "A"
+
+    history_forward = _winner(kernel, "current", ("alpha", "beta"), history=("alpha", "beta"))
+    history_reverse = _winner(kernel, "current", ("alpha", "beta"), history=("beta", "alpha"))
+    history_order = history_forward == "B" and history_reverse == "A"
+
+    condition_binding = _winner(
+        kernel,
+        "if catalyst, A causes B",
+        ("if catalyst, A causes B", "if inhibitor, A causes B"),
+    ) == "A"
 
     return {
         "模型関係実体数": len(kernel.関係群),
         "意味対応済み関係族数": len(recognized),
         "意味対応済み関係族": tuple(recognized),
-        "方向差を識別": not direction_same,
-        "肯否差を識別": not polarity_same,
-        "履歴順序差が結果へ到達": r1 != r2,
-        "条件順序差が結果へ到達": c1 != c2,
-        "観測": "関係語族は複数識別するが、現行標準模型核の評価関係は意味集合連続が中心で、方向・肯否・履歴順序・条件結合の差が十分に結果へ到達しない",
+        "関係構造生成試験数": generated,
+        "識別関係構造数": len(structure_signatures),
+        "方向差が成立差へ到達": direction,
+        "肯否差が成立差へ到達": polarity,
+        "履歴順序差が成立差へ到達": history_order,
+        "条件結合差が成立差へ到達": condition_binding,
+        "観測": "有限の関係作用素を任意の端点状態へ再利用し、17一般関係族・方向・肯否・履歴位置・条件結合の組合せを成立差へ反映する",
     }
 
 
@@ -119,8 +140,8 @@ def _共有適用測定(kernel: MINIDORA模型核) -> dict[str, Any]:
     for i in range(total):
         context = 言語状態(f"topic_{i} causes result_{i % 19}", "自然言語:en")
         candidates = (
-            成立候補("shared", 言語状態(f"topic_{i} causes outcome", "自然言語:en")),
-            成立候補("other", 言語状態(f"unrelated_{i} stands alone", "自然言語:en")),
+            成立候補("shared", 言語状態(f"topic_{i} causes result_{i % 19}", "自然言語:en")),
+            成立候補("other", 言語状態(f"result_{i % 19} causes topic_{i}", "自然言語:en")),
         )
         result = kernel.評価言語状態(context, candidates)
         if result.最有力候補ID == "shared":
@@ -133,7 +154,7 @@ def _共有適用測定(kernel: MINIDORA模型核) -> dict[str, Any]:
         "同一関係群での成功数": passed,
         "成功率": passed / total,
         "関係実体再利用": passed == total,
-        "観測": "同一の模型関係群を多数の異なる状態・文脈へ再利用できる",
+        "観測": "同一の一般模型関係群を多数の異なる端点・文脈へ交換なしで再利用できる",
     }
 
 
@@ -144,30 +165,42 @@ def 規模測定(kernel: MINIDORA模型核 | None = None) -> 規模測定結果:
     shared = _共有適用測定(model)
     base_stats = 標準言語基底P.統計()
 
-    relation_gaps = tuple(
-        name
-        for name, value in (
-            ("方向差", relation["方向差を識別"]),
-            ("肯否差", relation["肯否差を識別"]),
-            ("履歴順序差", relation["履歴順序差が結果へ到達"]),
-            ("条件順序差", relation["条件順序差が結果へ到達"]),
-        )
-        if not value
+    state_ok = (
+        state["識別内部状態数"] == state["試験状態数"]
+        and state["一万文字状態受理"]
+        and state["履歴深さ256受理"]
     )
+    relation_ok = (
+        relation["意味対応済み関係族数"] == len(_関係代表表層)
+        and relation["識別関係構造数"] == relation["関係構造生成試験数"]
+        and relation["方向差が成立差へ到達"]
+        and relation["肯否差が成立差へ到達"]
+        and relation["履歴順序差が成立差へ到達"]
+        and relation["条件結合差が成立差へ到達"]
+    )
+    shared_ok = shared["関係実体再利用"] and shared["成功率"] == 1.0
 
-    if relation_gaps:
-        status = "未成立"
-        reasons = (
-            "状態域は開放的で、共有適用も多数状態へ再利用できる",
-            "関係域で重要な構造差が未分別のため、三つの規模面をまとめて大規模とは記せない",
-            "未分別:" + ",".join(relation_gaps),
-            "一点閾値ではなく関係域の構造不足を理由に保留する",
-        )
-    else:
+    if state_ok and relation_ok and shared_ok:
         status = "局所成立候補"
         reasons = (
-            "状態域・関係域・共有適用規模の三面で現在の比較集合に対する拡張性を確認",
-            "大規模は比較集合依存の相対記述であり、普遍的一点閾値は置かない",
+            "状態域・関係域・共有適用規模の三面が、明示した比較集合に対して同時に開放的である",
+            "関係域は17一般関係族を固定端点表ではなく再利用可能な有向・肯否・履歴・条件関係として多数状態へ適用する",
+            "大規模は比較集合依存の相対記述であり、現代ニューラルLLMとの物理規模同等を主張しない",
+            "一点閾値ではなく三面の観測結果と物理規模値を併記して判断する",
+        )
+    else:
+        missing: list[str] = []
+        if not state_ok:
+            missing.append("状態域")
+        if not relation_ok:
+            missing.append("関係域")
+        if not shared_ok:
+            missing.append("共有適用")
+        status = "未成立"
+        reasons = (
+            "三つの規模面をまとめて大規模と記せる状態に未到達",
+            "不足面:" + ",".join(missing),
+            "一点閾値ではなく構造不足を理由に保留する",
         )
 
     return 規模測定結果(

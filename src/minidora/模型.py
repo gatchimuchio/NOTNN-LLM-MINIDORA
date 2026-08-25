@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Protocol, Sequence
 
 from .semantic_tokens import 意味語
+from .言語構造 import 言語関係構造, 意味列, 言語関係抽出
 
 
 LLM成立規定リポジトリ = "https://github.com/gatchimuchio/LLM-Constitutive-Specification"
@@ -35,12 +36,26 @@ class 言語状態:
 
 @dataclass(frozen=True, slots=True)
 class 内部言語状態:
-    """言語対応を通した、模型側で比較可能な内部状態。"""
+    """言語対応を通した、模型側で比較可能な内部状態。
+
+    `意味語集合` は内容同一性の比較、`意味語列` は順序、`関係構造` は有向関係・
+    肯否・条件結合を保持する。集合だけへ潰して構造差を失わない。
+    """
 
     表層: str
     言語体系: str
     意味語集合: frozenset[str]
     識別子: str = ""
+    意味語列: tuple[str, ...] = ()
+    関係構造: tuple[言語関係構造, ...] = ()
+
+    @property
+    def 構造署名(self) -> tuple[object, ...]:
+        return (
+            self.言語体系,
+            self.意味語列,
+            tuple(item.署名 for item in self.関係構造),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,11 +110,7 @@ class 模型結果:
 
 
 class 言語対応:
-    """外部言語状態を模型内部で比較可能な状態へ写す境界。
-
-    tokenizer等の特定実装名を正本条件にしない。現行MINIDORAでは既存の
-    ``意味語`` を決定論的な内部住所として利用する。
-    """
+    """外部言語状態を模型内部で比較可能な状態へ写す境界。"""
 
     def 内部化(self, 状態: 言語状態) -> 内部言語状態:
         return 内部言語状態(
@@ -107,6 +118,8 @@ class 言語対応:
             言語体系=状態.言語体系,
             意味語集合=意味語(状態.内容),
             識別子=状態.識別子,
+            意味語列=意味列(状態.内容),
+            関係構造=言語関係抽出(状態.内容, 状態.言語体系),
         )
 
     def 文脈化(
@@ -128,20 +141,12 @@ class 言語対応:
 class 模型関係(Protocol):
     名称: str
 
-    def 評価(
-        self,
-        文脈: 文脈付き言語状態,
-        候補: 内部言語状態,
-    ) -> 関係寄与 | None: ...
+    def 評価(self, 文脈: 文脈付き言語状態, 候補: 内部言語状態) -> 関係寄与 | None: ...
 
 
 @dataclass(frozen=True, slots=True)
 class 関係規則:
-    """再利用可能な決定論的関係規則。
-
-    文脈と候補の双方に明示された意味差だけを使う。候補IDや正解ラベルを
-    根拠にせず、同じ規則を複数状態へ再利用できることを前提とする。
-    """
+    """再利用可能な決定論的関係規則。"""
 
     名称: str
     文脈必須: frozenset[str] = field(default_factory=frozenset)
@@ -169,12 +174,6 @@ class 関係規則:
 
 @dataclass(frozen=True, slots=True)
 class 意味連続関係:
-    """共有意味語の連続を最小の汎用関係差として読む。
-
-    これは世界知識を生成しない。明示された文脈と候補の共有差だけを返すため、
-    根拠がない候補を勝手に優先しない。
-    """
-
     名称: str = "意味連続"
     関係語重み: int = 2
 
@@ -187,11 +186,136 @@ class 意味連続関係:
         difference = ordinary_count + relation_count * self.関係語重み
         if difference <= 0:
             return None
-        return 関係寄与(
-            self.名称,
-            difference,
-            tuple(f"共有:{token}" for token in sorted(shared)),
-        )
+        return 関係寄与(self.名称, difference, tuple(f"共有:{token}" for token in sorted(shared)))
+
+
+@dataclass(frozen=True, slots=True)
+class 順序連続関係:
+    """意味語の並びを集合へ潰さず、局所順序の連続を読む。"""
+
+    名称: str = "順序連続"
+
+    @staticmethod
+    def _二連(sequence: tuple[str, ...]) -> frozenset[tuple[str, str]]:
+        return frozenset(zip(sequence, sequence[1:]))
+
+    def 評価(self, 文脈: 文脈付き言語状態, 候補: 内部言語状態) -> 関係寄与 | None:
+        current = self._二連(文脈.現在.意味語列)
+        candidate = self._二連(候補.意味語列)
+        shared = current.intersection(candidate)
+        if not shared:
+            return None
+        return 関係寄与(self.名称, len(shared), tuple(f"順序:{a}>{b}" for a, b in sorted(shared)))
+
+
+def _端点一致(a: frozenset[str], b: frozenset[str]) -> bool:
+    return bool(a and b and a.intersection(b))
+
+
+def _関係同型(a: 言語関係構造, b: 言語関係構造, *, 肯否無視: bool = False, 条件無視: bool = True) -> bool:
+    if a.種別 != b.種別:
+        return False
+    if not _端点一致(a.始点, b.始点) or not _端点一致(a.終点, b.終点):
+        return False
+    if not 肯否無視 and a.肯定 != b.肯定:
+        return False
+    if not 条件無視 and a.条件 != b.条件:
+        return False
+    return True
+
+
+@dataclass(frozen=True, slots=True)
+class 有向関係整合:
+    """関係種別だけでなく始点→終点の向きを再利用可能な関係として読む。"""
+
+    名称: str = "有向関係整合"
+    一致差: int = 4
+    逆向差: int = -2
+
+    def 評価(self, 文脈: 文脈付き言語状態, 候補: 内部言語状態) -> 関係寄与 | None:
+        if not 文脈.現在.関係構造 or not 候補.関係構造:
+            return None
+        score = 0
+        evidence: list[str] = []
+        for base in 文脈.現在.関係構造:
+            for item in 候補.関係構造:
+                if base.種別 != item.種別:
+                    continue
+                if _端点一致(base.始点, item.始点) and _端点一致(base.終点, item.終点):
+                    score += self.一致差
+                    evidence.append(f"有向一致:{base.種別}")
+                elif _端点一致(base.始点, item.終点) and _端点一致(base.終点, item.始点):
+                    score += self.逆向差
+                    evidence.append(f"逆向:{base.種別}")
+        return 関係寄与(self.名称, score, tuple(evidence)) if score else None
+
+
+@dataclass(frozen=True, slots=True)
+class 肯否整合関係:
+    名称: str = "肯否整合"
+    一致差: int = 2
+    不一致差: int = -3
+
+    def 評価(self, 文脈: 文脈付き言語状態, 候補: 内部言語状態) -> 関係寄与 | None:
+        score = 0
+        evidence: list[str] = []
+        for base in 文脈.現在.関係構造:
+            for item in 候補.関係構造:
+                if not _関係同型(base, item, 肯否無視=True):
+                    continue
+                if base.肯定 == item.肯定:
+                    score += self.一致差
+                    evidence.append(f"肯否一致:{base.種別}")
+                else:
+                    score += self.不一致差
+                    evidence.append(f"肯否不一致:{base.種別}")
+        return 関係寄与(self.名称, score, tuple(evidence)) if score else None
+
+
+@dataclass(frozen=True, slots=True)
+class 履歴近接関係:
+    """履歴を集合和へ潰さず、近い履歴ほど強く候補成立へ反映する。"""
+
+    名称: str = "履歴近接"
+    最大参照履歴: int = 8
+
+    def 評価(self, 文脈: 文脈付き言語状態, 候補: 内部言語状態) -> 関係寄与 | None:
+        score = 0
+        evidence: list[str] = []
+        for distance, state in enumerate(reversed(文脈.履歴[-self.最大参照履歴:]), start=1):
+            shared = state.意味語集合.intersection(候補.意味語集合)
+            if not shared:
+                continue
+            weight = max(1, 4 - distance)
+            score += len(shared) * weight
+            evidence.append(f"履歴距離{distance}:{len(shared)}")
+        return 関係寄与(self.名称, score, tuple(evidence)) if score else None
+
+
+@dataclass(frozen=True, slots=True)
+class 条件結合関係:
+    """同じ語集合でも、条件がどの有向関係へ結びつくかを区別する。"""
+
+    名称: str = "条件結合"
+    一致差: int = 3
+    不一致差: int = -1
+
+    def 評価(self, 文脈: 文脈付き言語状態, 候補: 内部言語状態) -> 関係寄与 | None:
+        score = 0
+        evidence: list[str] = []
+        for base in 文脈.現在.関係構造:
+            if not base.条件:
+                continue
+            for item in 候補.関係構造:
+                if not _関係同型(base, item, 肯否無視=False, 条件無視=True):
+                    continue
+                if base.条件 == item.条件:
+                    score += self.一致差
+                    evidence.append(f"条件一致:{base.種別}")
+                else:
+                    score += self.不一致差
+                    evidence.append(f"条件不一致:{base.種別}")
+        return 関係寄与(self.名称, score, tuple(evidence)) if score else None
 
 
 class MINIDORA模型核:
@@ -202,12 +326,7 @@ class MINIDORA模型核:
     候補生成、計算実行はこのクラスの成立条件へ混入させない。
     """
 
-    def __init__(
-        self,
-        関係群: Sequence[模型関係] = (),
-        *,
-        言語対応_: 言語対応 | None = None,
-    ) -> None:
+    def __init__(self, 関係群: Sequence[模型関係] = (), *, 言語対応_: 言語対応 | None = None) -> None:
         self.言語対応 = 言語対応_ or 言語対応()
         self._関係群: list[模型関係] = list(関係群)
 
@@ -220,19 +339,10 @@ class MINIDORA模型核:
             raise ValueError("模型関係には名称が必要")
         self._関係群.append(関係)
 
-    def 文脈化(
-        self,
-        現在: 言語状態,
-        履歴: Sequence[言語状態] = (),
-        条件: Sequence[str] = (),
-    ) -> 文脈付き言語状態:
+    def 文脈化(self, 現在: 言語状態, 履歴: Sequence[言語状態] = (), 条件: Sequence[str] = ()) -> 文脈付き言語状態:
         return self.言語対応.文脈化(現在, 履歴, 条件)
 
-    def 評価(
-        self,
-        文脈: 文脈付き言語状態,
-        候補群: Sequence[成立候補],
-    ) -> 模型結果:
+    def 評価(self, 文脈: 文脈付き言語状態, 候補群: Sequence[成立候補]) -> 模型結果:
         if not 候補群:
             raise ValueError("成立差の評価には1候補以上が必要")
         ids = [item.候補ID for item in 候補群]
@@ -249,18 +359,12 @@ class MINIDORA模型核:
                 item = relation.評価(文脈, internal)
                 if item is not None:
                     contributions.append(item)
-            differences.append(
-                成立差(
-                    candidate.候補ID,
-                    sum(item.差 for item in contributions),
-                    tuple(contributions),
-                )
-            )
+            differences.append(成立差(candidate.候補ID, sum(item.差 for item in contributions), tuple(contributions)))
 
         maximum = max(item.差 for item in differences)
         top = tuple(item.候補ID for item in differences if item.差 == maximum)
-        # 差が生じていない、または同率なら勝手に一候補へ確定しない。
-        winner = top[0] if maximum != 0 and len(top) == 1 else None
+        # 正の成立差が一意に生じた場合だけ確定する。負値だけなら不適合差であり確定根拠ではない。
+        winner = top[0] if maximum > 0 and len(top) == 1 else None
         return 模型結果(文脈, tuple(differences), winner, top if len(top) > 1 else ())
 
     def 評価言語状態(
@@ -275,31 +379,21 @@ class MINIDORA模型核:
 
 
 def 標準模型核() -> MINIDORA模型核:
-    """世界知識を捏造しない最小の標準模型核を返す。
+    """世界知識を持たず、一般言語関係を再利用する標準模型核を返す。"""
 
-    v0.4では大規模性をこの関数だけから宣言しない。大規模性は上位規定どおり、
-    状態域・関係域・共有適用規模を別測定する。
-    """
-
-    return MINIDORA模型核((意味連続関係(),))
+    return MINIDORA模型核((
+        意味連続関係(),
+        順序連続関係(),
+        有向関係整合(),
+        肯否整合関係(),
+        履歴近接関係(),
+        条件結合関係(),
+    ))
 
 
 __all__ = [
-    "LLM成立規定リポジトリ",
-    "LLM成立規定参照コミット",
-    "LLM成立規定版",
-    "LLM成立意味区別",
-    "言語状態",
-    "内部言語状態",
-    "文脈付き言語状態",
-    "成立候補",
-    "関係寄与",
-    "成立差",
-    "模型結果",
-    "言語対応",
-    "模型関係",
-    "関係規則",
-    "意味連続関係",
-    "MINIDORA模型核",
-    "標準模型核",
+    "LLM成立規定リポジトリ", "LLM成立規定参照コミット", "LLM成立規定版", "LLM成立意味区別",
+    "言語状態", "内部言語状態", "文脈付き言語状態", "成立候補", "関係寄与", "成立差", "模型結果",
+    "言語対応", "模型関係", "関係規則", "意味連続関係", "順序連続関係", "有向関係整合",
+    "肯否整合関係", "履歴近接関係", "条件結合関係", "MINIDORA模型核", "標準模型核",
 ]
