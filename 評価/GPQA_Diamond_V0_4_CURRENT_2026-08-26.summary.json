@@ -1,0 +1,81 @@
+{
+  "schema": "minidora.gpqa.measurement-summary.v1",
+  "date_jst": "2026-08-26",
+  "benchmark": "GPQA Diamond",
+  "repository_commit": "a546ca0b9c88849506103315f8787f6c15355def",
+  "workflow_run_id": 32899318373,
+  "workflow_job_id": 97969163766,
+  "artifact_id": 9582916327,
+  "artifact_digest_sha256": "90abce629f97e14d02edf888a775e6d38fdda02c621ec4eb66a2a77056a35317",
+  "artifact_name": "minidora-gpqa-current-measurement",
+  "dataset_zip_sha256": "461ae7329f15a3e35f8184d2dac24b990f34fdf12f366ca4062d8e6638cd08dc",
+  "dataset_csv_sha256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+  "openalex_enabled": false,
+  "metrics": {
+    "completed": 198,
+    "selected_total": 198,
+    "correct": 19,
+    "wrong": 99,
+    "accuracy_percent": 9.595959595959595,
+    "answered": 118,
+    "answer_rate_percent": 59.5959595959596,
+    "answered_accuracy_percent": 16.10169491525424,
+    "suspended": 80,
+    "retrieval_empty": 0,
+    "retrieval_empty_rate_percent": 0.0,
+    "documents_retrieved": 2698,
+    "data_compiled": 2698,
+    "data_compile_failed": 0,
+    "k_facts_added": 101554,
+    "evidence_facts": 120504,
+    "blocked_evidence_facts": 0,
+    "source_counts": {
+      "Crossref": 1524,
+      "EuropePMC": 1149,
+      "Wikipedia:en": 25
+    },
+    "reason_counts": {
+      "AMBIGUOUS_EVIDENCE": 28,
+      "AUTHORITY_SEPARATED": 118,
+      "EVIDENCE_PRESENT": 118,
+      "EXCEPTION_NOT_RESOLVED": 3,
+      "NO_GUESS": 80,
+      "NO_KNOWLEDGE_EVIDENCE": 49,
+      "RUBRIC_PASS": 118
+    },
+    "effort_counts": {
+      "high": 5,
+      "max": 193
+    }
+  },
+  "comparison_reference": {
+    "model": "Kimi K3",
+    "score_percent": 93.5,
+    "verified_date_jst": "2026-08-23",
+    "directly_comparable": true,
+    "minidora_score_percent": 9.595959595959595,
+    "score_gap_points": 83.9040404040404,
+    "k3_score_ratio_percent": 10.263058391400635
+  },
+  "benchmark_core_elapsed_seconds": 866.2522802,
+  "history_comparison_note": {
+    "reference": "2026-08-23 v0.6系workflow完走実測",
+    "direct_controlled_comparison": false,
+    "previous_correct": 31,
+    "previous_accuracy_percent": 15.6565657,
+    "current_minus_previous_correct": -12,
+    "current_minus_previous_accuracy_points": -6.060606104040405,
+    "previous_answered": 128,
+    "current_minus_previous_answered": -10,
+    "previous_suspended": 70,
+    "current_minus_previous_suspended": 10,
+    "previous_answered_accuracy_percent": 24.21875,
+    "current_minus_previous_answered_accuracy_points": -8.117055084745761,
+    "previous_documents_retrieved": 2934,
+    "current_minus_previous_documents_retrieved": -236,
+    "previous_k_facts_added": 323611,
+    "current_minus_previous_k_facts_added": -222057,
+    "previous_evidence_facts": 370570,
+    "current_minus_previous_evidence_facts": -250066
+  }
+}
