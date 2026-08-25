@@ -39,7 +39,7 @@ EXPECTED_HDS_PIPELINE = "v1.3"
 EXPECTED_SCALE_STATUS = "局所成立候補"
 
 REQUIRED_PATHS = (
-    "README.md", "REFERENCES.md", "AGENTS.md", "pyproject.toml", "LICENSE", "NOTICE",
+    "README.md", "REFERENCES.md", "AGENTS.md", "pyproject.toml", "LICENSE", "LICENSE-APACHE-2.0", "LICENSE-CC-BY-4.0", "NOTICE",
     ".github/workflows/ci.yml",
     "設計/02_大規模言語模型成立契約.md", "設計/09_公開HDS_Compiler仕様.md",
     "設計/25_計算中間表現_実行境界_v1.md", "設計/26_HDS_Compiler_Pipeline_v1_3.md",
@@ -101,6 +101,9 @@ def _check_project(errors: list[str]) -> None:
     project = tomllib.loads(_text("pyproject.toml")).get("project", {})
     if project.get("version") != EXPECTED_MINIDORA_VERSION:
         errors.append(f"MINIDORA version不整合: {project.get('version')!r}")
+    license_meta = project.get("license", {})
+    if not isinstance(license_meta, dict) or license_meta.get("file") != "LICENSE-APACHE-2.0":
+        errors.append("pyproject.toml: software package licenseがLICENSE-APACHE-2.0を参照していない")
     urls = project.get("urls", {})
     if urls.get("Repository") != EXPECTED_REPOSITORY:
         errors.append("pyproject.toml: Repository URL不整合")
@@ -122,6 +125,28 @@ def _check_project(errors: list[str]) -> None:
             errors.append(f"{path}: 上流commit欠落")
         if EXPECTED_SPEC_VERSION not in text:
             errors.append(f"{path}: 上流版欠落")
+
+
+def _check_licenses(errors: list[str]) -> None:
+    scope = _text("LICENSE")
+    apache = _text("LICENSE-APACHE-2.0")
+    cc = _text("LICENSE-CC-BY-4.0")
+    notice = _text("NOTICE")
+    readme = _text("README.md")
+
+    for required in ("成果物の種類ごと", "Apache-2.0", "CC-BY-4.0", "デュアルライセンスではありません"):
+        if required not in scope:
+            errors.append(f"LICENSE: 適用範囲の必須句欠落: {required}")
+    if "Apache License" not in apache or "Version 2.0" not in apache:
+        errors.append("LICENSE-APACHE-2.0: Apache License 2.0全文ではない")
+    if "CC-BY-4.0" not in cc or "creativecommons.org/licenses/by/4.0/legalcode" not in cc:
+        errors.append("LICENSE-CC-BY-4.0: CC BY 4.0正式条件への参照がない")
+    for required in ("Apache License 2.0", "Creative Commons Attribution 4.0 International", "デュアルライセンスではありません"):
+        if required not in notice:
+            errors.append(f"NOTICE: ライセンス分離の必須句欠落: {required}")
+    for required in ("Apache License 2.0", "CC-BY-4.0", "LICENSE-APACHE-2.0", "LICENSE-CC-BY-4.0"):
+        if required not in readme:
+            errors.append(f"README.md: ライセンス分離の必須句欠落: {required}")
 
 
 def _check_model(errors: list[str]) -> None:
@@ -200,6 +225,7 @@ def main() -> int:
     errors: list[str] = []
     _check_required(errors)
     _check_project(errors)
+    _check_licenses(errors)
     _check_model(errors)
     _check_hds(errors)
     _check_scale(errors)
@@ -217,6 +243,7 @@ def main() -> int:
     print(f"LLM_CONSTITUTIVE_SPEC_VERSION={LLM成立規定版}")
     print(f"LLM_CONSTITUTIVE_SPEC_COMMIT={LLM成立規定参照コミット}")
     print(f"BASE_LANGUAGE={EXPECTED_BASE_LANGUAGE}")
+    print("LICENSE_SPLIT=APACHE-2.0+CC-BY-4.0")
     print("MODEL_CORE=PASS")
     print("MODEL_RELATION_DOMAIN=STRUCTURED")
     print(f"LARGE_SCALE_STATUS={EXPECTED_SCALE_STATUS}")

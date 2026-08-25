@@ -134,4 +134,11 @@ CIはUbuntu / Windows × Python 3.11–3.14で、package install、repository co
 
 ## ライセンス
 
-Apache License 2.0。著作権表示・NOTICE等の条件は `LICENSE` / `NOTICE` を参照する。
+本リポジトリは成果物種別でライセンスを分離する。
+
+- **ソースコード、Runtime、Compiler、ライブラリ、テスト、ツール、CI・パッケージ設定**: Apache License 2.0 (`Apache-2.0`)
+- **仕様、設計、理論、論文、解説、図表、構文化・評価文書、README等の説明文書**: Creative Commons Attribution 4.0 International (`CC-BY-4.0`)
+
+これはリポジトリ全体をどちらか任意で選べるデュアルライセンスではない。成果物の種類ごとに適用ライセンスを分ける。
+
+適用範囲は `LICENSE`、正式条件は `LICENSE-APACHE-2.0` / `LICENSE-CC-BY-4.0`、帰属・第三者由来物は `NOTICE` を参照する。
