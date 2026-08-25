@@ -83,7 +83,7 @@ class HDSCompilerPipelineV13試験(unittest.TestCase):
         ir = HDS独立コンパイル(self.compiler, "A inhibits B")
         self.assertIsNone(ir.手順)
         self.assertEqual(ir.初期状態, {})
-        self.assertTrue(any(rel.関係種別 == "阻害" for rel in ir.関係))
+        self.assertTrue(any(rel.種別 == "阻害" for rel in ir.関係))
 
 
 if __name__ == "__main__":
