@@ -9,9 +9,20 @@
 | Test | 主な対象 |
 |---|---|
 | `test_模型.py` | 文脈差→成立差、関係再利用、根拠なし停止、プログラム言語体系、Runtime模型核入口 |
-| `test_計算IR_ABI.py` | P→計算中間表現降下、型付き状態参照、実行境界決定論、旧P互換、未確定停止 |
-| `test_hds_compiler_pipeline_v1_3.py` | Architecture v1.2維持、Pipeline v1.3、意味IR/P分離、自然言語再解析なし計算降下、Legacy互換、独立Data意味入口 |
-| `test_layer0.py` | 旧Layer0名が計算実行器互換aliasであること、汎用命令作用の回帰 |
+| `test_模型関係域.py` | 有向関係、肯否、履歴順序、条件結合、17一般関係族、HDS非依存 |
+| `test_規模測定.py` | 状態域・関係域・共有適用規模の三面、544関係構造、256共有適用、一点閾値禁止 |
+| `test_計算IR_ABI.py` | P→計算中間表現、型付き状態参照、実行境界決定論、旧P互換、未確定停止 |
+| `test_hds_compiler_pipeline_v1_3.py` | Architecture v1.2維持、Pipeline v1.3、意味IR/P分離、再解析なし計算降下 |
+| `test_layer0.py` | 旧Layer0名が計算実行器互換aliasであること |
+
+## 模型関係域の必須negative control
+
+- `A causes B` と `B causes A` を同一視しない。
+- `A causes B` と `A does not cause B` を同一視しない。
+- 履歴を集合和へ潰して順序差を捨てない。
+- 条件付き関係を無条件関係へ潰さない。
+- 模型核へHDS依存を逆流させない。
+- 負の成立差だけで候補を確定しない。
 
 ## Pipeline v1.3必須negative control
 
@@ -30,24 +41,21 @@
 - 同一IR+初期状態で同一結果になる。
 - 旧P入口も計算中間表現を迂回しない。
 
-## 既存回帰
-
-HDS-IR Gate、外部参照、K/J、K3相当、主体主幹、多言語文脈、CLI等の既存試験を継続する。
-
 ## 実行
 
 ```bash
 python -m unittest discover -s tests -v
+python tools/規模測定.py
 ```
 
-CIでは上記に加え、リポジトリ整合性監査、構文確認、module CLI、console scriptをLinux / Windows × Python 3.11–3.14で確認する。
+CIではリポジトリ整合性監査、構文確認、単体試験、規模測定、module CLI、console scriptをLinux / Windows × Python 3.11–3.14で確認する。
 
 ## 状態の解釈
 
 ```text
 局所test PASS
-!= 大規模性の測定完了
 != 製品・最終完成
+!= 現代ニューラルLLMとの物理規模同等
 ```
 
-HDS Compiler Pipeline v1.3の責任分離は受入済み。現行模型核の大規模性は別評価として測定する。
+現行v0.4規模測定v2は **局所成立候補**。詳細は `../評価/MINIDORA_v0_4_規模測定_v2_2026-08-26.md` を参照する。
