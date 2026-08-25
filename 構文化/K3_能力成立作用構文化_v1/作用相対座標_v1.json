@@ -1,0 +1,160 @@
+{
+  "schema": "minidora.k3.capability_action_structuring.v1",
+  "date_jst": "2026-08-26",
+  "language": "ja",
+  "license": "CC-BY-4.0",
+  "model": "Kimi K3",
+  "source_revision": "c5d1dd4c428bd1ce8b88c5044f3b6ccde9e3b721",
+  "observation_depth": "D4",
+  "fullweight_audit": {
+    "shards": 96,
+    "tensors": 497220,
+    "payload_bytes": 1560860324864,
+    "all_byte_read": true,
+    "no_gaps": true,
+    "no_overlaps": true,
+    "no_unassigned": true,
+    "a_log_records": 69,
+    "residual_records": 69
+  },
+  "axes": {
+    "B0": {
+      "name": "観測境界",
+      "value": "full-weight全数実読 + tensor全数監査 + config/code照合",
+      "unobserved": [
+        "raw training corpus全量",
+        "training trajectory全量",
+        "production deployment harness全量",
+        "weight内部方向ごとの自然言語意味"
+      ]
+    },
+    "B1": {
+      "name": "状態保持",
+      "states": [
+        "current hidden / prefix_sum",
+        "KDA recurrent state",
+        "KDA q/k/v convolution states",
+        "MLA past K/V cache",
+        "AttnRes block residual checkpoints",
+        "MoE shared/routed intermediate paths"
+      ]
+    },
+    "B2": {
+      "name": "局所更新・参照",
+      "operator": "KDA",
+      "layers": 69,
+      "short_conv_kernel": 4,
+      "action": "履歴差をrecurrent stateへ連続更新し、gateで更新・出力寄与を調整"
+    },
+    "B3": {
+      "name": "大域再照合",
+      "operator": "Gated MLA",
+      "layers": 24,
+      "schedule": "layers 1-92で3 KDA + 1 MLAを23反復し、layer 93もMLA",
+      "q_lora_rank": 1536,
+      "kv_lora_rank": 512,
+      "action": "圧縮更新状態をcausal contextへ周期的に再接続し、output gateで寄与調整"
+    },
+    "B4": {
+      "name": "深さ輸送",
+      "operator": "AttnRes",
+      "block_size": 12,
+      "max_checkpoints_for_93_layers": 8,
+      "checkpoint_layer_indices_zero_based": [0, 12, 24, 36, 48, 60, 72, 84],
+      "action": "保存済みdepth checkpoint群と現在prefixをlearned scoreで選択・再混合"
+    },
+    "B5": {
+      "name": "幅選択",
+      "operator": "Stable LatentMoE",
+      "experts": 896,
+      "selected_experts_per_token": 16,
+      "shared_experts": 2,
+      "latent_dimension": 3584,
+      "expert_intermediate_dimension": 3072,
+      "dense_layers": 1,
+      "action": "共通作用を残しながら複数専門作用へ分岐し、重み付きで再合流"
+    },
+    "B6": {
+      "name": "未確定差の共存",
+      "direct_symbolic_hypotheses_observed": false,
+      "structural_capacity": [
+        "continuous hidden state",
+        "recurrent state",
+        "depth checkpoints",
+        "16 routed expert paths",
+        "shared expert paths",
+        "periodic global attention"
+      ],
+      "action": "途中差を一つの離散結果へ即時固定せず後段へ持ち越せる"
+    },
+    "B7": {
+      "name": "未来補助",
+      "num_nextn_predict_layers": 0,
+      "action": "独立Next-N predictorは今回の能力成立作用へ採用しない",
+      "unresolved_first_pass_items": ["MOPD等は未解のまま保持"]
+    },
+    "B8": {
+      "name": "形成作用",
+      "action": "runtime作用機構と形成済みweight関係を分離",
+      "observed": "形成済みprojection/gate/expert/AttnRes weights",
+      "unobserved": "raw training全因果"
+    },
+    "B9": {
+      "name": "展開後制御",
+      "action": "weight core / serving runtime / agent harnessを分離"
+    }
+  },
+  "orthogonal_action_axes": [
+    "系列方向: KDA recurrent update + MLA global reconciliation",
+    "深さ方向: AttnRes checkpoint selection",
+    "幅方向: shared + routed expert selection"
+  ],
+  "strong_findings": [
+    "途中Gateの多くは真偽確定ではなく寄与量調整として働く",
+    "過去depth stateを明示checkpointして後段から再選択する",
+    "系列・深さ・幅の選択が独立したparameterizationを持つ",
+    "同一情報差へ複数の再入口が存在する",
+    "最終差形成まで再作用を多数回反復する"
+  ],
+  "cross_11_model_general_candidates": [
+    "中間差を保持する",
+    "同一情報へ複数回再作用できる",
+    "局所更新と広域再照合を分離できる",
+    "現在状態以外の過去状態へ戻れる",
+    "共通作用と条件付き専門作用を併用できる",
+    "途中Gateを最終真偽と同一視しない",
+    "最終確定を処理末端まで遅延できる"
+  ],
+  "minidora_priority": {
+    "P0": [
+      "確定Gateと寄与Gateの分離",
+      "多層Working Relation Store",
+      "depth checkpoint store",
+      "同一情報への複数回再作用",
+      "候補集合の共同競合状態"
+    ],
+    "P1": [
+      "局所更新と大域再照合",
+      "共通作用と複数専門作用",
+      "Data/experienceからの関係形成工程"
+    ],
+    "P2": [
+      "modality adapter",
+      "外部agent harness分離"
+    ]
+  },
+  "non_requirements": [
+    "93 layers",
+    "fixed 3:1 schedule",
+    "KDA",
+    "MLA",
+    "AttnRes",
+    "12-layer checkpoint",
+    "896 experts",
+    "16 experts/token",
+    "MoE",
+    "neural network",
+    "probability distribution",
+    "sampling"
+  ]
+}

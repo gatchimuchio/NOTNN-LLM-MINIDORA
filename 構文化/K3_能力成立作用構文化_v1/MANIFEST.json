@@ -1,0 +1,52 @@
+{
+  "schema": "minidora.k3.capability_action_structuring.manifest.v1",
+  "date_jst": "2026-08-26",
+  "title": "K3 能力成立作用構文化 v1",
+  "license": "CC-BY-4.0",
+  "source": {
+    "model": "moonshotai/Kimi-K3",
+    "revision": "c5d1dd4c428bd1ce8b88c5044f3b6ccde9e3b721",
+    "observation_depth": "D4",
+    "existing_fullweight_root": "構文化/K3_HDS日本語構文_v2",
+    "comparison_root": "構文化/LLM横断_能力成立作用構文化_v1"
+  },
+  "files": [
+    "README.md",
+    "00_統合報告.md",
+    "01_K3作用構文.md",
+    "02_10モデル第二巡との差分.md",
+    "03_MINIDORA射影候補.md",
+    "作用相対座標_v1.json",
+    "MANIFEST.json"
+  ],
+  "scope": {
+    "included": [
+      "K3 runtime architecture action analysis",
+      "D4 full-weight observation reconciliation",
+      "B0-B9 action axes",
+      "comparison with K3-excluded 10-model second pass",
+      "MINIDORA projection candidates"
+    ],
+    "excluded": [
+      "K3 raw training corpus reconstruction",
+      "K3 product harness reconstruction",
+      "MINIDORA implementation changes",
+      "GPQA-specific answer rules",
+      "automatic promotion into current MINIDORA specification"
+    ]
+  },
+  "binding_observation": {
+    "shards": 96,
+    "tensors": 497220,
+    "payload_bytes": 1560860324864,
+    "source_revision_frozen": true
+  },
+  "epistemic_rules": [
+    "weight/config/codeから直接言える作用と比較推定を分離する",
+    "内部意味が未観測のactivationを仮説記号へ勝手に翻訳しない",
+    "K3固有部品をLLM普遍条件へ昇格しない",
+    "MINIDORAへは部品名ではなく作用だけを射影候補化する",
+    "確定K安全境界を壊す提案へ自動接続しない"
+  ],
+  "status": "SECOND_PASS_COMPLETE"
+}
