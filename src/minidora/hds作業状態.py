@@ -59,7 +59,8 @@ def _support_state(fact: Fact) -> str:
 
 
 def _eligible_predicate(predicate: str) -> bool:
-    return predicate == "hds_coordinate" or predicate.startswith("hds_relation_")
+    # 単語・座標の共起だけでは作業証拠へ昇格させない。有向HDS関係だけを再照合する。
+    return predicate.startswith("hds_relation_")
 
 
 @dataclass(frozen=True, slots=True)
