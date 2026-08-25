@@ -13,8 +13,9 @@
 正本:
 
 - [`MINIDORA_v0_4_REBUILD_ACCEPTANCE_2026-08-26.md`](MINIDORA_v0_4_REBUILD_ACCEPTANCE_2026-08-26.md) — 模型核・計算実行器分離、HDS境界、全CI行列、受入結果。
+- [`計算中間表現_実行境界_v1_受入_2026-08-26.md`](計算中間表現_実行境界_v1_受入_2026-08-26.md) — Compute IR / ABIに相当する計算中間表現・計算実行境界v1の型境界、全CI行列、受入結果。
 
-受入で確認した主な境界:
+受入で確認した模型中核:
 
 ```text
 対象言語状態
@@ -26,12 +27,27 @@
 
 旧 `Layer0` 命令器は **計算実行器** へ再分類した。
 
-構造受入CI:
+計算実行経路は次へ更新した。
 
-- workflow run id: `32883059625`
-- validated head: `89b88f727d289b1f1b66feb609374feeee6130c6`
+```text
+日本語命令形P
+↓
+命令計算降下
+↓
+計算中間表現 v1
+↓
+計算実行境界 v1
+↓
+計算実行器
+```
+
+計算境界受入CI:
+
+- workflow run id: `32888711819`
+- validated head: `f7cb678dafdfd2010de3214852cbad7f9a9b5596`
 - Ubuntu / Windows × Python 3.11–3.14: **全8 job PASS**
-- 代表job: **329 tests / OK**
+- 代表job: **336 tests / OK**
+- 新規Compute IR / ABI試験: **7 / 7 PASS**
 - K3相当構造: **47 / 47 PASS**
 - CLI: `5です。`
 
@@ -39,11 +55,14 @@
 
 ```text
 v0.4構造受入PASS
++
+計算中間表現/実行境界v1受入PASS
 != v0.4大規模性測定完了
+!= HDS Compiler再設計完了
 != 製品・最終完成
 ```
 
-次段はCompute IR / ABIを確定し、その後にHDS semantic IR loweringとHDS Compilerを更新する。
+次段はHDS Compilerを **意味フロントエンド / 計算降下バックエンド** に分割し、`HDSIR.手順` を意味IRの恒久責任から外す。
 
 ### v0.3プロトタイプ履歴
 
@@ -121,6 +140,7 @@ K3等との比較は同一prompt / dataset / judge / tool条件で行う。
 ```text
 PROTOTYPE COMPLETE(v0.3)
 != v0.4構造受入PASS
+!= 計算中間表現/実行境界v1受入PASS
 != v0.4大規模性測定完了
 != 製品・最終完成
 != K3級性能
