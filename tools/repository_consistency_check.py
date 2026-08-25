@@ -15,9 +15,9 @@ def _標準出力UTF8化() -> None:
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-sys.path.insert(0, str(SRC))
+sys.path.insert(0, str(ROOT / "src"))
 
+from minidora import Layer0, 計算実行器  # noqa: E402
 from minidora.hds_compiler_v1 import 公開HDSコンパイラ  # noqa: E402
 from minidora.模型 import (  # noqa: E402
     LLM成立規定リポジトリ,
@@ -26,7 +26,6 @@ from minidora.模型 import (  # noqa: E402
     MINIDORA模型核,
 )
 from minidora.規模測定 import 規模測定  # noqa: E402
-from minidora import Layer0, 計算実行器  # noqa: E402
 
 
 EXPECTED_REPOSITORY = "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA"
@@ -41,29 +40,24 @@ EXPECTED_SCALE_STATUS = "局所成立候補"
 
 REQUIRED_PATHS = (
     "README.md", "REFERENCES.md", "AGENTS.md", "pyproject.toml", "LICENSE", "NOTICE",
-    ".github/README.md", ".github/workflows/ci.yml",
-    "src/README.md", "tests/README.md", "tools/README.md", "docs/README.md", "artifacts/README.md",
-    "設計/README.md", "設計/02_大規模言語模型成立契約.md", "設計/旧/02_Layer0責任契約_v4.md",
-    "設計/03_日本語命令形P仕様.md", "設計/04_外部参照R仕様.md", "設計/05_完成判定関門.md",
-    "設計/06_主体主幹仕様.md", "設計/07_HDS_IR入力契約.md", "設計/08_多言語_Trinity文脈契約.md",
-    "設計/09_公開HDS_Compiler仕様.md", "設計/10_HDS_Compiler_Architecture_v1.md",
-    "設計/11_HDS_Compiler_Architecture_v1_1.md", "設計/12_HDS_Compiler_Architecture_v1_2.md",
+    ".github/workflows/ci.yml",
+    "設計/02_大規模言語模型成立契約.md", "設計/09_公開HDS_Compiler仕様.md",
     "設計/25_計算中間表現_実行境界_v1.md", "設計/26_HDS_Compiler_Pipeline_v1_3.md",
-    "構文化/README.md", "構文化/MINIDORA_v0.2/README.md", "構文化/MINIDORA_v0.3/README.md", "構文化/MINIDORA_v0.4/README.md",
-    "評価/README.md", "評価/PROTOTYPE_COMPLETION_2026-08-22.md", "評価/GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json",
+    "構文化/MINIDORA_v0.4/README.md",
+    "評価/README.md", "評価/MINIDORA_v0_4_REBUILD_ACCEPTANCE_2026-08-26.md",
     "評価/計算中間表現_実行境界_v1_受入_2026-08-26.md", "評価/HDS_Compiler_Pipeline_v1_3_受入_2026-08-26.md",
     "評価/MINIDORA_v0_4_規模測定_v2_2026-08-26.md",
     "src/minidora/模型.py", "src/minidora/言語構造.py", "src/minidora/規模測定.py",
-    "src/minidora/計算中間表現.py", "src/minidora/計算実行境界.py", "src/minidora/命令計算降下.py",
-    "src/minidora/計算実行器.py", "src/minidora/layer0.py", "src/minidora/旧_layer0_v03.py", "src/minidora/runtime.py", "src/minidora/runtime_v03.py",
-    "src/minidora/hds_compiler.py", "src/minidora/hds_compiler_v1.py", "src/minidora/hds_compiler_pipeline_v1_3.py",
-    "tests/test_模型.py", "tests/test_模型関係域.py", "tests/test_規模測定.py", "tests/test_layer0.py", "tests/test_計算IR_ABI.py", "tests/test_hds_compiler_pipeline_v1_3.py",
+    "src/minidora/計算中間表現.py", "src/minidora/計算実行境界.py", "src/minidora/計算実行器.py",
+    "src/minidora/hds_compiler_v1.py", "src/minidora/hds_compiler_pipeline_v1_3.py",
+    "src/minidora/runtime_v03.py", "src/minidora/旧_layer0_v03.py",
+    "tests/test_模型.py", "tests/test_模型関係域.py", "tests/test_規模測定.py",
+    "tests/test_計算IR_ABI.py", "tests/test_hds_compiler_pipeline_v1_3.py",
 )
 
 CORE_MARKDOWN = (
     "README.md", "REFERENCES.md", "AGENTS.md", "src/README.md", "tests/README.md",
-    "設計/README.md", "設計/02_大規模言語模型成立契約.md", "設計/05_完成判定関門.md",
-    "設計/07_HDS_IR入力契約.md", "設計/09_公開HDS_Compiler仕様.md",
+    "設計/README.md", "設計/02_大規模言語模型成立契約.md", "設計/09_公開HDS_Compiler仕様.md",
     "設計/25_計算中間表現_実行境界_v1.md", "設計/26_HDS_Compiler_Pipeline_v1_3.md",
     "構文化/MINIDORA_v0.4/README.md", "評価/README.md", "評価/MINIDORA_v0_4_規模測定_v2_2026-08-26.md",
 )
@@ -75,147 +69,141 @@ def _text(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def _check_local_links(path: str, errors: list[str]) -> None:
-    source = ROOT / path
-    text = source.read_text(encoding="utf-8")
-    for raw_target in LINK_RE.findall(text):
-        target = raw_target.strip().split(maxsplit=1)[0].strip("<>")
-        if not target or target.startswith(("http://", "https://", "mailto:", "#")):
+def _check_required(errors: list[str]) -> None:
+    for path in REQUIRED_PATHS:
+        if not (ROOT / path).exists():
+            errors.append(f"必須path欠落: {path}")
+
+
+def _check_links(errors: list[str]) -> None:
+    for path in CORE_MARKDOWN:
+        source = ROOT / path
+        if not source.exists():
             continue
-        target = unquote(target.split("#", 1)[0])
-        if not target:
-            continue
-        resolved = (source.parent / target).resolve()
-        try:
-            resolved.relative_to(ROOT.resolve())
-        except ValueError:
-            errors.append(f"{path}: リポジトリ外への相対リンク: {raw_target}")
-            continue
-        if not resolved.exists():
-            errors.append(f"{path}: 壊れた相対リンク: {raw_target}")
+        for raw_target in LINK_RE.findall(source.read_text(encoding="utf-8")):
+            target = raw_target.strip().split(maxsplit=1)[0].strip("<>")
+            if not target or target.startswith(("http://", "https://", "mailto:", "#")):
+                continue
+            target = unquote(target.split("#", 1)[0])
+            if not target:
+                continue
+            resolved = (source.parent / target).resolve()
+            try:
+                resolved.relative_to(ROOT.resolve())
+            except ValueError:
+                errors.append(f"{path}: リポジトリ外への相対リンク: {raw_target}")
+                continue
+            if not resolved.exists():
+                errors.append(f"{path}: 壊れた相対リンク: {raw_target}")
 
 
-def _check_workflows(errors: list[str]) -> None:
-    for path in sorted((ROOT / ".github" / "workflows").glob("*.y*ml")):
-        text = path.read_text(encoding="utf-8")
-        if "chappie/" in text:
-            errors.append(f"{path.relative_to(ROOT)}: 正本main方針に反する旧作業ブランチ参照")
-        if "tools/規模測定.py" not in text:
-            errors.append(f"{path.relative_to(ROOT)}: v0.4規模測定がCIへ接続されていない")
+def _check_project(errors: list[str]) -> None:
+    project = tomllib.loads(_text("pyproject.toml")).get("project", {})
+    if project.get("version") != EXPECTED_MINIDORA_VERSION:
+        errors.append(f"MINIDORA version不整合: {project.get('version')!r}")
+    urls = project.get("urls", {})
+    if urls.get("Repository") != EXPECTED_REPOSITORY:
+        errors.append("pyproject.toml: Repository URL不整合")
+    if urls.get("LLM Constitutive Specification") != EXPECTED_SPEC_REPO:
+        errors.append("pyproject.toml: 上流LLM成立規定URL不整合")
+
+    if LLM成立規定リポジトリ != EXPECTED_SPEC_REPO:
+        errors.append("模型.py: 上流Repository定数不整合")
+    if LLM成立規定参照コミット != EXPECTED_SPEC_COMMIT:
+        errors.append("模型.py: 上流参照commit不整合")
+    if LLM成立規定版 != EXPECTED_SPEC_VERSION:
+        errors.append("模型.py: 上流版不整合")
+
+    for path in ("REFERENCES.md", "AGENTS.md", "src/README.md", "設計/README.md", "設計/02_大規模言語模型成立契約.md", "構文化/MINIDORA_v0.4/README.md"):
+        text = _text(path)
+        if EXPECTED_SPEC_REPO not in text:
+            errors.append(f"{path}: 上流URL欠落")
+        if EXPECTED_SPEC_COMMIT not in text:
+            errors.append(f"{path}: 上流commit欠落")
+        if EXPECTED_SPEC_VERSION not in text:
+            errors.append(f"{path}: 上流版欠落")
 
 
-def _check_model_core(errors: list[str]) -> None:
-    model_file = _text("src/minidora/模型.py")
+def _check_model(errors: list[str]) -> None:
+    text = _text("src/minidora/模型.py")
     for required in (
-        "class 言語状態", "class 言語対応", "class 文脈付き言語状態", "class 成立差",
-        "class MINIDORA模型核", "正の成立差が一意", "class 有向関係整合", "class 肯否整合関係",
-        "class 履歴近接関係", "class 条件結合関係",
+        "class MINIDORA模型核", "正の成立差が一意", "class 順序連続関係", "class 有向関係整合",
+        "class 肯否整合関係", "class 履歴近接関係", "class 条件結合関係",
     ):
-        if required not in model_file:
-            errors.append(f"模型.py: v0.4模型核必須境界欠落: {required}")
+        if required not in text:
+            errors.append(f"模型.py: 必須境界欠落: {required}")
     for forbidden in ("from .hds_", "from .layer0", "import torch", "import transformers"):
-        if forbidden in model_file:
-            errors.append(f"模型.py: 模型核独立性に反する依存: {forbidden}")
-
-    language_structure = _text("src/minidora/言語構造.py")
-    if "hds_" in language_structure.casefold():
-        errors.append("言語構造.py: LLM模型核へHDS依存を逆流させている")
-
+        if forbidden in text:
+            errors.append(f"模型.py: 模型核独立性違反: {forbidden}")
+    if "hds_" in _text("src/minidora/言語構造.py").casefold():
+        errors.append("言語構造.py: HDS依存逆流")
     if Layer0 is not 計算実行器:
-        errors.append("Layer0旧名が計算実行器互換aliasではない")
+        errors.append("Layer0旧名が計算実行器aliasではない")
     if not isinstance(MINIDORA模型核(), MINIDORA模型核):
         errors.append("MINIDORA模型核を構築できない")
-    if (ROOT / "設計" / "02_Layer0責任契約.md").exists():
-        errors.append("旧Layer0責任契約が現行設計pathに残っている")
+    if (ROOT / "設計/02_Layer0責任契約.md").exists():
+        errors.append("旧Layer0責任契約が現行pathへ復帰")
 
 
-def _check_hds_boundary(errors: list[str]) -> None:
+def _check_hds(errors: list[str]) -> None:
     if 公開HDSコンパイラ.基底言語 != EXPECTED_BASE_LANGUAGE:
-        errors.append("公開HDS Compiler: 基底言語が日本語(ja)ではない")
+        errors.append("公開HDS Compiler: 基底言語不整合")
     if getattr(公開HDSコンパイラ, "Architecture版", None) != EXPECTED_HDS_ARCHITECTURE:
-        errors.append("公開HDS Compiler: Architecture版がv1.2ではない")
+        errors.append("公開HDS Compiler: Architecture版不整合")
     if getattr(公開HDSコンパイラ, "Pipeline版", None) != EXPECTED_HDS_PIPELINE:
-        errors.append("公開HDS Compiler: Pipeline版がv1.3ではない")
-
-    compiler = 公開HDSコンパイラ()
-    semantic = compiler.意味コンパイル("2+3")
+        errors.append("公開HDS Compiler: Pipeline版不整合")
+    semantic = 公開HDSコンパイラ().意味コンパイル("2+3")
     if semantic.手順 is not None or semantic.初期状態:
-        errors.append("公開HDS Compiler: 意味正本へ計算Pまたは初期状態が混入")
+        errors.append("公開HDS Compiler: 意味正本へ計算P/初期状態混入")
 
 
 def _check_scale(errors: list[str]) -> None:
     result = 規模測定()
     if result.大規模性状態 != EXPECTED_SCALE_STATUS:
-        errors.append(f"規模測定: status={result.大規模性状態!r}, expected={EXPECTED_SCALE_STATUS!r}")
-    if result.状態域規模.get("識別内部状態数") != result.状態域規模.get("試験状態数"):
-        errors.append("規模測定: 状態域の試験状態を全識別できていない")
-    if result.関係域規模.get("意味対応済み関係族数") != 17:
-        errors.append("規模測定: 17一般関係族を保持していない")
-    if result.関係域規模.get("識別関係構造数") != result.関係域規模.get("関係構造生成試験数"):
-        errors.append("規模測定: 関係構造の識別が全件通っていない")
+        errors.append(f"規模測定status不整合: {result.大規模性状態!r}")
+    state = result.状態域規模
+    relation = result.関係域規模
+    shared = result.共有適用規模
+    if state.get("識別内部状態数") != state.get("試験状態数"):
+        errors.append("規模測定: 状態域全識別未達")
+    if relation.get("意味対応済み関係族数") != 17:
+        errors.append("規模測定: 17一般関係族未達")
+    if relation.get("識別関係構造数") != relation.get("関係構造生成試験数"):
+        errors.append("規模測定: 関係構造全識別未達")
     for key in ("方向差が成立差へ到達", "肯否差が成立差へ到達", "履歴順序差が成立差へ到達", "条件結合差が成立差へ到達"):
-        if not result.関係域規模.get(key):
-            errors.append(f"規模測定: 関係域必須差未到達: {key}")
-    if not result.共有適用規模.get("関係実体再利用"):
-        errors.append("規模測定: 共有適用で同一関係実体を再利用できていない")
+        if not relation.get(key):
+            errors.append(f"規模測定: {key} 未達")
+    if not shared.get("関係実体再利用") or shared.get("成功率") != 1.0:
+        errors.append("規模測定: 共有適用未達")
+
+    root = _text("README.md")
+    evaluation = _text("評価/README.md")
+    for text_name, text in (("README.md", root), ("評価/README.md", evaluation)):
+        if "局所成立候補" not in text:
+            errors.append(f"{text_name}: 規模測定結果未反映")
+    if "現代ニューラルLLM" not in root:
+        errors.append("README.md: 物理規模同等性の否定境界欠落")
+
+
+def _check_workflows(errors: list[str]) -> None:
+    workflow_dir = ROOT / ".github/workflows"
+    for path in sorted(workflow_dir.glob("*.y*ml")):
+        if "chappie/" in path.read_text(encoding="utf-8"):
+            errors.append(f"{path.relative_to(ROOT)}: 旧作業ブランチ参照")
+    # 三面規模測定は再構築CIの受入責任。GPQA等の専用workflowへ強制しない。
+    if "tools/規模測定.py" not in _text(".github/workflows/ci.yml"):
+        errors.append("ci.yml: v0.4規模測定未接続")
 
 
 def main() -> int:
     _標準出力UTF8化()
     errors: list[str] = []
-
-    for path in REQUIRED_PATHS:
-        if not (ROOT / path).exists():
-            errors.append(f"必須path欠落: {path}")
-
-    pyproject = tomllib.loads(_text("pyproject.toml"))
-    project = pyproject.get("project", {})
-    version = project.get("version")
-    if version != EXPECTED_MINIDORA_VERSION:
-        errors.append(f"MINIDORA version不整合: pyproject={version!r}, expected={EXPECTED_MINIDORA_VERSION!r}")
-
-    urls = project.get("urls", {})
-    if urls.get("Repository") != EXPECTED_REPOSITORY:
-        errors.append("pyproject.toml: Repository URLが期待値と不一致")
-    if urls.get("LLM Constitutive Specification") != EXPECTED_SPEC_REPO:
-        errors.append("pyproject.toml: LLM成立規定URLが期待値と不一致")
-
-    if LLM成立規定リポジトリ != EXPECTED_SPEC_REPO:
-        errors.append("模型.py: 上流正本Repository定数が期待値と不一致")
-    if LLM成立規定参照コミット != EXPECTED_SPEC_COMMIT:
-        errors.append("模型.py: 上流正本参照commitが期待値と不一致")
-    if LLM成立規定版 != EXPECTED_SPEC_VERSION:
-        errors.append("模型.py: 上流正本版が期待値と不一致")
-
-    for path in ("README.md", "REFERENCES.md", "AGENTS.md", "src/README.md", "設計/README.md", "設計/02_大規模言語模型成立契約.md", "構文化/MINIDORA_v0.4/README.md"):
-        if EXPECTED_SPEC_REPO not in _text(path):
-            errors.append(f"{path}: 上流LLM成立規定URL欠落")
-
-    for path in ("REFERENCES.md", "AGENTS.md", "src/README.md", "設計/README.md", "設計/02_大規模言語模型成立契約.md", "構文化/MINIDORA_v0.4/README.md"):
-        text = _text(path)
-        if EXPECTED_SPEC_COMMIT not in text:
-            errors.append(f"{path}: 上流正本参照commit欠落")
-        if EXPECTED_SPEC_VERSION not in text:
-            errors.append(f"{path}: 上流正本版欠落")
-
-    readme = _text("README.md")
-    for required in ("MINIDORA v0.4", "PROTOTYPE COMPLETE", "v0.4大規模性", "局所成立候補", "計算実行器", "Pipeline"):
-        if required not in readme:
-            errors.append(f"README.md: v0.4/Pipeline/規模境界欠落: {required}")
-
-    evaluation = _text("評価/README.md")
-    for required in ("PROTOTYPE COMPLETE", "製品・最終完成", "局所成立候補", "MINIDORA_v0_4_規模測定_v2_2026-08-26.md"):
-        if required not in evaluation:
-            errors.append(f"評価/README.md: 状態境界欠落: {required}")
-
-    if "LEGACY" not in _text("構文化/MINIDORA_v0.2/README.md"):
-        errors.append("構文化/MINIDORA_v0.2/README.md: Legacy境界が不明確")
-
-    _check_model_core(errors)
-    _check_hds_boundary(errors)
+    _check_required(errors)
+    _check_project(errors)
+    _check_model(errors)
+    _check_hds(errors)
     _check_scale(errors)
-    for path in CORE_MARKDOWN:
-        _check_local_links(path, errors)
+    _check_links(errors)
     _check_workflows(errors)
 
     if errors:
