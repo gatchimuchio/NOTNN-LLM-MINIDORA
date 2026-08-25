@@ -20,9 +20,9 @@ def _標準入出力をUTF8化() -> None:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="minidora",
-        description="MINIDORA v0.3 非ニューラルネットワークLLM Runtime",
+        description="MINIDORA v0.4 日本語基底・非ニューラルネットワークLLM Runtime",
     )
-    parser.add_argument("query", nargs="?", help="MINIDORAへ渡す自然言語入力")
+    parser.add_argument("query", nargs="?", help="MINIDORAへ渡す言語入力")
     parser.add_argument(
         "--json",
         action="store_true",
@@ -33,7 +33,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _標準ミニドラ() -> ミニドラ:
-    """公開HDS Compiler Architecture v1.2を正規入口として接続した標準CLI Runtimeを返す。"""
+    """既存公開HDS Compilerを運用外周として接続した標準CLI Runtimeを返す。"""
     return ミニドラ(HDSコンパイラ_=公開HDSコンパイラ())
 
 
@@ -50,6 +50,8 @@ def _run_once(body: ミニドラ, query: str, *, json_mode: bool) -> None:
             "hds_ir": result.HDS_IR is not None,
             "compiler": "公開HDSコンパイラ",
             "compiler_architecture": "v1.2",
+            "runtime": "MINIDORA v0.4",
+            "model_core": "MINIDORA模型核",
         }
         print(json.dumps(payload, ensure_ascii=False, default=str))
         return

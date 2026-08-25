@@ -10,7 +10,7 @@ Runtime本体は `src/minidora/` であり、`tools/` のスクリプトをMINID
 |---|---|---|
 | `benchmark.py` | リポジトリ標準ベンチランナー。GPQA Diamondの部分実行・途中保存・再開・K3参照比較 | なし |
 | `gpqa_measure_current.py` | GPQA現行測定の低水準実装。標準実行入口は `benchmark.py` | なし |
-| `repository_consistency_check.py` | 正本参照、version、主要文書リンク、Layer-0契約の整合性監査 | なし |
+| `repository_consistency_check.py` | v0.4模型核、上流LLM成立規定、version、Legacy境界、主要文書リンクの整合性監査 | なし |
 | `k3_hf_identity_inventory.py` | K3 Hugging Face固定revisionのファイル同一性inventory | `huggingface_hub` |
 | `k3_public_artifact_inventory.py` | K3固定revisionの公開artifact inventory | `huggingface_hub` |
 
@@ -70,6 +70,16 @@ python tools/repository_consistency_check.py
 
 CIでも同じ監査をLinux / Windows × Python 3.11–3.14で実行する。
 
+v0.4では、旧Layer0の5責任を期待値にするのではなく、
+
+- `LLM-Constitutive-Specification` の参照版・commit
+- `src/minidora/模型.py` の独立性
+- `Layer0`旧名が計算実行器へ限定されること
+- HDS-IRが模型中核と分離されること
+- v0.3履歴が保持されること
+
+を監査する。
+
 ## K3 inventory
 
 K3 inventoryは外部サービスへアクセスする開発用処理のため、Runtime依存から分離する。必要な場合だけ追加依存を導入する。
@@ -81,5 +91,3 @@ python tools/k3_public_artifact_inventory.py --out /tmp/k3-public-artifacts.json
 ```
 
 両ツールは指定した出力先へJSONを書くだけで、ブランチ作成・commit・pushを自動実行しない。
-
-旧 `chappie/k3-hds-stream-v6` 専用GitHub Actionsは、対象ブランチ消滅後に無効な自動化となったため削除した。固定済み成果物や構文化履歴は削除せず保持する。

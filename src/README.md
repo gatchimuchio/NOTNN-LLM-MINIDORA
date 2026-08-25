@@ -2,38 +2,51 @@
 
 `src/` はMINIDORA Runtimeの実装ソースを保持する。
 
-現行パッケージは `src/minidora/` である。設計の意味は `../設計/`、外部参照正本は `../REFERENCES.md`、実測は `../評価/` を参照する。実装コードだけから上位仕様を再定義しない。
+現行パッケージは `src/minidora/`。意味正本は `../設計/`、外部LLM成立正本は `../REFERENCES.md`、実測は `../評価/` を参照する。実装コードだけから上位仕様を逆定義しない。
 
-## `minidora/` の主要境界
+## v0.4主要境界
 
 | Module | 主な責任 |
 |---|---|
-| `layer0.py` | Layer-0 v4上位契約のMINIDORA命令実行実装と参照情報 |
+| `模型.py` | 言語対応、文脈付き内部状態、再利用可能な模型側関係、成立差 |
+| `計算実行器.py` | 日本語命令形Pの算術・比較・状態更新等を実行する汎用計算器 |
+| `layer0.py` | 旧Layer0 API互換窓口。現行LLM模型中核ではない |
+| `runtime.py` | v0.4模型核とv0.3運用経路の統合入口 |
+| `runtime_v03.py` | v0.3 Runtimeの履歴互換実装 |
+| `旧_layer0_v03.py` | v0.3 Layer0命令器の履歴実装 |
 | `命令.py` | 日本語命令形Pの実行単位 |
 | `参照.py` | 外部参照Rの供給・競合判定 |
 | `hds_ir.py` | 公開HDS-IR Recordと実行Gate |
-| `hds_adapter.py` | 外部HDS CompilerとのProtocol境界 |
-| `trinity_context.py` | Trinity J/C/M文脈の保持・帰還 |
+| `hds_adapter.py` | HDS CompilerとのProtocol境界 |
 | `主体.py` | 主体状態、理由付き更新、主体整合Gate |
 | `採否.py` | 合格・保留・失敗・非適用の採否 |
-| `runtime.py` | HDS-IR / Layer-0 / P / R / 主体主幹の統合Runtime |
-| `multilingual_surface.py` | HDS経路の多言語結果表面 |
-| `言語.py` | HDS Compiler未接続時のLegacy互換自然言語入口 |
-| `k3_functional.py` | K3構文化由来の非ニューラル機能相当能力核 |
-| `k3_hds_native.py` | HDS-IRとK/J構造照合の直接接続 |
-| `hds_data_k.py` | Data HDS-IRからK構造Factへの射影 |
-| `hds_graph_reasoning.py` | HDS方向付き関係の経路探索 |
-| `k3_benchmark.py` | K3機能相当評価harness |
+| `言語.py` | 既存運用の決定論的自然言語計画・表面化 |
+| `semantic_tokens.py` | 言語対応で再利用する意味語内部住所 |
+| `k3_functional.py` | K3構文化由来の能力補助 |
 | `__main__.py` | module / console CLI入口 |
 
-## Layer-0
+## 上位LLM成立規定
 
-Layer-0の論理上位正本は外部Repository:
-[gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification](https://github.com/gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification)
-である。
+- [gatchimuchio/LLM-Constitutive-Specification](https://github.com/gatchimuchio/LLM-Constitutive-Specification)
+- 版 `2026-08-26-成立規定-2`
+- 参照commit `e94a13ba32208aabd9dc88b6de320872963725be`
 
-`layer0.py` はそのMINIDORA固有実装であり、外部正本の意味を置き換えない。
+`模型.py` は上位正本をMINIDORAへ写像する実装であり、外部正本の意味を置き換えない。
 
-## 公開境界
+## v0.4の主従
 
-HDS Compiler内部実装および上流HDSの内部解析方法そのものは `src/` に含めない。公開RuntimeはHDS-IR入出力契約を通して外部Compilerと接続する。
+```text
+模型.py       = LLM模型中核
+計算実行器.py = 計算作用
+HDS系         = 意味Projection / 運用 / 監査
+参照系        = 外部Data
+主体.py       = 運用主体性
+```
+
+旧Layer0命令器を模型中核へ戻さない。
+
+## HDS公開境界
+
+公開HDS Compiler群は引き続き公開実装である。ただしHDS-IRをLLM模型中核またはCompute IRと同一視しない。
+
+v0.4ではCompiler本体の大規模再設計を先行させず、次段のCompute IR確定後にlowering境界を更新する。

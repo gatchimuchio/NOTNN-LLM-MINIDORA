@@ -1,14 +1,14 @@
 # HDS-IRネイティブK3接続経路
 
-HDS Compilerが形成した一般HDS-IRを、表層自然言語へ戻さずK3相当能力核へ直接渡す接続層の補助説明である。
+HDS Compilerが形成した一般HDS-IRを、表層言語へ戻さずK3相当能力核へ直接渡す既存運用接続の補助説明である。
 
-この文書は実装経路の要約であり、設計正本を置き換えない。
+この文書はv0.3由来の実装経路を説明し、v0.4のLLM模型中核や設計正本を置き換えない。
 
 参照する現行契約:
 
-- [`../設計/07_HDS_IR入力契約.md`](../設計/07_HDS_IR入力契約.md) — HDS-IR受入・実行境界
-- [`../設計/02_Layer0責任契約.md`](../設計/02_Layer0責任契約.md) — Layer-0上位契約のMINIDORA局所写像
-- [`../REFERENCES.md`](../REFERENCES.md) — Layer-0正本と外部参照階層
+- [`../設計/07_HDS_IR入力契約.md`](../設計/07_HDS_IR入力契約.md) — HDS-IRを意味Projection・運用外周として扱う境界。
+- [`../設計/02_大規模言語模型成立契約.md`](../設計/02_大規模言語模型成立契約.md) — v0.4模型中核の局所写像。
+- [`../REFERENCES.md`](../REFERENCES.md) — 上流LLM成立規定と外部参照階層。
 
 ## 経路の不変条件
 
@@ -16,6 +16,6 @@ HDS Compilerが形成した一般HDS-IRを、表層自然言語へ戻さずK3相
 - `choice:*` 座標から候補集合を受け取る。
 - Kの根拠事実が候補と問いの双方に接続するときだけ候補を形成する。
 - 根拠なし・同率根拠はJ/HDSが `SUSPEND` し、推測で回答しない。
-- HDS Compiler内部は本公開リポジトリへ含めない。
+- HDS-IRをLLM模型中核またはCompute IRと同一視しない。
 
 実装は `src/minidora/k3_hds_native.py`、関連試験は `tests/test_k3_hds_native.py` と `tests/test_k3_hds_structural.py` を参照する。

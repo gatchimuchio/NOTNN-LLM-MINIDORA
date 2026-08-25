@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "minidora-notnn"
-version = "0.3.0"
+version = "0.4.0"
 description = "日本語基底の非ニューラルネットワークLLM研究実装"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,8 +17,9 @@ keywords = [
   "non-neural",
   "NOTNN",
   "MINIDORA",
-  "Layer-0",
+  "constitutive-specification",
   "Japanese",
+  "deterministic-model-core",
   "subject-consistency",
 ]
 classifiers = [
@@ -32,7 +33,7 @@ dependencies = []
 
 [project.urls]
 Repository = "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA"
-"Layer-0 Reference" = "https://github.com/gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification"
+"LLM Constitutive Specification" = "https://github.com/gatchimuchio/LLM-Constitutive-Specification"
 
 [project.scripts]
 minidora = "minidora.__main__:main"
