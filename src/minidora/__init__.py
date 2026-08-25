@@ -88,6 +88,17 @@ from .hds_compiler_records_v1_2 import (
 from .hds_candidate_reconcile import HDS候補証拠, HDS調停済証拠, HDS候補調停結果, HDS候補横断調停
 from .hds_choice_runtime import HDS選択実行結果, HDS選択問題, HDS選択推論実行
 from .hds_data_k import HDS知識投入結果, HDSIR知識Adapter, HDS証拠事実, HDS証拠状態複製
+from .hds作業状態 import (
+    HDS作業関係,
+    HDS候補共同項目,
+    HDS作業Checkpoint,
+    HDS作業統計,
+    HDS作業状態,
+    HDS作業状態構築,
+    HDS寄与Gate再照合,
+    HDS一時証拠統合,
+    HDS候補共同状態更新,
+)
 from .hds_effort import HDS探索方針, HDS努力水準, HDS探索方針選択
 from .hds_reference import HDS参照予算, HDS参照予算選択, HDS参照問合せ候補, HDS参照検索
 from .hds_replay import HDSIR辞書化, HDSIR復元
@@ -122,6 +133,8 @@ __all__ = [
     "HDS候補証拠", "HDS調停済証拠", "HDS候補調停結果", "HDS候補横断調停",
     "HDS選択実行結果", "HDS選択問題", "HDS選択推論実行",
     "HDS知識投入結果", "HDSIR知識Adapter", "HDS証拠事実", "HDS証拠状態複製",
+    "HDS作業関係", "HDS候補共同項目", "HDS作業Checkpoint", "HDS作業統計", "HDS作業状態",
+    "HDS作業状態構築", "HDS寄与Gate再照合", "HDS一時証拠統合", "HDS候補共同状態更新",
     "HDS探索方針", "HDS努力水準", "HDS探索方針選択",
     "HDS参照予算", "HDS参照予算選択", "HDS参照問合せ候補", "HDS参照検索", "HDSIR辞書化", "HDSIR復元",
     "Trinity記憶監査", "記憶主体", "HDS判断主体", "Trinity文脈系",
