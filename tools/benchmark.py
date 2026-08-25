@@ -16,7 +16,7 @@ import gpqa_measure_current as gpqa
 
 BENCHMARKS = {
     "gpqa-diamond": {
-        "description": "GPQA Diamond 198問。現行MINIDORAのR→HDS→K→Jを実測する。",
+        "description": "GPQA Diamond 198問。現行MINIDORAのR→HDS→K/Working→Jを実測する。",
         "full_total": 198,
         "comparison": {
             "model": "Kimi K3",
@@ -150,6 +150,17 @@ def _metrics(details: list[dict[str, Any]], *, selected_total: int) -> dict[str,
     k_facts_added = sum(int(d.get("k_facts_added", 0)) for d in details)
     evidence_facts = sum(int(d.get("evidence_facts", 0)) for d in details)
     blocked_evidence = sum(int(d.get("blocked_evidence_facts", 0)) for d in details)
+    working_created = sum(int(d.get("working_relations_created", 0)) for d in details)
+    working_reused = sum(int(d.get("working_relations_reused", 0)) for d in details)
+    working_promoted = sum(int(d.get("working_relations_promoted_to_k", 0)) for d in details)
+    working_discarded = sum(int(d.get("working_relations_discarded_after_recheck", 0)) for d in details)
+    checkpoint_count = sum(int(d.get("checkpoint_count", 0)) for d in details)
+    checkpoint_reactivations = sum(int(d.get("checkpoint_reactivations", 0)) for d in details)
+    global_reconciliations = sum(int(d.get("global_reconciliations", 0)) for d in details)
+    candidate_cross_updates = sum(int(d.get("candidate_cross_updates", 0)) for d in details)
+    specialist_actions = sum(int(d.get("specialist_actions_invoked", 0)) for d in details)
+    suspend_after_exhaustion = sum(int(d.get("suspend_after_exhaustion", 0)) for d in details)
+    temporary_evidence = sum(int(d.get("temporary_working_evidence", 0)) for d in details)
     reason_counts: Counter[str] = Counter()
     effort_counts: Counter[str] = Counter()
     source_counts: Counter[str] = Counter()
@@ -183,6 +194,17 @@ def _metrics(details: list[dict[str, Any]], *, selected_total: int) -> dict[str,
         "k_facts_added": k_facts_added,
         "evidence_facts": evidence_facts,
         "blocked_evidence_facts": blocked_evidence,
+        "working_relations_created": working_created,
+        "working_relations_reused": working_reused,
+        "working_relations_promoted_to_k": working_promoted,
+        "working_relations_discarded_after_recheck": working_discarded,
+        "checkpoint_count": checkpoint_count,
+        "checkpoint_reactivations": checkpoint_reactivations,
+        "global_reconciliations": global_reconciliations,
+        "candidate_cross_updates": candidate_cross_updates,
+        "specialist_actions_invoked": specialist_actions,
+        "suspend_after_exhaustion": suspend_after_exhaustion,
+        "temporary_working_evidence": temporary_evidence,
         "source_counts": dict(sorted(source_counts.items())),
         "reason_counts": dict(sorted(reason_counts.items())),
         "effort_counts": dict(sorted(effort_counts.items())),
@@ -214,7 +236,7 @@ def _result_payload(
         else None
     )
     return {
-        "schema": "minidora.benchmark.repository-runner.v1",
+        "schema": "minidora.benchmark.repository-runner.v2",
         "protocol": {
             "benchmark": "GPQA Diamond",
             "dataset": "official idavidrein/gpqa dataset.zip / gpqa_diamond.csv",
@@ -229,7 +251,8 @@ def _result_payload(
             "repository_commit": repository_commit,
             "openalex_enabled": openalex_enabled,
             "wikipedia_languages": ["en"],
-            "runtime": "current repository checkout; HDS choice native R->HDS->K->J",
+            "runtime": "current repository checkout; HDS choice native R->HDS->K/Working->J",
+            "working_state_boundary": "working relations are request-local evidence and are never auto-promoted to canonical K",
             "checkpoint_resume": "same dataset + selected range + repository commit + OpenAlex condition only",
         },
         "metrics": metrics,
@@ -309,6 +332,17 @@ def _run_gpqa(args: argparse.Namespace) -> int:
             "k_facts_added": inference.K追加事実数,
             "evidence_facts": inference.K証拠事実数,
             "blocked_evidence_facts": inference.K証拠阻害事実数,
+            "working_relations_created": inference.作業関係生成数,
+            "working_relations_reused": inference.作業関係再利用数,
+            "working_relations_promoted_to_k": inference.作業関係K昇格数,
+            "working_relations_discarded_after_recheck": inference.作業関係再検証後破棄数,
+            "checkpoint_count": inference.checkpoint数,
+            "checkpoint_reactivations": inference.checkpoint再活性数,
+            "global_reconciliations": inference.大域再照合数,
+            "candidate_cross_updates": inference.候補横断更新数,
+            "specialist_actions_invoked": inference.専門作用起動数,
+            "suspend_after_exhaustion": inference.遍歴後SUSPEND数,
+            "temporary_working_evidence": inference.一時証拠数,
             "effort": inference.K3結果.努力水準 if inference.K3結果 else None,
             "candidate_diagnostics": [
                 {
@@ -324,7 +358,7 @@ def _run_gpqa(args: argparse.Namespace) -> int:
         processed_since_checkpoint += 1
         print(
             f"CASE {index + 1:03d}/198 status={inference.状態} pred={predicted} "
-            f"correct={correct} retrieved={len(references)}",
+            f"correct={correct} retrieved={len(references)} work={inference.一時証拠数}",
             flush=True,
         )
         if processed_since_checkpoint >= args.checkpoint_every:
