@@ -49,10 +49,11 @@ REQUIRED_PATHS = (
     "設計/25_計算中間表現_実行境界_v1.md", "設計/26_HDS_Compiler_Pipeline_v1_3.md",
     "構文化/README.md", "構文化/MINIDORA_v0.2/README.md", "構文化/MINIDORA_v0.3/README.md", "構文化/MINIDORA_v0.4/README.md",
     "評価/README.md", "評価/PROTOTYPE_COMPLETION_2026-08-22.md", "評価/GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json",
-    "src/minidora/模型.py", "src/minidora/計算中間表現.py", "src/minidora/計算実行境界.py", "src/minidora/命令計算降下.py",
+    "src/minidora/模型.py", "src/minidora/言語構造.py", "src/minidora/規模測定.py",
+    "src/minidora/計算中間表現.py", "src/minidora/計算実行境界.py", "src/minidora/命令計算降下.py",
     "src/minidora/計算実行器.py", "src/minidora/layer0.py", "src/minidora/旧_layer0_v03.py", "src/minidora/runtime.py", "src/minidora/runtime_v03.py",
     "src/minidora/hds_compiler.py", "src/minidora/hds_compiler_v1.py", "src/minidora/hds_compiler_pipeline_v1_3.py",
-    "tests/test_模型.py", "tests/test_layer0.py", "tests/test_計算IR_ABI.py", "tests/test_hds_compiler_pipeline_v1_3.py",
+    "tests/test_模型.py", "tests/test_模型関係域.py", "tests/test_規模測定.py", "tests/test_layer0.py", "tests/test_計算IR_ABI.py", "tests/test_hds_compiler_pipeline_v1_3.py",
 )
 
 CORE_MARKDOWN = (
@@ -98,12 +99,19 @@ def _check_workflows(errors: list[str]) -> None:
 
 def _check_model_core(errors: list[str]) -> None:
     model_file = _text("src/minidora/模型.py")
-    for required in ("class 言語状態", "class 言語対応", "class 文脈付き言語状態", "class 成立差", "class MINIDORA模型核", "勝手に一候補へ確定しない"):
+    for required in (
+        "class 言語状態", "class 言語対応", "class 文脈付き言語状態", "class 成立差",
+        "class MINIDORA模型核", "正の成立差が一意", "class 有向関係整合", "class 肯否整合関係",
+        "class 履歴近接関係", "class 条件結合関係",
+    ):
         if required not in model_file:
             errors.append(f"模型.py: v0.4模型核必須境界欠落: {required}")
     for forbidden in ("from .hds_", "from .layer0", "import torch", "import transformers"):
         if forbidden in model_file:
             errors.append(f"模型.py: 模型核独立性に反する依存: {forbidden}")
+    language_structure = _text("src/minidora/言語構造.py")
+    if "hds_" in language_structure.casefold():
+        errors.append("言語構造.py: LLM模型核へHDS依存を逆流させている")
     if Layer0 is not 計算実行器:
         errors.append("Layer0旧名が計算実行器互換aliasではない")
     if not isinstance(MINIDORA模型核(), MINIDORA模型核):
@@ -199,6 +207,7 @@ def main() -> int:
     print(f"LLM_CONSTITUTIVE_SPEC_COMMIT={LLM成立規定参照コミット}")
     print(f"BASE_LANGUAGE={EXPECTED_BASE_LANGUAGE}")
     print("MODEL_CORE=PASS")
+    print("MODEL_RELATION_DOMAIN=STRUCTURED")
     print("LEGACY_LAYER0_ROLE=COMPUTE_EXECUTOR")
     print("HDS_IR_ROLE=SEMANTIC_OPERATIONAL_OUTER")
     print(f"HDS_ARCHITECTURE={EXPECTED_HDS_ARCHITECTURE}")
