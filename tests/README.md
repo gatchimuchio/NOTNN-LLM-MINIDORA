@@ -9,33 +9,30 @@
 | Test | 主な対象 |
 |---|---|
 | `test_模型.py` | 文脈差→成立差、関係再利用、根拠なし停止、プログラム言語体系、Runtime模型核入口 |
-| `test_計算IR_ABI.py` | P→計算中間表現降下、型付き状態参照、ABI決定論、旧P互換、HDS降下、未確定停止 |
+| `test_計算IR_ABI.py` | P→計算中間表現降下、型付き状態参照、実行境界決定論、旧P互換、未確定停止 |
+| `test_hds_compiler_pipeline_v1_3.py` | Architecture v1.2維持、Pipeline v1.3、意味IR/P分離、自然言語再解析なし計算降下、Legacy互換、独立Data意味入口 |
 | `test_layer0.py` | 旧Layer0名が計算実行器互換aliasであること、汎用命令作用の回帰 |
 
-## 既存回帰
+## Pipeline v1.3必須negative control
 
-| Test | 主な対象 |
-|---|---|
-| `test_hds_ir_gate.py` | HDS-IR局所閉包、未確定入力・座標欠落negative control |
-| `test_hds_adapter.py` | HDS Compiler接続、時間文脈、意味確定Data競合 |
-| `test_hds_data_k.py` | Data HDS-IRからK構造Factへの接続 |
-| `test_k3_hds_native.py` | HDS-IRネイティブK3経路、根拠なし・同率時の保留 |
-| `test_k3_equivalence.py` | K3公開構造に対する機能相当評価 |
-| `test_runtime.py` | R、採否、矛盾・境界違反、結果形成 |
-| `test_subject_trunk.py` | 主体状態持続、理由なし反転、主体主幹迂回防止 |
-| `test_multilingual_trinity.py` | 多言語HDS運用文脈、互換Compiler |
-| `test_natural_language.py` | HDS Compiler未接続時のLegacy自然言語入口 |
-| `test_reference.py` | 固定・複合参照供給器 |
-| `test_cli.py` | module / JSON CLI、UTF-8標準入出力境界 |
+- 意味IRへPを混入しない。
+- 意味IRへ計算初期状態を混入しない。
+- 計算降下時に自然言語を再解析しない。
+- 独立Data/候補の意味IRへPを混入しない。
+- 旧 `コンパイル()` の互換IRを意味正本として扱わない。
 
 ## 計算中間表現の必須negative control
 
-- `$`文字列がABIへ残らない。
+- `$`文字列が計算実行境界へ残らない。
 - 状態値と状態住所を同一視しない。
 - 交換以外へ状態住所を渡すと失敗する。
 - 未確定HDS入力を計算中間表現へ昇格しない。
 - 同一IR+初期状態で同一結果になる。
 - 旧P入口も計算中間表現を迂回しない。
+
+## 既存回帰
+
+HDS-IR Gate、外部参照、K/J、K3相当、主体主幹、多言語文脈、CLI等の既存試験を継続する。
 
 ## 実行
 
@@ -50,8 +47,7 @@ CIでは上記に加え、リポジトリ整合性監査、構文確認、module
 ```text
 局所test PASS
 != 大規模性の測定完了
-!= HDS Compiler再設計完了
 != 製品・最終完成
 ```
 
-v0.3プロトタイプ完成の固定判定は `../評価/PROTOTYPE_COMPLETION_2026-08-22.md` を参照する。現行模型核の大規模性は別評価として追加する。
+HDS Compiler Pipeline v1.3の責任分離は受入済み。現行模型核の大規模性は別評価として測定する。

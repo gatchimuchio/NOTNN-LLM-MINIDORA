@@ -12,10 +12,11 @@
 
 正本:
 
-- [`MINIDORA_v0_4_REBUILD_ACCEPTANCE_2026-08-26.md`](MINIDORA_v0_4_REBUILD_ACCEPTANCE_2026-08-26.md) — 模型核・計算実行器分離、HDS境界、全CI行列、受入結果。
-- [`計算中間表現_実行境界_v1_受入_2026-08-26.md`](計算中間表現_実行境界_v1_受入_2026-08-26.md) — Compute IR / ABIに相当する計算中間表現・計算実行境界v1の型境界、全CI行列、受入結果。
+- [`MINIDORA_v0_4_REBUILD_ACCEPTANCE_2026-08-26.md`](MINIDORA_v0_4_REBUILD_ACCEPTANCE_2026-08-26.md) — 模型核・計算実行器分離、HDS境界、全CI行列。
+- [`計算中間表現_実行境界_v1_受入_2026-08-26.md`](計算中間表現_実行境界_v1_受入_2026-08-26.md) — 計算中間表現・計算実行境界v1の受入。
+- [`HDS_Compiler_Pipeline_v1_3_受入_2026-08-26.md`](HDS_Compiler_Pipeline_v1_3_受入_2026-08-26.md) — 意味IRと計算計画/計算降下の責任分離受入。
 
-受入で確認した模型中核:
+### 現行模型中核
 
 ```text
 対象言語状態
@@ -27,7 +28,7 @@
 
 旧 `Layer0` 命令器は **計算実行器** へ再分類した。
 
-計算実行経路は次へ更新した。
+### 計算経路
 
 ```text
 日本語命令形P
@@ -49,41 +50,65 @@
 - 代表job: **336 tests / OK**
 - 新規Compute IR / ABI試験: **7 / 7 PASS**
 - K3相当構造: **47 / 47 PASS**
+
+### HDS Compiler Pipeline v1.3
+
+```text
+自然言語
+↓
+意味コンパイル
+↓
+意味HDS-IR
+├─ R / K / J / 監査
+└─ 計算計画
+   ↓
+ 計算降下
+   ↓
+ 計算中間表現 v1
+```
+
+Pipeline受入CI:
+
+- workflow run id: `32890261690`
+- validated head: `29fe0bbca28310a23c23ef22c5533814d9fd06c3`
+- Ubuntu / Windows × Python 3.11–3.14: **全8 job PASS**
+- 代表job: **345 tests / OK**
+- Pipeline v1.3試験: **9 / 9 PASS**
+- K3相当構造: **47 / 47 PASS**
 - CLI: `5です。`
 
-ただし、v0.4の大規模性は**再測定要**である。
+### 未完了関門
+
+v0.4の大規模性は**再測定要**である。
 
 ```text
 v0.4構造受入PASS
 +
 計算中間表現/実行境界v1受入PASS
++
+HDS Compiler Pipeline v1.3受入PASS
 != v0.4大規模性測定完了
-!= HDS Compiler再設計完了
 != 製品・最終完成
 ```
 
-次段はHDS Compilerを **意味フロントエンド / 計算降下バックエンド** に分割し、`HDSIR.手順` を意味IRの恒久責任から外す。
+次段は上流規定に従い、対象言語体系・対象範囲・比較集合・状態域規模・関係域規模・共有適用規模・物理規模値・総合判断理由を明示して測定する。
 
-### v0.3プロトタイプ履歴
+## v0.3プロトタイプ履歴
 
 2026-08-22時点で、旧v0.3系MINIDORAは **PROTOTYPE COMPLETE** と判定されている。
 
-これは非ニューラル／非Transformer経路が閉じ、外部未知ベンチで非ゼロの正答能力を実測した**プロトタイプ段階の完成**を意味する。製品版・最終完成やK3級性能の達成を意味しない。
+これは非ニューラル／非Transformer経路が閉じ、外部未知ベンチで非ゼロの正答能力を実測したプロトタイプ段階の完成を意味する。製品版・最終完成やK3級性能を意味しない。
 
 正本:
 
-- [`PROTOTYPE_COMPLETION_2026-08-22.md`](PROTOTYPE_COMPLETION_2026-08-22.md) — 完成判定、成立条件、解釈境界。
-- [`GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json`](GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json) — 機械可読な固定baseline。
+- [`PROTOTYPE_COMPLETION_2026-08-22.md`](PROTOTYPE_COMPLETION_2026-08-22.md)
+- [`GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json`](GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json)
 
-このbaselineは履歴固定値であり、将来の改善値で上書きしない。またv0.4模型核の大規模性へ自動転用しない。
-
-`2026-08-20/`、`2026-08-21/` 等の日付ディレクトリは、完成前を含む診断・比較・回帰履歴として保持する。
+このbaselineは履歴固定値であり、現行v0.4模型核の大規模性へ自動転用しない。
 
 ## GPQA Diamond 性能変遷
 
-GPQA関連の時系列索引は [`GPQA_Diamond_PROGRESS_2026-08-23.md`](GPQA_Diamond_PROGRESS_2026-08-23.md) を正本とする。
-
-現在記録されている変遷:
+時系列索引は [`GPQA_Diamond_PROGRESS_2026-08-23.md`](GPQA_Diamond_PROGRESS_2026-08-23.md) を正本とする。
 
 | 時点 | 区分 | 正答 | 正答率 | 扱い |
 |---|---|---:|---:|---|
@@ -92,27 +117,7 @@ GPQA関連の時系列索引は [`GPQA_Diamond_PROGRESS_2026-08-23.md`](GPQA_Dia
 | 2026-08-22 | v0.5開発途中 | 17 / 198 | 8.5859% | 途中参照値 |
 | 2026-08-23 | v0.6系workflow実測 | 31 / 198 | 15.6566% | 完走実測 |
 
-v0.6系実測:
-
-- [`GPQA_Diamond_V0_6_MEASUREMENT_2026-08-23.summary.json`](GPQA_Diamond_V0_6_MEASUREMENT_2026-08-23.summary.json)
-- GitHub Actions artifact `9486518870`
-- workflow run id `32582547752` / job id `97131890431`
-- v0.6 head `28d25cd57728b3765c8d0586e970410736d33eef`
-
 これらは過去の運用経路に対する履歴実測であり、再構成後v0.4模型核の規模・性能測定とは別記録とする。
-
-過去作業ログ:
-
-- [`PERFORMANCE_V0_5_WORKLOG_2026-08-22.md`](PERFORMANCE_V0_5_WORKLOG_2026-08-22.md)
-- [`PERFORMANCE_V0_6_WORKLOG_2026-08-23.md`](PERFORMANCE_V0_6_WORKLOG_2026-08-23.md)
-
-異なるCompiler/configuration間の値は**開発変遷**として記録し、統制された同条件比較とは称さない。
-
-## 標準評価状態
-
-製品統合経路の標準状態は外部参照Rを有効にしたMINIDORAである。
-
-一方、LLM模型核の成立監査では外部参照Rを切った単体試験も必要である。評価目的を明示して混同しない。
 
 ## 評価軸
 
@@ -131,9 +136,6 @@ v0.6系実測:
 - 主体的一貫性
 - 理由付き自己訂正
 - latency / memory / cost
-- 日本語命令と英語互換表現の記号量
-
-K3等との比較は同一prompt / dataset / judge / tool条件で行う。
 
 ## 状態の区別
 
@@ -141,10 +143,10 @@ K3等との比較は同一prompt / dataset / judge / tool条件で行う。
 PROTOTYPE COMPLETE(v0.3)
 != v0.4構造受入PASS
 != 計算中間表現/実行境界v1受入PASS
+!= HDS Compiler Pipeline v1.3受入PASS
 != v0.4大規模性測定完了
 != 製品・最終完成
 != K3級性能
-!= 将来スケーリング上限の確定
 ```
 
 製品・最終完成の関門は [`../設計/05_完成判定関門.md`](../設計/05_完成判定関門.md) を参照する。

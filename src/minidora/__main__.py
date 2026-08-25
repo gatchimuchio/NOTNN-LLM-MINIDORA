@@ -33,13 +33,13 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _標準ミニドラ() -> ミニドラ:
-    """既存公開HDS Compilerを運用外周として接続した標準CLI Runtimeを返す。"""
     return ミニドラ(HDSコンパイラ_=公開HDSコンパイラ())
 
 
 def _run_once(body: ミニドラ, query: str, *, json_mode: bool) -> None:
     if json_mode:
         result = body.実行(要求(query))
+        compiler = body.HDSコンパイラ
         payload = {
             "query": query,
             "value": result.値,
@@ -49,7 +49,8 @@ def _run_once(body: ミニドラ, query: str, *, json_mode: bool) -> None:
             "reference_count": len(result.参照),
             "hds_ir": result.HDS_IR is not None,
             "compiler": "公開HDSコンパイラ",
-            "compiler_architecture": "v1.2",
+            "compiler_architecture": getattr(compiler, "Architecture版", None),
+            "compiler_pipeline": getattr(compiler, "Pipeline版", None),
             "runtime": "MINIDORA v0.4",
             "model_core": "MINIDORA模型核",
         }

@@ -32,6 +32,22 @@ LLM模型中核:
 計算実行器
 ```
 
+HDS Compiler Pipeline:
+
+```text
+自然言語
+  ↓
+意味コンパイル
+  ↓
+意味HDS-IR（計算P非内包）
+  ├─ R / K / J / 監査
+  └─ 計算計画
+        ↓
+      計算降下
+        ↓
+      計算中間表現 v1
+```
+
 外部技術語でいう `Compute IR / ABI` に相当する境界は、日本語正本では **計算中間表現 / 計算実行境界** と呼ぶ。
 
 ## 重要な責任分離
@@ -62,36 +78,25 @@ HDS-IRは意味Projection・運用入力・監査履歴である。計算中間�
 主な境界:
 
 - 旧Pの `$a` のような文字列参照は、降下時に型付き `状態値("a")` へ変換する。
-- ABIは `$`、自然言語、HDS語彙を解釈しない。
+- 計算実行境界は `$`、自然言語、HDS語彙を解釈しない。
 - `即値` / `状態値` / `状態住所` を型で分離する。
 - 未確定HDS入力は計算中間表現へ昇格しない。
 - 同一の計算中間表現と初期状態から同一結果を返す。
 
 設計正本: [`設計/25_計算中間表現_実行境界_v1.md`](設計/25_計算中間表現_実行境界_v1.md)
 
-## HDS境界
+## HDS Compiler Pipeline v1.3
 
-現行公開HDS Compilerは引き続き公開Runtime資産として保持する。
+Meaning/Audit Architectureは `v1.2` を維持し、Pipelineを `v1.3` とする。
 
-現在の `HDS計算降下` は、現行HDS-IRに残る閉包済み互換 `手順` を計算中間表現へ移す移行用境界である。
+- `意味コンパイル()` が意味正本入口。
+- 意味HDS-IRは `手順=None`、計算初期状態を内包しない。
+- `コンパイル束()` は意味IRと計算計画を別フィールドで保持する。
+- `計算降下()` は形成済み束のみを受け、自然言語を再解析しない。
+- 旧 `コンパイル()` は既存Runtime向け互換窓口で、最外周でのみPを再付与する。
+- 独立Data/候補のコンパイルは意味入口を優先し、Pを混入しない。
 
-次段ではHDS Compilerを次へ再設計する。
-
-```text
-自然言語
- ↓
-HDS semantic frontend
- ↓
-意味HDS-IR
- ↓
-compute lowering backend
- ↓
-計算中間表現
- ↓
-計算実行境界
-```
-
-この再設計では、`HDSIR.手順` をsemantic IRの恒久責任から外す。
+設計正本: [`設計/26_HDS_Compiler_Pipeline_v1_3.md`](設計/26_HDS_Compiler_Pipeline_v1_3.md)
 
 ## 旧成果の扱い
 
@@ -101,11 +106,13 @@ compute lowering backend
 
 ### v0.4大規模性
 
-**再測定要**。現行v0.4の大規模性は次の3観測面で別途再測定する。
+**再測定要**。現行v0.4の大規模性は上流規定に従い、次の3観測面で別途測定する。
 
 - 状態域規模
 - 関係域規模
 - 共有適用規模
+
+比較集合・対象言語体系・物理規模値も同時に明示し、一点閾値で判定しない。
 
 ## 試験
 
@@ -113,16 +120,7 @@ compute lowering backend
 python -m unittest discover -s tests -v
 ```
 
-CIはUbuntu / Windows × Python 3.11–3.14で、
-
-- package install
-- repository consistency audit
-- compileall
-- unit tests
-- module CLI smoke
-- console script smoke
-
-を確認する。
+CIはUbuntu / Windows × Python 3.11–3.14で、package install、repository consistency audit、compileall、unit tests、module CLI smoke、console script smokeを確認する。
 
 ## 文書入口
 

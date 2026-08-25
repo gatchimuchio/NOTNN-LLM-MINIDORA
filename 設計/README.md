@@ -8,18 +8,19 @@
 
 1. [`02_大規模言語模型成立契約.md`](02_大規模言語模型成立契約.md) — 上位LLM成立規定をMINIDORA v0.4へ写像する。
 2. [`03_日本語命令形P仕様.md`](03_日本語命令形P仕様.md) — 計算実行器へ渡す日本語命令形PとDataの分離。
-3. [`25_計算中間表現_実行境界_v1.md`](25_計算中間表現_実行境界_v1.md) — Compute IR / ABIに相当する計算専用境界。日本語正本名は計算中間表現 / 計算実行境界。
-4. [`13_共有言語基底P仕様.md`](13_共有言語基底P仕様.md) — HDS Compiler / 言語対応が共有する日本語基底資産。
-5. [`14_英日意味コンパイル仕様_v0_3.md`](14_英日意味コンパイル仕様_v0_3.md) — 外部英語表層の意味射影境界。
-6. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — 外部Data参照。
-7. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — HDS-IRを模型中核・計算中間表現と分離した意味/運用境界。
-8. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — 公開Compilerの責任・非責任。
-9. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md)
-10. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md)
-11. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md)
-12. [`06_主体主幹仕様.md`](06_主体主幹仕様.md) — turnを跨ぐ主体状態と主体整合Gate。
-13. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md) — 既存多言語運用・文脈循環。
-14. [`05_完成判定関門.md`](05_完成判定関門.md) — 製品・最終完成条件。
+3. [`25_計算中間表現_実行境界_v1.md`](25_計算中間表現_実行境界_v1.md) — Compute IR / ABIに相当する計算専用境界。
+4. [`26_HDS_Compiler_Pipeline_v1_3.md`](26_HDS_Compiler_Pipeline_v1_3.md) — 意味HDS-IRと計算計画・計算降下を分離する現行Compiler Pipeline。
+5. [`13_共有言語基底P仕様.md`](13_共有言語基底P仕様.md) — HDS Compiler / 言語対応が共有する日本語基底資産。
+6. [`14_英日意味コンパイル仕様_v0_3.md`](14_英日意味コンパイル仕様_v0_3.md) — 外部英語表層の意味射影境界。
+7. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — 外部Data参照。
+8. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — HDS-IRを模型中核・計算中間表現と分離した意味/運用境界。
+9. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — 公開Compilerの責任・非責任。
+10. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md)
+11. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md)
+12. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md)
+13. [`06_主体主幹仕様.md`](06_主体主幹仕様.md)
+14. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md)
+15. [`05_完成判定関門.md`](05_完成判定関門.md)
 
 番号は成立履歴を保持するため整理目的だけで振り直さない。
 
@@ -51,7 +52,9 @@ LLM模型中核:
 
 ```text
 日本語命令形P
-      ↓ 命令計算降下
+      ↓
+命令計算降下
+      ↓
 計算中間表現 v1
       ↓
 計算実行境界 v1
@@ -59,29 +62,35 @@ LLM模型中核:
 計算実行器
 ```
 
-意味・運用経路:
+HDS Compiler Pipeline:
 
 ```text
-HDS意味Projection / 外部参照 / 候補生成
-              ↓
-           模型中核
-              ↓
-主体整合 / 採否 / 生成運用 / 表面化
+自然言語
+  ↓
+意味コンパイル
+  ↓
+意味HDS-IR
+  ├─ R / K / J / 監査
+  └─ 計算計画
+       ↓
+     計算降下
+       ↓
+     計算中間表現 v1
 ```
 
 旧 `Layer0` 命令器は **計算実行器** の互換名であり、模型中核ではない。
 
 ## HDS公開境界
 
-- 公開HDS Compilerは引き続き公開Runtime資産として保持する。
-- HDS-IRは意味Projection・運用接続・監査履歴であり、LLM模型中核や計算中間表現と同一視しない。
-- 現行 `HDS計算降下` は、閉包済み互換 `HDSIR.手順` を計算中間表現へ移す移行境界である。
-- 次段でHDS Compilerをsemantic frontend / compute lowering backendへ分離し、`HDSIR.手順`を意味IRの正本責任から外す。
+- 公開HDS Compilerは公開Runtime資産として保持する。
+- Meaning/Audit Architectureは `v1.2`、意味/計算責任を分離するPipelineは `v1.3`。
+- `意味コンパイル()` が意味正本入口で、意味IRへPや計算初期状態を入れない。
+- `コンパイル束()` は意味IRと計算計画を別保持する。
+- `計算降下()` は形成済み計算計画から計算中間表現へ降下し、自然言語を再解析しない。
+- 旧 `コンパイル()` は互換窓口に限定する。
 - HDS本体の上流理論・非公開解析正本を公開Compilerへ無断転記しない。
 
 ## 状態語
-
-設計・Runtimeの採否では原則として次を使う。
 
 - `合格` / `PASS`
 - `保留` / `SUSPEND`
@@ -96,6 +105,8 @@ HDS意味Projection / 外部参照 / 候補生成
 - 模型核と計算実行器を再び同一視しない。
 - HDS-IRと計算中間表現を無言で同一視しない。
 - Pと計算中間表現を無言で同一視しない。
+- 意味HDS-IRへ計算Pを戻さない。
+- 計算降下で自然言語を再解析しない。
 - 計算実行境界へ自然言語/HDS意味解析を戻さない。
 - PへDataを埋め込まない。
 - 共有言語基底へ百科事典的世界知識を混入しない。

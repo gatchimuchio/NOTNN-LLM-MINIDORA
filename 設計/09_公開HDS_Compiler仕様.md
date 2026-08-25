@@ -1,12 +1,15 @@
-# 公開HDS Compiler仕様 v0.2
+# 公開HDS Compiler仕様
 
 ## 1. 位置づけ
 
-`src/minidora/hds_compiler_v1.py` をMINIDORAの公開標準HDS Compiler正本とする。`src/minidora/hds_compiler.py` は既存の基礎意味Projection互換層として保持する。
+`src/minidora/hds_compiler_v1.py` をMINIDORAの公開標準HDS Compiler正本とする。`src/minidora/hds_compiler.py` は基礎意味Projection互換層として保持する。
 
-このCompilerはフル公開対象である。性能改善、試験、第三者監査、派生実装を許容する。
+公開Compilerはフル公開対象である。ただし公開対象は **自然言語→HDS意味IRの有限Projection、公開Failure Signature再利用契約、計算降下境界** であり、HDS本体の上流理論・導出規則・非公開解析正本ではない。
 
-ただし公開対象は **自然言語→HDS-IRの有限Projection実装と、その公開Failure Signature再利用契約** であり、HDS本体の上流理論・導出規則・非公開解析正本ではない。
+現行版は次の二軸で管理する。
+
+- Meaning/Audit Architecture: `v1.2`
+- Pipeline: `v1.3`
 
 ## 2. 言語
 
@@ -15,9 +18,9 @@
 - 多言語: 外部API、規格、データ、ベンチマーク、互換性、原文照合など実務上必要な表層のみ
 - 外部表層語は検索・出典追跡に必要な範囲で原言語保持
 
-## 3. Compiler責任
+## 3. 意味Compiler責任
 
-入力から観測できる範囲で次をHDS-IRまたは公開Front-End成果へ射影する。
+入力から観測できる範囲で次を意味HDS-IRまたは公開Front-End成果へ射影する。
 
 1. 原文 / 正規化文
 2. 入力言語
@@ -40,20 +43,48 @@
 
 未知情報を補完して確定しない。
 
-Architecture履歴は以下へ保持する。
+## 4. Pipeline v1.3
+
+`意味コンパイル()` を意味正本入口とする。
+
+```text
+自然言語
+↓
+意味コンパイル
+↓
+意味HDS-IR（P非内包）
+├─ R / K / J / 監査
+└─ 計算計画
+   ↓
+ 計算降下
+   ↓
+ 計算中間表現 v1
+```
+
+- 意味IRへ `手順` と計算初期状態を入れない。
+- `コンパイル束()` で意味IRと計算計画を別保持する。
+- `計算降下()` は形成済み束を受け、自然言語を再解析しない。
+- 旧 `コンパイル()` は既存Runtime向け互換橋に限定し、最外周でのみPを再付与する。
+- 独立Data / 候補コンパイルは意味入口を優先しPを混入しない。
+
+詳細は [`26_HDS_Compiler_Pipeline_v1_3.md`](26_HDS_Compiler_Pipeline_v1_3.md) を正本とする。
+
+## 5. Architecture履歴
 
 - v1: [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md)
 - v1.1: [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md)
-- 現行v1.2: [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md)
+- 現行Meaning/Audit v1.2: [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md)
 
-## 4. R性能との関係
+Pipeline v1.3はv1.2意味・監査能力を置き換えず、責任境界だけを更新する。
+
+## 6. R性能との関係
 
 MINIDORAではRの検索品質をCompiler出力の品質から切り離さない。
 
 ```text
 入力
 ↓
-公開HDS Compiler
+意味HDS-IR
 ↓
 検索焦点・対象・関係・状態・条件
 ↓
@@ -61,89 +92,53 @@ R query
 ↓
 Data取得
 ↓
-同じ公開HDS Compiler
+独立意味コンパイル
 ↓
 Data HDS-IR
 ↓
 K / J
 ```
 
-性能改善では、検索件数を闇雲に増やす前にCompilerの役割分別・関係方向・条件・不足情報の純度を上げる。
+検索件数を増やす前に役割分別・関係方向・条件・不足情報の純度を上げる。
 
-v1.1以降の監査R probeはprimary queryへ常時混入させず、主検索不足時のfallbackに限定する。
+## 7. 選択問題
 
-## 5. 選択問題
+- 全候補を対称にHDS-IRへ保持する。
+- 正解ラベルをCompilerへ渡さない。
+- ベンチ固有規則をCompilerへ追加しない。
+- 否定・例外・least/most等の選択意図を検索前に保持する。
+- 候補内容はDataでありPへ埋め込まない。
 
-選択問題では次を必須とする。
+## 8. 関係・数量・残差
 
-- 全候補を対称にHDS-IRへ保持する
-- 正解ラベルをCompilerへ渡さない
-- ベンチ固有規則をCompilerへ追加しない
-- 否定・例外・least/most等の選択意図を検索前に保持する
-- 候補内容はDataでありPへ埋め込まない
+`A causes B` と `B causes A` を同一視しない。受動表現でも意味方向が確定できる場合は同一の有向関係へ正規化する。
 
-## 6. 関係方向
+数量と単位を独立座標へ分離し、比較記号・符号・分数・科学記数法を落とさない。
 
-`A causes B` と `B causes A` を同一視しない。
-
-受動表現など表層順序が逆でも、意味方向が確定できる場合は同一の有向HDS関係へ正規化する。
-
-比較記号・矢印・因果・増減・阻害・活性化・要求・包含等は方向を保持する。
-
-## 7. 数量
-
-数量と単位を独立座標へ分離し、`数量単位` 関係で接続する。
-
-科学記数法、符号、分数、比較演算子等を表層雑音として落とさない。
-
-## 8. 残差
-
-次を推測で閉じない。
-
-- 参照先不明の指示語
-- 意味同一性未確定
-- 未観測値
-- 矛盾
-- 条件不足
-- 状態遷移端点未固定
-- 有限Projectionによる意味損失
-
-実行を阻害しない未分別情報は残差として保持し、必要に応じて次turnやRで再開放する。
+参照先不明、意味同一性未確定、未観測値、矛盾、条件不足、状態遷移端点未固定、有限Projectionによる意味損失は推測で閉じない。
 
 ## 9. Failure Signature帰還
 
-Failure Signature Bankはglobal暗黙状態にしない。
+Failure Signature Bankはglobal暗黙状態にしない。通常の意味コンパイルはBankを参照せず決定論的である。蓄積時だけ呼出側が明示BankとRun参照を渡す。
 
-通常の `コンパイル()` / `詳細コンパイル()` はBankを参照せず決定論的である。Failure Signatureを蓄積する場合だけ、呼出側が明示BankとRun参照を渡す。
+改善候補は自動適用しない。反復確認、既存正例・負例・境界例への回帰、権限を持つ上位判断主体の採否を要求する。
 
-同一Runの重複観測を二重計上しない。独立Runで同一構造原因が反復した場合にのみSignatureをACTIVEへ昇格できる。
-
-共通起動条件と局所起動条件を分離し、原症状・局所条件・由来候補ID・Run履歴を削除しない。
-
-## 10. 改善候補
-
-ACTIVE Failure Signatureから公開Compilerの改善候補を生成できる。
-
-候補対象は、座標生成規則、作用素集合、保持構造、Domain Adapter、Identity Lock、Framework Projection、Checklist等とする。
-
-改善候補は自動適用しない。反復確認、既存正例・負例・境界例への回帰、HDS本体または権限を持つ上位判断主体の採否を要求する。
-
-## 11. 非責任
+## 10. 非責任
 
 公開Compilerは以下を主張しない。
 
 - HDS本体そのもの
 - HDSの全理論の完全実装
 - HDS本体の最終Gate判定アルゴリズム
-- PrincipleStateの最終昇格規則
 - Failure Signature改善候補の自動採用
 - Compiler自身の自動自己改変
 - 全自然言語の完全解析
 - 全言語への対応
 - ベンチ正答を知ること
 - 外部Dataなしで未知事実を生成すること
+- 意味HDS-IRと計算Pの同一性
 
-## 12. 改善優先順位
+## 11. 改善優先順位
 
 1. 検索焦点 / 不足情報
 2. 対象・作用・対象先の分離
@@ -157,9 +152,3 @@ ACTIVE Failure Signatureから公開Compilerの改善候補を生成できる。
 10. K/Jへ到達する独立証拠率
 11. Failure Signature反復から得られる抽出規則改善候補
 12. 回帰確認済み改善候補の選択的採用
-
-## 13. 不足スロット
-
-関係構造が高信頼に確定でき、始点または終点だけが疑問語で未観測の場合、疑問語を実体として確定しない。未知端点を `未観測` として保持し、既知端点・関係種別・検索述語・条件と結び付ける。
-
-選択問題のR queryでは各候補を未観測端点へ差し込み、関係方向と条件を保持した候補別queryを生成する。関係構造を一意に決められない疑問文では不足スロットを推測生成せず、従来の焦点・構造queryへ縮退する。

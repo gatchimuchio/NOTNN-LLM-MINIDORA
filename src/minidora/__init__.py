@@ -31,13 +31,7 @@ from .計算実行境界 import 計算実行境界版, 計算実行境界, 標�
 from .命令計算降下 import 命令計算降下
 from .HDS計算降下 import HDS計算降下
 from .計算実行器 import 計算実行器, 実行文脈
-from .layer0 import (
-    Layer0,
-    LAYER0正本リポジトリ,
-    LAYER0参照コミット,
-    LAYER0仕様版,
-    LAYER0機能責任,
-)
+from .layer0 import Layer0, LAYER0正本リポジトリ, LAYER0参照コミット, LAYER0仕様版, LAYER0機能責任
 from .主体 import 主体主幹, 主体状態, 主体更新提案, 主体整合結果, 主体更新記録
 from .参照 import 参照供給器, 参照記録, 固定参照供給器, 複合参照供給器, 参照矛盾数
 from .http_reference import OpenAlex参照供給器, Wikipedia参照供給器
@@ -48,7 +42,13 @@ from .命令 import 作用, 命令, 手順
 from .採否 import 実行状態, 採否結果, 採否
 from .hds_ir import 値状態, HDS座標, HDS関係, HDS残差, HDS意味作用, HDS実行核, HDSIR
 from .hds_adapter import HDS文脈, HDSコンパイラProtocol, HDS独立コンパイル
-from .hds_compiler_v1 import 公開HDSコンパイラ方針, 公開HDSコンパイラ
+from .hds_compiler_v1 import 公開HDSコンパイラ方針, 公開HDSコンパイラ, HDSコンパイル束, HDS計算コンパイル成果
+from .hds_compiler_pipeline_v1_3 import (
+    HDSコンパイラパイプライン版,
+    HDS意味専用計画器,
+    HDS意味IR化,
+    HDS計算降下バックエンド,
+)
 from .hds_compiler_failure_bank import HDS失敗署名Bank
 from .hds_compiler_records import (
     HDS監査状態,
@@ -103,10 +103,10 @@ __all__ = [
     "主体主幹", "主体状態", "主体更新提案", "主体整合結果", "主体更新記録",
     "参照供給器", "参照記録", "固定参照供給器", "複合参照供給器", "参照矛盾数",
     "OpenAlex参照供給器", "Wikipedia参照供給器", "EuropePMC参照供給器", "Crossref参照供給器", "一般知識参照供給器",
-    "作用", "命令", "手順",
-    "実行状態", "採否結果", "採否",
+    "作用", "命令", "手順", "実行状態", "採否結果", "採否",
     "値状態", "HDS座標", "HDS関係", "HDS残差", "HDS意味作用", "HDS実行核", "HDSIR",
     "HDS文脈", "HDSコンパイラProtocol", "HDS独立コンパイル", "公開HDSコンパイラ方針", "公開HDSコンパイラ",
+    "HDSコンパイル束", "HDS計算コンパイル成果", "HDSコンパイラパイプライン版", "HDS意味専用計画器", "HDS意味IR化", "HDS計算降下バックエンド",
     "HDS監査状態", "HDS原理段階", "HDS認知世界断片", "HDS監査項目", "HDS監査要求", "HDS原理探索要求", "HDS保持契約", "HDSCompiler成果",
     "HDS失敗署名状態", "HDS状態ノード", "HDS遷移辺", "HDS状態遷移図", "HDS暗黙知記録", "HDS失敗署名候補", "HDSチェックリスト項目", "HDS認知世界差分", "HDS監査参照候補",
     "HDS改善対象", "HDS失敗観測", "HDS失敗署名記録", "HDS抽出規則改善候補", "HDS失敗署名BankSnapshot", "HDS失敗署名Bank",
@@ -114,11 +114,9 @@ __all__ = [
     "HDS選択実行結果", "HDS選択問題", "HDS選択推論実行",
     "HDS知識投入結果", "HDSIR知識Adapter", "HDS証拠事実", "HDS証拠状態複製",
     "HDS探索方針", "HDS努力水準", "HDS探索方針選択",
-    "HDS参照予算", "HDS参照予算選択", "HDS参照問合せ候補", "HDS参照検索",
-    "HDSIR辞書化", "HDSIR復元",
+    "HDS参照予算", "HDS参照予算選択", "HDS参照問合せ候補", "HDS参照検索", "HDSIR辞書化", "HDSIR復元",
     "Trinity記憶監査", "記憶主体", "HDS判断主体", "Trinity文脈系",
     "K3相当能力核", "K3能力結果", "HDS候補診断", "HDSK3結果", "HDSIRネイティブAdapter", "run_k3_equivalence_benchmark",
-    "自然言語器", "言語計画",
-    "言語基底版", "文字知識", "語彙知識", "言語基底P", "標準言語基底P",
+    "自然言語器", "言語計画", "言語基底版", "文字知識", "語彙知識", "言語基底P", "標準言語基底P",
     "ミニドラ", "要求", "結果",
 ]
