@@ -17,6 +17,7 @@ from .hds作業状態 import (
     HDS候補共同状態更新,
     HDS寄与Gate再照合,
 )
+from .hds局所再照合 import HDS局所Window候補
 from .k3_functional import K3相当能力核, SemanticFrame
 from .k3_hds_native import HDSK3結果, HDSIRネイティブAdapter
 from .参照 import 参照記録
@@ -53,6 +54,11 @@ class HDS選択実行結果:
     専門作用起動数: int = 0
     遍歴後SUSPEND数: int = 0
     一時証拠数: int = 0
+    局所Window数: int = 0
+    局所Windowコンパイル数: int = 0
+    局所Windowコンパイル失敗数: int = 0
+    局所Window追加事実数: int = 0
+    局所再照合数: int = 0
 
 
 def HDS選択問題(ir: HDSIR) -> bool:
@@ -186,7 +192,6 @@ def _検証候補群(
     full_candidates: dict[str, HDSIR],
     k_candidates: dict[str, HDSIR],
 ) -> dict[str, HDSIR]:
-    """完全IRで実体/命題を判定し、K射影済み実体句だけを未知端点へ代入する。"""
     substitutable = {
         label: k_candidates[label]
         for label, full_ir in full_candidates.items()
@@ -217,7 +222,6 @@ def _候補強度(result: HDSK3結果) -> tuple[int, int, float, int, float]:
 
 
 def _再作用結果選択(initial: HDSK3結果, rechecked: HDSK3結果) -> HDSK3結果:
-    """一時作業証拠は明確な初回判断を無条件に上書きしない。"""
     if "DIRECTED_RELATION_VERIFIED" in initial.理由:
         return initial
     if rechecked.状態 != "APPROVE" or rechecked.回答ラベル is None:
@@ -239,6 +243,9 @@ def HDS選択推論実行(
     基礎能力核: K3相当能力核,
     努力: str | None = None,
     最大コンパイル並列: int = 4,
+    作業再作用: bool = True,
+    局所再照合: bool = True,
+    最大局所Window数: int = 12,
 ) -> HDS選択実行結果:
     choices = _choices(question_ir)
     if len(choices) < 2:
@@ -268,9 +275,6 @@ def HDS選択推論実行(
             return _suspend("HDS_CHOICE_SEMANTIC_LOSS", candidate_count=len(candidate_irs) + 1, parallel=parallel_safe, workers=worker_count)
         candidate_irs[label] = compiled
 
-    # Kへ入る質問・候補表現を最初に確定する。
-    # 実体候補は問いの未知端点へ代入して候補ごとの有向比較構造を閉じ、
-    # baseline照合と直接検証の双方へ同じ候補IRを渡す。
     k_question_ir = HDSK質問射影(question_ir)
     k_candidate_irs = {label: HDSK候補射影(candidate_ir) for label, candidate_ir in candidate_irs.items()}
     verification_candidate_irs = _検証候補群(k_question_ir, candidate_irs, k_candidate_irs)
@@ -304,7 +308,6 @@ def HDS選択推論実行(
         evidence += result.証拠事実数
         blocked += result.証拠阻害事実数
 
-    # 確定Kとは分離した作業台帳を作り、初回判断をcheckpointする。
     作業 = HDS作業状態構築(working)
     initial = HDSIRネイティブAdapter(working).実行(
         k_question_ir,
@@ -314,36 +317,69 @@ def HDS選択推論実行(
     initial = _直接関係で再判定(question_ir, verification_candidate_irs, working, initial)
     HDS候補共同状態更新(作業, initial.候補診断, 段階="CANDIDATE_INITIAL")
 
-    # 寄与Gateは真偽を確定しない。独立出典で再照合できた未確定関係だけを、
-    # 同一request内の別cloneへ一時証拠として渡して二巡目を行う。
-    temporary = HDS寄与Gate再照合(作業)
+    temporary = HDS寄与Gate再照合(作業) if 作業再作用 else ()
+    local_windows = ()
+    if 局所再照合 and "DIRECTED_RELATION_VERIFIED" not in initial.理由:
+        local_windows = HDS局所Window候補(question_ir, references, 上限=max(0, int(最大局所Window数)))
+
+    local_compiled = 0
+    local_failed = 0
+    local_added = 0
+    local_reconciliations = 0
     k3 = initial
     rechecked_selected = False
     rechecked_override = False
-    if temporary:
+
+    if temporary or local_windows:
         rechecked_core = working.clone()
         HDS証拠状態複製(working, rechecked_core)
-        HDS一時証拠統合(rechecked_core, temporary)
-        作業.統計.checkpoint再活性数 += 1
-        作業.統計.大域再照合数 += 1
-        rechecked = HDSIRネイティブAdapter(rechecked_core).実行(
-            k_question_ir,
-            候補IR=verification_candidate_irs,
-            努力=努力,
-        )
-        rechecked = _直接関係で再判定(question_ir, verification_candidate_irs, rechecked_core, rechecked)
-        HDS候補共同状態更新(作業, rechecked.候補診断, 段階="CANDIDATE_RECHECK")
-        selected = _再作用結果選択(initial, rechecked)
-        rechecked_selected = selected is rechecked
-        rechecked_override = bool(
-            rechecked_selected
-            and initial.回答ラベル is not None
-            and rechecked.回答ラベル is not None
-            and initial.回答ラベル != rechecked.回答ラベル
-        )
-        if not rechecked_selected and rechecked.回答ラベル != initial.回答ラベル:
-            作業.統計.作業関係再検証後破棄数 += len(temporary)
-        k3 = selected
+        changed = 0
+        if temporary:
+            changed += HDS一時証拠統合(rechecked_core, temporary)
+
+        if local_windows:
+            local_payloads = _一括コンパイル(
+                compile_isolated,
+                [row.内容 for row in local_windows],
+                parallel=parallel_safe,
+                max_workers=worker_count,
+            )
+            local_ingest = HDSIR知識Adapter(rechecked_core)
+            for row, compiled in zip(local_windows, local_payloads):
+                if isinstance(compiled, Exception):
+                    local_failed += 1
+                    continue
+                result = local_ingest.投入(
+                    HDSKData射影(compiled),
+                    provenance=_参照provenance(row.参照),
+                    信頼係数=row.参照.信頼,
+                )
+                local_compiled += 1
+                local_added += result.追加事実数
+                changed += result.証拠事実数
+
+        if changed > 0:
+            作業.統計.checkpoint再活性数 += 1
+            作業.統計.大域再照合数 += 1
+            local_reconciliations = 1 if local_compiled > 0 else 0
+            rechecked = HDSIRネイティブAdapter(rechecked_core).実行(
+                k_question_ir,
+                候補IR=verification_candidate_irs,
+                努力=努力,
+            )
+            rechecked = _直接関係で再判定(question_ir, verification_candidate_irs, rechecked_core, rechecked)
+            HDS候補共同状態更新(作業, rechecked.候補診断, 段階="CANDIDATE_RECHECK")
+            selected = _再作用結果選択(initial, rechecked)
+            rechecked_selected = selected is rechecked
+            rechecked_override = bool(
+                rechecked_selected
+                and initial.回答ラベル is not None
+                and rechecked.回答ラベル is not None
+                and initial.回答ラベル != rechecked.回答ラベル
+            )
+            if not rechecked_selected and rechecked.回答ラベル != initial.回答ラベル:
+                作業.統計.作業関係再検証後破棄数 += len(temporary)
+            k3 = selected
 
     if k3.状態 != "APPROVE":
         作業.統計.遍歴後SUSPEND数 = 1
@@ -353,12 +389,17 @@ def HDS選択推論実行(
     reasons = list(k3.理由)
     if temporary:
         reasons.append("WORKING_RECHECK")
+    if local_compiled:
+        reasons.append("LOCAL_WINDOW_RECHECK")
     if rechecked_selected:
-        reasons.append("WORKING_RECHECK_SELECTED")
+        reasons.append("RECHECK_SELECTED")
     if rechecked_override:
-        reasons.append("WORKING_RECHECK_OVERRIDE")
+        reasons.append("RECHECK_OVERRIDE")
     if data_failed:
         reasons.append(f"DATA_COMPILE_PARTIAL:{data_failed}")
+    if local_failed:
+        reasons.append(f"LOCAL_WINDOW_COMPILE_PARTIAL:{local_failed}")
+
     stats = 作業.統計
     return HDS選択実行結果(
         k3.状態,
@@ -385,6 +426,11 @@ def HDS選択推論実行(
         stats.専門作用起動数,
         stats.遍歴後SUSPEND数,
         stats.一時証拠数,
+        len(local_windows),
+        local_compiled,
+        local_failed,
+        local_added,
+        local_reconciliations,
     )
 
 
