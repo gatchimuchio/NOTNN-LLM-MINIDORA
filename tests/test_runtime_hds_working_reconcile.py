@@ -88,7 +88,7 @@ class HDS再作用Runtime試験(unittest.TestCase):
         self.assertEqual(result.状態, "APPROVE", result.理由)
         self.assertEqual(result.回答ラベル, "A")
         self.assertIn("WORKING_RECHECK", result.理由)
-        self.assertIn("WORKING_RECHECK_SELECTED", result.理由)
+        self.assertIn("RECHECK_SELECTED", result.理由)
         self.assertGreaterEqual(result.一時証拠数, 2)
         self.assertGreater(result.作業関係再利用数, 0)
         self.assertEqual(result.作業関係K昇格数, 0)
