@@ -4,7 +4,7 @@ from threading import Lock, get_ident
 import time
 import unittest
 
-from minidora import HDSIR, HDS実行核, HDS座標, HDS関係, ミニドラ, 参照記録, 実行状態, 要求
+from minidora import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態, ミニドラ, 参照記録, 実行状態, 要求
 
 
 def _ir(text: str, coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ...] = (), *, refs: bool = False) -> HDSIR:
@@ -32,7 +32,13 @@ def _question() -> HDSIR:
             HDS座標("alpha", "対象.実体", "Alpha"),
             HDS座標("choice:A", "目的.候補", "engine"),
             HDS座標("choice:B", "目的.候補", "stone"),
+            HDS座標("unknown", "目的.未知終点", "entity", 値状態.未観測),
         ),
+        (HDS関係(
+            "question-use", ("alpha",), ("unknown",), "使用",
+            条件=("検索述語=use", "不足位置=終点", "英日意味射影=v0.5"),
+            値状態=値状態.未観測,
+        ),),
         refs=True,
     )
 
@@ -45,7 +51,7 @@ def _data() -> HDSIR:
     return _ir(
         "Alpha uses engine.",
         (HDS座標("alpha", "対象.実体", "Alpha"), HDS座標("engine", "対象.実体", "engine")),
-        (HDS関係("use", ("alpha",), ("engine",), "作用"),),
+        (HDS関係("use", ("alpha",), ("engine",), "使用", 条件=("検索述語=use",)),),
     )
 
 

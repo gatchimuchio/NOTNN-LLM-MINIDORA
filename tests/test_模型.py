@@ -64,6 +64,12 @@ class 模型核試験(unittest.TestCase):
         )
         self.assertEqual(result.最有力候補ID, "value")
 
+    def test_模型核はAdapter外の無言言語体系混在を拒否する(self):
+        core = MINIDORA模型核(())
+        candidates = (成立候補("A", 言語状態("A", "自然言語:ja")),)
+        with self.assertRaisesRegex(ValueError, "候補と言語文脈の言語体系が一致しない"):
+            core.評価言語状態(言語状態("question", "自然言語:en"), candidates)
+
     def test_runtimeが模型核入口を持つ(self):
         core = MINIDORA模型核(
             (関係規則("選択", 文脈必須=frozenset({"日本"}), 候補必須=frozenset({"東京"}), 差=4),)

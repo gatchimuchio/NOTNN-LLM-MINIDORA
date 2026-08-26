@@ -47,7 +47,13 @@ def _question(choice_b_state: 値状態 = 値状態.確定) -> HDSIR:
             HDS座標("use", "関係.述語表層", "use", 原文範囲=(16, 19)),
             HDS座標("choice:A", "目的.候補", "engine"),
             HDS座標("choice:B", "目的.候補", "stone", 値状態=choice_b_state),
+            HDS座標("unknown", "目的.未知終点", "entity", 値状態.未観測),
         ),
+        (HDS関係(
+            "question-use", ("alpha",), ("unknown",), "使用",
+            条件=("検索述語=use", "不足位置=終点", "英日意味射影=v0.5"),
+            値状態=値状態.未観測,
+        ),),
         reference_required=True,
     )
 
@@ -63,7 +69,7 @@ def _data() -> HDSIR:
             HDS座標("alpha", "対象.実体", "Alpha", 原文範囲=(0, 5)),
             HDS座標("engine", "対象.実体", "engine", 原文範囲=(11, 17)),
         ),
-        (HDS関係("use", ("alpha",), ("engine",), "作用"),),
+        (HDS関係("use", ("alpha",), ("engine",), "使用", 条件=("検索述語=use",)),),
     )
 
 
@@ -100,7 +106,7 @@ class _Provider:
 
 
 class RuntimeHDSChoice試験(unittest.TestCase):
-    def test_Layer0手順なしchoiceをR_HDS_K_J正規経路で解く(self) -> None:
+    def test_手順なしchoiceを正式模型核経路で解く(self) -> None:
         compiler = _Compiler()
         record = 参照記録("doc:1", "Alpha", "Alpha uses engine.", "fixture://doc1", "fixture")
         runtime = ミニドラ(_Provider((record,)), HDSコンパイラ_=compiler)
@@ -113,7 +119,9 @@ class RuntimeHDSChoice試験(unittest.TestCase):
         self.assertEqual(result.状態["HDS候補ラベル"], "A")
         self.assertEqual(result.状態["HDS候補コンパイル数"], 2)
         self.assertEqual(result.状態["HDS_Dataコンパイル数"], 1)
-        self.assertGreater(result.状態["K証拠事実数"], 0)
+        self.assertEqual(result.状態["K追加事実数"], 0)
+        self.assertEqual(result.状態["K証拠事実数"], 0)
+        self.assertIn("FORMAL_MODEL_CORE_ONLY", result.採否.理由)
         self.assertIn("engine", compiler.calls)
         self.assertIn("stone", compiler.calls)
         self.assertIn("Alpha uses engine.", compiler.calls)

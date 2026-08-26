@@ -20,7 +20,7 @@ def _意味関係(ir):
     return next(
         relation
         for relation in ir.関係
-        if _条件値(relation, "英日意味射影") == "v0.4"
+        if _条件値(relation, "英日意味射影") == "v0.5"
     )
 
 
@@ -161,10 +161,12 @@ class 英日意味コンパイル試験(unittest.TestCase):
             self.assertTrue(any(candidate in query and "inhibit" in query and "enzyme x" in query for query in lowered))
         self.assertTrue(any(coord.種別 == "検索.英語正規化" for coord in ir.座標))
 
-    def test_関係を含まない英文から有向関係を捏造しない(self) -> None:
+    def test_命題選択は世界事実を捏造せず問い適合関係として保持する(self) -> None:
         ir = self.compiler.コンパイル("Which statement is most likely correct regarding entropy?")
         semantic = [relation for relation in ir.関係 if _条件値(relation, "英日意味射影")]
-        self.assertEqual(semantic, [])
+        self.assertEqual(len(semantic), 1)
+        self.assertEqual(str(semantic[0].種別), "命題適合")
+        self.assertEqual(_条件値(semantic[0], "検索述語"), "proposition_match")
 
     def test_世界知識を意味フレームへ格納しない(self) -> None:
         frame = 英日意味フレーム抽出("Which protein inhibits kinase X?")

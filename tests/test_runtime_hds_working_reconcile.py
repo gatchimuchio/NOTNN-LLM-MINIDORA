@@ -33,7 +33,13 @@ def _question() -> HDSIR:
             HDS座標("use", "関係.述語表層", "use"),
             HDS座標("choice:A", "目的.候補", "engine"),
             HDS座標("choice:B", "目的.候補", "stone"),
+            HDS座標("unknown", "目的.未知終点", "entity", 値状態.未観測),
         ),
+        (HDS関係(
+            "question-use", ("alpha",), ("unknown",), "使用",
+            条件=("検索述語=use", "不足位置=終点", "英日意味射影=v0.5"),
+            値状態=値状態.未観測,
+        ),),
     )
 
 
@@ -49,7 +55,7 @@ def _weak_data(*, negative: bool = False) -> HDSIR:
             HDS座標("alpha", "対象.実体", "Alpha", 値状態=値状態.留保),
             HDS座標("engine", "対象.実体", "engine", 値状態=値状態.留保),
         ),
-        (HDS関係("use", ("alpha",), ("engine",), "作用", 条件=conditions, 値状態=値状態.留保),),
+        (HDS関係("use", ("alpha",), ("engine",), "使用", 条件=("検索述語=use", *conditions), 値状態=値状態.留保),),
     )
 
 
@@ -87,8 +93,8 @@ class HDS再作用Runtime試験(unittest.TestCase):
         )
         self.assertEqual(result.状態, "APPROVE", result.理由)
         self.assertEqual(result.回答ラベル, "A")
-        self.assertIn("WORKING_RECHECK", result.理由)
-        self.assertIn("RECHECK_SELECTED", result.理由)
+        self.assertIn("LEGACY_WORKING_RECHECK", result.理由)
+        self.assertIn("LEGACY_RECHECK_SELECTED", result.理由)
         self.assertGreaterEqual(result.一時証拠数, 2)
         self.assertGreater(result.作業関係再利用数, 0)
         self.assertEqual(result.作業関係K昇格数, 0)

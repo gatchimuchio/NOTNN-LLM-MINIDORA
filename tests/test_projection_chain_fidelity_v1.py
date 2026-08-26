@@ -21,7 +21,14 @@ def _cond(relation: HDS関係, key: str) -> str:
     return ""
 
 
-def _ir(text: str, coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ...] = (), *, kind: str = "一般") -> HDSIR:
+def _ir(
+    text: str,
+    coords: tuple[HDS座標, ...],
+    relations: tuple[HDS関係, ...] = (),
+    *,
+    kind: str = "一般",
+    language: str = "en",
+) -> HDSIR:
     return HDSIR(
         原文=text,
         正規化文=text,
@@ -32,7 +39,7 @@ def _ir(text: str, coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ..
         意味作用履歴=(),
         実行核=HDS実行核(),
         種別=kind,
-        入力言語="en",
+        入力言語=language,
     )
 
 
@@ -141,6 +148,36 @@ class 三層射影忠実度試験(unittest.TestCase):
         reverse_hypotheses = HDS候補代入仮説群(reverse_question, candidates)
         reverse = HDSMINIDORA模型評価(reverse_question, reverse_hypotheses, (evidence, contradicted), 模型核=標準模型核())
         self.assertEqual(reverse.回答ラベル, "B")
+
+    def test_未解析だが意味内容のある質問は問い適合として保持する(self) -> None:
+        unresolved = HDSK質問射影(_question_ir("Why does this transition occur under condition X?", ("A", "B")))
+        self.assertTrue(unresolved.関係)
+        self.assertEqual(str(unresolved.関係[0].種別), "問い適合")
+        self.assertFalse(any(r.種別 == "semantic_loss" for r in unresolved.残差))
+
+    def test_正式模型Adapterは同一問題を質問側言語体系へ統一する(self) -> None:
+        question = _ir(
+            "Which molecule inhibits Enzyme X?",
+            (HDS座標("unknown", "目的.未知始点", "molecule", 値状態.未観測), HDS座標("target", "対象.終点", "Enzyme X")),
+            (HDS関係("q", ("unknown",), ("target",), "阻害", 条件=("検索述語=inhibit", "不足位置=始点"), 値状態=値状態.確定),),
+            kind="knowledge_query",
+            language="en",
+        )
+        candidates = {
+            "A": _ir("候補A", (HDS座標("a", "対象.実体", "Molecule A"),), language="ja"),
+            "B": _ir("Molecule B", (HDS座標("b", "対象.実体", "Molecule B"),), language="en"),
+        }
+        hypotheses = HDS候補代入仮説群(question, candidates)
+        evidence = _ir(
+            "参照",
+            (HDS座標("s", "対象.始点", "Molecule A"), HDS座標("o", "対象.終点", "Enzyme X")),
+            (HDS関係("e", ("s",), ("o",), "阻害", 条件=("検索述語=inhibit",)),),
+            language="ja",
+        )
+        result = HDSMINIDORA模型評価(question, hypotheses, (evidence,), 模型核=標準模型核())
+        self.assertIn(result.状態, {"APPROVE", "SUSPEND"})
+        self.assertEqual(result.模型結果.文脈.現在.言語体系, "自然言語:en")
+        self.assertTrue(all(item.言語体系 == "自然言語:en" for item in result.模型結果.文脈.参照状態))
 
 
 if __name__ == "__main__":

@@ -143,6 +143,9 @@ def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = 
             add_relation(syntax.種別, subject, object_, predicate)
 
     for item in 英語明示述語関係抽出(text):
+        # 既存17関係族は上の共有言語基底P構文が正本。第二passは有限語彙外だけを補完する。
+        if item.種別 != "開放述語":
+            continue
         conditions = []
         if item.極性 == "否定":
             conditions.append("極性=否定")

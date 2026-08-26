@@ -97,7 +97,7 @@ class 局所再照合Runtime試験(unittest.TestCase):
         self.assertEqual(baseline.状態, "SUSPEND")
         self.assertEqual(reconstructed.状態, "APPROVE", reconstructed.理由)
         self.assertEqual(reconstructed.回答ラベル, "A")
-        self.assertIn("LOCAL_WINDOW_RECHECK", reconstructed.理由)
+        self.assertIn("LEGACY_LOCAL_WINDOW_RECHECK", reconstructed.理由)
         self.assertGreater(reconstructed.局所Window数, 0)
         self.assertGreater(reconstructed.局所Windowコンパイル数, 0)
         self.assertEqual(reconstructed.局所再照合数, 1)

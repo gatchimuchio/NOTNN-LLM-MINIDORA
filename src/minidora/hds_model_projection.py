@@ -74,15 +74,30 @@ def _関係構造(ir: HDSIR, relation: HDS関係) -> 言語関係構造 | None:
     )
 
 
-def HDS内部言語状態(ir: HDSIR, *, 識別子: str = "") -> 言語状態:
-    """HDS型を模型核へ漏らさず、意味保存済み構造だけを汎用言語状態へ変換する。"""
+def _対象言語体系(ir: HDSIR) -> str:
+    language = str(getattr(ir, "入力言語", "en") or "en").casefold()
+    return "自然言語:ja" if language.startswith("ja") else "自然言語:en"
+
+
+def HDS内部言語状態(
+    ir: HDSIR,
+    *,
+    識別子: str = "",
+    言語体系: str | None = None,
+) -> 言語状態:
+    """HDS型を模型核へ漏らさず、意味保存済み構造だけを汎用言語状態へ変換する。
+
+    ``言語体系`` は同一問題の比較先をAdapter境界で固定するための明示上書きである。
+    入力IRごとの表層言語判定を、模型核の比較体系へ無言で持ち込まない。
+    """
     relations = tuple(
         converted
         for relation in ir.関係
         if (converted := _関係構造(ir, relation)) is not None
     )
-    language = str(getattr(ir, "入力言語", "en") or "en").casefold()
-    language_system = "自然言語:ja" if language.startswith("ja") else "自然言語:en"
+    language_system = str(言語体系 or _対象言語体系(ir)).strip()
+    if not language_system:
+        raise ValueError("模型射影先の言語体系は空にできない")
     return 言語状態(
         str(ir.正規化文 or ir.原文),
         language_system,
@@ -124,16 +139,25 @@ def HDSMINIDORA模型評価(
     互換診断に限定する。
     """
     core = 模型核 or 標準模型核()
-    question_state = HDS内部言語状態(question_ir, 識別子="question")
+    target_language_system = _対象言語体系(question_ir)
+    question_state = HDS内部言語状態(
+        question_ir, 識別子="question", 言語体系=target_language_system,
+    )
     candidates = tuple(
         成立候補(
             str(label),
-            HDS内部言語状態(candidate_ir, 識別子="candidate:" + str(label)),
+            HDS内部言語状態(
+                candidate_ir,
+                識別子="candidate:" + str(label),
+                言語体系=target_language_system,
+            ),
         )
         for label, candidate_ir in sorted(candidate_irs.items())
     )
     references = tuple(
-        HDS内部言語状態(data_ir, 識別子=f"reference:{index}")
+        HDS内部言語状態(
+            data_ir, 識別子=f"reference:{index}", 言語体系=target_language_system,
+        )
         for index, data_ir in enumerate(data_irs)
     )
 

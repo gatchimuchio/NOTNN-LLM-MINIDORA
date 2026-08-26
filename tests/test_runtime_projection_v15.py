@@ -85,19 +85,16 @@ class Runtime射影V15試験(unittest.TestCase):
         self.assertFalse(any(k.startswith("検索.") for k in kinds))
         self.assertFalse(any(k.startswith("制御.") for k in kinds))
 
-    def test_非関係質問ではCompiler主題語だけをK照合核へ使う(self) -> None:
+    def test_説明選択質問はtopic_onlyへ落とさず問い適合関係を使う(self) -> None:
         original = self.compiler.問題IR(
             "Which of the following statements best describes cellular respiration?",
             ("A", "B", "C", "D"),
         )
         projected = HDSK質問射影(original)
-        topics = [c for c in projected.座標 if not c.座標ID.startswith("choice:")]
-        self.assertTrue(topics)
-        self.assertTrue(all(str(c.種別) == "対象.主題語" for c in topics))
-        joined = " ".join(str(c.内容).casefold() for c in topics)
-        self.assertIn("cellular", joined)
-        self.assertIn("respiration", joined)
-        self.assertEqual(projected.関係, ())
+        relation = next(r for r in projected.関係 if _条件値(r, "不足位置") == "始点")
+        self.assertEqual(str(relation.種別), "説明適合")
+        self.assertEqual(_条件値(relation, "検索述語"), "describe")
+        self.assertFalse(any(residual.種別 == "semantic_loss" for residual in projected.残差))
 
     def test_R関係質問は検索述語既知端点候補を保持する(self) -> None:
         original = self.compiler.問題IR(
