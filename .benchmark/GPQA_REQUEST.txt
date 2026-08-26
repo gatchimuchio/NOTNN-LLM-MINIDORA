@@ -1,8 +1,8 @@
 MINIDORA GPQA benchmark request
-requested_at_jst: 2026-08-26T08:30:00+09:00
+requested_at_jst: 2026-08-26T09:22:00+09:00
 benchmark: GPQA Diamond
 scope: full 198 questions
 target: current main
-reason: post-working-relation-reconstruction-p0 measurement
-baseline: 19/198 (9.595959595959595%)
-required_metrics: accuracy, answered_accuracy, working_relations, checkpoints, global_reconciliations, canonical_K_promotion
+reason: post-local-global-reconciliation-p1 controlled measurement
+comparison: same retrieved references baseline(P0/P1 off) vs current(P0/P1 on)
+required_metrics: controlled_delta, accuracy, answered_accuracy, local_windows, local_reconciliations, working_relations, checkpoints, canonical_K_promotion
