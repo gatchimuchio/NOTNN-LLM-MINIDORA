@@ -7,8 +7,8 @@
 MINIDORAにおけるLLM模型性の論理的基盤は、次の外部リポジトリである。
 
 - Repository: [gatchimuchio/LLM-Constitutive-Specification](https://github.com/gatchimuchio/LLM-Constitutive-Specification)
-- 現行版: `2026-08-26-成立規定-2`
-- 現行MINIDORA参照commit: `e94a13ba32208aabd9dc88b6de320872963725be`
+- 現行版: `2026-08-27-成立規定-3`
+- 現行MINIDORA参照commit: `306ff834e5ac7e7e958b513db723a24619c8895a`
 - 日本語正本: `規定/02_大規模言語模型成立.md`
 
 MINIDORAは上位規定を独自に再定義しない。特に、旧Layer-0 v4の5責任を現行LLM構成条件へ自動継承しない。
@@ -17,7 +17,7 @@ MINIDORA側の [`設計/02_大規模言語模型成立契約.md`](設計/02_大�
 
 現行実装の中心は次である。
 
-- `src/minidora/模型.py` — 言語対応、文脈付き内部状態、再利用可能な模型側関係、成立差。
+- `src/minidora/模型.py` — LLM成立5条件を維持しつつ、構成再現7条件に従う状態保持・再作用・再結合・終端成立差。
 - `src/minidora/計算実行器.py` — 算術・比較・状態更新等の汎用計算作用。LLM模型中核ではない。
 - `src/minidora/layer0.py` — 旧公開API互換窓口。新設計の正本ではない。
 

@@ -27,8 +27,8 @@
 ## 上位LLM成立規定
 
 - Repository: [gatchimuchio/LLM-Constitutive-Specification](https://github.com/gatchimuchio/LLM-Constitutive-Specification)
-- 版: `2026-08-26-成立規定-2`
-- MINIDORA参照commit: `e94a13ba32208aabd9dc88b6de320872963725be`
+- 版: `2026-08-27-成立規定-3`
+- MINIDORA参照commit: `306ff834e5ac7e7e958b513db723a24619c8895a`
 
 旧Layer-0 v4は現行上位契約ではない。旧局所契約は [`旧/02_Layer0責任契約_v4.md`](旧/02_Layer0責任契約_v4.md) に履歴として保持する。
 
@@ -38,14 +38,18 @@ LLM模型中核:
 
 ```text
 対象言語状態
-  ↓
-言語対応
-  ↓
+  ↓ 言語対応
 文脈付き内部状態
   ↓
-再利用可能な模型側関係
+状態分離・保持
   ↓
-成立差
+一般模型関係 / 形成済み関係 / 参照寄与
+  ↓
+未確定候補差の共同保持
+  ↓
+候補共同再照合・再作用・再結合
+  ↓
+終端成立差
 ```
 
 計算経路:
