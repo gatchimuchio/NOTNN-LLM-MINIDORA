@@ -17,6 +17,31 @@
 - [`HDS_Compiler_Pipeline_v1_3_受入_2026-08-26.md`](HDS_Compiler_Pipeline_v1_3_受入_2026-08-26.md) — 意味IR / 計算計画 / 計算降下分離。
 - [`MINIDORA_v0_4_規模測定_v2_2026-08-26.md`](MINIDORA_v0_4_規模測定_v2_2026-08-26.md) — 三面規模再測定と関係域修正。
 - [`GPQA_Diamond_V0_4_CURRENT_2026-08-26.summary.json`](GPQA_Diamond_V0_4_CURRENT_2026-08-26.summary.json) — 再構成後v0.4のGPQA Diamond 198問現行実測。
+- [`MINIDORA_三層射影精度監査_2026-08-26.md`](MINIDORA_三層射影精度監査_2026-08-26.md) — K3/他LLM→構文化→HDS Compiler→MINIDORA射影の三層精度監査。三層すべてを原因と判定し、直接主因をHDS Compilerの質問意味射影と特定。
+
+### 三層射影精度監査
+
+2026-08-26、GPQA Diamond 198問を使って性能採点とは別に意味射影coverageを全数監査した。
+
+主要結果:
+
+```text
+K質問関係保持        3 / 198  = 1.515%
+K topic-only        195 / 198 = 98.485%
+候補K関係保持       283 / 792 = 35.732%
+候補の関係0かつsemantic_lossなし 507 / 792
+Expert Explanation K関係保持 174 / 198 = 87.879%
+```
+
+判定:
+
+```text
+① LLM構文化                  = 原因（高位作用は取れているが作用遷移則・形成則が不足）
+② HDS Compiler               = 主因（質問意味をtopic-onlyへ過剰圧縮）
+③ MINIDORA構成定義・射影     = 原因（能力保存射影不足 + 正式模型核と性能経路の不一致）
+```
+
+「Data compile success」を意味関係保存成功と同一視しない。射影鎖が閉じるまで、GPQA向け閾値調整・正解ルール追加・SUSPEND緩和を能力改善とは扱わない。
 
 ### 現行模型中核
 
@@ -105,26 +130,30 @@ v2代表値:
 | 2026-08-22 | Prototype baseline | 8 / 198 | 4.0404% | 不変baseline |
 | 2026-08-22 | v0.5開発途中 | 17 / 198 | 8.5859% | 途中参照値 |
 | 2026-08-23 | v0.6系workflow実測 | 31 / 198 | 15.6566% | 完走実測・後続main値ではない |
-| 2026-08-26 | 再構成後v0.4 current | 19 / 198 | 9.5960% | 現行mainの完走実測 |
+| 2026-08-26 | 再構成後v0.4 current | 19 / 198 | 9.5960% | 再構成直後の完走実測 |
+| 2026-08-26 | 再作用P0後 | 22 / 198 | 11.1111% | 完走実測。ただしworking relation再利用0のため再作用効果とは帰属しない |
 
-2026-08-26現行実測:
+再作用P0後実測:
 
-- 回答: 118 / 198（59.5960%）
-- SUSPEND: 80
-- 回答時正答率: 16.1017%
+- 回答: 122 / 198（61.6162%）
+- SUSPEND: 76
+- 回答時正答率: 18.0328%
 - retrieval empty: 0
-- 取得文書: 2,698
-- Data compile: 2,698 / failure 0
-- K facts added: 101,554
-- evidence facts: 120,504
+- 取得文書: 2,714
+- Data compile: 2,714 / failure 0
+- working relations created: 114,443
+- working relations reused: 0
+- checkpoint reactivations: 0
+- global reconciliations: 0
+- temporary working evidence: 0
+
+P0による再作用は実データ上発火していないため、19→22の差を再作用機構の性能改善へ帰属しない。
 
 2026-08-23 v0.6系実測との開発履歴上の差は、正答 `31 → 19`、回答 `128 → 118`、SUSPEND `70 → 80`、回答時正答率 `24.21875% → 16.1017%` である。ただしCompiler/configurationが異なるため統制されたA/B比較とは扱わない。
 
-一方、取得文書は `2,934 → 2,698`（約8.0%減）に対して、K factsは `323,611 → 101,554`（約68.6%減）、evidence factsは `370,570 → 120,504`（約67.5%減）となった。retrieval emptyとData compile failureはいずれも0なので、現行再構成後の主要再監査対象は**取得そのものではなく、取得Dataから意味関係・候補差・有効証拠へ昇格する経路と、その証拠差をJの選択へ接続する経路**とする。
+再構成直後は取得文書 `2,698`、K facts `101,554`、evidence facts `120,504`。retrieval emptyとData compile failureはいずれも0だった。現在は三層射影監査により、**Compilerの質問意味関係保存と、構文化→Compiler→構成定義の能力保存射影**を主要再監査対象とする。
 
-99問は回答した上で誤答しているため、SUSPEND率だけを性能低下の原因とは扱わない。SUSPEND境界を緩めて全問回答することも改善とは扱わない。
-
-これらは過去の運用経路に対する履歴実測と現行再構成後の実測であり、条件差を無視した単純な性能曲線にはしない。
+SUSPEND境界を緩めて全問回答することは改善とは扱わない。
 
 ## 評価軸
 
