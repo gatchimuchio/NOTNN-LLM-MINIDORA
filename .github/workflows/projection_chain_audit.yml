@@ -1,0 +1,32 @@
+name: MINIDORA 三層射影Compiler監査
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "tools/audit_projection_chain.py"
+      - ".github/workflows/projection_chain_audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: GPQA意味射影監査
+        run: python tools/audit_projection_chain.py
+      - name: 監査成果を保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-projection-chain-audit
+          path: projection_chain_audit.json
+          if-no-files-found: error
