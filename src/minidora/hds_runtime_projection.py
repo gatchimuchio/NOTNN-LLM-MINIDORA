@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
+from .hds_ir import HDSIR, HDS座標, HDS関係, HDS残差, 値状態
 
 
 _K_SEMANTIC_PREFIXES = (
@@ -153,12 +153,7 @@ def _K未対応scope(
     否定可: bool = False,
     修飾可: bool = False,
 ) -> bool:
-    """K経路が損失なく保持できないscopeだけを辺から除外する。
-
-    - Data否定はFact.polarityへ保持できる。
-    - Dataの様相/条件/量化等はv0.18のHDS修飾Factへ保持できる。
-    - 質問/候補はJの選択意味との接続があるため、現段階では従来どおり強いK関係へ通さない。
-    """
+    """K/模型境界が保持できないscopeだけを辺から除外する。"""
     for raw in relation.条件:
         value = str(raw)
         key, sep, payload = value.partition("=")
@@ -213,7 +208,14 @@ def HDSR質問射影(ir: HDSIR) -> HDSIR:
         endpoints = tuple(coords_by_id[cid] for cid in endpoint_ids if cid in coords_by_id)
         projected_coords = _座標重複除去(choices, endpoints, context)
         surface = _R検索表層(projected_coords, question_relations)
-        return replace(ir, 原文=surface, 正規化文=surface, 座標=projected_coords, 関係=question_relations, 意味作用履歴=())
+        return replace(
+            ir,
+            原文=surface,
+            正規化文=surface,
+            座標=projected_coords,
+            関係=question_relations,
+            意味作用履歴=(),
+        )
 
     search_focus = tuple(coord for coord in context if str(coord.種別).startswith("検索."))
     if search_focus:
@@ -236,7 +238,7 @@ def HDSR質問射影(ir: HDSIR) -> HDSIR:
 
 
 def HDSK質問射影(ir: HDSIR) -> HDSIR:
-    """質問HDS-IRからC/Kの候補比較に必要な最小意味核だけを返す。"""
+    """質問HDS-IRから候補比較へ必要な意味核を、scopeを落とさず返す。"""
     choices = tuple(coord for coord in ir.座標 if coord.座標ID.startswith("choice:"))
     question_relations = _質問関係(ir)
     coords_by_id = ir.座標辞書()
@@ -252,9 +254,15 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
                 暫定性="RELATION_TYPE_KNOWN_ENDPOINT_OPEN",
             )
             for relation in question_relations
-            if not _K未対応scope(relation)
+            if not _K未対応scope(relation, 否定可=True, 修飾可=True)
         )
-        return replace(ir, 座標=_座標重複除去(choices, endpoints), 関係=projected_relations, 意味作用履歴=())
+        if projected_relations:
+            return replace(
+                ir,
+                座標=_座標重複除去(choices, endpoints),
+                関係=projected_relations,
+                意味作用履歴=(),
+            )
 
     topic = tuple(
         coord
@@ -263,6 +271,29 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
         and coord.値状態 not in _BLOCKING
         and str(coord.内容).strip()
     )
+
+    # 知識選択問題を「関係不明のtopic bag」のまま正常処理しない。
+    if ir.種別 == "knowledge_query" or choices:
+        residuals = tuple(ir.残差)
+        if not any(residual.種別 == "semantic_loss" for residual in residuals):
+            residuals = (
+                *residuals,
+                HDS残差(
+                    "runtime:question-loss",
+                    "semantic_loss",
+                    ir.原文,
+                    "知識選択質問が問い関係を持たずtopic-onlyへ落ちることを禁止",
+                    解消条件=("問い関係を開放述語・命題適合・説明適合・問い適合のいずれかへ射影する",),
+                ),
+            )
+        return replace(
+            ir,
+            座標=_座標重複除去(choices, topic),
+            関係=(),
+            残差=residuals,
+            意味作用履歴=(),
+        )
+
     if topic:
         return replace(ir, 座標=_座標重複除去(choices, topic), 関係=(), 意味作用履歴=())
 
@@ -272,9 +303,9 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
 
 
 def HDSK候補射影(ir: HDSIR) -> HDSIR:
-    """候補IRから候補識別とKが表現可能な明示命題だけを残す。"""
+    """候補IRから明示命題を、否定・様相・条件scopeを保ったまま残す。"""
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
-    semantic_relations = _K関係射影(ir, semantic_coords)
+    semantic_relations = _K関係射影(ir, semantic_coords, 否定可=True, 修飾可=True)
     return replace(ir, 座標=semantic_coords, 関係=semantic_relations, 意味作用履歴=())
 
 
@@ -291,15 +322,16 @@ def HDSK候補代入可能(ir: HDSIR) -> bool:
 
 
 def HDSKData射影(ir: HDSIR) -> HDSIR:
-    """R取得DataからKへ投入してよい世界事実意味だけを残す。
-
-    - 明示否定はFact.polarityへ写せるため保持する。
-    - 様相/条件/量化等はHDS修飾Factへ写せるため関係自体を保持する。
-    - 修飾付き関係はcanonical無条件Kへは入らず、HDS証拠台帳へだけ保存される。
-    """
+    """R取得Dataから世界事実意味を、極性・修飾を保って模型参照状態へ渡す。"""
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
     semantic_relations = _K関係射影(ir, semantic_coords, 否定可=True, 修飾可=True)
     return replace(ir, 座標=semantic_coords, 関係=semantic_relations, 意味作用履歴=())
 
 
-__all__ = ["HDSR質問射影", "HDSK質問射影", "HDSK候補射影", "HDSK候補代入可能", "HDSKData射影"]
+__all__ = [
+    "HDSR質問射影",
+    "HDSK質問射影",
+    "HDSK候補射影",
+    "HDSK候補代入可能",
+    "HDSKData射影",
+]

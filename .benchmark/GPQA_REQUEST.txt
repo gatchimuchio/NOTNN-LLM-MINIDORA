@@ -1,8 +1,8 @@
 MINIDORA GPQA benchmark request
-requested_at_jst: 2026-08-26T09:22:00+09:00
+requested_at_jst: 2026-08-26T09:37:00+09:00
 benchmark: GPQA Diamond
 scope: full 198 questions
-target: current main
-reason: post-local-global-reconciliation-p1 controlled measurement
-comparison: same retrieved references baseline(P0/P1 off) vs current(P0/P1 on)
-required_metrics: controlled_delta, accuracy, answered_accuracy, local_windows, local_reconciliations, working_relations, checkpoints, canonical_K_promotion
+target: final three-layer fidelity repair
+reason: post-structuring-compiler-formal-model-projection repair controlled measurement
+comparison: same retrieved references; baseline=legacy v0.3 helper (working/local off), current=formal MINIDORA model core only
+required_metrics: formal_model_core, controlled_delta, accuracy, answered_accuracy, semantic_projection_coverage, checkpoints

@@ -43,6 +43,17 @@ class ミニドラ(_ミニドラV03):
         # 旧API互換。新規設計ではLLM中核を意味しない。
         self.layer0 = executor
 
+    @property
+    def K3能力核(self):
+        """旧helperを互換利用しつつ、v0.4正式模型核を実行境界へ渡す。
+
+        runtime_v03側へv0.4型を逆流させないため、helperに非正本の接続参照だけを付与する。
+        HDS選択Runtimeはこの参照がある時だけ正式模型核を最終回答へ使用する。
+        """
+        core = super().K3能力核
+        setattr(core, "_minidora_model_core", self.模型核)
+        return core
+
     def 言語評価(
         self,
         文脈: str | 言語状態,
@@ -51,10 +62,12 @@ class ミニドラ(_ミニドラV03):
         言語体系: str = "自然言語:ja",
         履歴: Sequence[str | 言語状態] = (),
         条件: Sequence[str] = (),
+        参照状態: Sequence[str | 言語状態] = (),
     ) -> 模型結果:
         """文脈に対する候補言語状態の成立差を決定論的に返す。
 
         このAPIがv0.4の模型中核入口である。候補生成、sampling、外部検索は行わない。
+        `参照状態` はすでに言語対応された外部Data等を会話履歴と分離して渡す境界であり、
         根拠差がない場合は最有力候補を確定しない。
         """
 
@@ -62,6 +75,10 @@ class ミニドラ(_ミニドラV03):
         history_states = tuple(
             item if isinstance(item, 言語状態) else 言語状態(str(item), current.言語体系)
             for item in 履歴
+        )
+        reference_states = tuple(
+            item if isinstance(item, 言語状態) else 言語状態(str(item), current.言語体系)
+            for item in 参照状態
         )
         candidates: list[成立候補] = []
         for index, item in enumerate(候補群):
@@ -81,6 +98,7 @@ class ミニドラ(_ミニドラV03):
             tuple(candidates),
             履歴=history_states,
             条件=条件,
+            参照状態=reference_states,
         )
 
 

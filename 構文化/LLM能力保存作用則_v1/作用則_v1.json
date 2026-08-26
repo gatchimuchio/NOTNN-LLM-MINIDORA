@@ -1,0 +1,32 @@
+{
+  "schema": "minidora.llm_capability_preservation_law.v1",
+  "date_jst": "2026-08-26",
+  "language": "ja",
+  "sources": {
+    "k3": "構文化/K3_能力成立作用構文化_v1",
+    "cross_model": "構文化/LLM横断_能力成立作用構文化_v1"
+  },
+  "observed_action_classes": [
+    "intermediate_state_retention",
+    "repeated_reaction",
+    "contribution_gating",
+    "past_state_reaccess",
+    "common_and_conditional_action_recombination",
+    "late_commitment",
+    "formation_runtime_separation"
+  ],
+  "deterministic_projection": {
+    "state_identity": ["relation_kind", "open_predicate_semantics", "endpoint_semantics", "direction", "polarity", "scope"],
+    "contribution_order": ["support", "weak_support", "zero", "weak_refutation", "refutation"],
+    "checkpoint": "cumulative_candidate_difference_state",
+    "terminal_rule": "unique_positive_difference_only",
+    "external_data_boundary": "reference_state_not_conversation_history"
+  },
+  "unobserved_not_invented": [
+    "K3_raw_training_trajectory",
+    "K3_weight_direction_natural_language_meaning",
+    "K3_learned_numeric_gate_values",
+    "production_harness_full_internal"
+  ],
+  "status": "IMPLEMENTABLE_ACTION_LAW_V1"
+}

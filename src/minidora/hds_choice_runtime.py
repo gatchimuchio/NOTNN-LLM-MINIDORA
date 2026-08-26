@@ -10,6 +10,7 @@ from .hds_choice_hypothesis import HDS候補代入仮説群
 from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
 from .hds_direct_relation_verifier import HDS直接関係検証
 from .hds_ir import HDSIR, 値状態
+from .hds_model_projection import HDSMINIDORA模型評価
 from .hds_runtime_projection import HDSKData射影, HDSK候補代入可能, HDSK候補射影, HDSK質問射影
 from .hds作業状態 import (
     HDS一時証拠統合,
@@ -21,6 +22,7 @@ from .hds局所再照合 import HDS局所Window候補
 from .k3_functional import K3相当能力核, SemanticFrame
 from .k3_hds_native import HDSK3結果, HDSIRネイティブAdapter
 from .参照 import 参照記録
+from .模型 import MINIDORA模型核, 模型結果
 
 
 HDSコンパイル関数 = Callable[[str], HDSIR]
@@ -59,6 +61,7 @@ class HDS選択実行結果:
     局所Windowコンパイル失敗数: int = 0
     局所Window追加事実数: int = 0
     局所再照合数: int = 0
+    MINIDORA模型結果: 模型結果 | None = None
 
 
 def HDS選択問題(ir: HDSIR) -> bool:
@@ -151,6 +154,7 @@ def _直接関係で再判定(
     working: K3相当能力核,
     k3: HDSK3結果,
 ) -> HDSK3結果:
+    """旧v0.3 K3 helper診断だけに使う。正式回答を上書きしない。"""
     if HDS選択意図判定(judgment_ir.原文).種別 == "EXCEPTION":
         return k3
     direct, _diagnostics = HDS直接関係検証(working, verification_candidate_irs)
@@ -174,16 +178,8 @@ def _直接関係で再判定(
     candidates = (direct, *tuple(candidate for candidate in k3.候補 if candidate.answer != selected))
     reasons = tuple((*decision.reason_codes, "DIRECTED_RELATION_VERIFIED"))
     return HDSK3結果(
-        decision.status,
-        selected,
-        decision,
-        candidates,
-        len(set(direct.proof_fact_ids)),
-        reasons,
-        k3.努力水準,
-        k3.探索深さ上限,
-        k3.証拠上限,
-        k3.候補診断,
+        decision.status, selected, decision, candidates, len(set(direct.proof_fact_ids)), reasons,
+        k3.努力水準, k3.探索深さ上限, k3.証拠上限, k3.候補診断,
     )
 
 
@@ -198,10 +194,7 @@ def _検証候補群(
         if label in k_candidates and HDSK候補代入可能(full_ir)
     }
     substituted = HDS候補代入仮説群(k_question_ir, substitutable)
-    return {
-        label: substituted.get(label, candidate_ir)
-        for label, candidate_ir in k_candidates.items()
-    }
+    return {label: substituted.get(label, candidate_ir) for label, candidate_ir in k_candidates.items()}
 
 
 def _候補強度(result: HDSK3結果) -> tuple[int, int, float, int, float]:
@@ -212,16 +205,11 @@ def _候補強度(result: HDSK3結果) -> tuple[int, int, float, int, float]:
     top = next((item for item in diagnostics if item.候補 == result.回答ラベル), ordered[0])
     second = max((item.合計得点 for item in diagnostics if item.候補 != top.候補), default=0.0)
     margin = top.合計得点 - second
-    return (
-        top.独立出典数,
-        top.識別一致出典数,
-        margin,
-        top.根拠事実数,
-        top.合計得点,
-    )
+    return (top.独立出典数, top.識別一致出典数, margin, top.根拠事実数, top.合計得点)
 
 
 def _再作用結果選択(initial: HDSK3結果, rechecked: HDSK3結果) -> HDSK3結果:
+    """旧helper内の診断比較。正式MINIDORA模型結果の採否には使わない。"""
     if "DIRECTED_RELATION_VERIFIED" in initial.理由:
         return initial
     if rechecked.状態 != "APPROVE" or rechecked.回答ラベル is None:
@@ -246,7 +234,14 @@ def HDS選択推論実行(
     作業再作用: bool = True,
     局所再照合: bool = True,
     最大局所Window数: int = 12,
+    模型核: MINIDORA模型核 | None = None,
+    正式模型評価: bool = False,
 ) -> HDS選択実行結果:
+    """選択問題をR→HDS→MINIDORA模型核または旧互換経路で評価する。
+
+    v0.4正式モードでは旧K3 helper / P0 / P1を実行せず、意味保存済みDataを直接
+    正式模型核の参照状態へ渡す。正式モードと旧経路を同一判断へ混在させない。
+    """
     choices = _choices(question_ir)
     if len(choices) < 2:
         return _suspend("HDS_CHOICE_SET_INCOMPLETE")
@@ -262,10 +257,7 @@ def HDS選択推論実行(
     worker_count = min(max(1, int(最大コンパイル並列)), max(1, len(choices), len(references))) if parallel_safe else 1
 
     choice_payloads = _一括コンパイル(
-        compile_isolated,
-        [content for _, content, _ in choices],
-        parallel=parallel_safe,
-        max_workers=worker_count,
+        compile_isolated, [content for _, content, _ in choices], parallel=parallel_safe, max_workers=worker_count,
     )
     candidate_irs: dict[str, HDSIR] = {}
     for (label, _, _), compiled in zip(choices, choice_payloads):
@@ -276,44 +268,59 @@ def HDS選択推論実行(
         candidate_irs[label] = compiled
 
     k_question_ir = HDSK質問射影(question_ir)
+    if any(residual.種別 == "semantic_loss" for residual in k_question_ir.残差):
+        return _suspend("HDS_K_QUESTION_SEMANTIC_LOSS", candidate_count=len(candidate_irs), parallel=parallel_safe, workers=worker_count)
+
     k_candidate_irs = {label: HDSK候補射影(candidate_ir) for label, candidate_ir in candidate_irs.items()}
     verification_candidate_irs = _検証候補群(k_question_ir, candidate_irs, k_candidate_irs)
+    attached_model_core = 模型核 or getattr(基礎能力核, "_minidora_model_core", None)
+    use_formal_model = bool(正式模型評価 or attached_model_core is not None)
+
+    data_payloads = _一括コンパイル(
+        compile_isolated, [record.内容 for record in references], parallel=parallel_safe, max_workers=worker_count,
+    )
+    data_compiled = 0
+    data_failed = 0
+    data_irs: list[HDSIR] = []
+    for compiled in data_payloads:
+        if isinstance(compiled, Exception):
+            data_failed += 1
+            continue
+        data_irs.append(HDSKData射影(compiled))
+        data_compiled += 1
+
+    choice_map = {label: content for label, content, _ in choices}
+
+    if use_formal_model:
+        formal = HDSMINIDORA模型評価(k_question_ir, verification_candidate_irs, tuple(data_irs), 模型核=attached_model_core)
+        content = choice_map.get(formal.回答ラベル) if formal.回答ラベル is not None else None
+        reasons = list(formal.理由)
+        reasons.append("FORMAL_MODEL_CORE_ONLY")
+        if data_failed:
+            reasons.append(f"DATA_COMPILE_PARTIAL:{data_failed}")
+        return HDS選択実行結果(
+            formal.状態, formal.回答ラベル, content, tuple(dict.fromkeys(reasons)), None,
+            len(candidate_irs), data_compiled, data_failed, 0, 0, 0, parallel_safe, worker_count,
+            0, 0, 0, 0, len(formal.模型結果.checkpoint), 0, 0, 0, 0,
+            int(formal.状態 != "APPROVE"), 0, 0, 0, 0, 0, 0, formal.模型結果,
+        )
 
     working = 基礎能力核.clone()
     HDS証拠状態複製(基礎能力核, working)
     ingest = HDSIR知識Adapter(working)
-    data_compiled = 0
-    data_failed = 0
     added = 0
     evidence = 0
     blocked = 0
-
-    data_payloads = _一括コンパイル(
-        compile_isolated,
-        [record.内容 for record in references],
-        parallel=parallel_safe,
-        max_workers=worker_count,
-    )
     for record, compiled in zip(references, data_payloads):
         if isinstance(compiled, Exception):
-            data_failed += 1
             continue
-        result = ingest.投入(
-            HDSKData射影(compiled),
-            provenance=_参照provenance(record),
-            信頼係数=record.信頼,
-        )
-        data_compiled += 1
+        result = ingest.投入(HDSKData射影(compiled), provenance=_参照provenance(record), 信頼係数=record.信頼)
         added += result.追加事実数
         evidence += result.証拠事実数
         blocked += result.証拠阻害事実数
 
     作業 = HDS作業状態構築(working)
-    initial = HDSIRネイティブAdapter(working).実行(
-        k_question_ir,
-        候補IR=verification_candidate_irs,
-        努力=努力,
-    )
+    initial = HDSIRネイティブAdapter(working).実行(k_question_ir, 候補IR=verification_candidate_irs, 努力=努力)
     initial = _直接関係で再判定(question_ir, verification_candidate_irs, working, initial)
     HDS候補共同状態更新(作業, initial.候補診断, 段階="CANDIDATE_INITIAL")
 
@@ -326,9 +333,9 @@ def HDS選択推論実行(
     local_failed = 0
     local_added = 0
     local_reconciliations = 0
-    k3 = initial
-    rechecked_selected = False
-    rechecked_override = False
+    legacy_k3 = initial
+    legacy_rechecked_selected = False
+    legacy_rechecked_override = False
 
     if temporary or local_windows:
         rechecked_core = working.clone()
@@ -336,24 +343,16 @@ def HDS選択推論実行(
         changed = 0
         if temporary:
             changed += HDS一時証拠統合(rechecked_core, temporary)
-
         if local_windows:
             local_payloads = _一括コンパイル(
-                compile_isolated,
-                [row.内容 for row in local_windows],
-                parallel=parallel_safe,
-                max_workers=worker_count,
+                compile_isolated, [row.内容 for row in local_windows], parallel=parallel_safe, max_workers=worker_count,
             )
             local_ingest = HDSIR知識Adapter(rechecked_core)
             for row, compiled in zip(local_windows, local_payloads):
                 if isinstance(compiled, Exception):
                     local_failed += 1
                     continue
-                result = local_ingest.投入(
-                    HDSKData射影(compiled),
-                    provenance=_参照provenance(row.参照),
-                    信頼係数=row.参照.信頼,
-                )
+                result = local_ingest.投入(HDSKData射影(compiled), provenance=_参照provenance(row.参照), 信頼係数=row.参照.信頼)
                 local_compiled += 1
                 local_added += result.追加事実数
                 changed += result.証拠事実数
@@ -362,39 +361,32 @@ def HDS選択推論実行(
             作業.統計.checkpoint再活性数 += 1
             作業.統計.大域再照合数 += 1
             local_reconciliations = 1 if local_compiled > 0 else 0
-            rechecked = HDSIRネイティブAdapter(rechecked_core).実行(
-                k_question_ir,
-                候補IR=verification_candidate_irs,
-                努力=努力,
-            )
+            rechecked = HDSIRネイティブAdapter(rechecked_core).実行(k_question_ir, 候補IR=verification_candidate_irs, 努力=努力)
             rechecked = _直接関係で再判定(question_ir, verification_candidate_irs, rechecked_core, rechecked)
             HDS候補共同状態更新(作業, rechecked.候補診断, 段階="CANDIDATE_RECHECK")
             selected = _再作用結果選択(initial, rechecked)
-            rechecked_selected = selected is rechecked
-            rechecked_override = bool(
-                rechecked_selected
-                and initial.回答ラベル is not None
-                and rechecked.回答ラベル is not None
+            legacy_rechecked_selected = selected is rechecked
+            legacy_rechecked_override = bool(
+                legacy_rechecked_selected and initial.回答ラベル is not None and rechecked.回答ラベル is not None
                 and initial.回答ラベル != rechecked.回答ラベル
             )
-            if not rechecked_selected and rechecked.回答ラベル != initial.回答ラベル:
+            if not legacy_rechecked_selected and rechecked.回答ラベル != initial.回答ラベル:
                 作業.統計.作業関係再検証後破棄数 += len(temporary)
-            k3 = selected
+            legacy_k3 = selected
 
-    if k3.状態 != "APPROVE":
+    if legacy_k3.状態 != "APPROVE":
         作業.統計.遍歴後SUSPEND数 = 1
-
-    choice_map = {label: content for label, content, _ in choices}
-    content = choice_map.get(k3.回答ラベル) if k3.回答ラベル is not None else None
-    reasons = list(k3.理由)
+    content = choice_map.get(legacy_k3.回答ラベル) if legacy_k3.回答ラベル is not None else None
+    reasons = list(legacy_k3.理由)
+    reasons.append("LEGACY_V03_SELECTION_PATH")
     if temporary:
-        reasons.append("WORKING_RECHECK")
+        reasons.append("LEGACY_WORKING_RECHECK")
     if local_compiled:
-        reasons.append("LOCAL_WINDOW_RECHECK")
-    if rechecked_selected:
-        reasons.append("RECHECK_SELECTED")
-    if rechecked_override:
-        reasons.append("RECHECK_OVERRIDE")
+        reasons.append("LEGACY_LOCAL_WINDOW_RECHECK")
+    if legacy_rechecked_selected:
+        reasons.append("LEGACY_RECHECK_SELECTED")
+    if legacy_rechecked_override:
+        reasons.append("LEGACY_RECHECK_OVERRIDE")
     if data_failed:
         reasons.append(f"DATA_COMPILE_PARTIAL:{data_failed}")
     if local_failed:
@@ -402,35 +394,12 @@ def HDS選択推論実行(
 
     stats = 作業.統計
     return HDS選択実行結果(
-        k3.状態,
-        k3.回答ラベル,
-        content,
-        tuple(dict.fromkeys(reasons)),
-        k3,
-        len(candidate_irs),
-        data_compiled,
-        data_failed,
-        added,
-        evidence,
-        blocked,
-        parallel_safe,
-        worker_count,
-        stats.作業関係生成数,
-        stats.作業関係再利用数,
-        stats.作業関係K昇格数,
-        stats.作業関係再検証後破棄数,
-        stats.checkpoint数,
-        stats.checkpoint再活性数,
-        stats.大域再照合数,
-        stats.候補横断更新数,
-        stats.専門作用起動数,
-        stats.遍歴後SUSPEND数,
-        stats.一時証拠数,
-        len(local_windows),
-        local_compiled,
-        local_failed,
-        local_added,
-        local_reconciliations,
+        legacy_k3.状態, legacy_k3.回答ラベル, content, tuple(dict.fromkeys(reasons)), legacy_k3,
+        len(candidate_irs), data_compiled, data_failed, added, evidence, blocked, parallel_safe, worker_count,
+        stats.作業関係生成数, stats.作業関係再利用数, stats.作業関係K昇格数, stats.作業関係再検証後破棄数,
+        stats.checkpoint数, stats.checkpoint再活性数, stats.大域再照合数, stats.候補横断更新数,
+        stats.専門作用起動数, stats.遍歴後SUSPEND数, stats.一時証拠数, len(local_windows), local_compiled,
+        local_failed, local_added, local_reconciliations, None,
     )
 
 

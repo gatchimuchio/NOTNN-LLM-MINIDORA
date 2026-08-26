@@ -5,6 +5,14 @@ on:
   push:
     branches: [main]
     paths:
+      - "src/minidora/言語基底_英日意味強化.py"
+      - "src/minidora/hds_language_semantic_bridge.py"
+      - "src/minidora/hds_language_relations.py"
+      - "src/minidora/hds_runtime_projection.py"
+      - "src/minidora/hds_choice_hypothesis.py"
+      - "src/minidora/hds_model_projection.py"
+      - "src/minidora/能力作用則.py"
+      - "src/minidora/模型.py"
       - "tools/audit_projection_chain.py"
       - ".github/workflows/projection_chain_audit.yml"
 

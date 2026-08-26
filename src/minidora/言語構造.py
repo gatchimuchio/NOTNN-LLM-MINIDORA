@@ -9,7 +9,10 @@ from .言語基底_英語 import 英語明示関係構文
 
 
 _語 = re.compile(r"[A-Za-z0-9_+./^%µμΩ°\-]+|[Α-Ωα-ωϐ-Ͽ]+|[ぁ-んァ-ヶー]+|[一-龥々]+|[^\s]")
-_英語否定 = re.compile(r"\b(?:do|does|did|is|are|was|were|be|been|being|can|could|may|might|must|will|would|should|has|have|had)\s+not\b|\bnever\b", re.I)
+_英語否定 = re.compile(
+    r"\b(?:do|does|did|is|are|was|were|be|been|being|can|could|may|might|must|will|would|should|has|have|had)\s+not\b|\bnever\b",
+    re.I,
+)
 _日本語否定 = re.compile(r"(?:ではない|じゃない|しない|ない|ず|ぬ)")
 _条件 = (
     re.compile(r"\b(?:if|when|given|assuming|unless)\s+([^,;.!?]{1,160})", re.I),
@@ -36,9 +39,19 @@ _日本語関係構文 = (
 )
 
 _記号種別 = {
-    "->": "方向", "=>": "方向", "→": "方向", "⇒": "方向",
-    ">": "比較.大", "<": "比較.小", ">=": "比較.以上", "≥": "比較.以上",
-    "<=": "比較.以下", "≤": "比較.以下", "=": "等価", "!=": "不同", "≠": "不同",
+    "->": "方向",
+    "=>": "方向",
+    "→": "方向",
+    "⇒": "方向",
+    ">": "比較.大",
+    "<": "比較.小",
+    ">=": "比較.以上",
+    "≥": "比較.以上",
+    "<=": "比較.以下",
+    "≤": "比較.以下",
+    "=": "等価",
+    "!=": "不同",
+    "≠": "不同",
 }
 
 
@@ -49,6 +62,9 @@ class 言語関係構造:
     終点: frozenset[str]
     肯定: bool = True
     条件: tuple[frozenset[str], ...] = ()
+    # 表層語形に縛られず、有限語彙外の開放述語も同一性比較へ残す。
+    # 既存の関係種別は引き続き正本であり、この欄は能力射影の補助構造である。
+    述語: frozenset[str] = frozenset()
 
     @property
     def 署名(self) -> tuple[object, ...]:
@@ -58,6 +74,7 @@ class 言語関係構造:
             tuple(sorted(self.終点)),
             self.肯定,
             tuple(tuple(sorted(item)) for item in self.条件),
+            tuple(sorted(self.述語)) if self.種別 == "開放述語" else (),
         )
 
 
@@ -115,31 +132,38 @@ def 言語関係抽出(text: str, 言語体系: str = "自然言語:ja") -> tupl
     out: list[言語関係構造] = []
     seen: set[tuple[object, ...]] = set()
 
-    def add(kind: str, subject: str, object_: str, *, reverse: bool = False) -> None:
+    def add(kind: str, subject: str, object_: str, predicate: str, *, reverse: bool = False) -> None:
         s = _意味集合(subject)
         o = _意味集合(object_)
+        p = _意味集合(predicate)
         if reverse:
             s, o = o, s
         if not s or not o:
             return
-        item = 言語関係構造(kind, s, o, not negative, conditions)
+        item = 言語関係構造(kind, s, o, not negative, conditions, p)
         if item.署名 in seen:
             return
         seen.add(item.署名)
         out.append(item)
 
     for match in _記号関係.finditer(cleaned):
-        add(_記号種別[match.group("op")], match.group("s"), match.group("o"))
+        add(_記号種別[match.group("op")], match.group("s"), match.group("o"), match.group("op"))
 
     if str(言語体系).casefold().startswith("自然言語:en") or re.search(r"[A-Za-z]", cleaned):
         for syntax in 英語明示関係構文:
             for match in syntax.正規表現.finditer(cleaned):
-                add(syntax.種別, match.group("s"), match.group("o"), reverse=syntax.反転)
+                add(
+                    syntax.種別,
+                    match.group("s"),
+                    match.group("o"),
+                    match.group("v"),
+                    reverse=syntax.反転,
+                )
 
     if str(言語体系).casefold().startswith("自然言語:ja") or re.search(r"[ぁ-んァ-ヶ一-龥]", cleaned):
         for kind, pattern in _日本語関係構文:
             for match in pattern.finditer(cleaned):
-                add(kind, match.group("s"), match.group("o"))
+                add(kind, match.group("s"), match.group("o"), match.group("v"))
 
     return tuple(out)
 

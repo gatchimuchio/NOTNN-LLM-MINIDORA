@@ -24,13 +24,11 @@ _MATH_VAR_LEFT = re.compile(r"(?<![A-Za-z0-9_])([A-Za-zΑ-Ωα-ωϐ-Ͽ])(?=\s*(?
 _MATH_VAR_RIGHT = re.compile(r"(?:=|[+\-*/^<>≤≥])\s*([A-Za-zΑ-Ωα-ωϐ-Ͽ])(?![A-Za-z0-9_])")
 
 _STOP = {
-    # 基本機能語
     "the", "a", "an", "of", "to", "in", "on", "at", "for", "from", "with", "and", "or",
     "is", "are", "was", "were", "be", "been", "being", "which", "what", "who", "when", "where",
     "why", "how", "this", "that", "these", "those", "it", "its", "as", "by", "than", "then",
     "do", "does", "did", "have", "has", "had", "will", "shall", "would", "could", "should",
     "may", "might", "can", "about", "into", "through", "during", "after", "before", "between", "among",
-    # 選択QAの制御語。真偽・反転はCompiler/J側で別構造として保持し、意味証拠へ混ぜない。
     "following", "statement", "statements", "answer", "answers", "option", "options", "choice", "choices",
     "correct", "incorrect", "true", "false", "most", "least", "likely", "unlikely", "best", "except",
     "select", "choose", "chosen", "consider", "considered", "describe", "describes", "described",
@@ -39,10 +37,7 @@ _STOP = {
 
 
 def _english_stem(value: str) -> str:
-    """意味照合用の保守的な英語表層正規化。
-
-    共有言語基底Pで明示している語形を先に戻し、それ以外だけ一般的な軽量stemへ落とす。
-    """
+    """意味照合用の保守的な英語表層正規化。"""
     if not re.fullmatch(r"[a-z]+", value):
         return value
     lexical = _英語基底基本形(value)
@@ -54,6 +49,9 @@ def _english_stem(value: str) -> str:
         return value[:-3] + "y"
     if len(value) > 5 and value.endswith("sses"):
         return value[:-2]
+    # characterize/organize等の -ize/-ise 系は -es ではなく3単現の -s だけを落とす。
+    if len(value) > 5 and value.endswith(("izes", "ises")):
+        return value[:-1]
     if len(value) > 5 and value.endswith(("xes", "zes", "ches", "shes")):
         return value[:-2]
     if len(value) > 4 and value.endswith("ing"):
@@ -63,6 +61,8 @@ def _english_stem(value: str) -> str:
         if stem.endswith("us"):
             return stem + "e"
         return stem
+    if len(value) > 4 and value.endswith("ied"):
+        return value[:-3] + "y"
     if len(value) > 4 and value.endswith("ed"):
         stem = value[:-2]
         if len(stem) >= 2 and stem[-1] == stem[-2] and stem[-1] not in "aeiou":
@@ -95,14 +95,7 @@ def _数式anchor(raw: str) -> set[str]:
 
 
 def 意味語(text: object) -> frozenset[str]:
-    """HDS意味照合で共有する正規化語集合を返す。
-
-    技術文では一文字の変数・列挙記号・ギリシャ文字・科学記数法自体が意味を持つ。
-    日本語は共有言語基底Pを参照し、一文字漢字を意味記号として保持する一方、助詞など
-    文法機能だけの語は意味証拠へ混ぜない。英語の明示関係動詞は語形を基本形へ戻し、
-    同義の関係語へ共有 `rel:` anchorを追加する。選択QAの制御語はCompiler/J側の
-    選択意図・否定・反転構造に責任を分離する。
-    """
+    """HDS意味照合で共有する正規化語集合を返す。"""
     raw = unicodedata.normalize("NFKC", str(text))
     out: set[str] = _数式anchor(raw)
 
@@ -130,12 +123,10 @@ def 意味語(text: object) -> frozenset[str]:
             out.add(_記号語(original))
             continue
 
-        # 日本語一文字漢字はそれ自体が意味記号になり得るため、英字と同じ長さ基準で捨てない。
         if len(original) == 1 and 標準言語基底P.文字知識(original).体系 == "漢字":
             out.add(original)
             continue
 
-        # 助詞・否定・丁寧表現などの文法機能はCompiler側の構造へ責任分離する。
         if 標準言語基底P.文法機能(original) is not None:
             continue
 

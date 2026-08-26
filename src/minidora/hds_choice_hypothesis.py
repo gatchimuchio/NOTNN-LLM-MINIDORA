@@ -7,6 +7,18 @@ from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
 
 
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
+_STRUCTURAL_KEYS = frozenset({
+    "検索述語",
+    "英日意味射影",
+    "受動態",
+    "選択意図",
+    "様相",
+    "量化",
+    "条件scope",
+    "scope",
+    "条件作用",
+    "極性",
+})
 
 
 def _条件値(relation: HDS関係, key: str) -> str:
@@ -23,7 +35,7 @@ def _候補表層(ir: HDSIR) -> str:
 
 
 def _質問関係(question_ir: HDSIR) -> tuple[HDS関係, ...]:
-    """英日意味正本関係があれば表層由来の重複関係より優先する。"""
+    """英日意味正本関係があれば、表層由来の局所関係より優先する。"""
     canonical = tuple(
         relation
         for relation in question_ir.関係
@@ -32,16 +44,30 @@ def _質問関係(question_ir: HDSIR) -> tuple[HDS関係, ...]:
     )
     if canonical:
         return canonical
-    return tuple(question_ir.関係)
+    return tuple(
+        relation
+        for relation in question_ir.関係
+        if _条件値(relation, "不足位置") in {"始点", "終点"}
+    )
+
+
+def _仮説条件(relation: HDS関係, missing: str) -> tuple[str, ...]:
+    """候補代入で問いの述語・極性・scopeを落とさない。"""
+    out = ["由来=候補代入", f"不足位置={missing}"]
+    for raw in relation.条件:
+        key, sep, payload = str(raw).partition("=")
+        key = key.strip()
+        payload = payload.strip()
+        if not sep or key == "不足位置" or key not in _STRUCTURAL_KEYS or not payload:
+            continue
+        out.append(f"{key}={payload}")
+    return tuple(dict.fromkeys(out))
 
 
 def HDS候補代入仮説(question_ir: HDSIR, label: str, candidate_ir: HDSIR) -> HDSIR:
-    """問いの未知関係端点へ候補を代入した、比較専用の仮説関係を候補IRへ追加する。
+    """問いの未知関係端点へ候補を代入した比較専用仮説を候補IRへ追加する。
 
-    Compilerが `不足位置=始点|終点` として明示した未観測端点だけを対象とする。
-    仮説は `推定` として候補IRにだけ保持し、Kの事実へ投入しない。従って候補を真と
-    仮定する処理ではなく、各候補を同じ問い構造へ代入してDataの関係構造と比較するための
-    一時Projectionである。
+    仮説は `推定` のまま候補IRにだけ存在し、canonical Kへは昇格しない。
     """
     candidate = _候補表層(candidate_ir)
     if not candidate:
@@ -57,10 +83,10 @@ def HDS候補代入仮説(question_ir: HDSIR, label: str, candidate_ir: HDSIR) -
     def add_coord(kind: str, content: str, suffix: str) -> str:
         base = f"hyp:{label}:{suffix}"
         cid = base
-        index = 1
+        serial = 1
         while cid in existing_ids:
-            cid = f"{base}:{index}"
-            index += 1
+            cid = f"{base}:{serial}"
+            serial += 1
         existing_ids.add(cid)
         coords.append(
             HDS座標(
@@ -93,55 +119,42 @@ def HDS候補代入仮説(question_ir: HDSIR, label: str, candidate_ir: HDSIR) -
         if missing == "終点":
             if not known_starts:
                 continue
-            for index, known in enumerate(known_starts):
-                sid = add_coord("対象.仮説既知端点", str(known.内容), f"known-start:{added}:{index}")
-                oid = add_coord("目的.候補代入", candidate, f"candidate-end:{added}:{index}")
-                rid_base = f"hyp-rel:{label}:{added}:{index}"
-                rid = rid_base
-                serial = 1
-                while rid in existing_relation_ids:
-                    rid = f"{rid_base}:{serial}"
-                    serial += 1
-                existing_relation_ids.add(rid)
-                relations.append(
-                    HDS関係(
-                        rid,
-                        (sid,),
-                        (oid,),
-                        str(qrelation.種別),
-                        条件=("由来=候補代入", "不足位置=終点"),
-                        値状態=値状態.推定,
-                        由来="HDS候補代入仮説",
-                        暫定性="CANDIDATE_SUBSTITUTION_HYPOTHESIS",
-                    )
-                )
-                added += 1
+            pairs = ((known, None) for known in known_starts)
         else:
             if not known_ends:
                 continue
-            for index, known in enumerate(known_ends):
+            pairs = ((None, known) for known in known_ends)
+
+        for index, (known_start, known_end) in enumerate(pairs):
+            if missing == "終点":
+                assert known_start is not None
+                sid = add_coord("対象.仮説既知端点", str(known_start.内容), f"known-start:{added}:{index}")
+                oid = add_coord("目的.候補代入", candidate, f"candidate-end:{added}:{index}")
+            else:
+                assert known_end is not None
                 sid = add_coord("目的.候補代入", candidate, f"candidate-start:{added}:{index}")
-                oid = add_coord("対象.仮説既知端点", str(known.内容), f"known-end:{added}:{index}")
-                rid_base = f"hyp-rel:{label}:{added}:{index}"
-                rid = rid_base
-                serial = 1
-                while rid in existing_relation_ids:
-                    rid = f"{rid_base}:{serial}"
-                    serial += 1
-                existing_relation_ids.add(rid)
-                relations.append(
-                    HDS関係(
-                        rid,
-                        (sid,),
-                        (oid,),
-                        str(qrelation.種別),
-                        条件=("由来=候補代入", "不足位置=始点"),
-                        値状態=値状態.推定,
-                        由来="HDS候補代入仮説",
-                        暫定性="CANDIDATE_SUBSTITUTION_HYPOTHESIS",
-                    )
+                oid = add_coord("対象.仮説既知端点", str(known_end.内容), f"known-end:{added}:{index}")
+
+            rid_base = f"hyp-rel:{label}:{added}:{index}"
+            rid = rid_base
+            serial = 1
+            while rid in existing_relation_ids:
+                rid = f"{rid_base}:{serial}"
+                serial += 1
+            existing_relation_ids.add(rid)
+            relations.append(
+                HDS関係(
+                    rid,
+                    (sid,),
+                    (oid,),
+                    str(qrelation.種別),
+                    条件=_仮説条件(qrelation, missing),
+                    値状態=値状態.推定,
+                    由来="HDS候補代入仮説",
+                    暫定性="CANDIDATE_SUBSTITUTION_HYPOTHESIS",
                 )
-                added += 1
+            )
+            added += 1
 
     if not added:
         return candidate_ir
