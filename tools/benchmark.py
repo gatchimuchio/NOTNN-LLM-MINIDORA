@@ -29,7 +29,6 @@ BENCHMARKS = {
 
 
 def _標準入出力をUTF8化() -> None:
-    """日本語基底のベンチCLIをOS既定コードページから分離する。"""
     for stream in (sys.stdin, sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
@@ -53,6 +52,11 @@ def _parser() -> argparse.ArgumentParser:
     gpqa_parser.add_argument("--resume", action="store_true", help="同一commit・同一条件の既存outから続行する")
     gpqa_parser.add_argument("--checkpoint-every", type=int, default=1, help="何問ごとに途中結果JSONを書き出すか")
     gpqa_parser.add_argument("--no-openalex", action="store_true", help="OPENALEX_API_KEYが存在してもOpenAlexを使わない")
+    gpqa_parser.add_argument(
+        "--controlled-ab",
+        action="store_true",
+        help="同じ取得資料を旧経路(P0/P1無効)と現行経路へ流し、検索揺れを除いたA/B差を保存する",
+    )
     return parser
 
 
@@ -116,6 +120,7 @@ def _load_resume(
     csv_hash: str,
     repository_commit: str,
     openalex_enabled: bool,
+    controlled_ab: bool,
 ) -> dict[int, dict[str, Any]]:
     if not path.exists():
         return {}
@@ -127,6 +132,8 @@ def _load_resume(
         raise SystemExit("--resume対象のrepository commitが現在のcheckoutと一致しません。")
     if bool(protocol.get("openalex_enabled")) != openalex_enabled:
         raise SystemExit("--resume対象のOpenAlex条件が今回の実行条件と一致しません。")
+    if bool(protocol.get("controlled_ab")) != bool(controlled_ab):
+        raise SystemExit("--resume対象のcontrolled A/B条件が今回と一致しません。")
     expected = list(selected)
     if protocol.get("selected_indices") != expected:
         raise SystemExit("--resume対象の実行範囲が今回の --start-index/--limit と一致しません。")
@@ -161,6 +168,11 @@ def _metrics(details: list[dict[str, Any]], *, selected_total: int) -> dict[str,
     specialist_actions = sum(int(d.get("specialist_actions_invoked", 0)) for d in details)
     suspend_after_exhaustion = sum(int(d.get("suspend_after_exhaustion", 0)) for d in details)
     temporary_evidence = sum(int(d.get("temporary_working_evidence", 0)) for d in details)
+    local_windows = sum(int(d.get("local_windows", 0)) for d in details)
+    local_compiled = sum(int(d.get("local_windows_compiled", 0)) for d in details)
+    local_failed = sum(int(d.get("local_windows_compile_failed", 0)) for d in details)
+    local_added = sum(int(d.get("local_window_facts_added", 0)) for d in details)
+    local_reconciliations = sum(int(d.get("local_reconciliations", 0)) for d in details)
     reason_counts: Counter[str] = Counter()
     effort_counts: Counter[str] = Counter()
     source_counts: Counter[str] = Counter()
@@ -205,9 +217,68 @@ def _metrics(details: list[dict[str, Any]], *, selected_total: int) -> dict[str,
         "specialist_actions_invoked": specialist_actions,
         "suspend_after_exhaustion": suspend_after_exhaustion,
         "temporary_working_evidence": temporary_evidence,
+        "local_windows": local_windows,
+        "local_windows_compiled": local_compiled,
+        "local_windows_compile_failed": local_failed,
+        "local_window_facts_added": local_added,
+        "local_reconciliations": local_reconciliations,
         "source_counts": dict(sorted(source_counts.items())),
         "reason_counts": dict(sorted(reason_counts.items())),
         "effort_counts": dict(sorted(effort_counts.items())),
+    }
+
+
+def _controlled_metrics(details: list[dict[str, Any]], *, selected_total: int) -> dict[str, Any] | None:
+    if not details or not any("baseline_correct" in row for row in details):
+        return None
+    rows = [row for row in details if "baseline_correct" in row]
+    correct = sum(bool(row.get("baseline_correct")) for row in rows)
+    answered = sum(bool(row.get("baseline_answered")) for row in rows)
+    measured = len(rows)
+    accuracy = 100.0 * correct / measured if measured else 0.0
+    answer_rate = 100.0 * answered / measured if measured else 0.0
+    answered_accuracy = 100.0 * correct / answered if answered else 0.0
+    return {
+        "completed": measured,
+        "selected_total": selected_total,
+        "correct": correct,
+        "wrong": answered - correct,
+        "accuracy_percent": accuracy,
+        "answered": answered,
+        "answer_rate_percent": answer_rate,
+        "answered_accuracy_percent": answered_accuracy,
+        "suspended": measured - answered,
+    }
+
+
+def _controlled_delta(current: dict[str, Any], baseline: dict[str, Any] | None, details: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if baseline is None:
+        return None
+    changed_answers = sum(
+        row.get("predicted") != row.get("baseline_predicted")
+        for row in details
+        if "baseline_predicted" in row
+    )
+    improved_cases = sum(
+        bool(row.get("correct")) and not bool(row.get("baseline_correct"))
+        for row in details
+        if "baseline_correct" in row
+    )
+    regressed_cases = sum(
+        not bool(row.get("correct")) and bool(row.get("baseline_correct"))
+        for row in details
+        if "baseline_correct" in row
+    )
+    return {
+        "correct_delta": int(current["correct"]) - int(baseline["correct"]),
+        "accuracy_points": float(current["accuracy_percent"]) - float(baseline["accuracy_percent"]),
+        "answered_delta": int(current["answered"]) - int(baseline["answered"]),
+        "answer_rate_points": float(current["answer_rate_percent"]) - float(baseline["answer_rate_percent"]),
+        "answered_accuracy_points": float(current["answered_accuracy_percent"]) - float(baseline["answered_accuracy_percent"]),
+        "changed_answers": changed_answers,
+        "improved_cases": improved_cases,
+        "regressed_cases": regressed_cases,
+        "net_improved_cases": improved_cases - regressed_cases,
     }
 
 
@@ -219,24 +290,25 @@ def _result_payload(
     csv_hash: str,
     repository_commit: str,
     openalex_enabled: bool,
+    controlled_ab: bool,
 ) -> dict[str, Any]:
     selected_total = len(selected)
     metrics = _metrics(details, selected_total=selected_total)
+    baseline = _controlled_metrics(details, selected_total=selected_total) if controlled_ab else None
+    controlled_delta = _controlled_delta(metrics, baseline, details) if controlled_ab else None
     full_run = selected.start == 0 and selected.stop == BENCHMARKS["gpqa-diamond"]["full_total"]
     k3_score = float(BENCHMARKS["gpqa-diamond"]["comparison"]["score_percent"])
     comparison = dict(BENCHMARKS["gpqa-diamond"]["comparison"])
     comparison["directly_comparable"] = full_run and metrics["completed"] == selected_total
     comparison["minidora_score_percent"] = metrics["accuracy_percent"] if comparison["directly_comparable"] else None
-    comparison["score_gap_points"] = (
-        k3_score - metrics["accuracy_percent"] if comparison["directly_comparable"] else None
-    )
+    comparison["score_gap_points"] = k3_score - metrics["accuracy_percent"] if comparison["directly_comparable"] else None
     comparison["k3_score_ratio_percent"] = (
         100.0 * metrics["accuracy_percent"] / k3_score
         if comparison["directly_comparable"] and k3_score
         else None
     )
     return {
-        "schema": "minidora.benchmark.repository-runner.v2",
+        "schema": "minidora.benchmark.repository-runner.v3",
         "protocol": {
             "benchmark": "GPQA Diamond",
             "dataset": "official idavidrein/gpqa dataset.zip / gpqa_diamond.csv",
@@ -247,15 +319,19 @@ def _result_payload(
             "selected_indices": list(selected),
             "choice_shuffle_seed": gpqa.SEED,
             "compiler": "MINIDORA public standard HDS Compiler; Japanese-base role projection; benchmark-agnostic",
-            "gold_boundary": "gold used only after inference for scoring",
+            "gold_boundary": "gold used only after both inferences for scoring",
             "repository_commit": repository_commit,
             "openalex_enabled": openalex_enabled,
             "wikipedia_languages": ["en"],
             "runtime": "current repository checkout; HDS choice native R->HDS->K/Working->J",
-            "working_state_boundary": "working relations are request-local evidence and are never auto-promoted to canonical K",
-            "checkpoint_resume": "same dataset + selected range + repository commit + OpenAlex condition only",
+            "working_state_boundary": "working/local relations are request-local and never auto-promoted to persistent canonical K",
+            "controlled_ab": bool(controlled_ab),
+            "controlled_ab_definition": "same question IR + same retrieved reference records; baseline disables working/local re-action; current enables them",
+            "checkpoint_resume": "same dataset + selected range + repository commit + OpenAlex + controlled-ab condition only",
         },
         "metrics": metrics,
+        "controlled_baseline": baseline,
+        "controlled_delta": controlled_delta,
         "comparison_reference": comparison,
         "baseline_reference_only_not_directly_comparable": {
             "correct": 8,
@@ -285,6 +361,7 @@ def _run_gpqa(args: argparse.Namespace) -> int:
             csv_hash=csv_hash,
             repository_commit=repository_commit,
             openalex_enabled=api_key is not None,
+            controlled_ab=bool(args.controlled_ab),
         )
         if args.resume
         else {}
@@ -308,16 +385,30 @@ def _run_gpqa(args: argparse.Namespace) -> int:
         question, choices, gold = cases[index]
         question_ir = compiler.問題IR(question, choices)
         references = gpqa.HDS参照検索(provider, question_ir)
+
+        baseline = None
+        if args.controlled_ab:
+            baseline = gpqa.HDS選択推論実行(
+                question_ir,
+                tuple(references),
+                コンパイル=compiler.コンパイル,
+                基礎能力核=base_core,
+                作業再作用=False,
+                局所再照合=False,
+            )
+
         inference = gpqa.HDS選択推論実行(
             question_ir,
             tuple(references),
             コンパイル=compiler.コンパイル,
             基礎能力核=base_core,
+            作業再作用=True,
+            局所再照合=True,
         )
         predicted = inference.回答ラベル
         answered = inference.状態 == "APPROVE" and predicted is not None
         correct = bool(answered and predicted == gold)
-        completed[index] = {
+        detail: dict[str, Any] = {
             "index": index,
             "predicted": predicted,
             "gold": gold,
@@ -343,6 +434,11 @@ def _run_gpqa(args: argparse.Namespace) -> int:
             "specialist_actions_invoked": inference.専門作用起動数,
             "suspend_after_exhaustion": inference.遍歴後SUSPEND数,
             "temporary_working_evidence": inference.一時証拠数,
+            "local_windows": inference.局所Window数,
+            "local_windows_compiled": inference.局所Windowコンパイル数,
+            "local_windows_compile_failed": inference.局所Windowコンパイル失敗数,
+            "local_window_facts_added": inference.局所Window追加事実数,
+            "local_reconciliations": inference.局所再照合数,
             "effort": inference.K3結果.努力水準 if inference.K3結果 else None,
             "candidate_diagnostics": [
                 {
@@ -355,10 +451,22 @@ def _run_gpqa(args: argparse.Namespace) -> int:
                 for d in (inference.K3結果.候補診断 if inference.K3結果 else ())
             ],
         }
+        if baseline is not None:
+            base_pred = baseline.回答ラベル
+            base_answered = baseline.状態 == "APPROVE" and base_pred is not None
+            detail.update({
+                "baseline_predicted": base_pred,
+                "baseline_correct": bool(base_answered and base_pred == gold),
+                "baseline_answered": base_answered,
+                "baseline_status": baseline.状態,
+                "baseline_reasons": list(baseline.理由),
+            })
+        completed[index] = detail
         processed_since_checkpoint += 1
+        baseline_text = f" baseline={detail.get('baseline_predicted')}" if args.controlled_ab else ""
         print(
             f"CASE {index + 1:03d}/198 status={inference.状態} pred={predicted} "
-            f"correct={correct} retrieved={len(references)} work={inference.一時証拠数}",
+            f"correct={correct} retrieved={len(references)} local={inference.局所Windowコンパイル数}{baseline_text}",
             flush=True,
         )
         if processed_since_checkpoint >= args.checkpoint_every:
@@ -372,6 +480,7 @@ def _run_gpqa(args: argparse.Namespace) -> int:
                     csv_hash=csv_hash,
                     repository_commit=repository_commit,
                     openalex_enabled=api_key is not None,
+                    controlled_ab=bool(args.controlled_ab),
                 ),
             )
             processed_since_checkpoint = 0
@@ -384,9 +493,13 @@ def _run_gpqa(args: argparse.Namespace) -> int:
         csv_hash=csv_hash,
         repository_commit=repository_commit,
         openalex_enabled=api_key is not None,
+        controlled_ab=bool(args.controlled_ab),
     )
     _atomic_write(args.out, result)
     print("MINIDORA_BENCHMARK_RESULT=" + json.dumps(result["metrics"], ensure_ascii=False), flush=True)
+    if result["controlled_baseline"] is not None:
+        print("CONTROLLED_BASELINE=" + json.dumps(result["controlled_baseline"], ensure_ascii=False), flush=True)
+        print("CONTROLLED_DELTA=" + json.dumps(result["controlled_delta"], ensure_ascii=False), flush=True)
     print("K3_COMPARISON=" + json.dumps(result["comparison_reference"], ensure_ascii=False), flush=True)
     print(f"RESULT_FILE={args.out}", flush=True)
     return 0
