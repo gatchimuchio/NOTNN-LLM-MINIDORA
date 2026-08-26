@@ -54,7 +54,7 @@ def _segments(text: str) -> tuple[str, ...]:
         return ()
     base = [segment.strip() for segment in _文分割.split(raw) if len(segment.strip()) >= 24]
     if not base:
-        base = [raw]
+        return ()
     out: list[str] = []
     seen: set[str] = set()
     for index, segment in enumerate(base):
@@ -81,6 +81,7 @@ def HDS局所Window候補(
 
     ここでは真偽を決めない。window選択にgold・候補ラベルの優劣・domain規則を使わず、
     全候補の差分語集合を対称に扱う。元source identityは参照記録をそのまま保持する。
+    全文そのものと同一のwindowは再解析対象にしない。
     """
     if 上限 <= 0:
         return ()
@@ -94,7 +95,10 @@ def HDS局所Window候補(
 
     rows: list[HDS局所Window] = []
     for record in references:
+        full = _normalize(record.内容)
         for segment in _segments(record.内容):
+            if segment.casefold() == full.casefold():
+                continue
             terms = 意味語(segment)
             if not terms:
                 continue
