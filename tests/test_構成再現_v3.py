@@ -35,7 +35,7 @@ class 構成再現v3試験(unittest.TestCase):
         self.assertEqual(証拠状態合計寄与(targets,evidence),4)
 
     def test_形成済み関係を一般作用と分離する(self):
-        formed=関係規則("形成済み",候補必須=frozenset({"formed"}),差=3)
+        formed=関係規則("形成済み",候補必須=frozenset({"form"}),差=3)
         core=MINIDORA模型核((意味連続関係(),),形成済み関係群=(formed,),能力作用群=())
         result=core.評価言語状態(
             言語状態("question"),
