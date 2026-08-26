@@ -43,6 +43,11 @@ def _semantic_bridge_question(relation: object) -> bool:
     return any(x.startswith("英日意味射影=") for x in conditions)
 
 
+def _selection_query_closure(relation: object) -> bool:
+    conditions = tuple(str(x) for x in getattr(relation, "条件", ()))
+    return any(x == "選択問題閉包=v0.1" for x in conditions)
+
+
 def _semantic_loss(ir: object) -> bool:
     return any(str(getattr(item, "種別", "")) == "semantic_loss" for item in getattr(ir, "残差", ()))
 
@@ -69,6 +74,7 @@ def main() -> int:
     question_any_relation = 0
     question_open_relation = 0
     question_bridge_relation = 0
+    question_selection_closure = 0
     question_k_relation = 0
     question_k_topic_only = 0
     question_no_relation_no_semantic_loss = 0
@@ -79,7 +85,11 @@ def main() -> int:
     candidate_any_relation = 0
     candidate_k_relation = 0
     candidate_substitutable = 0
+    candidate_relation_or_substitutable = 0
+    candidate_neither = 0
+    candidate_neither_coord_kinds: Counter[str] = Counter()
     candidate_no_relation_no_semantic_loss = 0
+    problems_with_candidate_neither = 0
 
     explanation_total = 0
     explanation_nonempty = 0
@@ -106,11 +116,13 @@ def main() -> int:
         q_k_relations = tuple(k_question.関係)
         q_open = tuple(rel for rel in q_relations if _relation_is_question(rel))
         q_bridge = tuple(rel for rel in q_open if _semantic_bridge_question(rel))
+        q_selection_closure = tuple(rel for rel in q_open if _selection_query_closure(rel))
 
         question_total += 1
         question_any_relation += int(bool(q_relations))
         question_open_relation += int(bool(q_open))
         question_bridge_relation += int(bool(q_bridge))
+        question_selection_closure += int(bool(q_selection_closure))
         question_k_relation += int(bool(q_k_relations))
         question_k_topic_only += int(not q_k_relations and _topic_count(k_question) > 0)
         question_no_relation_no_semantic_loss += int(not q_relations and not _semantic_loss(question_ir))
@@ -120,6 +132,7 @@ def main() -> int:
         candidate_relation_count = 0
         candidate_k_relation_count = 0
         candidate_substitute_count = 0
+        candidate_neither_count = 0
         for choice in choices:
             candidate_ir = compiler.意味コンパイル(choice)
             k_candidate = HDSK候補射影(candidate_ir)
@@ -129,11 +142,18 @@ def main() -> int:
             candidate_any_relation += int(relation_present)
             candidate_k_relation += int(k_relation_present)
             substitutable = HDSK候補代入可能(candidate_ir)
+            covered = relation_present or substitutable
             candidate_substitutable += int(substitutable)
+            candidate_relation_or_substitutable += int(covered)
+            candidate_neither += int(not covered)
             candidate_no_relation_no_semantic_loss += int(not relation_present and not _semantic_loss(candidate_ir))
             candidate_relation_count += int(relation_present)
             candidate_k_relation_count += int(k_relation_present)
             candidate_substitute_count += int(substitutable)
+            candidate_neither_count += int(not covered)
+            if not covered:
+                candidate_neither_coord_kinds.update(str(coord.種別) for coord in candidate_ir.座標)
+        problems_with_candidate_neither += int(candidate_neither_count > 0)
 
         explanation = str(row.get("Explanation", "") or "").strip()
         explanation_present = bool(explanation)
@@ -163,12 +183,14 @@ def main() -> int:
                 "question_relation_count": len(q_relations),
                 "question_open_relation_count": len(q_open),
                 "question_bridge_relation_count": len(q_bridge),
+                "question_selection_closure_count": len(q_selection_closure),
                 "question_k_relation_count": len(q_k_relations),
                 "question_k_topic_only": bool(not q_k_relations and _topic_count(k_question) > 0),
                 "question_semantic_loss": _semantic_loss(question_ir),
                 "candidate_relation_count": candidate_relation_count,
                 "candidate_k_relation_count": candidate_k_relation_count,
                 "candidate_substitutable_count": candidate_substitute_count,
+                "candidate_neither_count": candidate_neither_count,
                 "explanation_present": explanation_present,
                 "explanation_relation_count": exp_relation_count,
                 "explanation_k_relation_count": exp_k_relation_count,
@@ -192,6 +214,8 @@ def main() -> int:
             "open_question_relation_percent": pct(question_open_relation, question_total),
             "semantic_bridge_question_relation": question_bridge_relation,
             "semantic_bridge_question_relation_percent": pct(question_bridge_relation, question_total),
+            "selection_context_generic_closure": question_selection_closure,
+            "selection_context_generic_closure_percent": pct(question_selection_closure, question_total),
             "k_relation": question_k_relation,
             "k_relation_percent": pct(question_k_relation, question_total),
             "k_topic_only": question_k_topic_only,
@@ -208,6 +232,12 @@ def main() -> int:
             "k_relation_percent": pct(candidate_k_relation, candidate_total),
             "substitutable_as_entity": candidate_substitutable,
             "substitutable_as_entity_percent": pct(candidate_substitutable, candidate_total),
+            "relation_or_substitutable": candidate_relation_or_substitutable,
+            "relation_or_substitutable_percent": pct(candidate_relation_or_substitutable, candidate_total),
+            "neither_relation_nor_substitutable": candidate_neither,
+            "neither_relation_nor_substitutable_percent": pct(candidate_neither, candidate_total),
+            "problems_with_candidate_neither": problems_with_candidate_neither,
+            "neither_coord_kinds": dict(sorted(candidate_neither_coord_kinds.items())),
             "no_relation_without_semantic_loss": candidate_no_relation_no_semantic_loss,
         },
         "expert_explanation": {

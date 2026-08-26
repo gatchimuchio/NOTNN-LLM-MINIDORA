@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Sequence
 
+from .choice_intent import HDS選択意図判定
 from .hds_adapter import HDS文脈
 from .hds_compiler import 公開HDSコンパイラ as _基礎HDSコンパイラ
 from .hds_compiler import 公開HDSコンパイラ方針
@@ -22,12 +23,13 @@ from .hds_compiler_pipeline_v1_3 import (
 from .hds_compiler_records import HDSCompiler成果
 from .hds_compiler_records_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規則改善候補
 from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
-from .hds_ir import HDSIR, HDS実行核, HDS座標, 値状態
+from .hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
 from .hds_language_coordination import HDS英語AND展開
 from .hds_language_relations import HDS英語基底関係射影
 from .hds_language_scope import HDS英語関係scope射影
 from .hds_language_semantic_bridge import HDS英日意味射影
 from .hds_semantic_topic_projection import HDS問い主題射影
+from .semantic_tokens import 意味語
 from .言語 import 言語計画
 from .言語基底 import 言語基底P, 標準言語基底P
 
@@ -222,6 +224,96 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         )
         return detailed
 
+    @staticmethod
+    def _問い関係を持つ(ir: HDSIR) -> bool:
+        for relation in ir.関係:
+            for raw in relation.条件:
+                key, sep, payload = str(raw).partition("=")
+                if sep and key.strip() == "不足位置" and payload.strip() in {"始点", "終点"}:
+                    return True
+        return False
+
+    def _選択問題問い閉包(self, ir: HDSIR, question: str) -> HDSIR:
+        """明示された選択問題型を使い、表層だけでは閉じなかった問いを世界知識なしで保持する。
+
+        精密な問い関係が既に存在する場合は介入しない。通常の ``意味コンパイル`` にも
+        影響せず、``問題IR(question, choices)`` の最終境界だけで使う。
+        """
+        if self._問い関係を持つ(ir):
+            return ir
+        choices = tuple(coord for coord in ir.座標 if coord.座標ID.startswith("choice:"))
+        if len(choices) < 2:
+            return ir
+        text = self._正規化(str(question))
+        if not text:
+            return ir
+
+        intent = HDS選択意図判定(question)
+        # 背景文の内容語で空の最終質問を救済しない。閉包可否と既知端点は最終選択焦点へ限定する。
+        focus = self._正規化(str(intent.焦点 or text))
+        content = frozenset(意味語(focus)) - {
+            "find", "calculate", "determine", "identify", "select", "choose", "all",
+        }
+        # ``Which?`` や ``Find.`` のように選択基準自体が欠ける入力は閉じない。
+        # 反転問題は except 等の選択基準そのものが意味を持つので、内容語なしでも閉包できる。
+        if not content and intent.種別 != "EXCEPTION":
+            return ir
+
+        existing_coord_ids = {coord.座標ID for coord in ir.座標}
+        existing_relation_ids = {relation.関係ID for relation in ir.関係}
+
+        def unique(base: str, existing: set[str]) -> str:
+            candidate = base
+            serial = 1
+            while candidate in existing:
+                candidate = f"{base}:{serial}"
+                serial += 1
+            existing.add(candidate)
+            return candidate
+
+        unknown_id = unique("selection-query:unknown", existing_coord_ids)
+        known_id = unique("selection-query:surface", existing_coord_ids)
+        relation_id = unique("selection-query:relation", existing_relation_ids)
+        selection = "反転" if intent.種別 == "EXCEPTION" else "通常"
+
+        coords = (
+            *ir.座標,
+            HDS座標(
+                unknown_id, "目的.未知始点", "選択肢", 値状態.未観測,
+                由来="選択問題構造", 暫定性="SELECTION_QUERY_GENERIC_CLOSURE",
+            ),
+            HDS座標(
+                known_id, "対象.問い本文", focus, 値状態.確定,
+                由来="選択問題構造", 暫定性="SELECTION_QUERY_GENERIC_CLOSURE",
+            ),
+        )
+        relation = HDS関係(
+            relation_id,
+            (unknown_id,),
+            (known_id,),
+            "問い適合",
+            条件=(
+                "検索述語=match",
+                "不足位置=始点",
+                "選択問題閉包=v0.1",
+                f"選択意図={selection}",
+            ),
+            値状態=値状態.未観測,
+            由来="選択問題構造",
+            暫定性="SELECTION_QUERY_GENERIC_CLOSURE",
+        )
+
+        # この残差の解消条件は「開放述語または問い適合関係へ射影する」。
+        # 今ここで問い適合へ閉じたため、その特定残差だけ解消する。他の semantic_loss は残す。
+        residuals = tuple(
+            residual for residual in ir.残差
+            if not (
+                str(residual.残差ID) == "lang-sem:question-loss"
+                and str(residual.種別) == "semantic_loss"
+            )
+        )
+        return replace(ir, 座標=coords, 関係=(*ir.関係, relation), 残差=residuals)
+
     def _問題基礎(self, question: str, choices: Sequence[str]) -> HDSIR:
         if len(choices) < 2:
             raise ValueError("選択問題には2件以上の候補が必要")
@@ -256,7 +348,8 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         )
 
     def 問題IR(self, question: str, choices: Sequence[str]) -> HDSIR:
-        return self._完成(self._問題基礎(question, choices)).IR
+        completed = self._完成(self._問題基礎(question, choices)).IR
+        return self._選択問題問い閉包(completed, question)
 
     def 詳細問題IR(self, question: str, choices: Sequence[str]) -> HDSCompiler成果:
         return self._完成(self._問題基礎(question, choices))

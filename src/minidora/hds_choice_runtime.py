@@ -11,7 +11,9 @@ from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
 from .hds_direct_relation_verifier import HDS直接関係検証
 from .hds_ir import HDSIR, 値状態
 from .hds_model_projection import HDSMINIDORA模型評価
-from .hds_runtime_projection import HDSKData射影, HDSK候補代入可能, HDSK候補射影, HDSK質問射影
+from .hds_runtime_projection import (
+    HDSKData射影, HDSK候補代入可能, HDSK候補射影, HDSK質問射影, HDS模型候補代入可能,
+)
 from .hds作業状態 import (
     HDS一時証拠統合,
     HDS作業状態構築,
@@ -197,6 +199,21 @@ def _検証候補群(
     return {label: substituted.get(label, candidate_ir) for label, candidate_ir in k_candidates.items()}
 
 
+def _正式模型候補群(
+    k_question_ir: HDSIR,
+    full_candidates: dict[str, HDSIR],
+    k_candidates: dict[str, HDSIR],
+) -> dict[str, HDSIR]:
+    """正式模型だけで使う質問型aware候補代入。旧helper経路へは流さない。"""
+    substitutable = {
+        label: k_candidates[label]
+        for label, full_ir in full_candidates.items()
+        if label in k_candidates and HDS模型候補代入可能(k_question_ir, full_ir)
+    }
+    substituted = HDS候補代入仮説群(k_question_ir, substitutable)
+    return {label: substituted.get(label, candidate_ir) for label, candidate_ir in k_candidates.items()}
+
+
 def _候補強度(result: HDSK3結果) -> tuple[int, int, float, int, float]:
     diagnostics = tuple(result.候補診断)
     if not diagnostics:
@@ -272,9 +289,15 @@ def HDS選択推論実行(
         return _suspend("HDS_K_QUESTION_SEMANTIC_LOSS", candidate_count=len(candidate_irs), parallel=parallel_safe, workers=worker_count)
 
     k_candidate_irs = {label: HDSK候補射影(candidate_ir) for label, candidate_ir in candidate_irs.items()}
+    # 旧helperの候補代入条件は互換維持。正式模型だけ質問型を含めた代入へ進める。
     verification_candidate_irs = _検証候補群(k_question_ir, candidate_irs, k_candidate_irs)
     attached_model_core = 模型核 or getattr(基礎能力核, "_minidora_model_core", None)
     use_formal_model = bool(正式模型評価 or attached_model_core is not None)
+    formal_candidate_irs = (
+        _正式模型候補群(k_question_ir, candidate_irs, k_candidate_irs)
+        if use_formal_model
+        else verification_candidate_irs
+    )
 
     data_payloads = _一括コンパイル(
         compile_isolated, [record.内容 for record in references], parallel=parallel_safe, max_workers=worker_count,
@@ -292,7 +315,7 @@ def HDS選択推論実行(
     choice_map = {label: content for label, content, _ in choices}
 
     if use_formal_model:
-        formal = HDSMINIDORA模型評価(k_question_ir, verification_candidate_irs, tuple(data_irs), 模型核=attached_model_core)
+        formal = HDSMINIDORA模型評価(k_question_ir, formal_candidate_irs, tuple(data_irs), 模型核=attached_model_core)
         content = choice_map.get(formal.回答ラベル) if formal.回答ラベル is not None else None
         reasons = list(formal.理由)
         reasons.append("FORMAL_MODEL_CORE_ONLY")

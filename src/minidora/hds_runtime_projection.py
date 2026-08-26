@@ -321,6 +321,42 @@ def HDSK候補代入可能(ir: HDSIR) -> bool:
     )
 
 
+def HDS模型候補代入可能(question_ir: HDSIR, candidate_ir: HDSIR) -> bool:
+    """正式模型だけが使う、質問型を含めた候補代入可否。
+
+    候補内部の関係を世界事実としてcanonical Kへ昇格させる判定ではない。
+    問いの未知端点へ候補表層を比較専用仮説として置けるかだけを判定する。
+    旧v0.3 helperは従来の ``HDSK候補代入可能`` を使い続ける。
+    """
+    if any(str(residual.種別) == "semantic_loss" for residual in candidate_ir.残差):
+        return False
+    surface = " ".join(str(candidate_ir.正規化文 or candidate_ir.原文).split()).strip()
+    if not surface:
+        return False
+
+    question_relations = _質問関係(question_ir)
+    if not question_relations:
+        return False
+    kinds = {str(relation.種別) for relation in question_relations}
+
+    # 命題・説明・一般選択は候補全体が回答payload。候補内部のrelation有無で拒否しない。
+    if kinds.intersection({"問い適合", "命題適合", "説明適合"}):
+        return True
+
+    # 数量/同定では値表現そのものが未知端点となる。数量単位relationが存在しても、
+    # それは候補payload内部構造であり、世界命題への昇格ではない。
+    if kinds.intersection({"数量同定", "同定"}):
+        return any(
+            str(coord.種別).startswith(("値.", "属性."))
+            and coord.値状態 not in _BLOCKING
+            and str(coord.内容).strip()
+            for coord in candidate_ir.座標
+        ) or HDSK候補代入可能(candidate_ir)
+
+    # 世界関係の未知端点は従来どおり実体句だけに限定する。
+    return HDSK候補代入可能(candidate_ir)
+
+
 def HDSKData射影(ir: HDSIR) -> HDSIR:
     """R取得Dataから世界事実意味を、極性・修飾を保って模型参照状態へ渡す。"""
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
@@ -333,5 +369,6 @@ __all__ = [
     "HDSK質問射影",
     "HDSK候補射影",
     "HDSK候補代入可能",
+    "HDS模型候補代入可能",
     "HDSKData射影",
 ]
