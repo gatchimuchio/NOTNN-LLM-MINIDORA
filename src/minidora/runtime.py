@@ -11,9 +11,10 @@ class ミニドラ(_ミニドラV03):
     """MINIDORA v0.4 Runtime。
 
     大規模言語模型成立規定v3に対応する ``模型核`` を計算主体Cとして持ち、旧Layer0
-    命令器は ``計算実行器`` へ降格する。正式knowledge choiceでは模型核Cが候補差を
-    形成し、外側のHDS判断主体Jが最終採否する。HDS Compiler、参照、主体、K3相当能力、
-    表面化は運用境界として保持するが、それらをLLM模型中核の成立条件とはしない。
+    命令器は ``計算実行器`` へ降格する。正式knowledge choiceは
+    ``HDS Compiler → MINIDORA入力 → C → MINIDORA出力 → 後段HDS`` の一方向で閉じる。
+    後段HDSはMINIDORA出力だけを判断し、HOLD/REJECTはSILENTで終端する。再検索・再計算・
+    差し戻しはMINIDORA単体へ持たせない。
     """
 
     def __init__(
@@ -49,8 +50,8 @@ class ミニドラ(_ミニドラV03):
         """旧helperを互換利用しつつ、v0.4正式模型核Cを実行境界へ渡す。
 
         runtime_v03側へv0.4型を逆流させないため、helperに非正本の接続参照だけを付与する。
-        HDS選択Runtimeはこの参照がある時だけ正式模型核Cで候補差を形成し、最終採否は
-        HDS判断主体Jへ委譲する。旧helperを正式回答権限へ復帰させない。
+        HDS選択Runtimeはこの参照がある時だけ正式模型核CでMINIDORA出力を形成し、
+        その出力だけを後段HDSへ渡す。旧helperを正式回答権限へ復帰させない。
         """
         core = super().K3能力核
         setattr(core, "_minidora_model_core", self.模型核)
@@ -68,10 +69,10 @@ class ミニドラ(_ミニドラV03):
     ) -> 模型結果:
         """文脈に対する候補言語状態の成立差を決定論的に返す。
 
-        このAPIがv0.4の模型中核C入口である。候補生成、sampling、外部検索、最終採否は行わない。
-        `参照状態` はすでに言語対応された外部Data等を会話履歴と分離して渡す境界であり、
-        根拠差がない場合は最有力候補を確定しない。正式knowledge choiceのCommit/HOLDは
-        `hds_choice_runtime.py` 経由でHDS判断主体Jが担当する。
+        このAPIがv0.4の模型中核C入口である。候補生成、sampling、外部検索、後段HDS判断は行わない。
+        `参照状態` はすでに言語対応された外部Data等を会話履歴と分離して渡す前段入力である。
+        このAPIの ``模型結果`` を正式knowledge choiceでは ``MINIDORA出力`` へ変換し、
+        `hds_choice_runtime.py` 経由で後段HDSへ一方向に渡す。
         """
 
         current = 文脈 if isinstance(文脈, 言語状態) else 言語状態(str(文脈), 言語体系)

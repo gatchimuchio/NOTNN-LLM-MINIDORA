@@ -8,10 +8,11 @@
 
 | Module | 主な責任 |
 |---|---|
-| `模型.py` | 言語対応、状態保持、一般/形成済み関係、参照寄与、候補共同再照合、終端成立差。正式knowledge choiceでは計算主体C |
-| `hds判断主体.py` | Cが形成した候補差を証拠・矛盾・候補横断・Commit・総暫定性で裁定するHDS判断主体J |
-| `hds判断参照境界.py` | 成功Data IRと実参照識別子・信頼を同一添字でJへ保持 |
-| `hds_model_projection.py` | HDS構文化済みQuestion/Candidate/DataをC→Jへ接続し、Data残差の局所証拠境界を保持 |
+| `模型.py` | 言語対応、状態保持、一般/形成済み関係、参照寄与、候補共同再照合、終端成立差。MINIDORA計算主体C |
+| `hds入力参照境界.py` | HDS Compilerで構文化されたDataをMINIDORA入力へ整列する前段境界 |
+| `hds判断参照境界.py` | 旧誤命名との互換alias。新規コードでは使わない |
+| `hds_model_projection.py` | HDS構文化済み入力→MINIDORA C→`MINIDORA出力`→後段HDSの一方向接続 |
+| `hds判断主体.py` | `MINIDORA出力`だけをAPPROVE / HOLD / REJECTへ分別。HOLD/REJECTはSILENT、差し戻しなし |
 | `言語構造.py` | 意味順序、有向関係、肯否、条件結合のHDS非依存構造化 |
 | `規模測定.py` | 状態域・関係域・共有適用規模の三面測定 |
 | `計算中間表現.py` | Compute IRに相当する計算専用型 |
@@ -57,18 +58,25 @@
 ## 正式knowledge choice
 
 ```text
-R
-↓ 実識別子・信頼
-HDS構文化済みData
+自然言語 / Data
+↓
+HDS Compiler
+↓
+MINIDORA入力
 ↓
 MINIDORA模型核 C
-↓ 候補差
-HDS判断主体 J
 ↓
-APPROVE / SUSPEND
+MINIDORA出力
+↓
+HDS判断主体 J
+├─ APPROVE → OUTPUT
+├─ HOLD    → SILENT
+└─ REJECT  → SILENT
 ```
 
-Cは候補差を形成するだけで最終採否権を持たない。Jは同一source共通支持、完全支持、弱支持、反証、競合、未閉包を分別し、Commit/HOLDを裁定する。Dataの`semantic_loss`はsource全体を確定証拠へ上げず、残差の影響座標が関係端点へ掛かる場合はその関係だけを局所留保する。
+後段Jへ渡すのは `MINIDORA出力` だけ。Question / Candidate / Data / Referenceやsource confidenceは後段Jの入力ではない。HOLD / REJECT後の再試行・再検索・再計算・差し戻しは存在しない。
+
+前段のData残差や参照識別性は、HDS CompilerからMINIDORA入力へ渡す側で扱う。後段Jがそれをもう一度直接審査することはない。
 
 ## HDS Compiler現行経路
 
@@ -78,7 +86,7 @@ Cは候補差を形成するだけで最終採否権を持たない。Jは同一
 意味コンパイル
 ↓
 意味HDS-IR
-├─ R / K / J / 監査
+├─ R / K / 監査
 └─ 計算計画
    ↓
  計算降下
@@ -90,6 +98,6 @@ Cは候補差を形成するだけで最終採否権を持たない。Jは同一
 
 ## 規模測定
 
-`規模測定.py` は模型核単体を対象にし、外部参照R・HDS Compiler・HDS判断主体J・主体主幹・K3補助・計算実行器を加算しない。
+`規模測定.py` は模型核単体を対象にし、外部参照R・HDS Compiler・後段HDS・主体主幹・K3補助・計算実行器を加算しない。
 
 現行v2測定は **局所成立候補**。詳細は `../評価/MINIDORA_v0_4_規模測定_v2_2026-08-26.md` を参照する。

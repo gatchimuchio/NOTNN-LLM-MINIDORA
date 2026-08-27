@@ -24,19 +24,34 @@ MINIDORAは、日本語を基底・規定言語とする非ニューラルネッ
 
 標準6関係（意味連続、順序連続、有向関係整合、肯否整合、履歴近接、条件結合）は維持するが、6関係だけを構成再現全体とは扱わない。
 
-模型核 `C` は候補差を形成する計算主体であり、knowledge choiceの最終採否権を持たない。正式経路では、HDS構文化済みQuestion / Candidate / Dataを `C` へ渡し、`C` の候補差をHDS判断主体 `J` が証拠・矛盾・候補横断・Commit・総暫定性の判定門で裁定する。参照Dataの実識別子・信頼・残差による局所証拠境界を `J` まで保持し、弱支持・競合・矛盾・未閉包は勝手に確定せず `SUSPEND` する。
+## 正式knowledge choice
+
+現行の責任境界は次で固定する。
 
 ```text
-HDS構文化済み Question / Candidate / Data
+自然言語 / Data
+  ↓
+HDS Compiler
+  ↓
+MINIDORA入力
   ↓
 MINIDORA模型核 C
-  ↓ 候補差
-HDS判断主体 J
   ↓
-APPROVE / SUSPEND
+MINIDORA出力
+  ↓
+HDS判断主体 J
+  ├─ APPROVE → 外部出力
+  ├─ HOLD    → SILENT
+  └─ REJECT  → SILENT
 ```
 
-HDS型、検索器、主体状態、計算実行を模型核 `C` 自体へ混入させない。HDS判断は模型核の外側の正式終端境界として分離する。
+模型核 `C` はHDS Compilerで構文化された入力を計算し、`MINIDORA出力`を形成する。後段HDS `J` の判断入力は **MINIDORA出力だけ** であり、Question / Candidate / Data / Referenceを直接読み直さない。
+
+HOLD / REJECT後はそこで終端する。後段HDSは再検索・再計算・差し戻し・MINIDORA再起動を行わない。再試行や別手段への切替が必要な場合、それはMINIDORA単体ではなく上位AGI全体HDSの責任である。
+
+外部表示層はSILENTを「分かりません」と表面化してよいが、それはMINIDORAが生成した回答ではなく、**出力不存在状態の表示**である。
+
+詳細: [`設計/28_HDS判断主体_MINIDORA出力Gate_v2.md`](設計/28_HDS判断主体_MINIDORA出力Gate_v2.md)
 
 ## 計算経路
 
@@ -62,7 +77,7 @@ Meaning/Audit Architectureは `v1.2`、意味/計算責任分離Pipelineは `v1.
 意味コンパイル
   ↓
 意味HDS-IR（計算P非内包）
-  ├─ R / K / J / 監査
+  ├─ R / K / 監査
   └─ 計算計画
         ↓
       計算降下
@@ -72,16 +87,18 @@ Meaning/Audit Architectureは `v1.2`、意味/計算責任分離Pipelineは `v1.
 
 `意味コンパイル()` が意味正本入口。旧 `コンパイル()` は既存Runtime向け互換窓口でのみPを再付与する。
 
+外部DataをMINIDORA入力へ整列する前段正本は `src/minidora/hds入力参照境界.py`。旧 `hds判断参照境界.py` は過去API互換aliasのみである。
+
 ## 重要な責任分離
 
 ```text
-MINIDORA模型核 C
+HDS Compiler
+!= MINIDORA模型核 C
+!= MINIDORA出力
 != HDS判断主体 J
+!= 上位AGI全体HDS
 != 計算実行器
-!= HDS-IR
-!= 計算中間表現
 != 外部参照R
-!= 主体主幹
 ```
 
 旧 `Layer0` は現行では計算実行器の互換名であり、LLM模型中核ではない。
@@ -122,7 +139,9 @@ LARGE_SCALE_STATUS = 局所成立候補
 
 2026-08-22の `PROTOTYPE COMPLETE`、過去GPQA実測、K3横断構文化、旧Layer-0契約、v0.3 Runtimeは履歴として保持する。
 
-旧性能値を現行模型核の規模・性能へ無言転用しない。
+2026-08-27の「後段HDSが元Data/Referenceを再審査する」実装・GPQA測定も失敗観測として履歴保持するが、現行責任境界へは継承しない。
+
+旧性能値を現行模型核・現行HDS出力Gateの性能へ無言転用しない。
 
 ## 試験
 
@@ -136,7 +155,8 @@ CIはUbuntu / Windows × Python 3.11–3.14で、package install、repository co
 ## 文書入口
 
 - [`設計/README.md`](設計/README.md) — 現行設計正本ガイド
-- [`設計/27_HDS判断主体_MINIDORA終端接続_v1.md`](設計/27_HDS判断主体_MINIDORA終端接続_v1.md) — MINIDORA CからHDS Jへの正式終端接続
+- [`設計/28_HDS判断主体_MINIDORA出力Gate_v2.md`](設計/28_HDS判断主体_MINIDORA出力Gate_v2.md) — MINIDORA出力からHDS終端Gateへの現行正本
+- [`設計/27_HDS判断主体_MINIDORA終端接続_v1.md`](設計/27_HDS判断主体_MINIDORA終端接続_v1.md) — 誤接続の失効記録
 - [`REFERENCES.md`](REFERENCES.md) — 外部正本・参照階層
 - [`構文化/README.md`](構文化/README.md) — 観測・再構成成果
 - [`評価/README.md`](評価/README.md) — 実測・完成判定履歴
