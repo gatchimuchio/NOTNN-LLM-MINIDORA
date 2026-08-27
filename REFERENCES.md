@@ -17,7 +17,10 @@ MINIDORA側の [`設計/02_大規模言語模型成立契約.md`](設計/02_大�
 
 現行実装の中心は次である。
 
-- `src/minidora/模型.py` — LLM成立5条件を維持しつつ、構成再現7条件に従う状態保持・再作用・再結合・終端成立差。
+- `src/minidora/模型.py` — LLM成立5条件を維持しつつ、構成再現7条件に従う状態保持・再作用・再結合・終端成立差。計算主体 `C`。
+- `src/minidora/hds判断主体.py` — `C` が形成した候補差を、証拠・矛盾・候補横断・Commit・総暫定性で裁定する判断主体 `J`。
+- `src/minidora/hds判断参照境界.py` — 成功したData IRと実参照識別子・信頼を同一添字で `J` へ保持する境界。
+- `src/minidora/hds_model_projection.py` — HDS構文化済みQuestion / Candidate / Dataを `C → J` へ接続する正式射影境界。Data残差による局所証拠阻害も保持する。
 - `src/minidora/計算実行器.py` — 算術・比較・状態更新等の汎用計算作用。LLM模型中核ではない。
 - `src/minidora/layer0.py` — 旧公開API互換窓口。新設計の正本ではない。
 
@@ -44,11 +47,25 @@ MINIDORA側の [`設計/02_大規模言語模型成立契約.md`](設計/02_大�
 
 ## 3. HDSの位置
 
-HDSは観測・分別・意味Projection・外部運用に用いる。
+HDSは観測・分別・意味Projection・Data Compiler・最終意思決定に用いる。
 
-ただし、HDSであること、HDS-IRを持つこと、HDS Compilerを通ること自体は、大規模言語模型成立規定の模型性条件ではない。
+ただし、HDSであること、HDS-IRを持つこと、HDS Compilerを通ること自体は、大規模言語模型成立規定の模型性条件ではない。`src/minidora/模型.py` はHDS非依存を維持する。
 
-公開MINIDORAが規定するHDS-IRは、現在の運用接続・履歴・意味Projection境界である。次段のCompute IR確定後にlowering境界を再監査する。
+正式knowledge choiceでは責務を次に分離する。
+
+```text
+HDS構文化済みQuestion / Candidate / Data
+  ↓
+MINIDORA模型核 C
+  ↓ 候補差
+HDS判断主体 J
+  ↓
+APPROVE / SUSPEND
+```
+
+`C` の出力は候補であり最終権威ではない。`J` は実参照識別子・信頼・残差証拠境界を保持したDataを使い、弱支持・競合・矛盾・未閉包を保持したままCommit/HOLDを裁定する。詳細は [`設計/27_HDS判断主体_MINIDORA終端接続_v1.md`](設計/27_HDS判断主体_MINIDORA終端接続_v1.md) を正本とする。
+
+公開MINIDORAのHDS判断実装は、MINIDORA終端に必要な有限射影であり、HDS本体の原理探索全体・永続更新U・Owner権限変更・非公開解析正本を無断転記しない。
 
 ## 4. 正本優先順位
 
@@ -57,8 +74,9 @@ LLM模型性に関する矛盾が生じた場合は、次の順で監査する�
 1. 外部 `LLM-Constitutive-Specification` の参照版 / commit
 2. `設計/02_大規模言語模型成立契約.md`
 3. `src/minidora/模型.py`
-4. `src/minidora/runtime.py` の統合境界
-5. tests / 評価記録
+4. `設計/27_HDS判断主体_MINIDORA終端接続_v1.md` / `src/minidora/hds判断主体.py` の局所採否境界
+5. `src/minidora/runtime.py` / `src/minidora/hds_choice_runtime.py` の統合境界
+6. tests / 評価記録
 
 HDS Compiler、K3相当能力核、主体主幹、参照R、計算実行器は、それぞれの局所責任について監査する。これらの実装差からLLM成立規定を逆定義しない。
 

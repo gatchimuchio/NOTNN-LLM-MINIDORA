@@ -10,10 +10,27 @@
 |---|---|
 | `test_模型.py` | 文脈差→成立差、関係再利用、根拠なし停止、プログラム言語体系、Runtime模型核入口 |
 | `test_模型関係域.py` | 有向関係、肯否、履歴順序、条件結合、17一般関係族、HDS非依存 |
+| `test_構成再現_v3.py` | 構成再現7条件、checkpoint再作用、形成済み関係、参照差、C/J権限分離 |
+| `test_hds判断主体.py` | HDS Jの証拠・矛盾・候補横断・N-1反転・Commit/HOLD・暫定性・残差証拠境界 |
+| `test_hds判断参照境界.py` | Dataコンパイル成功集合と実出典ID・信頼の添字保持 |
+| `test_runtime_hds_choice.py` | 正式 `R→HDS→MINIDORA C→HDS J` 統合、信頼0保留、部分Data失敗、未確定停止 |
 | `test_規模測定.py` | 状態域・関係域・共有適用規模の三面、544関係構造、256共有適用、一点閾値禁止 |
 | `test_計算IR_ABI.py` | P→計算中間表現、型付き状態参照、実行境界決定論、旧P互換、未確定停止 |
 | `test_hds_compiler_pipeline_v1_3.py` | Architecture v1.2維持、Pipeline v1.3、意味IR/P分離、再解析なし計算降下 |
 | `test_layer0.py` | 旧Layer0名が計算実行器互換aliasであること |
+
+## HDS判断主体の必須negative control
+
+- Cの最大差を最終権限として採用しない。
+- 同一sourceが複数候補を支持した場合に独立根拠へ水増ししない。
+- 独立sourceが競合候補を支持した場合に単純順位づけでCommitしない。
+- 完全支持と完全反証が共存する場合に矛盾を消さない。
+- 弱支持だけでCommitしない。
+- 反転問題を最低スコア投票へ落とさない。
+- `semantic_loss` sourceを確定証拠へ昇格しない。
+- 残差影響端点を含む関係を確定証拠へ使わない。
+- 信頼0の参照でCommitしない。
+- 参照なしで推測しない。
 
 ## 模型関係域の必須negative control
 

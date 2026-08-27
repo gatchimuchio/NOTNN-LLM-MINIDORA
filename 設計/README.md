@@ -10,17 +10,18 @@
 2. [`03_日本語命令形P仕様.md`](03_日本語命令形P仕様.md) — 計算実行器へ渡す日本語命令形PとDataの分離。
 3. [`25_計算中間表現_実行境界_v1.md`](25_計算中間表現_実行境界_v1.md) — Compute IR / ABIに相当する計算専用境界。
 4. [`26_HDS_Compiler_Pipeline_v1_3.md`](26_HDS_Compiler_Pipeline_v1_3.md) — 意味HDS-IRと計算計画・計算降下を分離する現行Compiler Pipeline。
-5. [`13_共有言語基底P仕様.md`](13_共有言語基底P仕様.md) — HDS Compiler / 言語対応が共有する日本語基底資産。
-6. [`14_英日意味コンパイル仕様_v0_3.md`](14_英日意味コンパイル仕様_v0_3.md) — 外部英語表層の意味射影境界。
-7. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — 外部Data参照。
-8. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — HDS-IRを模型中核・計算中間表現と分離した意味/運用境界。
-9. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — 公開Compilerの責任・非責任。
-10. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md)
-11. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md)
-12. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md)
-13. [`06_主体主幹仕様.md`](06_主体主幹仕様.md)
-14. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md)
-15. [`05_完成判定関門.md`](05_完成判定関門.md)
+5. [`27_HDS判断主体_MINIDORA終端接続_v1.md`](27_HDS判断主体_MINIDORA終端接続_v1.md) — MINIDORA計算主体CからHDS判断主体Jへの正式knowledge choice終端。
+6. [`13_共有言語基底P仕様.md`](13_共有言語基底P仕様.md) — HDS Compiler / 言語対応が共有する日本語基底資産。
+7. [`14_英日意味コンパイル仕様_v0_3.md`](14_英日意味コンパイル仕様_v0_3.md) — 外部英語表層の意味射影境界。
+8. [`04_外部参照R仕様.md`](04_外部参照R仕様.md) — 外部Data参照。
+9. [`07_HDS_IR入力契約.md`](07_HDS_IR入力契約.md) — HDS-IRを模型中核・計算中間表現と分離した意味/運用境界。
+10. [`09_公開HDS_Compiler仕様.md`](09_公開HDS_Compiler仕様.md) — 公開Compilerの責任・非責任。
+11. [`10_HDS_Compiler_Architecture_v1.md`](10_HDS_Compiler_Architecture_v1.md)
+12. [`11_HDS_Compiler_Architecture_v1_1.md`](11_HDS_Compiler_Architecture_v1_1.md)
+13. [`12_HDS_Compiler_Architecture_v1_2.md`](12_HDS_Compiler_Architecture_v1_2.md)
+14. [`06_主体主幹仕様.md`](06_主体主幹仕様.md)
+15. [`08_多言語_Trinity文脈契約.md`](08_多言語_Trinity文脈契約.md)
+16. [`05_完成判定関門.md`](05_完成判定関門.md)
 
 番号は成立履歴を保持するため整理目的だけで振り直さない。
 
@@ -51,6 +52,20 @@ LLM模型中核:
   ↓
 終端成立差
 ```
+
+正式knowledge choice:
+
+```text
+HDS構文化済みQuestion / Candidate / Data
+  ↓
+MINIDORA模型核 C
+  ↓ 候補差
+HDS判断主体 J
+  ↓
+APPROVE / SUSPEND
+```
+
+Cは候補差形成まで、Jは最終採否を担当する。Rの実識別子・信頼・Data残差による証拠境界をJまで保持し、共通支持・弱支持・競合・矛盾・未閉包を単純最大値へ潰さない。
 
 計算経路:
 
@@ -92,7 +107,9 @@ HDS Compiler Pipeline:
 - `コンパイル束()` は意味IRと計算計画を別保持する。
 - `計算降下()` は形成済み計算計画から計算中間表現へ降下し、自然言語を再解析しない。
 - 旧 `コンパイル()` は互換窓口に限定する。
-- HDS本体の上流理論・非公開解析正本を公開Compilerへ無断転記しない。
+- 公開HDS判断主体はMINIDORA knowledge choice終端に必要な有限射影だけを保持する。
+- HDS本体の原理探索全体、永続更新U、Owner権限変更、非公開解析正本を公開Runtimeへ無断転記しない。
+- 模型核CへHDS依存を逆流させず、Jを外側の採否境界として保持する。
 
 ## 状態語
 
@@ -107,6 +124,7 @@ HDS Compiler Pipeline:
 
 - LLM成立意味変更は外部正本を先に確認する。
 - 模型核と計算実行器を再び同一視しない。
+- 模型核CとHDS判断主体Jの責任を無言で統合しない。
 - HDS-IRと計算中間表現を無言で同一視しない。
 - Pと計算中間表現を無言で同一視しない。
 - 意味HDS-IRへ計算Pを戻さない。
