@@ -5,7 +5,7 @@ from .hds_ir import HDSIR, HDS関係, 値状態
 from .semantic_tokens import 意味語
 from .言語構造 import 言語関係構造
 from .模型 import MINIDORA模型核, 成立候補, 言語状態, 模型結果, 標準模型核
-from .因果演算 import 因果演算模型核
+from .因果演算 import 因果演算作用名, 因果演算模型核
 from .hds判断主体 import HDS判断主体, HDS判断結果, MINIDORA出力, MINIDORA出力化
 
 _BLOCKING_ENDPOINT={値状態.未確定,値状態.未観測,値状態.矛盾,値状態.留保}
@@ -116,11 +116,24 @@ def HDSMINIDORA模型評価(
     ref_internal=tuple(HDS内部言語状態(ir,識別子=ids[i],言語体系=target,証拠境界=True) for i,ir in enumerate(data_irs))
     result=core.評価言語状態(question,candidates,条件=_文脈条件(question_ir),参照状態=ref_internal)
 
+    causal_contributions = tuple(
+        item
+        for row in result.候補差
+        for item in row.寄与
+        if item.関係名 == 因果演算作用名
+    )
+    causal_candidates = sum(
+        1
+        for row in result.候補差
+        if any(item.関係名 == 因果演算作用名 for item in row.寄与)
+    )
+
     # ここが責任境界。後段HDSへ渡す入力はMINIDORA出力だけ。
     model_output=MINIDORA出力化(result)
     judge=判断主体 or HDS判断主体()
     decision=judge.判断(model_output)
     runtime_state="APPROVE" if decision.状態=="APPROVE" else "SUSPEND"
     answer=decision.選択候補ID if decision.状態=="APPROVE" else None
-    reasons=tuple(dict.fromkeys((*decision.理由,"HDS_JUDGEMENT_SUBJECT_V2","HDS_OUTPUT_ONLY_BOUNDARY","CAUSAL_ARITHMETIC_V1","CAPABILITY_PROJECTION_V1")))
+    audit=("CAUSAL_DERIVATION_APPLIED",f"CAUSAL_DERIVATION_CONTRIBUTIONS:{len(causal_contributions)}",f"CAUSAL_DERIVATION_CANDIDATES:{causal_candidates}") if causal_contributions else ("CAUSAL_DERIVATION_NOT_APPLIED",)
+    reasons=tuple(dict.fromkeys((*decision.理由,"HDS_JUDGEMENT_SUBJECT_V2","HDS_OUTPUT_ONLY_BOUNDARY","CAUSAL_ARITHMETIC_V1",*audit,"CAPABILITY_PROJECTION_V1")))
     return HDSMINIDORA射影結果(result,runtime_state,answer,reasons,decision,model_output)
