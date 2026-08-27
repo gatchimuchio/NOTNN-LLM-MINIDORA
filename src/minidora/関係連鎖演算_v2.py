@@ -12,7 +12,7 @@ from .模型 import (
     標準模型核,
 )
 from .関係連鎖演算 import (
-    関係連鎖作用名,
+    関係連鎖作用名 as 旧関係連鎖作用名,
     関係連鎖状態,
     関係連鎖結果,
     _辺生成,
@@ -27,6 +27,7 @@ from .関係連鎖演算 import (
 
 
 関係連鎖演算版V2 = "v2-identity-separated-reasoning-state"
+関係連鎖推論作用名 = "推論関係寄与:関係連鎖"
 
 
 @dataclass(frozen=True, slots=True)
@@ -232,9 +233,13 @@ def 候補連鎖支持V2(
 
 @dataclass(frozen=True, slots=True)
 class 関係連鎖作用V2:
-    """推論専用状態と参照Dataから関係列を作り、一意な候補差だけを返す。"""
+    """推論専用状態と参照Dataから関係列を作り、一意な内部候補差だけを返す。
 
-    名称: str = 関係連鎖作用名
+    この差は推論状態であり、参照証拠ではない。したがって ``参照最有力候補`` を単独で
+    確定する権限を持たず、候補順序・再作用へだけ作用する。
+    """
+
+    名称: str = 関係連鎖推論作用名
     最大深さ: int = 4
     最大状態数: int = 4096
 
@@ -292,13 +297,14 @@ class 関係連鎖作用V2:
 
 
 def 関係連鎖模型核V2(core: MINIDORA模型核 | None = None) -> MINIDORA模型核:
-    """旧関係連鎖作用を置換し、v2作用を一つだけ持つ模型核を返す。"""
+    """旧連鎖作用を除去し、推論権限だけを持つv2作用を一つだけ登録する。"""
 
     base = core or 標準模型核()
+    chain_names = {旧関係連鎖作用名, 関係連鎖推論作用名}
     actions = tuple(
         action
         for action in base.能力作用群
-        if getattr(action, "名称", "") != 関係連鎖作用名
+        if getattr(action, "名称", "") not in chain_names
     )
     return MINIDORA模型核(
         base.関係群,
@@ -311,6 +317,7 @@ def 関係連鎖模型核V2(core: MINIDORA模型核 | None = None) -> MINIDORA�
 
 __all__ = [
     "関係連鎖演算版V2",
+    "関係連鎖推論作用名",
     "推論文脈付き言語状態",
     "推論文脈形成",
     "関係連鎖演算V2",
