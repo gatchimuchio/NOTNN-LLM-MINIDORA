@@ -1,0 +1,52 @@
+name: MINIDORA 関係連鎖 controlled A-B
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "tools/benchmark_relation_chain_ab.py"
+      - "src/minidora/関係連鎖演算*.py"
+      - "src/minidora/hds_model_projection.py"
+      - ".github/workflows/relation_chain_ab.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: GPQA Diamond 関係連鎖ON_OFF controlled A-B
+        run: python tools/benchmark_relation_chain_ab.py
+      - name: 結果要約
+        if: always()
+        run: |
+          if [ -f relation_chain_ab.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('relation_chain_ab.json').read_text(encoding='utf-8'))
+          print(json.dumps(data['protocol'], ensure_ascii=False, indent=2))
+          print(json.dumps(data['chain_off'], ensure_ascii=False, indent=2))
+          print(json.dumps(data['chain_on'], ensure_ascii=False, indent=2))
+          print(json.dumps(data['delta'], ensure_ascii=False, indent=2))
+          print(json.dumps(data['chain_application'], ensure_ascii=False, indent=2))
+          PY
+          fi
+      - name: 測定成果を保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-relation-chain-ab
+          path: relation_chain_ab.json
+          if-no-files-found: warn
