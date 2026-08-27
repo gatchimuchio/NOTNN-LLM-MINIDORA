@@ -4,7 +4,7 @@ import unittest
 
 from minidora.因果演算 import (
     候補因果差,
-    因果演算作用,
+    因果演算作用名,
     因果演算模型核,
     因果関係演算,
 )
@@ -94,7 +94,7 @@ class 因果演算試験(unittest.TestCase):
             item
             for row in result.候補差
             for item in row.寄与
-            if item.関係名 == 因果演算作用.名称
+            if item.関係名 == 因果演算作用名
         ]
         self.assertEqual(causal, [])
 
@@ -116,12 +116,12 @@ class 因果演算試験(unittest.TestCase):
         self.assertEqual(result.参照最有力候補ID, "A")
         self.assertGreater(result.参照候補辞書()["A"], result.参照候補辞書()["B"])
         a_row = next(row for row in result.候補差 if row.候補ID == "A")
-        self.assertTrue(any(item.関係名 == 因果演算作用.名称 for item in a_row.寄与))
+        self.assertTrue(any(item.関係名 == 因果演算作用名 for item in a_row.寄与))
 
     def test_模型核への因果作用追加は一度だけ(self):
         first = 因果演算模型核(標準模型核())
         second = 因果演算模型核(first)
-        count = sum(1 for item in second.能力作用群 if getattr(item, "名称", "") == 因果演算作用.名称)
+        count = sum(1 for item in second.能力作用群 if getattr(item, "名称", "") == 因果演算作用名)
         self.assertEqual(count, 1)
 
 
