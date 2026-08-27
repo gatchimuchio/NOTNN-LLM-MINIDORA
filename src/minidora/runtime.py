@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 from .runtime_v03 import ミニドラ as _ミニドラV03, 結果, 要求
 from .模型 import MINIDORA模型核, 模型結果, 成立候補, 言語状態, 標準模型核
-from .因果演算 import 因果演算模型核
+from .関係連鎖演算 import 関係連鎖模型核
 from .計算実行器 import 計算実行器
 
 
@@ -14,10 +14,14 @@ class ミニドラ(_ミニドラV03):
     大規模言語模型成立規定v3に対応する ``模型核`` を計算主体Cとして持ち、旧Layer0
     命令器は ``計算実行器`` へ降格する。正式knowledge choiceは
     ``HDS Compiler → MINIDORA入力 → C → MINIDORA出力 → 後段HDS`` の一方向で閉じる。
-    MINIDORA内部では参照関係を単に採点するだけでなく、因果作用を符号付き状態として
-    合成し、深さ2以上の連鎖から新しい関係状態を形成する。後段HDSはMINIDORA出力だけを
-    判断し、HOLD/REJECTはSILENTで終端する。再検索・再計算・差し戻しはMINIDORA単体へ
-    持たせない。
+
+    MINIDORA内部では、構造化済み関係を候補へ直接採点するだけでなく、関係族・向き・極性を
+    数値状態へ写し、前段の関係結果を次段の入力として有界連鎖する。形成するのは
+    `A -R1-> B -R2-> C` という関係列状態であり、これを勝手に `A R? C` という新しい
+    世界事実へ縮約しない。形成完了後に候補との到達関係だけを照合する。
+
+    後段HDSはMINIDORA出力だけを判断し、HOLD/REJECTはSILENTで終端する。
+    再検索・再計算・差し戻しはMINIDORA単体へ持たせない。
     """
 
     def __init__(
@@ -43,7 +47,7 @@ class ミニドラ(_ミニドラV03):
             Trinity文脈_=Trinity文脈_,
             K3能力核_=K3能力核_,
         )
-        self.模型核 = 因果演算模型核(模型核_ or 標準模型核())
+        self.模型核 = 関係連鎖模型核(模型核_ or 標準模型核())
         self.計算実行器 = executor
         # 旧API互換。新規設計ではLLM中核を意味しない。
         self.layer0 = executor
@@ -74,9 +78,9 @@ class ミニドラ(_ミニドラV03):
 
         このAPIがv0.4の模型中核C入口である。候補生成、sampling、外部検索、後段HDS判断は行わない。
         `参照状態` はすでに言語対応された外部Data等を会話履歴と分離して渡す前段入力である。
-        参照内の因果関係は模型内部で符号付きに合成され、深さ2以上で形成された新しい
-        関係状態も候補差へ戻す。このAPIの ``模型結果`` を正式knowledge choiceでは
-        ``MINIDORA出力`` へ変換し、`hds_choice_runtime.py` 経由で後段HDSへ一方向に渡す。
+        問題文中の確定事実と参照Dataの構造関係は、模型内部で多段の関係連鎖状態へ更新される。
+        このAPIの ``模型結果`` を正式knowledge choiceでは ``MINIDORA出力`` へ変換し、
+        `hds_choice_runtime.py` 経由で後段HDSへ一方向に渡す。
         """
 
         current = 文脈 if isinstance(文脈, 言語状態) else 言語状態(str(文脈), 言語体系)
