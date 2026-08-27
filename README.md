@@ -109,11 +109,14 @@ v0.5厳密LM核              = PASS
 厳密正規化 / EOS終端       = PASS
 模型状態保存・復元          = PASS
 Runtime二核分離             = PASS
-v0.4 knowledge choice回帰   = CI監査
+v0.4 knowledge choice回帰   = PASS
+Linux / Windows CI          = 8 / 8 PASS
 GPQA / 推論能力              = 別評価
 Large / 現代LLM呼称         = 再監査要
 製品・最終完成               = 別関門
 ```
+
+CI実測: GitHub Actions run `33116506964`。Ubuntu / Windows × Python 3.11–3.14 の8ジョブで、package install、repository consistency、compileall、unit tests、v0.4 legacy scale regression、module/console CLIを全て通過した。
 
 ## 試験
 

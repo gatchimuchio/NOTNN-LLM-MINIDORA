@@ -6,6 +6,7 @@
 - `src/minidora/runtime.py`
 - 上位規定: `2026-08-28-成立規定-7`
 - 上位commit: `debb83e091a705a5eac09ef4fb97a5b36305db6d`
+- MINIDORA実装commit: `85f92c64027ba83da44f0dbb05f5efa5dbae3a42`
 
 ## 受入内容
 
@@ -29,7 +30,30 @@
 Runtime二核stub  2 / 2 PASS
 ```
 
-GitHub還元後はリポ全体CIを最終受入とする。
+## GitHub全体CI
+
+GitHub Actions run: `33116506964`
+
+対象matrix:
+
+```text
+ubuntu-latest × Python 3.11 / 3.12 / 3.13 / 3.14
+windows-latest × Python 3.11 / 3.12 / 3.13 / 3.14
+```
+
+結果:
+
+```text
+8 / 8 jobs PASS
+repository consistency = PASS
+compileall             = PASS
+unit tests             = PASS
+v0.4 scale legacy      = PASS
+module CLI             = PASS
+console CLI            = PASS
+```
+
+これにより、v0.5厳密LM追加と二核分離が既存Runtime/knowledge choice/legacy回帰を破壊していないことを、Linux/Windows両方で受入した。
 
 ## 非主張
 
@@ -45,7 +69,8 @@ GitHub還元後はリポ全体CIを最終受入とする。
 
 ```text
 STRICT_LM_CORE = PASS
-CAPABILITY_CORE = SEPARATE
+CAPABILITY_CORE = SEPARATE_AND_REGRESSION_PASS
+CROSS_PLATFORM_CI = 8/8_PASS
 LARGE_STATUS = REOPENED
 MODERN_LLM_LABEL = REOPENED
 ```
