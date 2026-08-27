@@ -6,8 +6,12 @@ from .hds_runtime_projection import HDSK質問射影
 from .semantic_tokens import 意味語
 from .言語構造 import 言語関係構造
 from .模型 import MINIDORA模型核, 成立候補, 言語状態, 模型結果, 標準模型核
-from .関係連鎖演算 import 関係連鎖作用名
-from .関係連鎖演算_v2 import 関係連鎖作用V2, 関係連鎖模型核V2, 推論文脈形成
+from .関係連鎖演算_v2 import (
+    関係連鎖作用V2,
+    関係連鎖推論作用名,
+    関係連鎖模型核V2,
+    推論文脈形成,
+)
 from .hds判断主体 import HDS判断主体, HDS判断結果, MINIDORA出力, MINIDORA出力化
 
 _BLOCKING_ENDPOINT={値状態.未確定,値状態.未観測,値状態.矛盾,値状態.留保}
@@ -125,6 +129,9 @@ def HDSMINIDORA模型評価(
     正式模型の通常文脈には問い関係だけを置く。問題文中の確定事実は推論専用状態へ
     分離し、関係連鎖作用v2だけが参照する。問い表層も問い関係から再形成することで、
     元問題文の背景関係を言語対応が再解析して通常文脈へ戻す経路を閉じる。
+
+    関係連鎖で形成した差は推論状態であり参照証拠ではない。そのため候補順序・再作用には
+    参加するが、単独では ``参照最有力候補`` を確定せず、後段HDSの最終出力根拠へ昇格しない。
     後段HDSへ元Dataや推論状態は渡さない。
     """
     core=関係連鎖模型核V2(模型核 or 標準模型核());target=_対象言語体系(question_ir)
@@ -165,18 +172,18 @@ def HDSMINIDORA模型評価(
     )
     result=core.評価(context,candidates)
 
-    chain_action=next((item for item in core.能力作用群 if getattr(item,"名称","")==関係連鎖作用名),None)
+    chain_action=next((item for item in core.能力作用群 if getattr(item,"名称","")==関係連鎖推論作用名),None)
     chain_result=chain_action.演算(result.文脈) if isinstance(chain_action,関係連鎖作用V2) else None
     chain_contributions=tuple(
         item
         for row in result.候補差
         for item in row.寄与
-        if item.関係名==関係連鎖作用名
+        if item.関係名==関係連鎖推論作用名
     )
     chain_candidates=sum(
         1
         for row in result.候補差
-        if any(item.関係名==関係連鎖作用名 for item in row.寄与)
+        if any(item.関係名==関係連鎖推論作用名 for item in row.寄与)
     )
 
     # ここが責任境界。後段HDSへ渡す入力はMINIDORA出力だけ。
@@ -191,6 +198,7 @@ def HDSMINIDORA模型評価(
         "RELATION_CHAIN_IDENTITY_SYMMETRIC",
         "RELATION_CHAIN_INFERENCE_STATE_SEPARATED",
         "RELATION_CHAIN_QUESTION_SURFACE_ISOLATED",
+        "RELATION_CHAIN_NON_EVIDENTIARY",
         f"RELATION_CHAIN_PREMISE_RELATIONS:{len(premise_relations)}",
     ]
     if chain_result is not None and chain_result.多段状態数:
