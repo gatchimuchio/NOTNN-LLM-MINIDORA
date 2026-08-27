@@ -87,7 +87,9 @@ class 構成再現v3試験(unittest.TestCase):
         result=HDSMINIDORA模型評価(question,{"A":a,"B":b},(data,))
         self.assertEqual(result.状態,"APPROVE")
         self.assertEqual(result.回答ラベル,"B")
-        self.assertIn("MINIDORA_MODEL_CORE_SELECTED",result.理由)
+        self.assertIn("HDS_JUDGEMENT_SELECTED",result.理由)
+        self.assertIsNotNone(result.HDS判断)
+        self.assertEqual(result.HDS判断.運用状態,"COMMIT")
         self.assertIn("CAPABILITY_PROJECTION_V1",result.理由)
 
     def test_参照差なしはSUSPEND(self):
