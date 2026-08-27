@@ -1,8 +1,9 @@
 MINIDORA GPQA benchmark request
-requested_at_jst: 2026-08-27T23:05:00+09:00
+requested_at_jst: 2026-08-28T07:41:00+09:00
 benchmark: GPQA Diamond
 scope: full 198 questions
-target: constitutive-v3 MINIDORA + output-only HDS Gate v2
-reason: post-output-only-HDS-gate correction controlled measurement
-comparison: same retrieved references; baseline=legacy v0.3 helper (working/local off), current=HDS Compiler -> MINIDORA -> MINIDORA output -> HDS output Gate -> OUTPUT/SILENT
+target: MINIDORA v0.5 strict-LM-separated capability core + output-only HDS Gate v2
+reason: post-v7 strict-LM integration controlled measurement
+comparison: same retrieved references; baseline=legacy v0.3 helper (working/local off), current=HDS Compiler -> MINIDORA ability core -> MINIDORA output -> HDS output Gate -> OUTPUT/SILENT
+strict_lm_note: strict LM core is measured separately from GPQA capability; do not reinterpret capability score as LM-validity evidence
 required_metrics: output_only_hds_gate, formal_model_core, controlled_delta, accuracy, answered_accuracy, answer_rate, silence_rate, semantic_projection_coverage, checkpoints, checkpoint_reactivations, global_reconciliations, candidate_cross_updates
