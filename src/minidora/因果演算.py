@@ -8,6 +8,7 @@ from .模型 import MINIDORA模型核, 関係寄与, 標準模型核
 
 
 因果演算版 = "v1-signed-causal-composition"
+因果演算作用名 = "参照関係寄与:因果演算"
 
 # ここでの数値は候補採点用の序数ではない。
 # 一つの関係が次状態へ与える作用方向を +1 / -1 として保持し、
@@ -293,7 +294,7 @@ def 候補因果差(
 class 因果演算作用:
     """MINIDORA模型核へ因果演算結果を候補差として再投入する作用。"""
 
-    名称: str = "参照関係寄与:因果演算"
+    名称: str = 因果演算作用名
     最大深さ: int = 4
     最大経路数: int = 4096
 
@@ -336,7 +337,7 @@ def 因果演算模型核(core: MINIDORA模型核 | None = None) -> MINIDORA模�
     """既存模型核を壊さず、因果演算作用を一度だけ追加した模型核を返す。"""
 
     base = core or 標準模型核()
-    if any(getattr(action, "名称", "") == 因果演算作用.名称 for action in base.能力作用群):
+    if any(getattr(action, "名称", "") == 因果演算作用名 for action in base.能力作用群):
         return base
     return MINIDORA模型核(
         base.関係群,
@@ -349,6 +350,7 @@ def 因果演算模型核(core: MINIDORA模型核 | None = None) -> MINIDORA模�
 
 __all__ = [
     "因果演算版",
+    "因果演算作用名",
     "因果符号",
     "因果辺",
     "因果経路",
