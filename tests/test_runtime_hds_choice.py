@@ -106,7 +106,7 @@ class _Provider:
 
 
 class RuntimeHDSChoice試験(unittest.TestCase):
-    def test_手順なしchoiceを正式模型核_HDS_J経路で解く(self) -> None:
+    def test_手順なしchoiceを正式模型核_出力専用HDS経路で解く(self) -> None:
         compiler = _Compiler()
         record = 参照記録("doc:1", "Alpha", "Alpha uses engine.", "fixture://doc1", "fixture")
         runtime = ミニドラ(_Provider((record,)), HDSコンパイラ_=compiler)
@@ -122,13 +122,15 @@ class RuntimeHDSChoice試験(unittest.TestCase):
         self.assertEqual(result.状態["K追加事実数"], 0)
         self.assertEqual(result.状態["K証拠事実数"], 0)
         self.assertIn("FORMAL_MODEL_CORE_WITH_HDS_J", result.採否.理由)
-        self.assertIn("HDS_JUDGEMENT_SUBJECT_V1", result.採否.理由)
+        self.assertIn("HDS_JUDGEMENT_SUBJECT_V2", result.採否.理由)
+        self.assertIn("HDS_OUTPUT_ONLY_BOUNDARY", result.採否.理由)
+        self.assertIn("HDS_OUTPUT_APPROVED", result.採否.理由)
         self.assertIn("engine", compiler.calls)
         self.assertIn("stone", compiler.calls)
         self.assertIn("Alpha uses engine.", compiler.calls)
         self.assertTrue(any(item["op"] == "R_TO_HDS_TO_K" for item in result.履歴))
 
-    def test_参照信頼0はHDS_JがCommitせず保留する(self) -> None:
+    def test_参照信頼は後段HDS判断入力ではない(self) -> None:
         compiler = _Compiler()
         record = 参照記録(
             "doc:untrusted", "Alpha", "Alpha uses engine.", "fixture://untrusted", "fixture", 信頼=0.0
@@ -137,10 +139,10 @@ class RuntimeHDSChoice試験(unittest.TestCase):
 
         result = runtime.実行(要求("What does Alpha use?"))
 
-        self.assertEqual(result.採否.状態, 実行状態.保留, result.採否.理由)
-        self.assertIsNone(result.値)
-        self.assertIn("HDS_EVIDENCE_INSUFFICIENT", result.採否.理由)
-        self.assertIn("FORMAL_MODEL_CORE_WITH_HDS_J", result.採否.理由)
+        self.assertEqual(result.採否.状態, 実行状態.合格, result.採否.理由)
+        self.assertEqual(result.値, "engine")
+        self.assertIn("HDS_OUTPUT_APPROVED", result.採否.理由)
+        self.assertNotIn("HDS_EVIDENCE_INSUFFICIENT", result.採否.理由)
 
     def test_choiceのHDSコンパイル失敗は生文字列fallbackせずSUSPEND(self) -> None:
         compiler = _Compiler(fail_choice="stone")
@@ -153,7 +155,7 @@ class RuntimeHDSChoice試験(unittest.TestCase):
         self.assertIsNone(result.値)
         self.assertIn("HDS_CHOICE_COMPILE_FAILED", result.採否.理由)
 
-    def test_Data一件失敗でも生Dataを使わず残りHDS証拠だけで判断する(self) -> None:
+    def test_Data一件失敗でも生Dataを使わず残りHDS入力だけでMINIDORAを実行する(self) -> None:
         compiler = _Compiler(fail_data={"bad raw document"})
         records = (
             参照記録("bad", "bad", "bad raw document", "fixture://bad", "fixture", 信頼=0.2),
@@ -169,7 +171,7 @@ class RuntimeHDSChoice試験(unittest.TestCase):
         self.assertEqual(result.状態["HDS_Dataコンパイル失敗数"], 1)
         self.assertTrue(any(reason == "DATA_COMPILE_PARTIAL:1" for reason in result.採否.理由))
 
-    def test_未確定choice集合はJへ進めずSUSPEND(self) -> None:
+    def test_未確定choice集合はMINIDORAへ進めずSUSPEND(self) -> None:
         compiler = _Compiler(choice_state=値状態.未確定)
         record = 参照記録("doc:1", "Alpha", "Alpha uses engine.", "fixture://doc1", "fixture")
         runtime = ミニドラ(_Provider((record,)), HDSコンパイラ_=compiler)

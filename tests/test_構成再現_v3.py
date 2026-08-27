@@ -75,7 +75,7 @@ class 構成再現v3試験(unittest.TestCase):
         )
         self.assertEqual(result.参照最有力候補ID,"C")
 
-    def test_knowledge_choiceは参照一意差で終端する(self):
+    def test_knowledge_choiceはMINIDORA出力をHDSが終端判断する(self):
         question=ir("alpha alpha alpha which")
         a=ir("alpha alpha alpha")
         b=ir("beta",(
@@ -87,15 +87,20 @@ class 構成再現v3試験(unittest.TestCase):
         result=HDSMINIDORA模型評価(question,{"A":a,"B":b},(data,))
         self.assertEqual(result.状態,"APPROVE")
         self.assertEqual(result.回答ラベル,"B")
-        self.assertIn("HDS_JUDGEMENT_SELECTED",result.理由)
+        self.assertIn("HDS_OUTPUT_APPROVED",result.理由)
+        self.assertIn("HDS_OUTPUT_ONLY_BOUNDARY",result.理由)
         self.assertIsNotNone(result.HDS判断)
+        self.assertIsNotNone(result.MINIDORA出力)
+        self.assertEqual(result.MINIDORA出力.候補ID,"B")
         self.assertEqual(result.HDS判断.運用状態,"COMMIT")
         self.assertIn("CAPABILITY_PROJECTION_V1",result.理由)
 
-    def test_参照差なしはSUSPEND(self):
+    def test_参照差なしはSUSPENDして沈黙する(self):
         result=HDSMINIDORA模型評価(ir("which"),{"A":ir("alpha"),"B":ir("beta")},())
         self.assertEqual(result.状態,"SUSPEND")
         self.assertIsNone(result.回答ラベル)
+        self.assertEqual(result.HDS判断.外部出力状態,"SILENT")
+        self.assertEqual(result.HDS判断.状態,"HOLD")
 
     def test_候補順参照順に依存しない(self):
         core=標準模型核();q=言語状態("which")

@@ -1,214 +1,77 @@
 from __future__ import annotations
 
+import inspect
 import unittest
 
-from minidora.hds_ir import HDSIR, HDS座標, HDS関係, HDS残差, HDS実行核, 値状態
-from minidora.hds_model_projection import HDSMINIDORA模型評価
+from minidora.hds判断主体 import HDS判断主体, MINIDORA出力, MINIDORA出力化
+from minidora.模型 import 成立差, 模型Checkpoint, 模型結果, 模型統計, 文脈付き言語状態, 内部言語状態, 関係寄与
 
 
-def ir(text, coords=(), rels=(), residuals=(), *, kind="knowledge_query"):
-    return HDSIR(
-        原文=text,
-        正規化文=text,
-        認知世界ID="hds-j-test",
-        座標=tuple(coords),
-        関係=tuple(rels),
-        残差=tuple(residuals),
-        意味作用履歴=(),
-        実行核=HDS実行核(),
-        入力言語="en",
-        種別=kind,
+def model_result(*, ref_winner="A", ref_ties=(), ref_a=2, ref_b=0, total_a=2, total_b=0):
+    ctx=文脈付き言語状態(内部言語状態("q","自然言語:en",frozenset()))
+    diffs=(
+        成立差("A",total_a,(関係寄与("参照関係寄与",ref_a),) if ref_a else ()),
+        成立差("B",total_b,(関係寄与("参照関係寄与",ref_b),) if ref_b else ()),
     )
-
-
-def candidate(name, pred="stabilize", positive=True):
-    conditions = (f"検索述語={pred}", "極性=否定") if not positive else (f"検索述語={pred}",)
-    return ir(
-        name,
-        (HDS座標("s", "対象.始点", "enzyme"), HDS座標("o", "対象.終点", name)),
-        (HDS関係("r", ("s",), ("o",), "作用", conditions),),
-    )
-
-
-def evidence(name, pred="stabilize", positive=True):
-    return candidate(name, pred, positive)
-
-
-def question(*, reverse=False, residual=False):
-    cond = ["検索述語=stabilize", "不足位置=終点"]
-    if reverse:
-        cond.append("選択意図=反転")
-    return ir(
-        "Which option?",
-        (
-            HDS座標("s", "対象.始点", "enzyme"),
-            HDS座標("u", "目的.未知終点", "option", 値状態.未観測),
-        ),
-        (HDS関係("q", ("s",), ("u",), "問い適合", tuple(cond), 値状態.未観測),),
-        (HDS残差("loss", "semantic_loss", "?", "unresolved"),) if residual else (),
+    return 模型結果(
+        ctx,diffs,"A" if total_a>total_b else None,(),
+        (模型Checkpoint("PRIMARY_CAPABILITY_ACTIONS",(("A",total_a),("B",total_b))),),
+        模型統計(終端遍歴数=1),ref_winner,tuple(ref_ties),
     )
 
 
 class HDS判断主体試験(unittest.TestCase):
-    def test_HDS_Jが最終権限を持ち一意な完全証拠を採用する(self):
-        q = question()
-        c = {"A": candidate("alpha"), "B": candidate("beta")}
-        result = HDSMINIDORA模型評価(q, c, (evidence("beta"),), 参照識別子=("source-b",), 参照信頼=(1.0,))
-        self.assertEqual(result.状態, "APPROVE")
-        self.assertEqual(result.回答ラベル, "B")
-        self.assertIsNotNone(result.HDS判断)
-        self.assertEqual(result.HDS判断.運用状態, "COMMIT")
-        self.assertIn("HDS_JUDGEMENT_SELECTED", result.理由)
+    def test_後段HDSの入力APIはMINIDORA出力1個だけ(self):
+        params=tuple(inspect.signature(HDS判断主体.判断).parameters)
+        self.assertEqual(params,("self","出力"))
 
-    def test_同一sourceが複数候補を支持したらCommitしない(self):
-        q = question()
-        c = {"A": candidate("alpha"), "B": candidate("beta")}
-        data = ir(
-            "both",
-            (
-                HDS座標("s", "対象.始点", "enzyme"),
-                HDS座標("a", "対象.終点", "alpha"),
-                HDS座標("b", "対象.終点", "beta"),
-            ),
-            (
-                HDS関係("ra", ("s",), ("a",), "作用", ("検索述語=stabilize",)),
-                HDS関係("rb", ("s",), ("b",), "作用", ("検索述語=stabilize",)),
-            ),
+    def test_MINIDORAの一意な正出力だけをAPPROVEする(self):
+        output=MINIDORA出力化(model_result())
+        decision=HDS判断主体().判断(output)
+        self.assertEqual(decision.状態,"APPROVE")
+        self.assertEqual(decision.選択候補ID,"A")
+        self.assertEqual(decision.外部出力状態,"OUTPUT")
+        self.assertEqual(decision.運用状態,"COMMIT")
+        self.assertIn("HDS_OUTPUT_APPROVED",decision.理由)
+
+    def test_MINIDORAが出力しなければHOLDして沈黙する(self):
+        output=MINIDORA出力化(model_result(ref_winner=None,ref_ties=("A","B"),ref_a=0,ref_b=0,total_a=0,total_b=0))
+        decision=HDS判断主体().判断(output)
+        self.assertEqual(decision.状態,"HOLD")
+        self.assertIsNone(decision.選択候補ID)
+        self.assertEqual(decision.外部出力状態,"SILENT")
+        self.assertIn("SILENT",decision.理由)
+        self.assertIn("NO_FEEDBACK_LOOP",decision.理由)
+
+    def test_不整合なMINIDORA出力はREJECTして沈黙する(self):
+        output=MINIDORA出力(
+            状態="OUTPUT",候補ID="A",
+            候補差=(("A",2),("B",3)),
+            参照候補差=(("A",0),("B",2)),
+            参照同率候補ID=(),checkpoint数=1,再作用回数=0,終端遍歴数=1,
         )
-        result = HDSMINIDORA模型評価(q, c, (data,), 参照識別子=("shared",))
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIsNone(result.回答ラベル)
+        decision=HDS判断主体().判断(output)
+        self.assertEqual(decision.状態,"REJECT")
+        self.assertIsNone(decision.選択候補ID)
+        self.assertEqual(decision.外部出力状態,"SILENT")
+        self.assertIn("NO_FEEDBACK_LOOP",decision.理由)
 
-    def test_独立sourceが競合候補を完全支持したら順位づけせず保留する(self):
-        q = question()
-        c = {"A": candidate("alpha"), "B": candidate("beta")}
-        result = HDSMINIDORA模型評価(q, c, (evidence("alpha"), evidence("beta")), 参照識別子=("sa", "sb"))
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIn("HDS_COMPETING_EVIDENCE", result.理由)
+    def test_一般表層winnerは正式MINIDORA出力を上書きしない(self):
+        result=model_result(ref_winner="B",ref_a=0,ref_b=2,total_a=10,total_b=2)
+        output=MINIDORA出力化(result)
+        self.assertEqual(result.最有力候補ID,"A")
+        self.assertEqual(output.候補ID,"B")
+        decision=HDS判断主体().判断(output)
+        self.assertEqual((decision.状態,decision.選択候補ID),("APPROVE","B"))
 
-    def test_完全支持と完全反証が共存したら矛盾を保持して保留する(self):
-        q = question()
-        c = {"A": candidate("alpha"), "B": candidate("beta")}
-        result = HDSMINIDORA模型評価(
-            q,
-            c,
-            (evidence("alpha"), evidence("alpha", positive=False)),
-            参照識別子=("pos", "neg"),
-        )
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIn("HDS_UNRESOLVED_CONTRADICTION", result.理由)
+    def test_HDS判断はQuestion_Data_Referenceを受け取れない(self):
+        sig=inspect.signature(HDS判断主体.判断)
+        names=set(sig.parameters)
+        self.assertTrue({"question_ir","候補群","参照群","data","reference"}.isdisjoint(names))
 
-    def test_弱いscope支持は保持するがCommitしない(self):
-        q = question()
-        c = {"A": candidate("alpha"), "B": candidate("beta")}
-        weak = ir(
-            "weak",
-            (HDS座標("s", "対象.始点", "enzyme"), HDS座標("o", "対象.終点", "alpha")),
-            (HDS関係("r", ("s",), ("o",), "作用", ("検索述語=stabilize", "条件scope=special")),),
-        )
-        result = HDSMINIDORA模型評価(q, c, (weak,), 参照識別子=("weak-source",))
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIn(result.HDS判断.候補状態[0].状態, {"WEAK_EVIDENCE", "UNSUPPORTED"})
-
-    def test_反転は最低得点投票でなくN_minus_1消去で閉じる(self):
-        q = question(reverse=True)
-        c = {"A": candidate("alpha"), "B": candidate("beta"), "C": candidate("gamma")}
-        result = HDSMINIDORA模型評価(q, c, (evidence("alpha"), evidence("beta")), 参照識別子=("sa", "sb"))
-        self.assertEqual(result.状態, "APPROVE")
-        self.assertEqual(result.回答ラベル, "C")
-        self.assertIn("HDS_EXCEPTION_N_MINUS_ONE", result.理由)
-
-    def test_semantic_lossはCommit前に保留する(self):
-        q = question(residual=True)
-        c = {"A": candidate("alpha"), "B": candidate("beta")}
-        result = HDSMINIDORA模型評価(q, c, (evidence("alpha"),), 参照識別子=("sa",))
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIn("HDS_FRAME_UNCLOSED", result.理由)
-
-    def test_候補順と参照順で判断が変わらない(self):
-        q = question()
-        a = candidate("alpha")
-        b = candidate("beta")
-        ra = evidence("alpha")
-        x = HDSMINIDORA模型評価(q, {"A": a, "B": b}, (ra,), 参照識別子=("sa",))
-        y = HDSMINIDORA模型評価(q, {"B": b, "A": a}, (ra,), 参照識別子=("sa",))
-        self.assertEqual((x.状態, x.回答ラベル, x.HDS判断.候補状態), (y.状態, y.回答ラベル, y.HDS判断.候補状態))
-
-    def test_Cの参照最大候補は提案でありJの最終権限ではない(self):
-        q = question()
-        c = {"A": ir("alpha distinctive"), "B": candidate("beta")}
-        token_refs = tuple(ir("alpha distinctive") for _ in range(4))
-        relation_ref = ir(
-            "beta relation",
-            (HDS座標("s", "対象.始点", "enzyme"), HDS座標("o", "対象.終点", "beta")),
-            (HDS関係("r", ("s",), ("o",), "作用", ("検索述語=stabilize",)),),
-        )
-        refs = (*token_refs, relation_ref)
-        ids = ("ta1", "ta2", "ta3", "ta4", "rb")
-        result = HDSMINIDORA模型評価(q, c, refs, 参照識別子=ids)
-        self.assertEqual(result.模型結果.参照最有力候補ID, "A")
-        self.assertEqual(result.状態, "APPROVE")
-        self.assertEqual(result.回答ラベル, "B")
-        self.assertEqual(result.HDS判断.選択候補ID, "B")
-
-    def test_参照信頼0は完全関係でもCommitしない(self):
-        q = question()
-        c = {"A": candidate("alpha"), "B": candidate("beta")}
-        result = HDSMINIDORA模型評価(
-            q, c, (evidence("beta"),), 参照識別子=("source-b",), 参照信頼=(0.0,)
-        )
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIsNone(result.回答ラベル)
-
-    def test_Data_semantic_lossはsource全体を確定証拠にしない(self):
-        q = question()
-        c = {"A": candidate("alpha"), "B": candidate("beta")}
-        broken = ir(
-            "beta uncertain",
-            (HDS座標("s", "対象.始点", "enzyme"), HDS座標("o", "対象.終点", "beta")),
-            (HDS関係("r", ("s",), ("o",), "作用", ("検索述語=stabilize",)),),
-            (HDS残差("loss", "semantic_loss", "beta", "意味構造を保持できない"),),
-        )
-        result = HDSMINIDORA模型評価(q, c, (broken,), 参照識別子=("broken",))
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIsNone(result.回答ラベル)
-
-    def test_Data残差が無関係座標だけなら確定関係を使える(self):
-        q = question()
-        c = {"A": candidate("alpha"), "B": candidate("beta")}
-        local = ir(
-            "beta with uncertain note",
-            (
-                HDS座標("s", "対象.始点", "enzyme"),
-                HDS座標("o", "対象.終点", "beta"),
-                HDS座標("note", "文脈.注記", "uncertain"),
-            ),
-            (HDS関係("r", ("s",), ("o",), "作用", ("検索述語=stabilize",)),),
-            (HDS残差("note-loss", "note_unresolved", "uncertain", "注記だけ未解", 影響座標=("note",)),),
-        )
-        result = HDSMINIDORA模型評価(q, c, (local,), 参照識別子=("local",))
-        self.assertEqual(result.状態, "APPROVE")
-        self.assertEqual(result.回答ラベル, "B")
-
-    def test_Data残差が関係端点に掛かればその関係はCommit根拠にしない(self):
-        q = question()
-        c = {"A": candidate("alpha"), "B": candidate("beta")}
-        blocked = ir(
-            "beta endpoint unresolved",
-            (HDS座標("s", "対象.始点", "enzyme"), HDS座標("o", "対象.終点", "beta")),
-            (HDS関係("r", ("s",), ("o",), "作用", ("検索述語=stabilize",)),),
-            (HDS残差("endpoint-loss", "entity_unresolved", "beta", "対象同定未解", 影響座標=("o",)),),
-        )
-        result = HDSMINIDORA模型評価(q, c, (blocked,), 参照識別子=("blocked",))
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIsNone(result.回答ラベル)
-
-    def test_参照なしをHDSが勝手に承認しない(self):
-        q = question()
-        c = {"A": candidate("alpha"), "B": candidate("beta")}
-        result = HDSMINIDORA模型評価(q, c, ())
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIsNone(result.回答ラベル)
+    def test_HDS判断結果に差し戻し状態を持たない(self):
+        fields=set(HDS判断主体().判断(MINIDORA出力化(model_result())).__dataclass_fields__)
+        self.assertTrue({"再試行","差し戻し","再検索","再計算"}.isdisjoint(fields))
 
 
 if __name__ == "__main__":
