@@ -3,7 +3,9 @@ from __future__ import annotations
 import unittest
 
 from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from minidora.hds_model_projection import HDS内部言語状態, HDS模型問い表層
 from minidora.hds_runtime_projection import HDSK質問射影, HDS模型質問射影
+from minidora.模型 import 標準模型核
 
 
 def fixture() -> HDSIR:
@@ -67,6 +69,22 @@ class 正式模型質問射影試験(unittest.TestCase):
             )
         )
         self.assertNotIn("uncertain", {item.関係ID for item in projected.関係})
+
+    def test_問い表層から背景文を再解析しない(self):
+        projected = HDSK質問射影(fixture())
+        surface = HDS模型問い表層(projected)
+        self.assertNotIn("Alpha", surface)
+        self.assertNotIn("belongs", surface.casefold())
+        state = HDS内部言語状態(
+            projected,
+            識別子="question",
+            言語体系="自然言語:en",
+            表層=surface,
+        )
+        internal = 標準模型核().言語対応.内部化(state)
+        kinds = {item.種別 for item in internal.関係構造}
+        self.assertIn("使用", kinds)
+        self.assertNotIn("所属", kinds)
 
 
 if __name__ == "__main__":
