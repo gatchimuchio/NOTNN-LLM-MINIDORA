@@ -4,8 +4,16 @@ from typing import Mapping, Sequence
 from .hds_ir import HDSIR, HDS関係, 値状態
 from .hds_runtime_projection import HDSK質問射影
 from .semantic_tokens import 意味語
-from .言語構造 import 言語関係構造
-from .模型 import MINIDORA模型核, 成立候補, 言語状態, 模型結果, 標準模型核
+from .言語構造 import 言語関係構造, 意味列
+from .模型 import (
+    MINIDORA模型核,
+    内部言語状態,
+    文脈付き言語状態,
+    成立候補,
+    言語状態,
+    模型結果,
+    標準模型核,
+)
 from .関係連鎖演算_v2 import (
     関係連鎖作用V2,
     関係連鎖推論作用名,
@@ -16,6 +24,54 @@ from .hds判断主体 import HDS判断主体, HDS判断結果, MINIDORA出力, M
 
 _BLOCKING_ENDPOINT={値状態.未確定,値状態.未観測,値状態.矛盾,値状態.留保}
 _SCOPE_KEYS=frozenset({"様相","量化","条件scope","scope","条件作用"})
+
+
+class HDS構造固定言語状態(言語状態):
+    """HDS Compilerで関係構造が確定済みであり、模型側の再解析を許さない言語状態。"""
+    __slots__=()
+
+
+class HDS構造固定言語対応:
+    """HDS構造固定状態だけ自然言語関係抽出を再実行しない言語対応。"""
+    def __init__(self, 基礎対応):
+        self._基礎対応=基礎対応
+
+    def 内部化(self, 状態:言語状態)->内部言語状態:
+        if not isinstance(状態,HDS構造固定言語状態):
+            return self._基礎対応.内部化(状態)
+        return 内部言語状態(
+            状態.内容,
+            状態.言語体系,
+            意味語(状態.内容),
+            状態.識別子,
+            意味列(状態.内容),
+            tuple(状態.関係構造),
+        )
+
+    def 文脈化(self,現在,履歴=(),条件=(),参照状態=()):
+        for state in (*履歴,*参照状態):
+            if state.言語体系!=現在.言語体系:
+                raise ValueError("同一の文脈評価内で言語体系を無言混在させない")
+        return 文脈付き言語状態(
+            self.内部化(現在),
+            tuple(self.内部化(x) for x in 履歴),
+            tuple(str(x) for x in 条件),
+            tuple(self.内部化(x) for x in 参照状態),
+        )
+
+
+def HDS構造固定模型核(core:MINIDORA模型核)->MINIDORA模型核:
+    """模型作用を変えず、HDS由来状態の再解析だけを禁止した模型核を返す。"""
+    if isinstance(core.言語対応,HDS構造固定言語対応):
+        return core
+    return MINIDORA模型核(
+        core.関係群,
+        言語対応_=HDS構造固定言語対応(core.言語対応),
+        能力作用群=core.能力作用群,
+        形成済み関係群=core.形成済み関係群,
+        最大再作用回数=core.最大再作用回数,
+    )
+
 
 def _条件値(relation,key):
     prefix=key+"="
@@ -61,13 +117,22 @@ def _残差証拠境界(ir):
         impacted.update(str(x) for x in residual.影響座標)
     return source_blocked,frozenset(impacted)
 
-def HDS模型問い表層(ir:HDSIR)->str:
-    """問い射影の関係端点・述語だけから模型用表層を形成する。
 
-    HDSK質問射影は関係/座標を問いへ縮約しても原文自体は保持する。その原文を模型の
-    言語対応へ再投入すると、背景文が自然言語関係として再解析され通常文脈へ戻り得る。
-    ここではHDSで既に構文化された問い関係だけから再解析用の最小表層を作る。
-    """
+def _証拠安全表層(ir:HDSIR,source_blocked:bool,impacted:frozenset[str])->str:
+    """証拠として利用可能なHDS意味座標だけから意味語参照用表層を形成する。"""
+    if source_blocked:
+        return ""
+    parts=[]
+    for coord in ir.座標:
+        if str(coord.座標ID) in impacted or coord.値状態 in _BLOCKING_ENDPOINT:
+            continue
+        value=" ".join(str(coord.内容).split()).strip()
+        if value and value!="?":parts.append(value)
+    return " ".join(dict.fromkeys(parts))
+
+
+def HDS模型問い表層(ir:HDSIR)->str:
+    """問い射影の関係端点・述語だけから模型用表層を形成する。"""
     coords=ir.座標辞書();parts=[]
     for relation in ir.関係:
         for cid in (*relation.始点,*relation.終点):
@@ -79,6 +144,7 @@ def HDS模型問い表層(ir:HDSIR)->str:
         predicate=" ".join(predicate.split()).strip()
         if predicate:parts.append(predicate)
     return " ".join(dict.fromkeys(parts))
+
 
 def HDS内部言語状態(ir,*,識別子="",言語体系=None,証拠境界=False,表層=None):
     source_blocked,impacted=_残差証拠境界(ir) if 証拠境界 else (False,frozenset())
@@ -92,8 +158,14 @@ def HDS内部言語状態(ir,*,識別子="",言語体系=None,証拠境界=False
         if structure is not None:
             relations.append(structure)
     ls=str(言語体系 or _対象言語体系(ir)).strip()
-    surface=str(ir.正規化文 or ir.原文) if 表層 is None else str(表層)
-    return 言語状態(surface,ls,識別子,tuple(relations))
+    if 表層 is not None:
+        surface=str(表層)
+    elif 証拠境界:
+        surface=_証拠安全表層(ir,source_blocked,impacted)
+    else:
+        surface=str(ir.正規化文 or ir.原文)
+    return HDS構造固定言語状態(surface,ls,識別子,tuple(relations))
+
 
 def _文脈条件(question_ir):
     out=[]
@@ -126,15 +198,17 @@ def HDSMINIDORA模型評価(
 ):
     """HDS Compiler出力をMINIDORAへ渡し、MINIDORA出力だけを後段HDSへ渡す。
 
-    正式模型の通常文脈には問い関係だけを置く。問題文中の確定事実は推論専用状態へ
-    分離し、関係連鎖作用v2だけが参照する。問い表層も問い関係から再形成することで、
-    元問題文の背景関係を言語対応が再解析して通常文脈へ戻す経路を閉じる。
+    Question/Candidate/DataはHDS Compilerで構文化済みなので、模型側では自然言語関係抽出を
+    再実行しない。問題文中の確定事実は通常文脈から推論専用状態へ分離し、関係連鎖作用v2
+    だけが読む。semantic_loss Dataは意味語も関係も証拠へ入れず、局所残差は影響座標だけを
+    除外する。
 
     関係連鎖で形成した差は推論状態であり参照証拠ではない。そのため候補順序・再作用には
     参加するが、単独では ``参照最有力候補`` を確定せず、後段HDSの最終出力根拠へ昇格しない。
     後段HDSへ元Dataや推論状態は渡さない。
     """
-    core=関係連鎖模型核V2(模型核 or 標準模型核());target=_対象言語体系(question_ir)
+    base=HDS構造固定模型核(模型核 or 標準模型核())
+    core=関係連鎖模型核V2(base);target=_対象言語体系(question_ir)
 
     full_question=HDS内部言語状態(question_ir,識別子="question:full",言語体系=target)
     question_core_ir=HDSK質問射影(question_ir)
@@ -151,7 +225,7 @@ def HDSMINIDORA模型評価(
         if relation.署名 not in question_signatures
     )
     reasoning_states=(
-        言語状態("",target,"question-premises",premise_relations),
+        HDS構造固定言語状態("",target,"question-premises",premise_relations),
     ) if premise_relations else ()
 
     candidate_internal={str(label):HDS内部言語状態(ir,識別子="candidate:"+str(label),言語体系=target) for label,ir in sorted(candidate_irs.items())}
@@ -194,6 +268,8 @@ def HDSMINIDORA模型評価(
     answer=decision.選択候補ID if decision.状態=="APPROVE" else None
 
     chain_audit=[
+        "HDS_COMPILED_STATE_NO_REPARSE",
+        "HDS_RESIDUAL_EVIDENCE_BOUNDARY",
         "RELATION_CHAIN_ARITHMETIC_V2",
         "RELATION_CHAIN_IDENTITY_SYMMETRIC",
         "RELATION_CHAIN_INFERENCE_STATE_SEPARATED",
