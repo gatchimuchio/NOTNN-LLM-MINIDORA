@@ -238,7 +238,7 @@ def HDSR質問射影(ir: HDSIR) -> HDSIR:
 
 
 def HDSK質問射影(ir: HDSIR) -> HDSIR:
-    """質問HDS-IRから候補比較へ必要な意味核を、scopeを落とさず返す。"""
+    """質問HDS-IRから旧K/helper候補比較へ必要な意味核だけを返す。"""
     choices = tuple(coord for coord in ir.座標 if coord.座標ID.startswith("choice:"))
     question_relations = _質問関係(ir)
     coords_by_id = ir.座標辞書()
@@ -300,6 +300,50 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
     semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
     semantic_relations = _K関係射影(ir, semantic_coords)
     return replace(ir, 座標=_座標重複除去(choices, semantic_coords), 関係=semantic_relations, 意味作用履歴=())
+
+
+def HDS模型質問射影(ir: HDSIR) -> HDSIR:
+    """正式MINIDORAへ、問い関係と問題文中の確定事実関係を同時に渡す。
+
+    旧K/helperの ``HDSK質問射影`` は候補比較用に問い関係へ縮約する。一方、正式模型は
+    多段推論の前提として問題文中の確定済み関係も必要なため、両者を分離する。
+    候補座標・制御メタを世界事実へ昇格させず、推定/未確定/矛盾/留保関係も前提にしない。
+    """
+    question_relations = _質問関係(ir)
+    if not question_relations:
+        return HDSK質問射影(ir)
+
+    choices = tuple(coord for coord in ir.座標 if coord.座標ID.startswith("choice:"))
+    semantic_coords = tuple(coord for coord in ir.座標 if _K意味座標(coord))
+    coords_by_id = ir.座標辞書()
+    question_ids = {relation.関係ID for relation in question_relations}
+    question_endpoint_ids = _関係座標ID(question_relations)
+    question_endpoints = tuple(coords_by_id[cid] for cid in question_endpoint_ids if cid in coords_by_id)
+
+    projected_questions = tuple(
+        replace(
+            relation,
+            値状態=値状態.確定,
+            由来="HDS Runtime MINIDORA質問射影",
+            暫定性="RELATION_TYPE_KNOWN_ENDPOINT_OPEN",
+        )
+        for relation in question_relations
+        if not _K未対応scope(relation, 否定可=True, 修飾可=True)
+    )
+    factual_relations = tuple(
+        relation
+        for relation in _K関係射影(ir, semantic_coords, 否定可=True, 修飾可=True)
+        if relation.関係ID not in question_ids and relation.値状態 == 値状態.確定
+    )
+
+    if not projected_questions:
+        return HDSK質問射影(ir)
+    return replace(
+        ir,
+        座標=_座標重複除去(choices, semantic_coords, question_endpoints),
+        関係=tuple((*factual_relations, *projected_questions)),
+        意味作用履歴=(),
+    )
 
 
 def HDSK候補射影(ir: HDSIR) -> HDSIR:
@@ -367,6 +411,7 @@ def HDSKData射影(ir: HDSIR) -> HDSIR:
 __all__ = [
     "HDSR質問射影",
     "HDSK質問射影",
+    "HDS模型質問射影",
     "HDSK候補射影",
     "HDSK候補代入可能",
     "HDS模型候補代入可能",
