@@ -57,7 +57,26 @@ def _残差証拠境界(ir):
         impacted.update(str(x) for x in residual.影響座標)
     return source_blocked,frozenset(impacted)
 
-def HDS内部言語状態(ir,*,識別子="",言語体系=None,証拠境界=False):
+def HDS模型問い表層(ir:HDSIR)->str:
+    """問い射影の関係端点・述語だけから模型用表層を形成する。
+
+    HDSK質問射影は関係/座標を問いへ縮約しても原文自体は保持する。その原文を模型の
+    言語対応へ再投入すると、背景文が自然言語関係として再解析され通常文脈へ戻り得る。
+    ここではHDSで既に構文化された問い関係だけから再解析用の最小表層を作る。
+    """
+    coords=ir.座標辞書();parts=[]
+    for relation in ir.関係:
+        for cid in (*relation.始点,*relation.終点):
+            coord=coords.get(cid)
+            if coord is None or coord.値状態 in _BLOCKING_ENDPOINT:continue
+            value=" ".join(str(coord.内容).split()).strip()
+            if value and value!="?":parts.append(value)
+        predicate=_条件値(relation,"検索述語") or str(relation.種別)
+        predicate=" ".join(predicate.split()).strip()
+        if predicate:parts.append(predicate)
+    return " ".join(dict.fromkeys(parts))
+
+def HDS内部言語状態(ir,*,識別子="",言語体系=None,証拠境界=False,表層=None):
     source_blocked,impacted=_残差証拠境界(ir) if 証拠境界 else (False,frozenset())
     relations=[]
     for relation in ir.関係:
@@ -69,7 +88,8 @@ def HDS内部言語状態(ir,*,識別子="",言語体系=None,証拠境界=False
         if structure is not None:
             relations.append(structure)
     ls=str(言語体系 or _対象言語体系(ir)).strip()
-    return 言語状態(str(ir.正規化文 or ir.原文),ls,識別子,tuple(relations))
+    surface=str(ir.正規化文 or ir.原文) if 表層 is None else str(表層)
+    return 言語状態(surface,ls,識別子,tuple(relations))
 
 def _文脈条件(question_ir):
     out=[]
@@ -103,14 +123,20 @@ def HDSMINIDORA模型評価(
     """HDS Compiler出力をMINIDORAへ渡し、MINIDORA出力だけを後段HDSへ渡す。
 
     正式模型の通常文脈には問い関係だけを置く。問題文中の確定事実は推論専用状態へ
-    分離し、関係連鎖作用v2だけが参照する。これにより前提保持を維持しながら、一般関係・
-    履歴・参照寄与へ前提を無言混入させない。後段HDSへ元Dataや推論状態は渡さない。
+    分離し、関係連鎖作用v2だけが参照する。問い表層も問い関係から再形成することで、
+    元問題文の背景関係を言語対応が再解析して通常文脈へ戻す経路を閉じる。
+    後段HDSへ元Dataや推論状態は渡さない。
     """
     core=関係連鎖模型核V2(模型核 or 標準模型核());target=_対象言語体系(question_ir)
 
     full_question=HDS内部言語状態(question_ir,識別子="question:full",言語体系=target)
     question_core_ir=HDSK質問射影(question_ir)
-    question=HDS内部言語状態(question_core_ir,識別子="question",言語体系=target)
+    question=HDS内部言語状態(
+        question_core_ir,
+        識別子="question",
+        言語体系=target,
+        表層=HDS模型問い表層(question_core_ir),
+    )
     question_signatures={relation.署名 for relation in question.関係構造}
     premise_relations=tuple(
         relation
@@ -164,6 +190,7 @@ def HDSMINIDORA模型評価(
         "RELATION_CHAIN_ARITHMETIC_V2",
         "RELATION_CHAIN_IDENTITY_SYMMETRIC",
         "RELATION_CHAIN_INFERENCE_STATE_SEPARATED",
+        "RELATION_CHAIN_QUESTION_SURFACE_ISOLATED",
         f"RELATION_CHAIN_PREMISE_RELATIONS:{len(premise_relations)}",
     ]
     if chain_result is not None and chain_result.多段状態数:
