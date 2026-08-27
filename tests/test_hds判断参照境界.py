@@ -9,17 +9,17 @@ def ir(text):
 
 class HDS判断参照境界試験(unittest.TestCase):
     def test_識別子を出典同一性としてそのまま保持する(self):
-        r=参照記録("DOI:AbC",由来="x",供給器="p")
+        r=参照記録("DOI:AbC","x","x","fixture://x","p")
         self.assertEqual(HDS判断出典ID(r),"DOI:AbC")
 
     def test_空識別子だけprovider由来へ縮退する(self):
-        r=参照記録("",由来="fixture://x",供給器="fixture")
+        r=参照記録("","x","x","fixture://x","fixture")
         self.assertEqual(HDS判断出典ID(r),"fixture:fixture://x")
 
     def test_コンパイル失敗を除外してID信頼IRの添字を揃える(self):
         refs=(
-            参照記録("bad",信頼=0.9),
-            参照記録("good",信頼=0.25),
+            参照記録("bad","bad","bad","fixture://bad","fixture",信頼=0.9),
+            参照記録("good","good","good","fixture://good","fixture",信頼=0.25),
         )
         bundle=HDS判断Data整列(refs,(ValueError("bad"),ir("ok")),lambda x:x)
         self.assertEqual(bundle.失敗数,1)
