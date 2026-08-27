@@ -5,7 +5,7 @@ from minidora.参照 import 参照記録
 from minidora.hds判断参照境界 import HDS判断Data整列,HDS判断出典ID
 
 def ir(text):
-    return HDSIR(原文=text,正規化文=text,認知世界ID="ref-test",実行核=HDS実行核())
+    return HDSIR(原文=text,正規化文=text,認知世界ID="ref-test",座標=(),関係=(),残差=(),意味作用履歴=(),実行核=HDS実行核())
 
 class HDS判断参照境界試験(unittest.TestCase):
     def test_識別子を出典同一性としてそのまま保持する(self):
