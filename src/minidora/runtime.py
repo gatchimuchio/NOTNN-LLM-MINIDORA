@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 from .runtime_v03 import ミニドラ as _ミニドラV03, 結果, 要求
 from .模型 import MINIDORA模型核, 模型結果, 成立候補, 言語状態, 標準模型核
-from .関係連鎖演算 import 関係連鎖模型核
+from .関係連鎖演算_v2 import 関係連鎖模型核V2, 推論文脈形成
 from .計算実行器 import 計算実行器
 
 
@@ -16,9 +16,10 @@ class ミニドラ(_ミニドラV03):
     ``HDS Compiler → MINIDORA入力 → C → MINIDORA出力 → 後段HDS`` の一方向で閉じる。
 
     MINIDORA内部では、構造化済み関係を候補へ直接採点するだけでなく、関係族・向き・極性を
-    数値状態へ写し、前段の関係結果を次段の入力として有界連鎖する。形成するのは
-    `A -R1-> B -R2-> C` という関係列状態であり、これを勝手に `A R? C` という新しい
-    世界事実へ縮約しない。形成完了後に候補との到達関係だけを照合する。
+    数値状態へ写し、前段の関係結果を次段の入力として有界連鎖する。v2では通常文脈と
+    ``推論状態`` を分離し、推論前提を一般関係・履歴・参照寄与へ無言混入させない。
+    端点接続は片側包含ではなく対称的意味同一性を要求し、複数候補へ共通に到達した状態は
+    候補差として採用しない。
 
     後段HDSはMINIDORA出力だけを判断し、HOLD/REJECTはSILENTで終端する。
     再検索・再計算・差し戻しはMINIDORA単体へ持たせない。
@@ -47,7 +48,7 @@ class ミニドラ(_ミニドラV03):
             Trinity文脈_=Trinity文脈_,
             K3能力核_=K3能力核_,
         )
-        self.模型核 = 関係連鎖模型核(模型核_ or 標準模型核())
+        self.模型核 = 関係連鎖模型核V2(模型核_ or 標準模型核())
         self.計算実行器 = executor
         # 旧API互換。新規設計ではLLM中核を意味しない。
         self.layer0 = executor
@@ -73,12 +74,12 @@ class ミニドラ(_ミニドラV03):
         履歴: Sequence[str | 言語状態] = (),
         条件: Sequence[str] = (),
         参照状態: Sequence[str | 言語状態] = (),
+        推論状態: Sequence[str | 言語状態] = (),
     ) -> 模型結果:
         """文脈に対する候補言語状態の成立差を決定論的に返す。
 
         このAPIがv0.4の模型中核C入口である。候補生成、sampling、外部検索、後段HDS判断は行わない。
-        `参照状態` はすでに言語対応された外部Data等を会話履歴と分離して渡す前段入力である。
-        問題文中の確定事実と参照Dataの構造関係は、模型内部で多段の関係連鎖状態へ更新される。
+        `参照状態` は外部Data、`推論状態` は通常文脈から分離して再作用だけが読む中間状態である。
         このAPIの ``模型結果`` を正式knowledge choiceでは ``MINIDORA出力`` へ変換し、
         `hds_choice_runtime.py` 経由で後段HDSへ一方向に渡す。
         """
@@ -91,6 +92,10 @@ class ミニドラ(_ミニドラV03):
         reference_states = tuple(
             item if isinstance(item, 言語状態) else 言語状態(str(item), current.言語体系)
             for item in 参照状態
+        )
+        reasoning_states = tuple(
+            item if isinstance(item, 言語状態) else 言語状態(str(item), current.言語体系)
+            for item in 推論状態
         )
         candidates: list[成立候補] = []
         for index, item in enumerate(候補群):
@@ -105,13 +110,15 @@ class ミニドラ(_ミニドラV03):
                         言語状態(str(item), current.言語体系),
                     )
                 )
-        return self.模型核.評価言語状態(
+        context = 推論文脈形成(
+            self.模型核,
             current,
-            tuple(candidates),
+            推論状態=reasoning_states,
             履歴=history_states,
             条件=条件,
             参照状態=reference_states,
         )
+        return self.模型核.評価(context, tuple(candidates))
 
 
 __all__ = ["ミニドラ", "要求", "結果"]
