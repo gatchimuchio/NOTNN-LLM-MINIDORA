@@ -1,20 +1,30 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from fractions import Fraction
 
 from .runtime_v03 import ミニドラ as _ミニドラV03, 結果, 要求
 from .模型 import MINIDORA模型核, 模型結果, 成立候補, 言語状態, 標準模型核
+from .言語確率法則 import (
+    MINIDORA厳密言語模型,
+    条件付き記号分布,
+    言語確率監査結果,
+    最小厳密言語模型,
+)
 from .計算実行器 import 計算実行器
 
 
 class ミニドラ(_ミニドラV03):
-    """MINIDORA v0.4 Runtime。
+    """MINIDORA v0.5 Runtime。
 
-    大規模言語模型成立規定v3に対応する ``模型核`` を計算主体Cとして持ち、旧Layer0
-    命令器は ``計算実行器`` へ降格する。正式knowledge choiceは
-    ``HDS Compiler → MINIDORA入力 → C → MINIDORA出力 → 後段HDS`` の一方向で閉じる。
-    後段HDSはMINIDORA出力だけを判断し、HOLD/REJECTはSILENTで終端する。再検索・再計算・
-    差し戻しはMINIDORA単体へ持たせない。
+    v7上位規定に従い、厳密Language Model核と能力評価核を分離する。
+
+    - ``言語模型核``: 完全言語状態上の整合した確率法則を担う非ニューラル厳密LM。
+    - ``能力模型核``: 旧v0.4由来の候補・証拠・関係評価。推論/knowledge choice能力側。
+    - ``計算実行器``: 算術・比較等の決定論的計算境界。
+
+    既存 ``模型核`` 属性は後方互換のため ``能力模型核`` aliasとして保持する。
+    候補scoreを確率へ読み替えて厳密LMを偽装しない。
     """
 
     def __init__(
@@ -28,6 +38,7 @@ class ミニドラ(_ミニドラV03):
         K3能力核_=None,
         *,
         模型核_: MINIDORA模型核 | None = None,
+        言語模型核_: MINIDORA厳密言語模型 | None = None,
         計算実行器_: 計算実行器 | None = None,
     ) -> None:
         executor = 計算実行器_ or layer0 or 計算実行器()
@@ -40,22 +51,35 @@ class ミニドラ(_ミニドラV03):
             Trinity文脈_=Trinity文脈_,
             K3能力核_=K3能力核_,
         )
-        self.模型核 = 模型核_ or 標準模型核()
+        self.言語模型核 = 言語模型核_ or 最小厳密言語模型()
+        self.能力模型核 = 模型核_ or 標準模型核()
+        # v0.4公開API互換。v0.5では厳密LM核を意味しない。
+        self.模型核 = self.能力模型核
         self.計算実行器 = executor
         # 旧API互換。新規設計ではLLM中核を意味しない。
         self.layer0 = executor
 
     @property
     def K3能力核(self):
-        """旧helperを互換利用しつつ、v0.4正式模型核Cを実行境界へ渡す。
+        """旧helperへ能力模型核だけを接続する。
 
-        runtime_v03側へv0.4型を逆流させないため、helperに非正本の接続参照だけを付与する。
-        HDS選択Runtimeはこの参照がある時だけ正式模型核CでMINIDORA出力を形成し、
-        その出力だけを後段HDSへ渡す。旧helperを正式回答権限へ復帰させない。
+        strict LM法則をHDS候補scoreへ逆流させず、knowledge choice互換経路はv0.4能力核で維持する。
         """
         core = super().K3能力核
-        setattr(core, "_minidora_model_core", self.模型核)
+        setattr(core, "_minidora_model_core", self.能力模型核)
         return core
+
+    def 言語確率(self, 文章: str) -> Fraction:
+        """完全言語状態としての系列確率をexact rationalで返す。"""
+        return self.言語模型核.系列確率(文章)
+
+    def 次記号分布(self, 接頭辞: str = "") -> 条件付き記号分布:
+        """接頭辞に対する正規化済み次記号分布を返す。samplingは行わない。"""
+        return self.言語模型核.次記号分布(接頭辞)
+
+    def 言語模型監査(self) -> 言語確率監査結果:
+        """厳密正規化とEOS終端下限を監査する。"""
+        return self.言語模型核.正規化監査()
 
     def 言語評価(
         self,
@@ -67,12 +91,10 @@ class ミニドラ(_ミニドラV03):
         条件: Sequence[str] = (),
         参照状態: Sequence[str | 言語状態] = (),
     ) -> 模型結果:
-        """文脈に対する候補言語状態の成立差を決定論的に返す。
+        """候補言語状態の成立差を決定論的に返す能力API。
 
-        このAPIがv0.4の模型中核C入口である。候補生成、sampling、外部検索、後段HDS判断は行わない。
-        `参照状態` はすでに言語対応された外部Data等を会話履歴と分離して渡す前段入力である。
-        このAPIの ``模型結果`` を正式knowledge choiceでは ``MINIDORA出力`` へ変換し、
-        `hds_choice_runtime.py` 経由で後段HDSへ一方向に渡す。
+        これはv0.4由来の推論/knowledge choice能力入口であり、v7厳密LM法則そのものではない。
+        候補scoreを確率へ変換しない。後段HDS接続もこの能力結果側にのみ作用する。
         """
 
         current = 文脈 if isinstance(文脈, 言語状態) else 言語状態(str(文脈), 言語体系)
@@ -97,7 +119,7 @@ class ミニドラ(_ミニドラV03):
                         言語状態(str(item), current.言語体系),
                     )
                 )
-        return self.模型核.評価言語状態(
+        return self.能力模型核.評価言語状態(
             current,
             tuple(candidates),
             履歴=history_states,

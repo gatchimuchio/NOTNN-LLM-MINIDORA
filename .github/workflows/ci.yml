@@ -29,7 +29,7 @@ jobs:
         run: python -m compileall -q src tests tools
       - name: 単体試験
         run: python -m unittest discover -s tests -v
-      - name: v0.4規模測定
+      - name: v0.4規模測定 legacy regression
         run: python tools/規模測定.py
       - name: module CLI smoke test
         run: python -m minidora "2+3"

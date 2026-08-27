@@ -1,103 +1,38 @@
 # src
 
-`src/` はMINIDORA Runtimeの実装ソースを保持する。
+`src/minidora/` はMINIDORA Runtime実装を保持する。
 
-現行パッケージは `src/minidora/`。意味正本は `../設計/`、外部LLM成立正本は `../REFERENCES.md`、実測は `../評価/` を参照する。実装コードだけから上位仕様を逆定義しない。
+## v0.5主要境界
 
-## 現行主要境界
-
-| Module | 主な責任 |
+| Module | 責任 |
 |---|---|
-| `模型.py` | 言語対応、状態保持、一般/形成済み関係、参照寄与、候補共同再照合、終端成立差。MINIDORA計算主体C |
-| `hds入力参照境界.py` | HDS Compilerで構文化されたDataをMINIDORA入力へ整列する前段境界 |
-| `hds判断参照境界.py` | 旧誤命名との互換alias。新規コードでは使わない |
-| `hds_model_projection.py` | HDS構文化済み入力→MINIDORA C→`MINIDORA出力`→後段HDSの一方向接続 |
-| `hds判断主体.py` | `MINIDORA出力`だけをAPPROVE / HOLD / REJECTへ分別。HOLD/REJECTはSILENT、差し戻しなし |
-| `言語構造.py` | 意味順序、有向関係、肯否、条件結合のHDS非依存構造化 |
-| `規模測定.py` | 状態域・関係域・共有適用規模の三面測定 |
-| `計算中間表現.py` | Compute IRに相当する計算専用型 |
-| `計算実行境界.py` | ABI v1に相当する決定論的計算実行契約 |
-| `命令計算降下.py` | 日本語命令形Pから計算中間表現への降下 |
-| `計算実行器.py` | P互換入口を計算中間表現へ降下して実行 |
-| `hds_compiler_v1.py` | Meaning/Audit Architecture v1.2 + Pipeline v1.3の公開HDS Compiler入口 |
-| `hds_compiler_pipeline_v1_3.py` | 意味IR・計算計画・計算降下の責任分離 |
-| `hds_ir.py` | 公開HDS意味IR RecordとGate |
-| `hds_adapter.py` | HDS CompilerとのProtocol境界 |
-| `layer0.py` | 旧Layer0 API互換窓口。現行LLM模型中核ではない |
-| `runtime.py` | v0.4模型核と運用経路の統合入口 |
-| `runtime_v03.py` | v0.3 Runtimeの履歴互換実装 |
-| `旧_layer0_v03.py` | v0.3 Layer0命令器の履歴実装 |
-| `命令.py` | 日本語命令形Pの実行前表現 |
-| `参照.py` | 外部参照R |
-| `主体.py` | 運用主体性 |
-| `採否.py` | 採否 |
-| `言語.py` | Legacy互換の決定論的計算意図形成・表面化 |
-| `semantic_tokens.py` | 意味語内部住所 |
-| `k3_functional.py` | K3構文化由来の能力補助 |
-| `__main__.py` | CLI入口 |
+| `規定参照.py` | 上位v7版・commit・厳密LM/再現区分の現行参照 |
+| `言語確率法則.py` | 非ニューラル厳密LM核。exact条件分布・系列確率・EOS終端・模型状態保存 |
+| `模型_v05.py` | v0.5統合facade。厳密LMと能力模型を同時公開 |
+| `模型.py` | v0.4由来の候補・関係評価。v0.5では能力模型核互換実装 |
+| `runtime.py` | `言語模型核` / `能力模型核` / 計算実行器の統合 |
+| `hds入力参照境界.py` | HDS Compiler済Data→能力入力 |
+| `hds_model_projection.py` | 能力結果→MINIDORA出力 |
+| `hds判断主体.py` | MINIDORA能力出力の後段Gate |
+| `計算中間表現.py` | 計算専用IR |
+| `計算実行器.py` | 決定論的計算 |
+| `layer0.py` | 旧API互換。現行LM核ではない |
 
-## 上位LLM成立規定
-
-- [gatchimuchio/LLM-Constitutive-Specification](https://github.com/gatchimuchio/LLM-Constitutive-Specification)
-- 版 `2026-08-27-成立規定-3`
-- 参照commit `306ff834e5ac7e7e958b513db723a24619c8895a`
-
-## 模型核の関係域
+## 二核
 
 ```text
-意味連続
-順序連続
-有向関係整合
-肯否整合
-履歴近接
-条件結合
+言語確率法則.py = 厳密LM
+模型.py          = 能力評価
 ```
 
-これらは世界知識ではなく、異なる言語状態・端点・文脈へ再利用する一般模型関係である。v3ではこれに状態保持・参照寄与・候補共同再照合・形成済み関係分離を接続する。`模型.py` / `言語構造.py` はHDSへ依存しない。
+候補scoreをLM確率へ読み替えない。
 
-## 正式knowledge choice
+## 上位規定
 
-```text
-自然言語 / Data
-↓
-HDS Compiler
-↓
-MINIDORA入力
-↓
-MINIDORA模型核 C
-↓
-MINIDORA出力
-↓
-HDS判断主体 J
-├─ APPROVE → OUTPUT
-├─ HOLD    → SILENT
-└─ REJECT  → SILENT
-```
+- https://github.com/gatchimuchio/LLM-Constitutive-Specification
+- `2026-08-28-成立規定-7`
+- `debb83e091a705a5eac09ef4fb97a5b36305db6d`
 
-後段Jへ渡すのは `MINIDORA出力` だけ。Question / Candidate / Data / Referenceやsource confidenceは後段Jの入力ではない。HOLD / REJECT後の再試行・再検索・再計算・差し戻しは存在しない。
+## Legacy
 
-前段のData残差や参照識別性は、HDS CompilerからMINIDORA入力へ渡す側で扱う。後段Jがそれをもう一度直接審査することはない。
-
-## HDS Compiler現行経路
-
-```text
-自然言語
-↓
-意味コンパイル
-↓
-意味HDS-IR
-├─ R / K / 監査
-└─ 計算計画
-   ↓
- 計算降下
-   ↓
- 計算中間表現
-```
-
-`意味コンパイル()` の結果へP・計算初期状態を混入しない。`コンパイル()` は旧Runtime向け互換窓口に限定する。
-
-## 規模測定
-
-`規模測定.py` は模型核単体を対象にし、外部参照R・HDS Compiler・後段HDS・主体主幹・K3補助・計算実行器を加算しない。
-
-現行v2測定は **局所成立候補**。詳細は `../評価/MINIDORA_v0_4_規模測定_v2_2026-08-26.md` を参照する。
+`runtime_v03.py`、`旧_layer0_v03.py`、v0.4模型・評価は履歴互換のため保持する。
