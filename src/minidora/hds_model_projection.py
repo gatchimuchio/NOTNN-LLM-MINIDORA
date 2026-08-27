@@ -5,7 +5,7 @@ from .hds_ir import HDSIR, HDS関係, 値状態
 from .semantic_tokens import 意味語
 from .言語構造 import 言語関係構造
 from .模型 import MINIDORA模型核, 成立候補, 言語状態, 模型結果, 標準模型核
-from .因果演算 import 因果演算作用名, 因果演算模型核
+from .関係連鎖演算 import 関係連鎖作用, 関係連鎖作用名, 関係連鎖模型核
 from .hds判断主体 import HDS判断主体, HDS判断結果, MINIDORA出力, MINIDORA出力化
 
 _BLOCKING_ENDPOINT={値状態.未確定,値状態.未観測,値状態.矛盾,値状態.留保}
@@ -100,11 +100,11 @@ def HDSMINIDORA模型評価(
 ):
     """HDS Compiler出力をMINIDORAへ渡し、MINIDORA出力だけを後段HDSへ渡す。
 
-    MINIDORA内部では参照Dataの関係を符号付き因果状態として有界合成し、深さ2以上の
-    導出関係を候補差へ戻す。`参照信頼` は旧呼出互換の個数検査だけに残す。
-    後段HDSへ元Data・参照信頼を渡さず、判断条件にも使わない。
+    MINIDORA内部では、問題文中の確定事実と参照Dataの構造関係を候補非依存で連鎖し、
+    関係列そのものを多段の数値状態として形成する。形成後にだけ候補端点との到達関係を
+    照合する。`参照信頼` は旧呼出互換の個数検査だけに残し、後段HDSへは渡さない。
     """
-    core=因果演算模型核(模型核 or 標準模型核());target=_対象言語体系(question_ir)
+    core=関係連鎖模型核(模型核 or 標準模型核());target=_対象言語体系(question_ir)
     question=HDS内部言語状態(question_ir,識別子="question",言語体系=target)
     candidate_internal={str(label):HDS内部言語状態(ir,識別子="candidate:"+str(label),言語体系=target) for label,ir in sorted(candidate_irs.items())}
     candidates=tuple(成立候補(label,state) for label,state in candidate_internal.items())
@@ -116,16 +116,18 @@ def HDSMINIDORA模型評価(
     ref_internal=tuple(HDS内部言語状態(ir,識別子=ids[i],言語体系=target,証拠境界=True) for i,ir in enumerate(data_irs))
     result=core.評価言語状態(question,candidates,条件=_文脈条件(question_ir),参照状態=ref_internal)
 
-    causal_contributions = tuple(
+    chain_action=next((item for item in core.能力作用群 if isinstance(item,関係連鎖作用)),None)
+    chain_result=chain_action.演算(result.文脈) if chain_action is not None else None
+    chain_contributions=tuple(
         item
         for row in result.候補差
         for item in row.寄与
-        if item.関係名 == 因果演算作用名
+        if item.関係名==関係連鎖作用名
     )
-    causal_candidates = sum(
+    chain_candidates=sum(
         1
         for row in result.候補差
-        if any(item.関係名 == 因果演算作用名 for item in row.寄与)
+        if any(item.関係名==関係連鎖作用名 for item in row.寄与)
     )
 
     # ここが責任境界。後段HDSへ渡す入力はMINIDORA出力だけ。
@@ -134,6 +136,32 @@ def HDSMINIDORA模型評価(
     decision=judge.判断(model_output)
     runtime_state="APPROVE" if decision.状態=="APPROVE" else "SUSPEND"
     answer=decision.選択候補ID if decision.状態=="APPROVE" else None
-    audit=("CAUSAL_DERIVATION_APPLIED",f"CAUSAL_DERIVATION_CONTRIBUTIONS:{len(causal_contributions)}",f"CAUSAL_DERIVATION_CANDIDATES:{causal_candidates}") if causal_contributions else ("CAUSAL_DERIVATION_NOT_APPLIED",)
-    reasons=tuple(dict.fromkeys((*decision.理由,"HDS_JUDGEMENT_SUBJECT_V2","HDS_OUTPUT_ONLY_BOUNDARY","CAUSAL_ARITHMETIC_V1",*audit,"CAPABILITY_PROJECTION_V1")))
+
+    chain_audit=[]
+    if chain_result is not None and chain_result.多段状態数:
+        chain_audit.extend((
+            "RELATION_CHAIN_STATE_FORMED",
+            f"RELATION_CHAIN_STATES:{chain_result.多段状態数}",
+            f"RELATION_CHAIN_MAX_DEPTH:{chain_result.最大到達深さ}",
+            f"RELATION_CHAIN_TRUNCATED:{int(chain_result.打切り)}",
+        ))
+    else:
+        chain_audit.append("RELATION_CHAIN_STATE_NOT_FORMED")
+    if chain_contributions:
+        chain_audit.extend((
+            "RELATION_CHAIN_APPLIED",
+            f"RELATION_CHAIN_CONTRIBUTIONS:{len(chain_contributions)}",
+            f"RELATION_CHAIN_CANDIDATES:{chain_candidates}",
+        ))
+    else:
+        chain_audit.append("RELATION_CHAIN_NOT_APPLIED")
+
+    reasons=tuple(dict.fromkeys((
+        *decision.理由,
+        "HDS_JUDGEMENT_SUBJECT_V2",
+        "HDS_OUTPUT_ONLY_BOUNDARY",
+        "RELATION_CHAIN_ARITHMETIC_V1",
+        *chain_audit,
+        "CAPABILITY_PROJECTION_V1",
+    )))
     return HDSMINIDORA射影結果(result,runtime_state,answer,reasons,decision,model_output)
