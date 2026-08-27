@@ -13,7 +13,12 @@ from .hds_ir import HDSIR, 値状態
 from .hds_model_projection import HDSMINIDORA模型評価
 from .hds判断参照境界 import HDS判断Data整列
 from .hds_runtime_projection import (
-    HDSKData射影, HDSK候補代入可能, HDSK候補射影, HDSK質問射影, HDS模型候補代入可能,
+    HDSKData射影,
+    HDSK候補代入可能,
+    HDSK候補射影,
+    HDSK質問射影,
+    HDS模型候補代入可能,
+    HDS模型質問射影,
 )
 from .hds作業状態 import (
     HDS一時証拠統合,
@@ -201,7 +206,7 @@ def _検証候補群(
 
 
 def _正式模型候補群(
-    k_question_ir: HDSIR,
+    model_question_ir: HDSIR,
     full_candidates: dict[str, HDSIR],
     k_candidates: dict[str, HDSIR],
 ) -> dict[str, HDSIR]:
@@ -209,9 +214,9 @@ def _正式模型候補群(
     substitutable = {
         label: k_candidates[label]
         for label, full_ir in full_candidates.items()
-        if label in k_candidates and HDS模型候補代入可能(k_question_ir, full_ir)
+        if label in k_candidates and HDS模型候補代入可能(model_question_ir, full_ir)
     }
-    substituted = HDS候補代入仮説群(k_question_ir, substitutable)
+    substituted = HDS候補代入仮説群(model_question_ir, substitutable)
     return {label: substituted.get(label, candidate_ir) for label, candidate_ir in k_candidates.items()}
 
 
@@ -257,8 +262,9 @@ def HDS選択推論実行(
 ) -> HDS選択実行結果:
     """選択問題をR→HDS→MINIDORA C→HDS J、または旧互換経路で評価する。
 
-    正式モードでは旧K3 helper / P0 / P1を最終採否へ混在させず、意味保存済みDataを
-    MINIDORA計算主体Cへ渡し、Cが形成した候補差をHDS判断主体Jが最終採否する。
+    正式モードでは旧K3 helper / P0 / P1を最終採否へ混在させず、HDS Compilerが保持した
+    問い関係・問題文前提・外部DataをMINIDORA計算主体Cへ渡す。旧helper側は従来どおり
+    問い関係へ縮約したK射影を使い続け、正式模型の入力拡張を逆流させない。
     """
     choices = _choices(question_ir)
     if len(choices) < 2:
@@ -290,12 +296,12 @@ def HDS選択推論実行(
         return _suspend("HDS_K_QUESTION_SEMANTIC_LOSS", candidate_count=len(candidate_irs), parallel=parallel_safe, workers=worker_count)
 
     k_candidate_irs = {label: HDSK候補射影(candidate_ir) for label, candidate_ir in candidate_irs.items()}
-    # 旧helperの候補代入条件は互換維持。正式模型だけ質問型を含めた代入へ進める。
     verification_candidate_irs = _検証候補群(k_question_ir, candidate_irs, k_candidate_irs)
     attached_model_core = 模型核 or getattr(基礎能力核, "_minidora_model_core", None)
     use_formal_model = bool(正式模型評価 or attached_model_core is not None)
+    model_question_ir = HDS模型質問射影(question_ir) if use_formal_model else k_question_ir
     formal_candidate_irs = (
-        _正式模型候補群(k_question_ir, candidate_irs, k_candidate_irs)
+        _正式模型候補群(model_question_ir, candidate_irs, k_candidate_irs)
         if use_formal_model
         else verification_candidate_irs
     )
@@ -312,7 +318,7 @@ def HDS選択推論実行(
 
     if use_formal_model:
         formal = HDSMINIDORA模型評価(
-            k_question_ir,
+            model_question_ir,
             formal_candidate_irs,
             tuple(data_irs),
             模型核=attached_model_core,
@@ -321,14 +327,17 @@ def HDS選択推論実行(
         )
         content = choice_map.get(formal.回答ラベル) if formal.回答ラベル is not None else None
         reasons = list(formal.理由)
-        reasons.append("FORMAL_MODEL_CORE_WITH_HDS_J")
+        reasons.extend(("FORMAL_MODEL_CORE_WITH_HDS_J", "FORMAL_MODEL_INPUT_PRESERVES_PREMISES"))
         if data_failed:
             reasons.append(f"DATA_COMPILE_PARTIAL:{data_failed}")
         return HDS選択実行結果(
             formal.状態, formal.回答ラベル, content, tuple(dict.fromkeys(reasons)), None,
             len(candidate_irs), data_compiled, data_failed, 0, 0, 0, parallel_safe, worker_count,
-            0, 0, 0, 0, len(formal.模型結果.checkpoint), 0, 0, 0, 0,
-            int(formal.状態 != "APPROVE"), 0, 0, 0, 0, 0, 0, formal.模型結果,
+            0, 0, 0, 0, len(formal.模型結果.checkpoint),
+            int(formal.模型結果.統計.checkpoint再活性数),
+            int(formal.模型結果.統計.大域再照合数),
+            int(formal.模型結果.統計.候補横断更新数),
+            0, int(formal.状態 != "APPROVE"), 0, 0, 0, 0, 0, 0, formal.模型結果,
         )
 
     working = 基礎能力核.clone()
