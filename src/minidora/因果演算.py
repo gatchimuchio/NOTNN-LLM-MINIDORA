@@ -16,6 +16,7 @@ from .模型 import MINIDORA模型核, 関係寄与, 標準模型核
 # 複数経路は票数にしない。同符号なら同じ ±1、正負が競合すれば未確定 0 とする。
 _正作用 = frozenset({"因果", "増加", "活性化", "生成"})
 _負作用 = frozenset({"減少", "阻害", "防止"})
+_問い専用関係 = frozenset({"命題適合", "説明適合", "問い適合", "同定", "数量同定"})
 
 
 def _述語関係種別(relation: 言語関係構造) -> frozenset[str]:
@@ -127,7 +128,7 @@ def 因果関係演算(
     最大深さ: int = 4,
     最大経路数: int = 4096,
 ) -> 因果演算結果:
-    """参照関係を有界因果演算し、深さ2以上の新しい関係状態を形成する。"""
+    """入力事実関係を有界因果演算し、深さ2以上の新しい関係状態を形成する。"""
 
     depth_limit = max(1, int(最大深さ))
     path_limit = max(1, int(最大経路数))
@@ -312,7 +313,16 @@ class 因果演算作用:
     最大経路数: int = 4096
 
     def 演算(self, 文脈) -> 因果演算結果:
-        bundle = tuple(
+        # 問題文はMINIDORA入力の一部であり、その中の確定事実は推論前提として使う。
+        # ただし問い/同定関係そのものを事実として混ぜると自己循環するため除外する。
+        question_facts = tuple(
+            relation
+            for relation in 文脈.現在.関係構造
+            if relation.種別 not in _問い専用関係
+        )
+        bundle = (
+            (("question-context", question_facts),) if question_facts else ()
+        ) + tuple(
             (
                 state.識別子 or f"reference:{index}",
                 state.関係構造,
