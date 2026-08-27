@@ -5,6 +5,7 @@ from .hds_ir import HDSIR,HDS関係,値状態
 from .semantic_tokens import 意味語
 from .言語構造 import 言語関係構造
 from .模型 import MINIDORA模型核,成立候補,言語状態,模型結果,標準模型核
+from .hds判断主体 import HDS判断主体,HDS判断参照,HDS判断結果
 _BLOCKING_ENDPOINT={値状態.未確定,値状態.未観測,値状態.矛盾,値状態.留保}
 _SCOPE_KEYS=frozenset({"様相","量化","条件scope","scope","条件作用"})
 def _条件値(relation,key):
@@ -53,26 +54,37 @@ def _文脈条件(question_ir):
     return tuple(dict.fromkeys(out))
 @dataclass(frozen=True, slots=True)
 class HDSMINIDORA射影結果:
-    模型結果:模型結果;状態:str;回答ラベル:str|None;理由:tuple[str,...]
-def HDSMINIDORA模型評価(question_ir:HDSIR,candidate_irs:Mapping[str,HDSIR],data_irs:Sequence[HDSIR],*,模型核:MINIDORA模型核|None=None):
+    模型結果:模型結果
+    状態:str
+    回答ラベル:str|None
+    理由:tuple[str,...]
+    HDS判断:HDS判断結果|None=None
+
+def HDSMINIDORA模型評価(
+    question_ir:HDSIR,
+    candidate_irs:Mapping[str,HDSIR],
+    data_irs:Sequence[HDSIR],
+    *,
+    模型核:MINIDORA模型核|None=None,
+    判断主体:HDS判断主体|None=None,
+    参照識別子:Sequence[str]|None=None,
+    参照信頼:Sequence[float]|None=None,
+):
     core=模型核 or 標準模型核();target=_対象言語体系(question_ir)
     question=HDS内部言語状態(question_ir,識別子="question",言語体系=target)
-    candidates=tuple(成立候補(str(label),HDS内部言語状態(ir,識別子="candidate:"+str(label),言語体系=target)) for label,ir in sorted(candidate_irs.items()))
-    refs=tuple(HDS内部言語状態(ir,識別子=f"reference:{i}",言語体系=target) for i,ir in enumerate(data_irs))
+    candidate_internal={str(label):HDS内部言語状態(ir,識別子="candidate:"+str(label),言語体系=target) for label,ir in sorted(candidate_irs.items())}
+    candidates=tuple(成立候補(label,state) for label,state in candidate_internal.items())
+    ids=tuple(参照識別子 or tuple(f"reference:{i}" for i in range(len(data_irs))))
+    trusts=tuple(float(x) for x in (参照信頼 or tuple(1.0 for _ in data_irs)))
+    if len(ids)!=len(data_irs) or len(trusts)!=len(data_irs):
+        raise ValueError("参照識別子/信頼はData IRと同数である必要がある")
+    ref_internal=tuple(HDS内部言語状態(ir,識別子=ids[i],言語体系=target) for i,ir in enumerate(data_irs))
+    refs=tuple(ref_internal)
     result=core.評価言語状態(question,candidates,条件=_文脈条件(question_ir),参照状態=refs)
-    # knowledge choiceの終端は参照由来差で閉じる。表層差と参照差が競合しても表層で上書きしない。
-    if result.参照最有力候補ID is None:
-        ref_scores = result.参照候補辞書()
-        if not any(ref_scores.values()):
-            return HDSMINIDORA射影結果(
-                result, "SUSPEND", None,
-                ("MINIDORA_MODEL_CORE_NO_REFERENCE_CONTRIBUTION", "NO_GUESS", "CAPABILITY_PROJECTION_V1"),
-            )
-        return HDSMINIDORA射影結果(
-            result, "SUSPEND", None,
-            ("MINIDORA_MODEL_CORE_NO_UNIQUE_POSITIVE_DIFFERENCE", "REFERENCE_DIFFERENCE_NOT_UNIQUE", "CAPABILITY_PROJECTION_V1"),
-        )
-    return HDSMINIDORA射影結果(
-        result, "APPROVE", result.参照最有力候補ID,
-        ("MINIDORA_MODEL_CORE_SELECTED", "REFERENCE_CONTRIBUTION_PRESENT", "REFERENCE_DIFFERENCE_SELECTED", "CAPABILITY_PROJECTION_V1"),
-    )
+
+    # Cは候補差を形成する。最終採否権はHDS判断主体Jだけが持つ。
+    judge=判断主体 or HDS判断主体()
+    judgement_refs=tuple(HDS判断参照(ids[i],ref_internal[i],trusts[i]) for i in range(len(ref_internal)))
+    decision=judge.判断(question_ir,candidate_internal,judgement_refs,result)
+    reasons=tuple(dict.fromkeys((*decision.理由,"HDS_JUDGEMENT_SUBJECT_V1","CAPABILITY_PROJECTION_V1")))
+    return HDSMINIDORA射影結果(result,decision.状態,decision.選択候補ID,reasons,decision)
