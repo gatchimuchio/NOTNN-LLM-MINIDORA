@@ -46,12 +46,29 @@ class 因果演算試験(unittest.TestCase):
         ))
         self.assertEqual(derived_value(result, "a", "c"), 1)
 
-    def test_独立経路は加算し競合経路は相殺する(self):
+    def test_正負経路が競合したら多数決せず未確定にする(self):
         result = 因果関係演算((
             ("p1", (rel("増加", "a", "b"), rel("増加", "b", "c"))),
+            ("p2", (rel("増加", "a", "e"), rel("増加", "e", "c"))),
             ("n1", (rel("増加", "a", "d"), rel("減少", "d", "c"))),
         ))
         self.assertEqual(derived_value(result, "a", "c"), 0)
+
+    def test_同符号の複数経路を票数で増幅しない(self):
+        result = 因果関係演算((
+            ("p1", (rel("増加", "a", "b"), rel("増加", "b", "c"))),
+            ("p2", (rel("増加", "a", "d"), rel("増加", "d", "c"))),
+        ))
+        self.assertEqual(derived_value(result, "a", "c"), 1)
+
+    def test_同一sourceの同一因果関係を重複辺へしない(self):
+        duplicate = rel("増加", "a", "b")
+        result = 因果関係演算((
+            ("same-source", (duplicate, duplicate)),
+            ("r2", (rel("増加", "b", "c"),)),
+        ))
+        self.assertEqual(result.基礎辺数, 2)
+        self.assertEqual(derived_value(result, "a", "c"), 1)
 
     def test_相関は因果辺へ昇格しない(self):
         result = 因果関係演算((
