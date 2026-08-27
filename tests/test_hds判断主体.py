@@ -151,6 +151,58 @@ class HDS判断主体試験(unittest.TestCase):
         self.assertEqual(result.回答ラベル, "B")
         self.assertEqual(result.HDS判断.選択候補ID, "B")
 
+    def test_参照信頼0は完全関係でもCommitしない(self):
+        q = question()
+        c = {"A": candidate("alpha"), "B": candidate("beta")}
+        result = HDSMINIDORA模型評価(
+            q, c, (evidence("beta"),), 参照識別子=("source-b",), 参照信頼=(0.0,)
+        )
+        self.assertEqual(result.状態, "SUSPEND")
+        self.assertIsNone(result.回答ラベル)
+
+    def test_Data_semantic_lossはsource全体を確定証拠にしない(self):
+        q = question()
+        c = {"A": candidate("alpha"), "B": candidate("beta")}
+        broken = ir(
+            "beta uncertain",
+            (HDS座標("s", "対象.始点", "enzyme"), HDS座標("o", "対象.終点", "beta")),
+            (HDS関係("r", ("s",), ("o",), "作用", ("検索述語=stabilize",)),),
+            (HDS残差("loss", "semantic_loss", "beta", "意味構造を保持できない"),),
+        )
+        result = HDSMINIDORA模型評価(q, c, (broken,), 参照識別子=("broken",))
+        self.assertEqual(result.状態, "SUSPEND")
+        self.assertIsNone(result.回答ラベル)
+
+    def test_Data残差が無関係座標だけなら確定関係を使える(self):
+        q = question()
+        c = {"A": candidate("alpha"), "B": candidate("beta")}
+        local = ir(
+            "beta with uncertain note",
+            (
+                HDS座標("s", "対象.始点", "enzyme"),
+                HDS座標("o", "対象.終点", "beta"),
+                HDS座標("note", "文脈.注記", "uncertain"),
+            ),
+            (HDS関係("r", ("s",), ("o",), "作用", ("検索述語=stabilize",)),),
+            (HDS残差("note-loss", "note_unresolved", "uncertain", "注記だけ未解", 影響座標=("note",)),),
+        )
+        result = HDSMINIDORA模型評価(q, c, (local,), 参照識別子=("local",))
+        self.assertEqual(result.状態, "APPROVE")
+        self.assertEqual(result.回答ラベル, "B")
+
+    def test_Data残差が関係端点に掛かればその関係はCommit根拠にしない(self):
+        q = question()
+        c = {"A": candidate("alpha"), "B": candidate("beta")}
+        blocked = ir(
+            "beta endpoint unresolved",
+            (HDS座標("s", "対象.始点", "enzyme"), HDS座標("o", "対象.終点", "beta")),
+            (HDS関係("r", ("s",), ("o",), "作用", ("検索述語=stabilize",)),),
+            (HDS残差("endpoint-loss", "entity_unresolved", "beta", "対象同定未解", 影響座標=("o",)),),
+        )
+        result = HDSMINIDORA模型評価(q, c, (blocked,), 参照識別子=("blocked",))
+        self.assertEqual(result.状態, "SUSPEND")
+        self.assertIsNone(result.回答ラベル)
+
     def test_参照なしをHDSが勝手に承認しない(self):
         q = question()
         c = {"A": candidate("alpha"), "B": candidate("beta")}

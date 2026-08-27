@@ -40,10 +40,26 @@ def _関係構造(ir,relation):
     return 言語関係構造(str(relation.種別),start,end,polarity,tuple(conditions),_述語意味(ir,relation))
 def _対象言語体系(ir):
     lang=str(getattr(ir,"入力言語","en") or "en").casefold();return "自然言語:ja" if lang.startswith("ja") else "自然言語:en"
-def HDS内部言語状態(ir,*,識別子="",言語体系=None):
-    relations=tuple(x for r in ir.関係 if (x:=_関係構造(ir,r)) is not None)
+def _残差証拠境界(ir):
+    source_blocked=any(str(item.種別)=="semantic_loss" for item in ir.残差)
+    impacted=set()
+    for residual in ir.残差:
+        impacted.update(str(x) for x in residual.影響座標)
+    return source_blocked,frozenset(impacted)
+
+def HDS内部言語状態(ir,*,識別子="",言語体系=None,証拠境界=False):
+    source_blocked,impacted=_残差証拠境界(ir) if 証拠境界 else (False,frozenset())
+    relations=[]
+    for relation in ir.関係:
+        if source_blocked:
+            continue
+        if impacted and any(str(cid) in impacted for cid in (*relation.始点,*relation.終点)):
+            continue
+        structure=_関係構造(ir,relation)
+        if structure is not None:
+            relations.append(structure)
     ls=str(言語体系 or _対象言語体系(ir)).strip()
-    return 言語状態(str(ir.正規化文 or ir.原文),ls,識別子,relations)
+    return 言語状態(str(ir.正規化文 or ir.原文),ls,識別子,tuple(relations))
 def _文脈条件(question_ir):
     out=[]
     for relation in question_ir.関係:
@@ -78,7 +94,7 @@ def HDSMINIDORA模型評価(
     trusts=tuple(float(x) for x in (参照信頼 or tuple(1.0 for _ in data_irs)))
     if len(ids)!=len(data_irs) or len(trusts)!=len(data_irs):
         raise ValueError("参照識別子/信頼はData IRと同数である必要がある")
-    ref_internal=tuple(HDS内部言語状態(ir,識別子=ids[i],言語体系=target) for i,ir in enumerate(data_irs))
+    ref_internal=tuple(HDS内部言語状態(ir,識別子=ids[i],言語体系=target,証拠境界=True) for i,ir in enumerate(data_irs))
     refs=tuple(ref_internal)
     result=core.評価言語状態(question,candidates,条件=_文脈条件(question_ir),参照状態=refs)
 

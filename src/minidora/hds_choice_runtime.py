@@ -11,6 +11,7 @@ from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
 from .hds_direct_relation_verifier import HDS直接関係検証
 from .hds_ir import HDSIR, 値状態
 from .hds_model_projection import HDSMINIDORA模型評価
+from .hds判断参照境界 import HDS判断Data整列
 from .hds_runtime_projection import (
     HDSKData射影, HDSK候補代入可能, HDSK候補射影, HDSK質問射影, HDS模型候補代入可能,
 )
@@ -254,10 +255,10 @@ def HDS選択推論実行(
     模型核: MINIDORA模型核 | None = None,
     正式模型評価: bool = False,
 ) -> HDS選択実行結果:
-    """選択問題をR→HDS→MINIDORA模型核または旧互換経路で評価する。
+    """選択問題をR→HDS→MINIDORA C→HDS J、または旧互換経路で評価する。
 
-    v0.4正式モードでは旧K3 helper / P0 / P1を実行せず、意味保存済みDataを直接
-    正式模型核の参照状態へ渡す。正式モードと旧経路を同一判断へ混在させない。
+    正式モードでは旧K3 helper / P0 / P1を最終採否へ混在させず、意味保存済みDataを
+    MINIDORA計算主体Cへ渡し、Cが形成した候補差をHDS判断主体Jが最終採否する。
     """
     choices = _choices(question_ir)
     if len(choices) < 2:
@@ -302,23 +303,25 @@ def HDS選択推論実行(
     data_payloads = _一括コンパイル(
         compile_isolated, [record.内容 for record in references], parallel=parallel_safe, max_workers=worker_count,
     )
-    data_compiled = 0
-    data_failed = 0
-    data_irs: list[HDSIR] = []
-    for compiled in data_payloads:
-        if isinstance(compiled, Exception):
-            data_failed += 1
-            continue
-        data_irs.append(HDSKData射影(compiled))
-        data_compiled += 1
+    data_bundle = HDS判断Data整列(references, data_payloads, HDSKData射影)
+    data_irs = list(data_bundle.IR群)
+    data_compiled = len(data_bundle.IR群)
+    data_failed = data_bundle.失敗数
 
     choice_map = {label: content for label, content, _ in choices}
 
     if use_formal_model:
-        formal = HDSMINIDORA模型評価(k_question_ir, formal_candidate_irs, tuple(data_irs), 模型核=attached_model_core)
+        formal = HDSMINIDORA模型評価(
+            k_question_ir,
+            formal_candidate_irs,
+            tuple(data_irs),
+            模型核=attached_model_core,
+            参照識別子=data_bundle.出典ID群,
+            参照信頼=data_bundle.信頼群,
+        )
         content = choice_map.get(formal.回答ラベル) if formal.回答ラベル is not None else None
         reasons = list(formal.理由)
-        reasons.append("FORMAL_MODEL_CORE_ONLY")
+        reasons.append("FORMAL_MODEL_CORE_WITH_HDS_J")
         if data_failed:
             reasons.append(f"DATA_COMPILE_PARTIAL:{data_failed}")
         return HDS選択実行結果(
