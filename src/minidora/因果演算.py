@@ -12,7 +12,8 @@ from .模型 import MINIDORA模型核, 関係寄与, 標準模型核
 
 # ここでの数値は候補採点用の序数ではない。
 # 一つの関係が次状態へ与える作用方向を +1 / -1 として保持し、
-# 因果連鎖は乗算、独立経路は加算して新しい関係状態を形成する。
+# 同一路内の因果連鎖だけを乗算して次状態を形成する。
+# 複数経路は票数にしない。同符号なら同じ ±1、正負が競合すれば未確定 0 とする。
 _正作用 = frozenset({"因果", "増加", "活性化", "生成", "方向"})
 _負作用 = frozenset({"減少", "阻害", "防止"})
 
@@ -131,12 +132,17 @@ def 因果関係演算(
     depth_limit = max(1, int(最大深さ))
     path_limit = max(1, int(最大経路数))
     edges: list[因果辺] = []
+    seen_edges: set[tuple[str, tuple[object, ...]]] = set()
     for source_index, (source_id, relations) in enumerate(関係束):
         sid = str(source_id).strip() or f"source:{source_index}"
         for relation_index, relation in enumerate(relations):
             sign = 因果符号(relation)
             if sign is None or not relation.始点 or not relation.終点:
                 continue
+            edge_signature = (sid, relation.署名)
+            if edge_signature in seen_edges:
+                continue
+            seen_edges.add(edge_signature)
             edges.append(
                 因果辺(
                     f"{sid}#{relation_index}",
@@ -215,7 +221,14 @@ def 因果関係演算(
         first = paths[0]
         positive = sum(1 for item in paths if item.作用値 > 0)
         negative = sum(1 for item in paths if item.作用値 < 0)
-        value = sum(item.作用値 for item in paths)
+        if positive and negative:
+            value = 0
+        elif positive:
+            value = 1
+        elif negative:
+            value = -1
+        else:
+            value = 0
         sources = tuple(dict.fromkeys(source for item in paths for source in item.出典ID列))
         derived.append(
             因果導出(
@@ -277,14 +290,14 @@ def 候補因果差(
                 continue
             if _条件キー(relation.条件) != _条件キー(derived.条件):
                 continue
-            strength = abs(derived.値)
             derived_sign = 1 if derived.値 > 0 else -1
-            delta = strength if sign == derived_sign else -strength
+            delta = 1 if sign == derived_sign else -1
             total += delta
             evidence.append(
                 "因果導出:"
                 f"{derived.最小深さ}-{derived.最大深さ}:"
                 f"{derived.値}:"
+                f"正{derived.正経路数}:負{derived.負経路数}:"
                 f"{','.join(derived.根拠出典ID)}"
             )
     return total, tuple(evidence)
