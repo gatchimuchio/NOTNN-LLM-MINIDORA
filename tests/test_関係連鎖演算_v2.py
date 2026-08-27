@@ -32,7 +32,7 @@ class 関係連鎖演算V2試験(unittest.TestCase):
             for state in result.状態群
         ))
 
-    def test_双方75%以上が一致すれば端点を接続する(self):
+    def test_双方75パーセント以上が一致すれば端点を接続する(self):
         result = 関係連鎖演算V2((
             ("r1", (rel("所属", {"alpha"}, {"beta", "kinase", "protein", "cell"}),)),
             ("r2", (rel("使用", {"beta", "kinase", "protein"}, {"gamma"}),)),
