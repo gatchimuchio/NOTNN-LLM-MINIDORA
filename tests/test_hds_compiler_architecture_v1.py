@@ -77,9 +77,11 @@ class HDSCompilerArchitectureV1試験(unittest.TestCase):
 
     def test_日本語を基底規定言語として維持する(self) -> None:
         result = self.compiler.詳細コンパイル("Protein A causes apoptosis.")
-        self.assertEqual(self.compiler.基底言語, "ja")
+        self.assertEqual(self.compiler.規定言語, "日本語")
+        self.assertEqual(self.compiler.基底言語, "日本語")
+        self.assertEqual(self.compiler.基底言語コード, "ja")
         self.assertEqual(result.IR.入力言語, "en")
-        self.assertEqual(self.compiler.Architecture版, "v1.2")
+        self.assertEqual(self.compiler.Architecture版, "v1.3")
 
 
 if __name__ == "__main__":

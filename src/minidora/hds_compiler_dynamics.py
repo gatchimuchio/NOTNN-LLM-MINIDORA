@@ -32,7 +32,7 @@ _状態役割prefix = ("初期状態", "開始状態", "次状態", "終了状�
 def _clean(value: str | None) -> str | None:
     if value is None:
         return None
-    text = " ".join(str(value).split()).strip(" ,、:;。！？?!")
+    text = " ".join(str(value).split()).strip(" ,、:;.。！？?!")
     return text or None
 
 

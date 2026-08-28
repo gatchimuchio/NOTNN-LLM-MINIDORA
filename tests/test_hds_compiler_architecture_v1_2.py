@@ -33,9 +33,11 @@ class HDSCompilerArchitectureV12試験(unittest.TestCase):
             再利用チェック=("G02 Closure Gate",),
         )
 
-    def test_Architecture版はv1_2(self) -> None:
-        self.assertEqual(self.compiler.Architecture版, "v1.2")
-        self.assertEqual(self.compiler.基底言語, "ja")
+    def test_Architecture_v1_2機能をv1_3でも維持する(self) -> None:
+        self.assertEqual(self.compiler.Architecture版, "v1.3")
+        self.assertEqual(self.compiler.規定言語, "日本語")
+        self.assertEqual(self.compiler.基底言語, "日本語")
+        self.assertEqual(self.compiler.基底言語コード, "ja")
 
     def test_一回観測はPROBATIONのまま改善候補を作らない(self) -> None:
         bank = HDS失敗署名Bank()

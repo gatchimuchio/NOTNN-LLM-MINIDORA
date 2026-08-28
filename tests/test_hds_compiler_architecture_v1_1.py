@@ -75,8 +75,11 @@ class HDSCompilerArchitectureV11試験(unittest.TestCase):
         self.assertIn("監査.R_query", kinds)
         self.assertIn("帰還.現行CognitiveWorld", kinds)
 
-    def test_v1_1機能契約は現行v1_2でも維持する(self) -> None:
-        self.assertEqual(self.compiler.Architecture版, "v1.2")
+    def test_v1_1機能契約は現行v1_3でも維持する(self) -> None:
+        self.assertEqual(self.compiler.Architecture版, "v1.3")
+        result = self.compiler.詳細コンパイル("AからBへ遷移する。")
+        self.assertTrue(result.状態遷移.遷移)
+        self.assertTrue(result.失敗署名候補 or result.監査項目)
 
 
 if __name__ == "__main__":
