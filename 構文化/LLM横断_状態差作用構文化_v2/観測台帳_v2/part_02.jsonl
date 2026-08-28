@@ -1,0 +1,7 @@
+{"id":"CLAUDE-04","モデル":"Claude Fable 5 / Mythos 5","対象":"core state","観測内容":"内部architecture / state retention / hypothesis competition","根拠種別":"未観測","作用尺度":"未観測","依存種別":"未観測","出典":"非公開","禁止推論":"製品挙動から補わない"}
+{"id":"GEMINI-01","モデル":"Gemini 3.x","対象":"thinking control","観測内容":"request complexityに応じてreasoning effortを動的調整しthinking_levelでも制御可能","根拠種別":"直接観測","作用尺度":"test-time制御","依存種別":"状態依存計算量","出典":"Google Gemini API thinking docs","禁止推論":"内部loop回数を推定しない"}
+{"id":"GEMINI-02","モデル":"Gemini 3.x","対象":"tools/modalities","観測内容":"multimodal入力とtool/function callingを公開","根拠種別":"直接観測","作用尺度":"test-time制御","依存種別":"固定後段依存","出典":"Google Gemini API docs","禁止推論":"modal integration topologyを推定しない"}
+{"id":"GEMINI-03","モデル":"Gemini 3.x","対象":"internal thinking","観測内容":"内部state / path topology / latent recurrence","根拠種別":"未観測","作用尺度":"未観測","依存種別":"未観測","出典":"非公開","禁止推論":"thinking levelから内部再帰を断定しない"}
+{"id":"DSV4-01","モデル":"DeepSeek V4","対象":"attention state","観測内容":"CSA/HCAは圧縮long-range表象とsliding local branchを利用","根拠種別":"実装構造観測","作用尺度":"深さ方向","依存種別":"固定後段依存","出典":"DeepSeek-V4 official artifact/report","禁止推論":"表象の意味役割を仮説名へ変換しない"}
+{"id":"DSV4-02","モデル":"DeepSeek V4","対象":"reference selection","観測内容":"CSA indexerがqueryごとにtop-k compressed KVを選択","根拠種別":"実装構造観測","作用尺度":"深さ方向","依存種別":"参照集合選択","出典":"DeepSeek-V4 official artifact/report","禁止推論":"top-kを人間的探索意図と同一視しない"}
+{"id":"DSV4-03","モデル":"DeepSeek V4","対象":"MoE","観測内容":"token状態に応じたexpert routingを持つ","根拠種別":"実装構造観測","作用尺度":"深さ方向","依存種別":"動的経路選択","出典":"DeepSeek-V4 config/report","禁止推論":"expert意味を分野ラベル化しない"}

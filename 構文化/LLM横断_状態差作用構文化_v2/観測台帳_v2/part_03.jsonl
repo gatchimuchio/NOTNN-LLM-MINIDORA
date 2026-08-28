@@ -1,0 +1,7 @@
+{"id":"DSV4-04","モデル":"DeepSeek V4","対象":"mHC","観測内容":"standard residualに代えてmulti-stream mixingを持つ","根拠種別":"実装構造観測","作用尺度":"深さ方向","依存種別":"固定後段依存","出典":"DeepSeek-V4 report/config","禁止推論":"streamを明示working hypothesisとみなさない"}
+{"id":"QWEN-01","モデル":"Qwen3.6-35B-A3B","対象":"layout","観測内容":"10×(3×Gated DeltaNet→MoE + 1×Gated Attention→MoE)","根拠種別":"実装構造観測","作用尺度":"深さ方向","依存種別":"固定後段依存","出典":"Qwen official model card","禁止推論":"3:1を状態差発火と呼ばない"}
+{"id":"QWEN-02","モデル":"Qwen3.6-35B-A3B","対象":"recurrent state","観測内容":"Gated DeltaNetが系列位置をまたぐstate updateを持つ","根拠種別":"実装構造観測","作用尺度":"系列位置間","依存種別":"recurrent状態依存","出典":"Qwen official model card/config","禁止推論":"state意味座標を補わない"}
+{"id":"QWEN-03","モデル":"Qwen3.6-35B-A3B","対象":"MoE","観測内容":"256 expertsのうち8 routed + 1 shared","根拠種別":"実装構造観測","作用尺度":"深さ方向","依存種別":"動的経路選択","出典":"Qwen official model card/config","禁止推論":"routingを専門分野意味へ直結しない"}
+{"id":"QWEN-04","モデル":"Qwen3.6-35B-A3B","対象":"global attention","観測内容":"4層ごとのGated Attentionは固定layout","根拠種別":"実装構造観測","作用尺度":"深さ方向","依存種別":"状態依存重み","出典":"Qwen official model card","禁止推論":"不一致検出によるglobal再活性としない"}
+{"id":"GROK-01","モデル":"Grok 4.6","対象":"formation trajectory","観測内容":"Grok 4.5でSFT trajectoryをreasoning effort / harness / domain横断で再生成","根拠種別":"直接観測","作用尺度":"形成循環","依存種別":"形成更新","出典":"SpaceXAI 2026-08-12","禁止推論":"single-inference recurrenceとしない"}
+{"id":"GROK-02","モデル":"Grok 4.6","対象":"agentic RL","観測内容":"複数agentic environmentでRL","根拠種別":"直接観測","作用尺度":"形成循環","依存種別":"形成更新","出典":"SpaceXAI 2026-08-12","禁止推論":"runtime planning mechanismを逆推定しない"}

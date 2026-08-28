@@ -1,0 +1,128 @@
+{
+  "schema": "minidora.cross_llm.state_delta_action_structuring.manifest.v2",
+  "date_jst": "2026-08-28",
+  "model_count": 10,
+  "ledger_records": 35,
+  "excluded": [
+    "K3"
+  ],
+  "parent": "構文化/LLM横断_能力成立作用構文化_v1",
+  "source_recheck": "13_一次資料再照合.md",
+  "files": [
+    {
+      "path": "00_統合報告.md",
+      "sha256": "5a5d657956c5d0c1639fc85a2a62796240d0deadb1f23648082f9241c2272f81",
+      "bytes": 7920
+    },
+    {
+      "path": "01_OpenAI_GPT-5_6_Sol.md",
+      "sha256": "36a567276da11522411a9defe6f1ccd128a3bf55d74a7cbc89074c0af69f666c",
+      "bytes": 2768
+    },
+    {
+      "path": "02_Claude_Fable_5_Mythos_5.md",
+      "sha256": "132bd42ffab475de512d67593878efa86dc962b5bdb23115ab635131e5c2d1fb",
+      "bytes": 2492
+    },
+    {
+      "path": "03_Google_Gemini_3_x.md",
+      "sha256": "9a581d3a37f706e0109e255696111de93b4b6fad504c561f119ff9770377a7ad",
+      "bytes": 2708
+    },
+    {
+      "path": "04_DeepSeek_V4.md",
+      "sha256": "0caac6bdf322a62c3f17ba121150883a713344c241a29c8c316c058038fd9553",
+      "bytes": 2217
+    },
+    {
+      "path": "05_Qwen3_6-35B-A3B.md",
+      "sha256": "106a719656d6fa93aa93170c6a3ddd1ee727eea60cfdfc44e50883f2a787cb24",
+      "bytes": 2220
+    },
+    {
+      "path": "06_Grok_4_6.md",
+      "sha256": "ec76d694ee2f11c9d275fbf8e6e22cfaa0c3a1bc03af72dbdb0c7df2163d047f",
+      "bytes": 2144
+    },
+    {
+      "path": "07_Llama_3_70B_2024-04.md",
+      "sha256": "9cdc7ab3e7375677da9eb1d4cc7378f93f97d1110fd7144d39e3ebdd5ae6ce1d",
+      "bytes": 2331
+    },
+    {
+      "path": "08_OLMo_3.md",
+      "sha256": "227fc54ea181ea06d649363103cdc493fe8101ebe8863c84f1c9a72615bbd29e",
+      "bytes": 2133
+    },
+    {
+      "path": "09_Apertus_1_5_70B.md",
+      "sha256": "4b0eb79eaa81cf3665310b52c6102f54780808a8a6303ab834ef228997427f37",
+      "bytes": 2119
+    },
+    {
+      "path": "10_K2-V2_70B.md",
+      "sha256": "8ab92375ec10fa460f0dfd5489080cbc4b32ede845edce6859aaa7d4e7ece580",
+      "bytes": 1900
+    },
+    {
+      "path": "11_横断作用差分.md",
+      "sha256": "af000337919464becdb8ef501f2a934fb45a768dd743c08b486a858fd70a0a1a",
+      "bytes": 2652
+    },
+    {
+      "path": "12_MINIDORA_v0_5実測との接続.md",
+      "sha256": "0826f97998672082ecbfb41d600595f652ffc2212032cbf8b008b6152952c660",
+      "bytes": 1577
+    },
+    {
+      "path": "13_一次資料再照合.md",
+      "sha256": "b91af378c21750bebb32f465fb01d5fba0f5019707562df223db3ee22ca48f78",
+      "bytes": 3676
+    },
+    {
+      "path": "README.md",
+      "sha256": "9a0506da7246208bf70a161c0f503333ebd8fa3d2fb0edfa9e650dffc531f529",
+      "bytes": 2932
+    },
+    {
+      "path": "作用因果座標_v2.json",
+      "sha256": "f439eeb10ef6d7ece8192989a499df0868e8b68c11a06f3a6dac5021b26c18c1",
+      "bytes": 7635
+    },
+    {
+      "path": "構文化スキーマ_v2.json",
+      "sha256": "7a9c4ebf1ceeb18c85e316de6bafe17dbbeb26877ebb34032817e09b1f5a0285",
+      "bytes": 1160
+    },
+    {
+      "path": "構文化監査.py",
+      "sha256": "03a76ee96e393e5d1d9d9a75704518ee87c55e2f829fd762f9ac5ccef84a73b5",
+      "bytes": 2137
+    },
+    {
+      "path": "観測台帳_v2/part_01.jsonl",
+      "sha256": "c7e1beb2002954cd60375c81f168440c6b01bd82b9901b952cf4e134caa81335",
+      "bytes": 2461
+    },
+    {
+      "path": "観測台帳_v2/part_02.jsonl",
+      "sha256": "3d917728aa658413adcc9ad75619076984aede0fb1cd9adc1d99d5a77ce72735",
+      "bytes": 2393
+    },
+    {
+      "path": "観測台帳_v2/part_03.jsonl",
+      "sha256": "f652aa95b5bbb7d6862da5fb5041aae36111ce89010e903ee74f04820bdecb13",
+      "bytes": 2343
+    },
+    {
+      "path": "観測台帳_v2/part_04.jsonl",
+      "sha256": "48dc08a02df6dde4e5f1feec44ea7b9fb6a412b9047c9b299d07cffad83a02d6",
+      "bytes": 2373
+    },
+    {
+      "path": "観測台帳_v2/part_05.jsonl",
+      "sha256": "e2ab7ff28920c6676261a6e2d8f7d884f8ecf1f7ef0ccb1a1f48208b74dc9308",
+      "bytes": 2390
+    }
+  ]
+}

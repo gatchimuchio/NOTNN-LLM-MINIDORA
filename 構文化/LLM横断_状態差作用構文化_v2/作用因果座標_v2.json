@@ -1,0 +1,197 @@
+{
+  "schema": "minidora.cross_llm.state_delta_action_structuring.v2",
+  "date_jst": "2026-08-28",
+  "language": "ja",
+  "license": "CC-BY-4.0",
+  "purpose": "K3を除く10モデルを、状態保持ではなく状態差の後続依存・経路変化・再参照・循環尺度を分離して再構文化する",
+  "excluded": [
+    "K3"
+  ],
+  "axes": {
+    "S": "状態担体",
+    "A": "作用",
+    "DELTA": "状態差",
+    "D": "後続依存",
+    "P": "状態依存経路変化",
+    "R": "再参照/再利用",
+    "C": "再結合",
+    "F": "形成循環",
+    "X": "模型外循環"
+  },
+  "loop_scales": [
+    "DEPTH_REUSE",
+    "POSITION_RECURRENCE",
+    "AUTOREGRESSIVE_HISTORY",
+    "TURN_HISTORY",
+    "TEST_TIME_LOOP",
+    "HARNESS_LOOP",
+    "FORMATION_LOOP",
+    "NONE_OR_UNOBSERVED"
+  ],
+  "dependency_kinds": [
+    "FIXED_DOWNSTREAM",
+    "STATE_DEPENDENT_WEIGHTING",
+    "STATE_DEPENDENT_COMPUTE_ALLOCATION",
+    "POSITION_RECURRENT_DEPENDENCY",
+    "REFERENCE_SET_SELECTION",
+    "DYNAMIC_PATH_SELECTION",
+    "EXTERNAL_BRANCH_SELECTION",
+    "FORMATION_UPDATE",
+    "UNOBSERVED"
+  ],
+  "models": [
+    {
+      "name": "OpenAI GPT-5.6 Sol",
+      "observation_depth": "D2 / closed",
+      "dependency_kinds": [
+        "EXTERNAL_BRANCH_SELECTION"
+      ],
+      "loop_scales": [
+        "HARNESS_LOOP"
+      ],
+      "v1_correction": "v1の「長期task stateを外部状態として整理」は維持。ただし、外部loopをcore再作用の証拠として使わない。",
+      "unknown": "internal sequence/depth/width、latent hypothesis、weak-signal retention、core内dynamic routing。"
+    },
+    {
+      "name": "Claude Fable 5 / Mythos 5",
+      "observation_depth": "D2 / closed / deployment natural experiment",
+      "dependency_kinds": [
+        "EXTERNAL_BRANCH_SELECTION"
+      ],
+      "loop_scales": [
+        "NONE_OR_UNOBSERVED"
+      ],
+      "v1_correction": "v1の「答えない≠知らない」は維持。新たに、Gateによるbranchは動的経路選択の実例だが模型外であると明示する。",
+      "unknown": "underlying architecture、internal state retention、hypothesis competition、classifier/fallback全条件。"
+    },
+    {
+      "name": "Google Gemini 3.x",
+      "observation_depth": "D2 / closed multimodal",
+      "dependency_kinds": [
+        "STATE_DEPENDENT_COMPUTE_ALLOCATION"
+      ],
+      "loop_scales": [
+        "NONE_OR_UNOBSERVED"
+      ],
+      "v1_correction": "v1の「reasoning effort=同じ関係へ何回再作用するか」は強すぎるので撤回。正しくはtest-time compute conditionの外部制御まで。",
+      "unknown": "modality integration topology、internal thinking、latent recurrence、sequence/depth/width。"
+    },
+    {
+      "name": "DeepSeek V4",
+      "observation_depth": "D3相当 / public architecture",
+      "dependency_kinds": [
+        "FIXED_DOWNSTREAM",
+        "REFERENCE_SET_SELECTION",
+        "DYNAMIC_PATH_SELECTION"
+      ],
+      "loop_scales": [
+        "DEPTH_REUSE"
+      ],
+      "v1_correction": "v1の「複数working track」をMINIDORAへ直射しない。構造上multi-streamがあることと明示仮説trackは別。",
+      "unknown": "weight意味分布、expert意味、stream意味分業、production harness。"
+    },
+    {
+      "name": "Qwen3.6-35B-A3B",
+      "observation_depth": "D3 / open-weight hybrid MoE",
+      "dependency_kinds": [
+        "POSITION_RECURRENT_DEPENDENCY",
+        "STATE_DEPENDENT_WEIGHTING",
+        "DYNAMIC_PATH_SELECTION"
+      ],
+      "loop_scales": [
+        "POSITION_RECURRENCE",
+        "DEPTH_REUSE"
+      ],
+      "v1_correction": "v1の「条件付きglobal/raw再照合」表現を修正。公開scheduleから言えるのは周期配置であり、状態差を条件にglobal layerが発火するとは言えない。",
+      "unknown": "全weight意味、expert意味、recurrent state semantic coordinates、product版同一性。"
+    },
+    {
+      "name": "Grok 4.6",
+      "observation_depth": "D2 / closed agentic",
+      "dependency_kinds": [
+        "FORMATION_UPDATE",
+        "EXTERNAL_BRANCH_SELECTION"
+      ],
+      "loop_scales": [
+        "HARNESS_LOOP",
+        "FORMATION_LOOP"
+      ],
+      "v1_correction": "v1の主張を維持しつつ、形成再帰と推論再帰を明確に分離。",
+      "unknown": "core architecture、internal state retention、latent planning representation、training environment全量。"
+    },
+    {
+      "name": "Llama 3 70B (2024-04)",
+      "observation_depth": "D3 / dense global-attention anchor",
+      "dependency_kinds": [
+        "FIXED_DOWNSTREAM",
+        "STATE_DEPENDENT_WEIGHTING"
+      ],
+      "loop_scales": [
+        "DEPTH_REUSE",
+        "TURN_HISTORY"
+      ],
+      "v1_correction": "v1の「全層で再作用」を細分化。これは主に固定stack上のdownstream transformationとstate-dependent attentionであり、checkpoint再活性ではない。自己一貫性は専用永続selfより毎turn再構成という既存v2観測を維持。",
+      "unknown": "weight meaning、hidden semantics、Dense vs MoE単独因果、persistent internal self。"
+    },
+    {
+      "name": "OLMo 3",
+      "observation_depth": "D3 / dense hybrid-attention anchor",
+      "dependency_kinds": [
+        "FIXED_DOWNSTREAM",
+        "STATE_DEPENDENT_WEIGHTING"
+      ],
+      "loop_scales": [
+        "DEPTH_REUSE"
+      ],
+      "v1_correction": "v1の「局所→大域再照合loop」を、実装観測としてはfixed depth scheduleへ修正。MINIDORAで条件付きloopへ射影するなら別仮説であり直接再現ではない。",
+      "unknown": "weight意味、local/global semantic division、variant形成差の全因果。"
+    },
+    {
+      "name": "Apertus 1.5 70B",
+      "observation_depth": "D3相当 / dense multimodal natural experiment",
+      "dependency_kinds": [
+        "FIXED_DOWNSTREAM",
+        "STATE_DEPENDENT_WEIGHTING"
+      ],
+      "loop_scales": [
+        "DEPTH_REUSE"
+      ],
+      "v1_correction": "v1の形成観測を維持。thinking modeを内部再作用の証拠へしない。",
+      "unknown": "全weight意味、modal integration topology、thinking内部機構。"
+    },
+    {
+      "name": "K2-V2 70B",
+      "observation_depth": "D3 / dense long-context formation anchor",
+      "dependency_kinds": [
+        "FIXED_DOWNSTREAM",
+        "STATE_DEPENDENT_WEIGHTING"
+      ],
+      "loop_scales": [
+        "DEPTH_REUSE"
+      ],
+      "v1_correction": "v1の「80層に渡って再作用」を、fixed downstream transformationとして言い直す。形成済み関係の差とruntime再帰を混同しない。",
+      "unknown": "weight意味、training raw data全量、long-context利用の意味分業。"
+    }
+  ],
+  "cross_findings": [
+    "状態保持と能力寄与は別観測",
+    "固定後段作用と動的経路発火を分離",
+    "fixed 3:1 scheduleは状態差による再活性ではない",
+    "residual depth transportはruntime recursionではない",
+    "attentionのstate-dependent weightingとMoE/top-kのpath selectionを分離",
+    "harness loopとcore内部作用を分離",
+    "formation loopとsingle-inference loopを分離",
+    "構造上のpath存在と課題上の実使用を分離"
+  ],
+  "benchmark_trigger": {
+    "gpqa_current_correct": 20,
+    "gpqa_total": 198,
+    "controlled_baseline_correct": 22,
+    "checkpoint_count": 815,
+    "checkpoint_reactivations": 0,
+    "global_reconciliations": 0,
+    "candidate_cross_updates": 0,
+    "specialist_actions_invoked": 0
+  },
+  "status": "RESTRUCTURED_OBSERVATION_NOT_IMPLEMENTATION_SPEC"
+}

@@ -1,0 +1,7 @@
+{"id":"GROK-03","モデル":"Grok Build","対象":"agent loop","観測内容":"open-source harnessがcontext assembly→model response→tool dispatchのloopを持つ","根拠種別":"直接観測","作用尺度":"harness循環","依存種別":"外部branch選択","出典":"SpaceXAI 2026-07-15","禁止推論":"Grok 4.6 core内部loopと同一視しない"}
+{"id":"LLAMA-01","モデル":"Llama 3 70B","対象":"geometry","観測内容":"80 layers / hidden 8192 / FFN 28672 / Q64-KV8 Dense decoder","根拠種別":"実装構造観測","作用尺度":"深さ方向","依存種別":"固定後段依存","出典":"Meta official model artifact","禁止推論":"geometryを能力意味へ直結しない"}
+{"id":"LLAMA-02","モデル":"Llama 3 70B","対象":"residual","観測内容":"前stateへ各block差を加え後段へ輸送","根拠種別":"作用解釈","作用尺度":"深さ方向","依存種別":"固定後段依存","出典":"public implementation + repo Llama v2","禁止推論":"checkpoint再活性とは呼ばない"}
+{"id":"LLAMA-03","モデル":"Llama 3 70B","対象":"attention","観測内容":"global causal attentionの参照weight/contentはstate依存","根拠種別":"作用解釈","作用尺度":"深さ方向","依存種別":"状態依存重み","出典":"public implementation","禁止推論":"dynamic expert path selectionと同一視しない"}
+{"id":"LLAMA-04","モデル":"Llama 3 Instruct interaction","対象":"self consistency","観測内容":"dialog history再入力で同一主体をturnごとに再構成する機構候補","根拠種別":"比較推定","作用尺度":"turn履歴","依存種別":"固定後段依存","出典":"repo Llama3自己一貫性HDS再構文化v2","禁止推論":"永続内在selfを断定しない"}
+{"id":"OLMO-01","モデル":"OLMo 3","対象":"layout","観測内容":"3 sliding/local attention : 1 full attention","根拠種別":"実装構造観測","作用尺度":"深さ方向","依存種別":"固定後段依存","出典":"Ai2 OlmPool + official config","禁止推論":"状態差発火によるglobal再照合としない"}
+{"id":"OLMO-02","モデル":"OLMo 3","対象":"local reference","観測内容":"sliding window 4096","根拠種別":"実装構造観測","作用尺度":"深さ方向","依存種別":"状態依存重み","出典":"official config","禁止推論":"局所意味役割を固定しない"}
