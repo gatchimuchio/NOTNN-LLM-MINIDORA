@@ -97,6 +97,19 @@ def _suspend(
     )
 
 
+def _コンパイラ実体(compile_fn: HDSコンパイル関数):
+    """bound methodから公開HDS Compiler実体を取り出す。推測で生成しない。"""
+    owner = getattr(compile_fn, "__self__", None)
+    if owner is None:
+        return None
+    compiler = getattr(owner, "HDSコンパイラ", None)
+    if compiler is not None:
+        return compiler
+    if callable(getattr(owner, "詳細コンパイル", None)):
+        return owner
+    return None
+
+
 def _独立コンパイル入口(compile_fn: HDSコンパイル関数) -> tuple[HDSコンパイル関数, bool]:
     owner = getattr(compile_fn, "__self__", None)
     compiler = getattr(owner, "HDSコンパイラ", None)
@@ -109,16 +122,16 @@ def _独立コンパイル入口(compile_fn: HDSコンパイル関数) -> tuple[
 
 
 def _一括コンパイル(
-    compile_fn: HDSコンパイル関数,
+    compile_fn,
     texts: Sequence[str],
     *,
     parallel: bool,
     max_workers: int,
-) -> tuple[HDSIR | Exception, ...]:
+) -> tuple[object | Exception, ...]:
     if not texts:
         return ()
     if not parallel or len(texts) <= 1 or max_workers <= 1:
-        out: list[HDSIR | Exception] = []
+        out: list[object | Exception] = []
         for text in texts:
             try:
                 out.append(compile_fn(text))
@@ -129,13 +142,56 @@ def _一括コンパイル(
     workers = min(max(1, int(max_workers)), len(texts))
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="minidora-hds") as executor:
         futures = [executor.submit(compile_fn, text) for text in texts]
-        out: list[HDSIR | Exception] = []
+        out: list[object | Exception] = []
         for future in futures:
             try:
                 out.append(future.result())
             except Exception as exc:
                 out.append(exc)
         return tuple(out)
+
+
+def _参照作用差分群(
+    compile_fn: HDSコンパイル関数,
+    references: Sequence[参照記録],
+    *,
+    parallel: bool,
+    max_workers: int,
+) -> tuple[tuple[object, ...], int]:
+    """参照Dataだけを詳細コンパイルし、作用差分構造を能力入力へ回収する。
+
+    質問・候補から作用差分証拠を作らず、外部参照Data由来だけを能力証拠候補とする。
+    """
+    compiler = _コンパイラ実体(compile_fn)
+    detailed = getattr(compiler, "詳細コンパイル", None)
+    if not callable(detailed) or not references:
+        return (), 0
+
+    payloads = _一括コンパイル(
+        lambda text: detailed(text).作用差分構造,
+        [record.内容 for record in references],
+        parallel=parallel,
+        max_workers=max_workers,
+    )
+    structures: list[object] = []
+    failed = 0
+    for payload in payloads:
+        if isinstance(payload, Exception):
+            failed += 1
+            continue
+        if getattr(payload, "状態差", ()) or getattr(payload, "後続利用", ()):
+            structures.append(payload)
+    return tuple(structures), failed
+
+
+def _専門作用起動数(result: 模型結果) -> int:
+    """Compiler作用差分を実際に消費した証拠件数だけを数える。"""
+    total = 0
+    for row in result.候補差:
+        for contribution in row.寄与:
+            if contribution.関係名.startswith("候補共同参照:状態差連結"):
+                total += len(tuple(contribution.根拠))
+    return total
 
 
 def _参照provenance(record: 参照記録) -> tuple[str, ...]:
@@ -255,11 +311,7 @@ def HDS選択推論実行(
     模型核: MINIDORA模型核 | None = None,
     正式模型評価: bool = False,
 ) -> HDS選択実行結果:
-    """選択問題をR→HDS→MINIDORA C→HDS J、または旧互換経路で評価する。
-
-    正式モードでは旧K3 helper / P0 / P1を最終採否へ混在させず、意味保存済みDataを
-    MINIDORA計算主体Cへ渡し、Cが形成した候補差をHDS判断主体Jが最終採否する。
-    """
+    """選択問題をR→HDS→MINIDORA C→HDS J、または旧互換経路で評価する。"""
     choices = _choices(question_ir)
     if len(choices) < 2:
         return _suspend("HDS_CHOICE_SET_INCOMPLETE")
@@ -290,7 +342,6 @@ def HDS選択推論実行(
         return _suspend("HDS_K_QUESTION_SEMANTIC_LOSS", candidate_count=len(candidate_irs), parallel=parallel_safe, workers=worker_count)
 
     k_candidate_irs = {label: HDSK候補射影(candidate_ir) for label, candidate_ir in candidate_irs.items()}
-    # 旧helperの候補代入条件は互換維持。正式模型だけ質問型を含めた代入へ進める。
     verification_candidate_irs = _検証候補群(k_question_ir, candidate_irs, k_candidate_irs)
     attached_model_core = 模型核 or getattr(基礎能力核, "_minidora_model_core", None)
     use_formal_model = bool(正式模型評価 or attached_model_core is not None)
@@ -311,6 +362,12 @@ def HDS選択推論実行(
     choice_map = {label: content for label, content, _ in choices}
 
     if use_formal_model:
+        action_structures, action_failed = _参照作用差分群(
+            コンパイル,
+            references,
+            parallel=parallel_safe,
+            max_workers=worker_count,
+        )
         formal = HDSMINIDORA模型評価(
             k_question_ir,
             formal_candidate_irs,
@@ -318,17 +375,29 @@ def HDS選択推論実行(
             模型核=attached_model_core,
             参照識別子=data_bundle.出典ID群,
             参照信頼=data_bundle.信頼群,
+            作用差分構造群=action_structures,
         )
         content = choice_map.get(formal.回答ラベル) if formal.回答ラベル is not None else None
         reasons = list(formal.理由)
         reasons.append("FORMAL_MODEL_CORE_WITH_HDS_J")
         if data_failed:
             reasons.append(f"DATA_COMPILE_PARTIAL:{data_failed}")
+        if action_failed:
+            reasons.append(f"ACTION_DELTA_COMPILE_PARTIAL:{action_failed}")
+        stats = formal.模型結果.統計
+        specialist_count = _専門作用起動数(formal.模型結果)
         return HDS選択実行結果(
             formal.状態, formal.回答ラベル, content, tuple(dict.fromkeys(reasons)), None,
             len(candidate_irs), data_compiled, data_failed, 0, 0, 0, parallel_safe, worker_count,
-            0, 0, 0, 0, len(formal.模型結果.checkpoint), 0, 0, 0, 0,
-            int(formal.状態 != "APPROVE"), 0, 0, 0, 0, 0, 0, formal.模型結果,
+            0, 0, 0, 0,
+            len(formal.模型結果.checkpoint),
+            int(stats.checkpoint再活性数),
+            int(stats.大域再照合数),
+            int(stats.候補横断更新数),
+            specialist_count,
+            int(formal.状態 != "APPROVE"),
+            0, 0, 0, 0, 0, 0,
+            formal.模型結果,
         )
 
     working = 基礎能力核.clone()
