@@ -4,7 +4,7 @@
 
 ## 最上位理論・言語規定
 
-本プロジェクトの最上位理論正本は `gatchimuchio/cognitive-engineering-foundations` とする。
+本プロジェクトの最上位理論正本は `https://github.com/gatchimuchio/cognitive-engineering-foundations` とする。
 
 - 現行参照commit: `60131da52ba7931ed7f82c7648a74ac790f50d08`
 - 規定言語: 日本語
@@ -30,7 +30,7 @@ MINIDORA側では [`00_日本語基底規定_v1.md`](00_日本語基底規定_v1
 
 ## LLM成立規定
 
-- Repository: `gatchimuchio/LLM-Constitutive-Specification`
+- Repository: `https://github.com/gatchimuchio/LLM-Constitutive-Specification`
 - 版: `2026-08-28-成立規定-7`
 - 参照commit: `debb83e091a705a5eac09ef4fb97a5b36305db6d`
 
