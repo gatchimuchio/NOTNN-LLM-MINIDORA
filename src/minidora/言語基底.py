@@ -12,7 +12,9 @@ from .言語基底_英語 import (
 )
 
 
-言語基底版 = "v0.3"
+言語基底版 = "v0.4"
+_日本語規定名 = "日本語"
+_日本語外部互換コード = "ja"
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +100,7 @@ _日本語基底語彙 = {
 }
 
 
-_英語基底機能 = {
+_外部英語文法機能 = {
     "a": "不定冠詞", "an": "不定冠詞", "the": "定冠詞", "and": "並列", "or": "選択",
     "not": "否定", "no": "否定", "if": "条件", "unless": "否定条件", "when": "時条件",
     "before": "時間順序", "after": "時間順序", "because": "因果接続", "why": "理由疑問",
@@ -123,14 +125,17 @@ _漢字 = re.compile(r"[一-龥々]")
 
 
 class 言語基底P:
-    """HDS CompilerとMINIDORA Runtimeが共有する最小言語基底知識。
+    """HDS CompilerとMINIDORA実行系が共有する最小言語基底知識。
 
-    これは百科事典的な世界知識ではない。文字体系、表音対応、基本文法機能、
-    HDS/Pで常用する基底概念、主要外部接続言語の一般関係だけを常在資産として保持する。
+    日本語を唯一の規定・基底・内部意味正本とする。
+    外国語資産は外部互換のために必要な範囲だけ保持し、内部正本へ昇格させない。
+    百科事典的な世界知識はここへ入れない。
     """
 
     版 = 言語基底版
-    基底言語 = "ja"
+    規定言語 = _日本語規定名
+    基底言語 = _日本語規定名
+    基底言語コード = _日本語外部互換コード
 
     def 文字知識(self, char: str) -> 文字知識:
         if len(char) != 1:
@@ -158,8 +163,8 @@ class 言語基底P:
         if value in _日本語基底語彙:
             return _日本語基底語彙[value]
         lowered = value.casefold()
-        if lowered in _英語基底機能:
-            return 語彙知識(value, "en", "文法機能", (_英語基底機能[lowered],))
+        if lowered in _外部英語文法機能:
+            return 語彙知識(value, "en", "文法機能", (_外部英語文法機能[lowered],))
         if value in _日本語文法機能:
             return 語彙知識(value, "ja", "文法機能", (_日本語文法機能[value],))
         relation = _英語関係概念(value)
@@ -171,7 +176,7 @@ class 言語基底P:
         value = unicodedata.normalize("NFKC", str(word)).strip()
         if value in _日本語文法機能:
             return _日本語文法機能[value]
-        return _英語基底機能.get(value.casefold())
+        return _外部英語文法機能.get(value.casefold())
 
     def 英語基本形(self, word: str) -> str:
         return _英語基本形(word)
@@ -186,6 +191,7 @@ class 言語基底P:
         return 英語明示関係構文
 
     def 入力言語判定(self, text: str) -> str:
+        """外部互換用の言語識別コードを返す。内部意味正本を決める関数ではない。"""
         value = unicodedata.normalize("NFKC", str(text))
         kana = len(_かな.findall(value))
         latin = len(_ラテン字.findall(value))
@@ -200,17 +206,23 @@ class 言語基底P:
             return "en"
         return "ja"
 
+    def 入力言語名(self, text: str) -> str:
+        return {"ja": "日本語", "en": "英語", "zh": "中国語"}.get(self.入力言語判定(text), "外部言語")
+
     def 統計(self) -> dict[str, int | str]:
         families = self.英語関係族()
         return {
             "版": self.版,
+            "規定言語": self.規定言語,
+            "基底言語": self.基底言語,
+            "基底言語コード": self.基底言語コード,
             "ひらがな": len(_ひらがなローマ字),
             "カタカナ": len(_カタカナローマ字),
             "日本語基底語彙": len(_日本語基底語彙),
             "日本語文法機能": len(_日本語文法機能),
-            "英語基底機能": len(_英語基底機能),
-            "英語関係族": len(families),
-            "英語関係基本形": sum(len(words) for words in families.values()),
+            "外部英語文法機能": len(_外部英語文法機能),
+            "外部英語関係族": len(families),
+            "外部英語関係基本形": sum(len(words) for words in families.values()),
         }
 
 
