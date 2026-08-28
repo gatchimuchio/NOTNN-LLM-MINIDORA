@@ -61,10 +61,11 @@ REQUIRED_PATHS = (
     "評価/MINIDORA_v0_4_規模測定_v2_2026-08-26.md",
     "src/minidora/規定参照.py", "src/minidora/言語確率法則.py",
     "src/minidora/模型_v05.py", "src/minidora/模型.py", "src/minidora/runtime.py",
+    "src/minidora/能力状態差循環.py",
     "src/minidora/計算実行器.py", "src/minidora/hds_compiler_v1.py",
     "src/minidora/hds_compiler_action_delta.py", "src/minidora/hds_compiler_records_v1_3.py",
     "src/minidora/hds_compiler_pipeline_v1_4.py",
-    "tests/test_hds_compiler_action_delta_v1_3.py",
+    "tests/test_hds_compiler_action_delta_v1_3.py", "tests/test_能力状態差循環_v1.py",
     "tests/test_言語確率法則.py", "tests/test_v05_厳密LM統合.py", "tests/test_模型.py",
 )
 
@@ -180,7 +181,7 @@ def _check_runtime_separation(errors: list[str]) -> None:
     if not body.言語模型監査().合格:
         errors.append("実行系: 厳密LM監査不合格")
     text = _text("src/minidora/runtime.py")
-    for required in ("self.言語模型核", "self.能力模型核", "候補scoreを確率へ読み替えて"):
+    for required in ("self.言語模型核", "self.能力模型核", "候補得点を確率へ読み替えて"):
         if required not in text:
             errors.append(f"runtime.py: 二核分離境界欠落: {required}")
 
