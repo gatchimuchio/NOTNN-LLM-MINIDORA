@@ -5,6 +5,14 @@ from pathlib import Path
 import runpy
 import sys
 
+
+def _標準出力UTF8化() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="strict")
+
+
 根 = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(根 / "src"))
 
@@ -55,6 +63,7 @@ def 監査() -> list[str]:
 
 
 def main() -> int:
+    _標準出力UTF8化()
     誤り = 監査()
     if 誤り:
         print("日本語基底監査: 失敗")
