@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import unittest
 
+from minidora.hds_choice_runtime import HDS選択推論実行
 from minidora.hds_compiler_v1 import 公開HDSコンパイラ
 from minidora.hds_model_projection import HDSMINIDORA模型評価
+from minidora.k3_functional import K3相当能力核
+from minidora.参照 import 参照記録
 from minidora.能力状態差循環 import (
     MINIDORA能力状態差模型核,
     標準能力模型核,
@@ -100,6 +103,33 @@ class 能力状態差循環V1試験(unittest.TestCase):
                 for item in row.寄与
             )
         )
+
+    def test_正式実行経路が作用差分消費を実測値として返す(self) -> None:
+        compiler = 公開HDSコンパイラ()
+        question = compiler.問題IR("最終状態はどれか？", ("S1", "S2"))
+        reference = 参照記録(
+            "r-state-chain",
+            "状態遷移",
+            "S0からS1へ遷移し、S1からS2へ遷移する。",
+            "fixture",
+            "固定資料",
+            1.0,
+        )
+        core = MINIDORA能力状態差模型核((), 能力作用群=(), 最大再作用回数=0)
+        result = HDS選択推論実行(
+            question,
+            (reference,),
+            コンパイル=compiler.コンパイル,
+            基礎能力核=K3相当能力核(),
+            模型核=core,
+            正式模型評価=True,
+        )
+        self.assertEqual(result.状態, "APPROVE")
+        self.assertEqual(result.回答ラベル, "B")
+        self.assertGreaterEqual(result.専門作用起動数, 1)
+        self.assertIn("HDS_ACTION_DELTA_ATTACHED", result.理由)
+        self.assertIn("HDS_ACTION_DELTA_CONSUMED", result.理由)
+        self.assertIsNotNone(result.MINIDORA模型結果)
 
     def test_追加条件未確認なら後続作用を発火させない(self) -> None:
         structure = 能力作用構造(
