@@ -7,14 +7,16 @@ from minidora.hds_compiler_v1 import 公開HDSコンパイラ
 from minidora.計算実行境界 import 計算実行境界
 
 
-class HDSCompilerPipelineV13試験(unittest.TestCase):
+class HDSCompilerPipeline試験(unittest.TestCase):
     def setUp(self) -> None:
         self.compiler = 公開HDSコンパイラ()
 
-    def test_v1_2意味監査Architectureを維持しPipelineだけv1_3へ進める(self) -> None:
-        self.assertEqual(self.compiler.Architecture版, "v1.2")
-        self.assertEqual(self.compiler.Pipeline版, "v1.3")
-        self.assertEqual(self.compiler.基底言語, "ja")
+    def test_意味監査Architecture_v1_3とPipeline_v1_4(self) -> None:
+        self.assertEqual(self.compiler.Architecture版, "v1.3")
+        self.assertEqual(self.compiler.Pipeline版, "v1.4")
+        self.assertEqual(self.compiler.規定言語, "日本語")
+        self.assertEqual(self.compiler.基底言語, "日本語")
+        self.assertEqual(self.compiler.基底言語コード, "ja")
 
     def test_意味コンパイル正本はPと計算初期状態を内包しない(self) -> None:
         ir = self.compiler.意味コンパイル("2+3")
@@ -24,12 +26,13 @@ class HDSCompilerPipelineV13試験(unittest.TestCase):
         self.assertIn("計算P非内包", ir.実行核.検証)
         self.assertEqual(ir.閉包状態, "CLOSED_FOR_SEMANTIC_TRANSFER")
 
-    def test_コンパイル束は意味IRとPを別フィールドで保持する(self) -> None:
+    def test_コンパイル束は三成果を別フィールドで保持する(self) -> None:
         bundle = self.compiler.コンパイル束("2+3")
         self.assertIsNone(bundle.意味IR.手順)
         self.assertTrue(bundle.計算計画.手順.命令列)
         self.assertEqual(bundle.計算計画.種別, "算術")
         self.assertEqual(bundle.計算計画.初期状態, {"入力0": 2, "入力1": 3})
+        self.assertEqual(bundle.作用差分構造.作用数, 0)
 
     def test_形成済み束の計算降下は自然言語を再解析しない(self) -> None:
         bundle = self.compiler.コンパイル束("2+3")
@@ -44,7 +47,7 @@ class HDSCompilerPipelineV13試験(unittest.TestCase):
         self.assertEqual(result.出力, 5)
         self.assertIn("自然言語再解析なし", lowered.計算IR.検証)
 
-    def test_計算コンパイルは意味IRを汚さずComputeIRを形成する(self) -> None:
+    def test_計算コンパイルは意味IRを汚さず計算IRを形成する(self) -> None:
         result = self.compiler.計算コンパイル("10-4")
         self.assertIsNone(result.意味IR.手順)
         self.assertEqual(result.意味IR.初期状態, {})
@@ -52,14 +55,14 @@ class HDSCompilerPipelineV13試験(unittest.TestCase):
         executed = 計算実行境界().実行(result.計算IR, result.初期状態)
         self.assertEqual(executed.出力, 6)
 
-    def test_Legacyコンパイルだけが最外周でPを再付与する(self) -> None:
+    def test_旧コンパイルだけが最外周でPを再付与する(self) -> None:
         semantic = self.compiler.意味コンパイル("2+3")
         legacy = self.compiler.コンパイル("2+3")
         self.assertIsNone(semantic.手順)
         self.assertIsNotNone(legacy.手順)
         self.assertEqual(legacy.初期状態, {"入力0": 2, "入力1": 3})
         self.assertTrue(legacy.実行可能)
-        self.assertIn("COMPATIBILITY_BRIDGE", legacy.実行核.境界)
+        self.assertIn("互換橋", legacy.実行核.境界)
         self.assertEqual(semantic.座標, legacy.座標)
         self.assertEqual(semantic.関係, legacy.関係)
         self.assertEqual(semantic.残差, legacy.残差)

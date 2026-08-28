@@ -7,13 +7,14 @@ from .choice_intent import HDS選択意図判定
 from .hds_adapter import HDS文脈
 from .hds_compiler import 公開HDSコンパイラ as _基礎HDSコンパイラ
 from .hds_compiler import 公開HDSコンパイラ方針
+from .hds_compiler_action_delta import HDS作用差分構造生成
 from .hds_compiler_audit_ir import HDS監査参照IR射影
 from .hds_compiler_dynamics import HDS状態遷移IR射影, HDS状態遷移抽出
 from .hds_compiler_failure import HDSチェックリスト生成, HDS失敗署名候補生成, HDS監査参照候補生成
 from .hds_compiler_failure_bank import HDS失敗署名Bank
 from .hds_compiler_frontend import 公開HDSフロントエンド射影, 公開HDS詳細成果
 from .hds_compiler_history import HDS認知世界差分IR射影, HDS認知世界差分生成
-from .hds_compiler_pipeline_v1_3 import (
+from .hds_compiler_pipeline_v1_4 import (
     HDSコンパイル束,
     HDS意味IR化,
     HDS意味専用計画器,
@@ -22,6 +23,7 @@ from .hds_compiler_pipeline_v1_3 import (
 )
 from .hds_compiler_records import HDSCompiler成果
 from .hds_compiler_records_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規則改善候補
+from .hds_compiler_records_v1_3 import HDS作用差分構造
 from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
 from .hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
 from .hds_language_coordination import HDS英語AND展開
@@ -35,7 +37,7 @@ from .言語基底 import 言語基底P, 標準言語基底P
 
 
 class _意味基礎HDSコンパイラ(_基礎HDSコンパイラ):
-    """旧基礎Compilerの意味抽出だけを利用し、計算計画を無作用化する内部front-end。"""
+    """旧基礎Compilerの意味抽出だけを利用し、計算計画を無作用化する内部前段。"""
 
     def __init__(self, 親: "公開HDSコンパイラ") -> None:
         super().__init__(親.方針)
@@ -49,15 +51,17 @@ class _意味基礎HDSコンパイラ(_基礎HDSコンパイラ):
 class 公開HDSコンパイラ(_基礎HDSコンパイラ):
     """MINIDORA公開標準HDS Compiler。
 
-    Meaning/Audit Architecture v1.2を保持し、Pipeline v1.3で意味フロントエンドと
-    計算降下バックエンドを分離する。``意味コンパイル()`` が意味正本入口であり、
-    返すHDS-IRは計算Pを内包しない。``コンパイル()`` は旧Runtime向け互換橋として
-    最外周でのみPを再付与する。
+    Architecture v1.3ではMeaning/Audit v1.2を維持しつつ、状態遷移から
+    作用→状態差→後続利用の構造を並列成果として保持する。
+    Pipeline v1.4では意味IR・計算計画・作用差分構造を分離する。
+    Compiler自身は最終採否・後続作用実行を行わない。
     """
 
-    Architecture版 = "v1.2"
-    Pipeline版 = "v1.3"
-    基底言語 = "ja"
+    Architecture版 = "v1.3"
+    Pipeline版 = "v1.4"
+    規定言語 = "日本語"
+    基底言語 = "日本語"
+    基底言語コード = "ja"
 
     def __init__(self, 方針: 公開HDSコンパイラ方針 | None = None, 言語基底P_: 言語基底P | None = None) -> None:
         super().__init__(方針)
@@ -78,6 +82,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
 
         first = 公開HDSフロントエンド射影(base)
         graph = HDS状態遷移抽出(first.IR.正規化文 or first.IR.原文)
+        action_delta = HDS作用差分構造生成(graph)
         ir = HDS状態遷移IR射影(first.IR, graph)
         tacit = HDS暗黙知抽出(ir.正規化文 or ir.原文)
         ir = HDS暗黙知IR射影(ir, tacit)
@@ -98,6 +103,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             チェックリスト=checklist,
             認知世界差分=world_diff,
             監査参照候補=audit_queries,
+            作用差分構造=action_delta,
         )
 
     def _意味基礎IR(
@@ -135,7 +141,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         detailed = self._完成(semantic_base, HDS履歴=HDS履歴)
         semantic_ir = replace(detailed.IR, 手順=None, 初期状態={})
         detailed = replace(detailed, IR=semantic_ir)
-        return HDSコンパイル束(semantic_ir, plan), detailed
+        return HDSコンパイル束(semantic_ir, plan, detailed.作用差分構造), detailed
 
     def 意味コンパイル(
         self,
@@ -152,6 +158,22 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             文脈=文脈,
         )
         return bundle.意味IR
+
+    def 作用差分コンパイル(
+        self,
+        入力: str,
+        *,
+        前回結果: object = None,
+        HDS履歴: tuple[HDSIR, ...] = (),
+        文脈: HDS文脈 | None = None,
+    ) -> HDS作用差分構造:
+        bundle, _ = self._意味束(
+            入力,
+            前回結果=前回結果,
+            HDS履歴=HDS履歴,
+            文脈=文脈,
+        )
+        return bundle.作用差分構造
 
     def コンパイル束(
         self,
@@ -171,7 +193,6 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
 
     def 計算降下(self, bundle: HDSコンパイル束) -> HDS計算コンパイル成果:
         """形成済み束を計算中間表現へ降下する。自然言語を再解析しない。"""
-
         return self._計算降下.降下(bundle)
 
     def 計算コンパイル(
@@ -199,8 +220,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         HDS履歴: tuple[HDSIR, ...] = (),
         文脈: HDS文脈 | None = None,
     ) -> HDSIR:
-        """Legacy互換入口。意味正本へ最外周でのみPを再付与する。"""
-
+        """旧互換入口。意味正本へ最外周でのみPを再付与する。"""
         return self.コンパイル束(
             入力,
             前回結果=前回結果,
@@ -234,11 +254,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         return False
 
     def _選択問題問い閉包(self, ir: HDSIR, question: str) -> HDSIR:
-        """明示された選択問題型を使い、表層だけでは閉じなかった問いを世界知識なしで保持する。
-
-        精密な問い関係が既に存在する場合は介入しない。通常の ``意味コンパイル`` にも
-        影響せず、``問題IR(question, choices)`` の最終境界だけで使う。
-        """
+        """明示された選択問題型で、表層だけでは閉じなかった問いを世界知識なしで保持する。"""
         if self._問い関係を持つ(ir):
             return ir
         choices = tuple(coord for coord in ir.座標 if coord.座標ID.startswith("choice:"))
@@ -249,13 +265,10 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             return ir
 
         intent = HDS選択意図判定(question)
-        # 背景文の内容語で空の最終質問を救済しない。閉包可否と既知端点は最終選択焦点へ限定する。
         focus = self._正規化(str(intent.焦点 or text))
         content = frozenset(意味語(focus)) - {
             "find", "calculate", "determine", "identify", "select", "choose", "all",
         }
-        # ``Which?`` や ``Find.`` のように選択基準自体が欠ける入力は閉じない。
-        # 反転問題は except 等の選択基準そのものが意味を持つので、内容語なしでも閉包できる。
         if not content and intent.種別 != "EXCEPTION":
             return ir
 
@@ -279,12 +292,20 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         coords = (
             *ir.座標,
             HDS座標(
-                unknown_id, "目的.未知始点", "選択肢", 値状態.未観測,
-                由来="選択問題構造", 暫定性="SELECTION_QUERY_GENERIC_CLOSURE",
+                unknown_id,
+                "目的.未知始点",
+                "選択肢",
+                値状態.未観測,
+                由来="選択問題構造",
+                暫定性="SELECTION_QUERY_GENERIC_CLOSURE",
             ),
             HDS座標(
-                known_id, "対象.問い本文", focus, 値状態.確定,
-                由来="選択問題構造", 暫定性="SELECTION_QUERY_GENERIC_CLOSURE",
+                known_id,
+                "対象.問い本文",
+                focus,
+                値状態.確定,
+                由来="選択問題構造",
+                暫定性="SELECTION_QUERY_GENERIC_CLOSURE",
             ),
         )
         relation = HDS関係(
@@ -302,11 +323,9 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             由来="選択問題構造",
             暫定性="SELECTION_QUERY_GENERIC_CLOSURE",
         )
-
-        # この残差の解消条件は「開放述語または問い適合関係へ射影する」。
-        # 今ここで問い適合へ閉じたため、その特定残差だけ解消する。他の semantic_loss は残す。
         residuals = tuple(
-            residual for residual in ir.残差
+            residual
+            for residual in ir.残差
             if not (
                 str(residual.残差ID) == "lang-sem:question-loss"
                 and str(residual.種別) == "semantic_loss"

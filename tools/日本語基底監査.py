@@ -17,6 +17,7 @@ def _標準出力UTF8化() -> None:
 sys.path.insert(0, str(根 / "src"))
 
 from minidora import 標準言語基底P  # noqa: E402
+from minidora.hds_compiler_v1 import 公開HDSコンパイラ  # noqa: E402
 
 
 def 監査() -> list[str]:
@@ -29,10 +30,19 @@ def 監査() -> list[str]:
     if 標準言語基底P.基底言語コード != "ja":
         誤り.append("言語基底P: 日本語外部互換コードがjaではない")
 
+    compiler = 公開HDSコンパイラ()
+    if compiler.規定言語 != "日本語":
+        誤り.append("HDS Compiler: 規定言語が日本語ではない")
+    if compiler.基底言語 != "日本語":
+        誤り.append("HDS Compiler: 基底言語が日本語ではない")
+    if compiler.基底言語コード != "ja":
+        誤り.append("HDS Compiler: 日本語外部互換コードがjaではない")
+
     必須 = (
         "設計/00_日本語基底規定_v1.md",
         "設計/13_共有言語基底P仕様_v0_4.md",
         "設計/14_外部言語_日本語意味射影仕様_v0_4.md",
+        "設計/29_HDS_Compiler_作用差分構文化_v1_3.md",
         "構文化/言語模型横断_日本語基底作用構文化_v3/README.md",
         "構文化/言語模型横断_日本語基底作用構文化_v3/構文化規約_v3.json",
     )

@@ -12,6 +12,7 @@ from .hds_compiler_records_v1_1 import (
     HDS認知世界差分,
     HDS監査参照候補,
 )
+from .hds_compiler_records_v1_3 import HDS作用差分構造
 
 
 class HDS監査状態(StrEnum):
@@ -32,7 +33,7 @@ class HDS原理段階(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class HDS認知世界断片:
-    """公開Compilerが入力表層から観測できたCognitiveWorldの有限断片。"""
+    """公開Compilerが入力表層から観測できた認知世界の有限断片。"""
 
     発話主体: tuple[str, ...] = ()
     作用主体: tuple[str, ...] = ()
@@ -58,7 +59,7 @@ class HDS監査項目:
 
 @dataclass(frozen=True, slots=True)
 class HDS監査要求:
-    """HDS判断側へ渡す監査入力要求。Compiler自身はPASS/FAILを決めない。"""
+    """HDS判断側へ渡す監査入力要求。Compiler自身は合否を決めない。"""
 
     要求ID: str
     種別: str
@@ -107,6 +108,7 @@ class HDSCompiler成果:
     チェックリスト: tuple[HDSチェックリスト項目, ...] = ()
     認知世界差分: HDS認知世界差分 = HDS認知世界差分()
     監査参照候補: tuple[HDS監査参照候補, ...] = ()
+    作用差分構造: HDS作用差分構造 = HDS作用差分構造()
 
     @property
     def 未固定座標(self) -> tuple[str, ...]:
@@ -117,7 +119,6 @@ class HDSCompiler成果:
         return tuple(dict.fromkeys(item.種別 for item in self.監査要求))
 
 
-# Compiler内部の監査・制御メタ情報。外部検索語やKの事実へ直接昇格させない。
 HDS_COMPILER_META_PREFIXES = (
     "監査.",
     "保持.",

@@ -26,11 +26,7 @@ from minidora.規定参照 import (  # noqa: E402
     LLM成立規定版,
     厳密LM中核,
 )
-from minidora.言語確率法則 import (  # noqa: E402
-    EOS記号,
-    MINIDORA厳密言語模型,
-    最小厳密言語模型,
-)
+from minidora.言語確率法則 import EOS記号, MINIDORA厳密言語模型, 最小厳密言語模型  # noqa: E402
 
 
 EXPECTED_REPOSITORY = "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA"
@@ -38,27 +34,34 @@ EXPECTED_SPEC_REPO = "https://github.com/gatchimuchio/LLM-Constitutive-Specifica
 EXPECTED_SPEC_COMMIT = "debb83e091a705a5eac09ef4fb97a5b36305db6d"
 EXPECTED_SPEC_VERSION = "2026-08-28-成立規定-7"
 EXPECTED_MINIDORA_VERSION = "0.5.0"
-EXPECTED_BASE_LANGUAGE = "ja"
-EXPECTED_HDS_ARCHITECTURE = "v1.2"
-EXPECTED_HDS_PIPELINE = "v1.3"
+EXPECTED_BASE_LANGUAGE = "日本語"
+EXPECTED_BASE_LANGUAGE_CODE = "ja"
+EXPECTED_HDS_ARCHITECTURE = "v1.3"
+EXPECTED_HDS_PIPELINE = "v1.4"
 
 REQUIRED_PATHS = (
     "README.md", "REFERENCES.md", "AGENTS.md", "pyproject.toml",
     "LICENSE", "LICENSE-APACHE-2.0", "LICENSE-CC-BY-4.0", "NOTICE",
     ".github/workflows/ci.yml",
     "設計/README.md", "設計/02_大規模言語模型成立契約.md",
+    "設計/26_HDS_Compiler_Pipeline_v1_4.md", "設計/29_HDS_Compiler_作用差分構文化_v1_3.md",
     "構文化/MINIDORA_v0.4/README.md", "構文化/MINIDORA_v0.5/README.md",
     "評価/README.md", "評価/MINIDORA_v0_5_厳密LM受入_2026-08-28.md",
     "評価/MINIDORA_v0_4_規模測定_v2_2026-08-26.md",
     "src/minidora/規定参照.py", "src/minidora/言語確率法則.py",
     "src/minidora/模型_v05.py", "src/minidora/模型.py", "src/minidora/runtime.py",
     "src/minidora/計算実行器.py", "src/minidora/hds_compiler_v1.py",
+    "src/minidora/hds_compiler_action_delta.py", "src/minidora/hds_compiler_records_v1_3.py",
+    "src/minidora/hds_compiler_pipeline_v1_4.py",
+    "tests/test_hds_compiler_action_delta_v1_3.py",
     "tests/test_言語確率法則.py", "tests/test_v05_厳密LM統合.py", "tests/test_模型.py",
 )
 
 CORE_MARKDOWN = (
     "README.md", "REFERENCES.md", "AGENTS.md", "src/README.md",
     "設計/README.md", "設計/02_大規模言語模型成立契約.md",
+    "設計/09_公開HDS_Compiler仕様.md", "設計/26_HDS_Compiler_Pipeline_v1_4.md",
+    "設計/29_HDS_Compiler_作用差分構文化_v1_3.md",
     "構文化/MINIDORA_v0.5/README.md", "評価/README.md",
     "評価/MINIDORA_v0_5_厳密LM受入_2026-08-28.md",
 )
@@ -106,14 +109,14 @@ def _check_project(errors: list[str]) -> None:
     if urls.get("Repository") != EXPECTED_REPOSITORY:
         errors.append("pyproject.toml: Repository URL不整合")
     if urls.get("LLM Constitutive Specification") != EXPECTED_SPEC_REPO:
-        errors.append("pyproject.toml: 上流LLM成立規定URL不整合")
+        errors.append("pyproject.toml: 言語模型成立規定URL不整合")
 
     if LLM成立規定リポジトリ != EXPECTED_SPEC_REPO:
-        errors.append("規定参照.py: 上流Repository不整合")
+        errors.append("規定参照.py: Repository不整合")
     if LLM成立規定参照コミット != EXPECTED_SPEC_COMMIT:
-        errors.append("規定参照.py: 上流commit不整合")
+        errors.append("規定参照.py: commit不整合")
     if LLM成立規定版 != EXPECTED_SPEC_VERSION:
-        errors.append("規定参照.py: 上流版不整合")
+        errors.append("規定参照.py: 版不整合")
     if 厳密LM中核 != ("完全言語状態空間", "整合した言語確率法則", "持続模型状態", "local-to-global接続"):
         errors.append("規定参照.py: v7厳密LM中核不整合")
 
@@ -121,7 +124,7 @@ def _check_project(errors: list[str]) -> None:
         text = _text(path)
         for required in (EXPECTED_SPEC_REPO, EXPECTED_SPEC_COMMIT, EXPECTED_SPEC_VERSION):
             if required not in text:
-                errors.append(f"{path}: 上流参照欠落: {required}")
+                errors.append(f"{path}: 成立規定参照欠落: {required}")
 
 
 def _check_strict_lm(errors: list[str]) -> None:
@@ -149,17 +152,17 @@ def _check_strict_lm(errors: list[str]) -> None:
         if forbidden in source:
             errors.append(f"厳密LM核に禁止依存: {forbidden}")
     if "Fraction" not in source or "EOS記号" not in source:
-        errors.append("厳密LM核: exact probability / EOS境界欠落")
+        errors.append("厳密LM核: 厳密確率 / 終端境界欠落")
 
 
 def _check_runtime_separation(errors: list[str]) -> None:
     body = ミニドラ()
     if body.模型核 is not body.能力模型核:
-        errors.append("Runtime: 模型核互換aliasが能力模型核ではない")
+        errors.append("実行系: 模型核互換名が能力模型核ではない")
     if body.言語模型核 is body.能力模型核:
-        errors.append("Runtime: 厳密LM核と能力模型核が混同")
+        errors.append("実行系: 厳密LM核と能力模型核が混同")
     if not body.言語模型監査().合格:
-        errors.append("Runtime: 厳密LM監査不合格")
+        errors.append("実行系: 厳密LM監査不合格")
     text = _text("src/minidora/runtime.py")
     for required in ("self.言語模型核", "self.能力模型核", "候補scoreを確率へ読み替えて"):
         if required not in text:
@@ -167,17 +170,32 @@ def _check_runtime_separation(errors: list[str]) -> None:
 
 
 def _check_hds(errors: list[str]) -> None:
-    if 公開HDSコンパイラ.基底言語 != EXPECTED_BASE_LANGUAGE:
+    compiler = 公開HDSコンパイラ()
+    if compiler.規定言語 != "日本語":
+        errors.append("公開HDS Compiler: 規定言語不整合")
+    if compiler.基底言語 != EXPECTED_BASE_LANGUAGE:
         errors.append("公開HDS Compiler: 基底言語不整合")
-    if getattr(公開HDSコンパイラ, "Architecture版", None) != EXPECTED_HDS_ARCHITECTURE:
+    if compiler.基底言語コード != EXPECTED_BASE_LANGUAGE_CODE:
+        errors.append("公開HDS Compiler: 基底言語コード不整合")
+    if compiler.Architecture版 != EXPECTED_HDS_ARCHITECTURE:
         errors.append("公開HDS Compiler: Architecture版不整合")
-    if getattr(公開HDSコンパイラ, "Pipeline版", None) != EXPECTED_HDS_PIPELINE:
+    if compiler.Pipeline版 != EXPECTED_HDS_PIPELINE:
         errors.append("公開HDS Compiler: Pipeline版不整合")
-    semantic = 公開HDSコンパイラ().意味コンパイル("2+3")
+    semantic = compiler.意味コンパイル("2+3")
     if semantic.手順 is not None or semantic.初期状態:
         errors.append("公開HDS Compiler: 意味正本へ計算P/初期状態混入")
+
+    action_delta = compiler.作用差分コンパイル(
+        "未確認から証拠が揃ったなら確認済みに遷移する。"
+        "確認済みから矛盾があるなら再検証へ遷移する。"
+    )
+    if action_delta.作用数 != 2 or action_delta.状態差数 != 2 or action_delta.後続利用数 != 1:
+        errors.append("公開HDS Compiler: 作用→状態差→後続利用の最小構文化不成立")
+    elif action_delta.後続利用[0].成立状態 != "確認済み":
+        errors.append("公開HDS Compiler: 後続利用の成立状態不整合")
+
     if Layer0 is not 計算実行器:
-        errors.append("Layer0旧名が計算実行器aliasではない")
+        errors.append("Layer0旧名が計算実行器互換名ではない")
 
 
 def _check_scale_and_history(errors: list[str]) -> None:

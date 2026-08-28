@@ -95,7 +95,7 @@ def HDS状態遷移抽出(text: str) -> HDS状態遷移図:
         _append_edge(edges, nodes, src=match.group("src"), dst=match.group("dst"), cond=condition, action=("遷移",))
 
     for match in _EN_FROM_TO.finditer(source):
-        _append_edge(edges, nodes, src=match.group("src"), dst=match.group("dst"), action=("transition",))
+        _append_edge(edges, nodes, src=match.group("src"), dst=match.group("dst"), action=("遷移",))
 
     for match in _JA_COND_TO.finditer(source):
         dst = _state_name(match.group("dst"))
@@ -105,15 +105,15 @@ def HDS状態遷移抽出(text: str) -> HDS状態遷移図:
     for match in _EN_COND_TO.finditer(source):
         dst = _state_name(match.group("dst"))
         if not any(edge.終点 == dst and edge.条件 for edge in edges):
-            _append_edge(edges, nodes, src=None, dst=dst, cond=(match.group("cond"),), action=("conditional transition",))
+            _append_edge(edges, nodes, src=None, dst=dst, cond=(match.group("cond"),), action=("条件遷移",))
 
     for match in _JA_ROLLBACK.finditer(source):
         rollback = _state_name(match.group("dst"))
-        _append_edge(edges, nodes, src=None, dst=rollback, cond=("失敗または撤回条件",), action=("rollback",), reversible=True, rollback=rollback)
+        _append_edge(edges, nodes, src=None, dst=rollback, cond=("失敗または撤回条件",), action=("巻戻し",), reversible=True, rollback=rollback)
 
     for match in _EN_ROLLBACK.finditer(source):
         rollback = _state_name(match.group("dst"))
-        _append_edge(edges, nodes, src=None, dst=rollback, cond=("failure or withdrawal condition",), action=("rollback",), reversible=True, rollback=rollback)
+        _append_edge(edges, nodes, src=None, dst=rollback, cond=("失敗または撤回条件",), action=("巻戻し",), reversible=True, rollback=rollback)
 
     for edge in edges:
         if edge.始点 is None:
@@ -138,8 +138,8 @@ def HDS状態遷移IR射影(ir: HDSIR, graph: HDS状態遷移図) -> HDSIR:
         key = ("動態.状態", node.名称)
         cid = existing.get(key)
         if cid is None:
-            cid = f"archv11:state:{len(coord_map):03d}"
-            coords.append(HDS座標(cid, "動態.状態", node.名称, 値状態.確定, 由来="公開HDS Compiler v1.1"))
+            cid = f"archv13:state:{len(coord_map):03d}"
+            coords.append(HDS座標(cid, "動態.状態", node.名称, 値状態.確定, 由来="公開HDS Compiler Architecture v1.3"))
             existing[key] = cid
         coord_map[node.名称] = cid
 
@@ -150,26 +150,26 @@ def HDS状態遷移IR射影(ir: HDSIR, graph: HDS状態遷移図) -> HDSIR:
             if sid and oid:
                 conditions = [*edge.条件, *(f"作用={value}" for value in edge.作用)]
                 if edge.rollback先:
-                    conditions.append(f"rollback={edge.rollback先}")
+                    conditions.append(f"巻戻し先={edge.rollback先}")
                 relations.append(
                     HDS関係(
-                        f"archv11:{edge.遷移ID}",
+                        f"archv13:{edge.遷移ID}",
                         (sid,),
                         (oid,),
                         "状態遷移",
                         条件=tuple(conditions),
                         値状態=値状態.確定,
-                        由来="公開HDS Compiler v1.1",
+                        由来="公開HDS Compiler Architecture v1.3",
                     )
                 )
         else:
             residuals.append(
                 HDS残差(
-                    f"archv11:residual:{edge.遷移ID}",
+                    f"archv13:residual:{edge.遷移ID}",
                     "未閉包状態遷移",
                     f"{edge.始点 or '?'} -> {edge.終点 or '?'}",
                     "状態遷移の端点が入力から一意に固定できない",
-                    解消条件=("Rまたは追加文脈で遷移端点を固定する",),
+                    解消条件=("外部参照または追加文脈で遷移端点を固定する",),
                 )
             )
 
