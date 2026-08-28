@@ -158,10 +158,7 @@ def _参照作用差分群(
     parallel: bool,
     max_workers: int,
 ) -> tuple[tuple[object, ...], int]:
-    """参照Dataだけを詳細コンパイルし、作用差分構造を能力入力へ回収する。
-
-    質問・候補から作用差分証拠を作らず、外部参照Data由来だけを能力証拠候補とする。
-    """
+    """通常Data意味コンパイル成功済みの参照だけを詳細コンパイルし、作用差分構造を回収する。"""
     compiler = _コンパイラ実体(compile_fn)
     detailed = getattr(compiler, "詳細コンパイル", None)
     if not callable(detailed) or not references:
@@ -364,7 +361,7 @@ def HDS選択推論実行(
     if use_formal_model:
         action_structures, action_failed = _参照作用差分群(
             コンパイル,
-            references,
+            data_bundle.成功記録群,
             parallel=parallel_safe,
             max_workers=worker_count,
         )
