@@ -1,9 +1,10 @@
 MINIDORA GPQA benchmark request
-requested_at_jst: 2026-08-28T07:41:00+09:00
+requested_at_jst: 2026-08-28T11:16:00+09:00
 benchmark: GPQA Diamond
 scope: full 198 questions
-target: MINIDORA v0.5 strict-LM-separated capability core + output-only HDS Gate v2
-reason: post-v7 strict-LM integration controlled measurement
-comparison: same retrieved references; baseline=legacy v0.3 helper (working/local off), current=HDS Compiler -> MINIDORA ability core -> MINIDORA output -> HDS output Gate -> OUTPUT/SILENT
-strict_lm_note: strict LM core is measured separately from GPQA capability; do not reinterpret capability score as LM-validity evidence
-required_metrics: output_only_hds_gate, formal_model_core, controlled_delta, accuracy, answered_accuracy, answer_rate, silence_rate, semantic_projection_coverage, checkpoints, checkpoint_reactivations, global_reconciliations, candidate_cross_updates
+target: MINIDORA v0.5 日本語基底・状態差起動能力核 + HDS Compiler v1.3/v1.4 + HDS判断主体
+reason: 構文化v3・構成定義v8・HDS作用差分構文化を能力系へ接続した後のcontrolled measurement
+comparison: 同一取得参照資料。baseline=旧v0.3 helper（作業再作用/局所再照合なし）、current=HDS Compiler作用差分→MINIDORA状態差起動能力核→MINIDORA出力→HDS判断主体
+strict_lm_note: 厳密言語模型核の成立とGPQA能力を分離し、能力得点を言語模型成立証拠へ読み替えない
+required_metrics: controlled_delta, accuracy, answered_accuracy, answer_rate, checkpoints, checkpoint_reactivations, global_reconciliations, candidate_cross_updates, specialist_actions_invoked, action_delta_attached, action_delta_consumed
+acceptance_priority: 1) 状態差なしで不発火 2) 状態差による実再作用 3) 同一証拠の別名再加点禁止 4) GPQA能力差
