@@ -25,19 +25,30 @@ from minidora.規定参照 import (  # noqa: E402
     LLM成立規定参照コミット,
     LLM成立規定版,
     厳密LM中核,
+    能力作用観測単位,
 )
 from minidora.言語確率法則 import EOS記号, MINIDORA厳密言語模型, 最小厳密言語模型  # noqa: E402
 
 
 EXPECTED_REPOSITORY = "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA"
 EXPECTED_SPEC_REPO = "https://github.com/gatchimuchio/LLM-Constitutive-Specification"
-EXPECTED_SPEC_COMMIT = "debb83e091a705a5eac09ef4fb97a5b36305db6d"
-EXPECTED_SPEC_VERSION = "2026-08-28-成立規定-7"
+EXPECTED_SPEC_COMMIT = "fcbc2fa4bc89d749942e8ebee2764115488d29c4"
+EXPECTED_SPEC_VERSION = "2026-08-28-成立規定-8"
 EXPECTED_MINIDORA_VERSION = "0.5.0"
 EXPECTED_BASE_LANGUAGE = "日本語"
 EXPECTED_BASE_LANGUAGE_CODE = "ja"
 EXPECTED_HDS_ARCHITECTURE = "v1.3"
 EXPECTED_HDS_PIPELINE = "v1.4"
+EXPECTED_STRICT_CORE = (
+    "完全言語状態空間",
+    "持続模型状態",
+    "整合した言語確率法則",
+    "局所条件から完全法則への接続",
+)
+EXPECTED_ABILITY_UNITS = (
+    "状態担体", "作用", "状態差", "後続利用", "参照変更",
+    "経路変更", "計算量変更", "再参照", "再結合", "循環尺度",
+)
 
 REQUIRED_PATHS = (
     "README.md", "REFERENCES.md", "AGENTS.md", "pyproject.toml",
@@ -117,10 +128,15 @@ def _check_project(errors: list[str]) -> None:
         errors.append("規定参照.py: commit不整合")
     if LLM成立規定版 != EXPECTED_SPEC_VERSION:
         errors.append("規定参照.py: 版不整合")
-    if 厳密LM中核 != ("完全言語状態空間", "整合した言語確率法則", "持続模型状態", "local-to-global接続"):
-        errors.append("規定参照.py: v7厳密LM中核不整合")
+    if 厳密LM中核 != EXPECTED_STRICT_CORE:
+        errors.append("規定参照.py: v8厳密言語模型中核不整合")
+    if 能力作用観測単位 != EXPECTED_ABILITY_UNITS:
+        errors.append("規定参照.py: v8能力作用観測単位不整合")
 
-    for path in ("README.md", "REFERENCES.md", "AGENTS.md", "src/README.md", "設計/README.md", "設計/02_大規模言語模型成立契約.md", "構文化/MINIDORA_v0.5/README.md"):
+    for path in (
+        "README.md", "REFERENCES.md", "AGENTS.md", "src/README.md", "設計/README.md",
+        "設計/02_大規模言語模型成立契約.md", "構文化/MINIDORA_v0.5/README.md",
+    ):
         text = _text(path)
         for required in (EXPECTED_SPEC_REPO, EXPECTED_SPEC_COMMIT, EXPECTED_SPEC_VERSION):
             if required not in text:
