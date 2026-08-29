@@ -9,8 +9,6 @@ from .hds_ir import HDSIR, 値状態
 
 
 class HDS作用種別(StrEnum):
-    """MINIDORA Domain Adapter内でHDS判断主体が承認できる作用。"""
-
     参照観測 = "REFERENCE"
     候補計算 = "EVALUATE"
     確定 = "COMMIT"
@@ -26,11 +24,7 @@ class HDS作用要求:
 
 @dataclass(frozen=True, slots=True)
 class MINIDORA認知世界:
-    """一回のMINIDORA判断Runに限定したCognitiveWorld Projection。
-
-    HDS本体そのものではない。現在の入力・委任・観測・計算結果・残差を
-    削らず保持し、判断主体だけがCOMMIT/SUSPENDを確定するための有限射影である。
-    """
+    """一回のMINIDORA判断Runに限定したCognitiveWorld Projection。"""
 
     run_id: str
     対象: str
@@ -49,12 +43,7 @@ class MINIDORA認知世界:
     残差: tuple[str, ...] = ()
     作用履歴: tuple[tuple[str, tuple[str, ...]], ...] = ()
     暫定性: str = "PROVISIONAL_BY_DEFAULT"
-    再開放条件: tuple[str, ...] = (
-        "新観測",
-        "未解残差",
-        "評価非承認",
-        "委任境界変更",
-    )
+    再開放条件: tuple[str, ...] = ("新観測", "未解残差", "評価非承認", "委任境界変更")
 
 
 _BLOCKING = frozenset({値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保})
@@ -75,18 +64,8 @@ def _入力阻害理由(ir: HDSIR) -> tuple[str, ...]:
 class MINIDORAHDS判断主体:
     """MINIDORA領域へ有限射影したHDS Judgement Subject。
 
-    責務:
-    - 継続したRun状態を保持する。
-    - 委任範囲内で次の観測/計算要求を生成する。
-    - 候補生成系の結果を自動COMMITさせない。
-    - COMMIT / SUSPEND / STOPを自ら確定する。
-    - 新観測・残差・委任変更でRunを再開放できる。
-
-    非責務:
-    - HDS Framework Kernelそのものを実装したと主張しない。
-    - LLM構成定義からHDS原理を生成しない。
-    - 外部世界への任意行動を起動しない。
-    - MINIDORAの一回の判断を越えて目的を自律変更しない。
+    候補生成系はPROPOSEまで。COMMIT/SUSPEND/STOPはこの主体だけが確定する。
+    HDS Framework Kernel全体やAGI全体を実装したとは主張しない。
     """
 
     版 = "v1-bounded-domain-projection"
@@ -103,9 +82,8 @@ class MINIDORAHDS判断主体:
         if 作用予算 < 1:
             raise ValueError("HDS判断主体の作用予算は1以上である必要がある")
         seed = f"{ir.認知世界ID}|{ir.正規化文}|{委任目的}"
-        run_id = sha256(seed.encode("utf-8")).hexdigest()[:16]
         return MINIDORA認知世界(
-            run_id=run_id,
+            run_id=sha256(seed.encode("utf-8")).hexdigest()[:16],
             対象=ir.原文,
             委任目的=委任目的,
             HDS_IR=ir,
@@ -117,35 +95,22 @@ class MINIDORAHDS判断主体:
     def 次作用(self, 世界: MINIDORA認知世界) -> HDS作用要求:
         if 世界.状態 in {"COMMITTED", "SUSPENDED", "STOPPED"}:
             return HDS作用要求(HDS作用種別.停止, (f"TERMINAL:{世界.状態}",))
-
         blockers = _入力阻害理由(世界.HDS_IR)
         if blockers:
             return HDS作用要求(HDS作用種別.留保, blockers)
-
         if len(世界.作用履歴) >= 世界.作用予算:
             return HDS作用要求(HDS作用種別.留保, ("HDS_ACTION_BUDGET_EXHAUSTED",))
-
         if 世界.参照必須 and not 世界.参照利用可能 and not 世界.参照試行済み:
             return HDS作用要求(HDS作用種別.留保, ("HDS_REQUIRED_REFERENCE_UNAVAILABLE",))
-
         if 世界.参照利用可能 and not 世界.参照試行済み:
-            return HDS作用要求(
-                HDS作用種別.参照観測,
-                ("OBSERVATION_BEFORE_COMMIT", "REFERENCE_AVAILABLE"),
-            )
-
+            return HDS作用要求(HDS作用種別.参照観測, ("OBSERVATION_BEFORE_COMMIT", "REFERENCE_AVAILABLE"))
         if 世界.評価状態 is None:
-            return HDS作用要求(
-                HDS作用種別.候補計算,
-                ("COMPUTE_CANDIDATE_DIFFERENCE", "NO_SELF_COMMIT"),
-            )
-
-        if 世界.評価状態 == "APPROVE" and 世界.評価回答ラベル is not None and 世界.評価回答内容 is not None:
+            return HDS作用要求(HDS作用種別.候補計算, ("COMPUTE_CANDIDATE_DIFFERENCE", "NO_SELF_COMMIT"))
+        if 世界.評価状態 == "PROPOSE" and 世界.評価回答ラベル is not None and 世界.評価回答内容 is not None:
             return HDS作用要求(
                 HDS作用種別.確定,
                 ("CANDIDATE_GENERATION_SEPARATED_FROM_COMMIT", "LOCAL_CLOSURE_SUPPORTED"),
             )
-
         reasons = tuple(dict.fromkeys(世界.残差 + ("HDS_EVALUATION_NOT_COMMITTABLE",)))
         return HDS作用要求(HDS作用種別.留保, reasons)
 
@@ -161,7 +126,7 @@ class MINIDORAHDS判断主体:
 
     def 評価帰還(self, 世界: MINIDORA認知世界, 結果: HDS選択実行結果) -> MINIDORA認知世界:
         residuals = 世界.残差
-        if 結果.状態 != "APPROVE":
+        if 結果.状態 != "PROPOSE":
             residuals = tuple(dict.fromkeys(residuals + tuple(結果.理由)))
         return replace(
             世界,
@@ -210,9 +175,4 @@ class MINIDORAHDS判断主体:
         )
 
 
-__all__ = [
-    "HDS作用種別",
-    "HDS作用要求",
-    "MINIDORA認知世界",
-    "MINIDORAHDS判断主体",
-]
+__all__ = ["HDS作用種別", "HDS作用要求", "MINIDORA認知世界", "MINIDORAHDS判断主体"]
