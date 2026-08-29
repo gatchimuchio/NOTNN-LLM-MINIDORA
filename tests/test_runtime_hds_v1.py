@@ -86,9 +86,11 @@ class RuntimeHDSV1試験(unittest.TestCase):
         )
         self.assertEqual(run["評価状態"], "PROPOSE")
         self.assertIn("HDS_JUDGEMENT_SUBJECT_COMMIT", result.採否.理由)
-        self.assertIn("FORMAL_MODEL_CORE_PROPOSAL_ONLY", result.採否.理由)
-        self.assertNotIn("HDS_JUDGEMENT_SUBJECT_V2", result.採否.理由)
-        self.assertNotIn("HDS_OUTPUT_ONLY_BOUNDARY", result.採否.理由)
+        # このfixtureには専門作用・local viewの実観測変化が無いので、能力v2は無理にoverrideしない。
+        # 閉じた基礎workerをPROPOSEへ落とし、最終COMMITは統合HDS判断主体だけが行う。
+        self.assertIn("HDS_ADAPTIVE_BASE_SELECTED", result.採否.理由)
+        self.assertIn("CANDIDATE_GENERATION_HAS_NO_COMMIT_AUTHORITY", result.採否.理由)
+        self.assertNotIn("HDS_ADAPTIVE_PRIMARY_SELECTED", result.採否.理由)
 
 
 if __name__ == "__main__":
