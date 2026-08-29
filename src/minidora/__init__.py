@@ -57,11 +57,14 @@ from .hds_effort import HDS探索方針, HDS努力水準, HDS探索方針選択
 from .hds_reference import HDS参照予算, HDS参照予算選択, HDS参照問合せ候補, HDS参照検索
 from .hds_replay import HDSIR辞書化, HDSIR復元
 from .trinity_context import Trinity記憶監査, 記憶主体, HDS判断主体, Trinity文脈系
+from .hds統合判断主体 import HDS作用種別, HDS作用要求, MINIDORA認知世界, MINIDORAHDS判断主体
+from .hds統合runtime import HDS駆動選択結果, HDS駆動選択実行
 from .k3_functional import K3相当能力核, SystemResult as K3能力結果
 from .k3_hds_native import HDS候補診断, HDSK3結果, HDSIRネイティブAdapter
 from .k3_benchmark import run_k3_equivalence_benchmark
 from .言語 import 自然言語器, 言語計画
 from .言語基底 import 言語基底版, 文字知識, 語彙知識, 言語基底P, 標準言語基底P
 from .runtime import ミニドラ, 要求, 結果
+from .runtime_hds_v1 import HDS駆動ミニドラ
 
 __all__ = sorted(name for name in globals() if not name.startswith("_"))

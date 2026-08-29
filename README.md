@@ -2,7 +2,8 @@
 
 MINIDORAは、日本語を基底・規定・内部意味正本とする非ニューラルネットワーク型の言語模型研究実装である。
 
-現行版は **v0.5.0**。
+既定安定版は **v0.5.0**。  
+加えて、HDS Judgement Subjectを制御中心へ置く **v1試作Runtime** を併設する。
 
 ## 最上位理論と言語規定
 
@@ -26,10 +27,10 @@ MINIDORAは、日本語を基底・規定・内部意味正本とする非ニュ
 
 責任正本は [`LLM-Constitutive-Specification`](https://github.com/gatchimuchio/LLM-Constitutive-Specification)。
 
+v0.5の厳密言語模型核は次のv8正本を参照して成立済みである。
+
 - 版: `2026-08-28-成立規定-8`
 - 参照commit: `fcbc2fa4bc89d749942e8ebee2764115488d29c4`
-
-v8の厳密言語模型中核:
 
 ```text
 完全言語状態空間
@@ -37,7 +38,64 @@ v8の厳密言語模型中核:
 → 整合した言語確率法則
 ```
 
-局所条件から完全法則への接続は成立形の監査対象であり、特定のニューラル構造・自己回帰方式を普遍必須にしない。
+その後、構成定義はv9で到達限界まで凍結された。
+
+- 版: `2026-08-29-成立規定-9`
+- 参照commit: `3f5eb7b704dba5a06c717399c3400405b5e8944e`
+
+v9で固定された境界:
+
+```text
+局所作用再現
+≠ 作用関係再現
+≠ 意思決定構造再現
+≠ 能力主体
+```
+
+v1試作はこの境界を受け、LLM構成作用の追加だけで判断主体を代替せず、HDSを別責務として接続する。
+
+## v1 HDS駆動試作
+
+v1試作では、既存v0.5の厳密言語模型核・能力模型核・HDS Compiler・参照器をworkerとして維持し、**次作用と最終採否の権限だけをHDS Judgement Subjectへ集約**する。
+
+```text
+Compiled CognitiveWorld
+        ↓
+J_hds: REFERENCEが必要か
+   ├─ yes → C_execへ観測要求 → 帰還
+   └─ no
+        ↓
+J_hds: EVALUATE要求
+        ↓
+C_exec: PROPOSE / SUSPEND
+        ↓
+J_hds
+   ├─ PROPOSE + 局所閉包支持 → COMMIT
+   └─ 未閉包                 → SUSPEND
+```
+
+責任境界:
+
+```text
+C_exec: REFERENCE結果 / EVALUATE結果 / PROPOSE
+J_hds : 次作用要求 / COMMIT / SUSPEND / STOP / REOPEN
+```
+
+**`PROPOSE ≠ APPROVE ≠ COMMIT`** を固定し、候補生成系のSelf-Commitを禁止する。
+
+公開入口:
+
+```python
+from minidora import HDS駆動ミニドラ
+```
+
+選択問題では `HDS駆動ミニドラ` がHDS駆動経路を使用する。非選択問題・明示手順・HDS Compiler未接続時は既存v0.5 Runtimeへ委譲する。
+
+本試作はHDS Framework Kernel完全実装、AGI全体の自律主体、外部世界行動主体、LLM一般にHDSが普遍必須であることを主張しない。
+
+局所設計正本候補:
+
+- [`設計/31_MINIDORA_HDS統合判断主体_v1.md`](設計/31_MINIDORA_HDS統合判断主体_v1.md)
 
 ## v0.5の二核
 
@@ -257,8 +315,11 @@ v0.5厳密言語模型核          = 合格
 HDS Compiler作用差分構文化   = Architecture v1.3
 HDS Compiler責任分離         = Pipeline v1.4
 能力状態差実発火             = 合格
-GPQA能力改善                  = 不合格
-Large / 現代LLM呼称         = 再監査要
+v1 HDS Judgement Subject最小成立 = 合格
+v1 PROPOSE / COMMIT責任分離      = 合格
+v1 実Runtime循環                 = 合格
+v1 GPQA能力改善                  = 未測定
+Large / 現代LLM呼称             = 再監査要
 ```
 
 過去のCI合格を新commitへ無条件継承せず、正本更新ごとにUbuntu / Windows × Python 3.11–3.14を確認する。
@@ -278,6 +339,7 @@ python -m minidora "2+3"
 - [`設計/README.md`](設計/README.md)
 - [`設計/00_日本語基底規定_v1.md`](設計/00_日本語基底規定_v1.md)
 - [`設計/30_MINIDORA能力状態差循環_v1.md`](設計/30_MINIDORA能力状態差循環_v1.md)
+- [`設計/31_MINIDORA_HDS統合判断主体_v1.md`](設計/31_MINIDORA_HDS統合判断主体_v1.md)
 - [`REFERENCES.md`](REFERENCES.md)
 - [`構文化/README.md`](構文化/README.md)
 - [`評価/MINIDORA_v0_5_能力状態差循環_GPQA_2026-08-28.md`](評価/MINIDORA_v0_5_能力状態差循環_GPQA_2026-08-28.md)
