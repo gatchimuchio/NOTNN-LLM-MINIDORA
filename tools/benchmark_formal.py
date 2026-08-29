@@ -47,8 +47,7 @@ def _適応候補提案(question_ir, references, *, コンパイル, 基礎能�
 
     - 二段目の候補横断更新まで成立した能力経路は、その新状態差を採用理由として優先する。
     - そこまで成立しない場合、基礎経路が閉じるなら安定側の提案を使う。
-    - 基礎経路が閉じず能力経路だけが閉じる場合は能力提案を失わない。
-    - どちらも閉じなければSUSPENDする。
+    - 二段差分も基礎閉包も無い場合は、primary単独提案を救済せずSUSPENDする。
     """
 
     primary = HDS候補提案実行(
@@ -80,18 +79,10 @@ def _適応候補提案(question_ir, references, *, コンパイル, 基礎能�
     if base_proposal.状態 == "PROPOSE":
         return base_proposal
 
-    if primary.状態 == "PROPOSE":
-        return replace(
-            primary,
-            理由=tuple(dict.fromkeys(tuple(primary.理由) + (
-                "HDS_ADAPTIVE_PRIMARY_ONLY_PROPOSAL",
-            ))),
-        )
-
     reasons = tuple(dict.fromkeys(
         tuple(primary.理由)
         + tuple(base.理由)
-        + ("HDS_ADAPTIVE_NO_COMMITTABLE_PROPOSAL",)
+        + ("HDS_ADAPTIVE_NO_COMMITTABLE_PROPOSAL", "PRIMARY_WITHOUT_SECOND_ORDER_SUPPORT_NOT_COMMITTED")
     ))
     return replace(
         primary,
@@ -159,7 +150,7 @@ def _正式_result_payload(*args, **kwargs):
     protocol["formal_model_core"] = True
     protocol["hds_judgement_subject"] = "v1-bounded-domain-projection"
     protocol["candidate_commit_separation"] = "PROPOSE != COMMIT"
-    protocol["adaptive_selection"] = "二段候補横断更新が成立した能力経路を優先。未成立時は同一Dataの基礎経路を監査候補として使用。gold非参照"
+    protocol["adaptive_selection"] = "二段候補横断更新が成立した能力経路を優先。未成立時は同一Dataの基礎経路だけを監査候補として使用。双方未閉包ならSUSPEND。gold非参照"
     protocol["capability_projection"] = "日本語基底・状態差起動能力作用 v1"
     if protocol.get("controlled_ab"):
         protocol["controlled_ab_definition"] = "同一質問IR・同一取得資料。baseline=旧v0.3 helperで作業再作用/局所再照合なし、current=HDS駆動v1による状態差適応調停"
