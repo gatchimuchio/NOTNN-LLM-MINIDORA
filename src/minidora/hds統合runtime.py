@@ -5,10 +5,11 @@ from typing import Any, Callable, Protocol
 
 from .hds_choice_runtime import HDS選択実行結果
 from .hds_ir import HDSIR
-from .hds_reference import HDS参照予算選択, HDS参照検索
+from .hds_reference import HDS参照予算選択
 from .hds_runtime_projection import HDSR質問射影
-from .hds候補提案runtime import HDS候補提案実行
+from .hds能力経路_v2 import HDS参照検索V2
 from .hds統合判断主体 import HDS作用種別, MINIDORA認知世界, MINIDORAHDS判断主体
+from .hds適応候補調停 import HDS適応候補提案実行
 from .参照 import 参照記録
 
 
@@ -42,7 +43,7 @@ def _既定参照実行(環境: HDS駆動実行環境, ir: HDSIR) -> tuple[参�
     if 環境.参照供給器 is None:
         return ()
     budget = HDS参照予算選択(ir)
-    return HDS参照検索(
+    return HDS参照検索V2(
         環境.参照供給器,
         HDSR質問射影(ir),
         上限=budget.取得上限,
@@ -52,7 +53,7 @@ def _既定参照実行(環境: HDS駆動実行環境, ir: HDSIR) -> tuple[参�
 
 
 def _既定評価実行(環境: HDS駆動実行環境, ir: HDSIR, references: tuple[参照記録, ...]) -> HDS選択実行結果:
-    return HDS候補提案実行(
+    return HDS適応候補提案実行(
         ir,
         references,
         コンパイル=環境.コンパイル,
@@ -71,7 +72,7 @@ def HDS駆動選択実行(
     参照実行: HDS参照実行関数 | None = None,
     評価実行: HDS評価実行関数 | None = None,
 ) -> HDS駆動選択結果:
-    """J_hdsだけがCOMMIT/SUSPENDし、workerはPROPOSEまでに限定する。"""
+    """J_hdsだけがCOMMIT/SUSPENDし、R/C workerは観測とPROPOSEまでに限定する。"""
 
     reference_fn = 参照実行 or (lambda payload: _既定参照実行(環境, payload))
     evaluate_fn = 評価実行 or (lambda payload, refs: _既定評価実行(環境, payload, refs))
