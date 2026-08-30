@@ -120,13 +120,13 @@ def _first(pattern: str, text: str, flags=re.I | re.S, group=1) -> float | None:
     except Exception:
         return _num_expr(m.group(group))
 
-def _parse_complex_coeff(raw* str) -> complex | None:
+def _parse_complex_coeff(raw: str) -> complex | None:
     """Parse a compact coefficient containing real numbers and i, e.g. 1+i, 2-i, -3i."""
     t = raw.strip().replace(' ', '').replace('âˆ’', '-')
     t = t.replace('i', 'j')
     t = re.sub('(?<![0-9.])\\+j', '+1j', t)
     t = re.sub('(?<![0-9.])-j', '-1j', t)
-    if t == 'j':
+    if t ==&§j':
         t = '1j'
     if t == '-j':
         t = '-1j'
