@@ -46,7 +46,13 @@ from .hds_compiler_records_v1_3 import (
     HDS作用記録, HDS状態差記録, HDS後続利用記録, HDS作用差分構造,
 )
 from .hds_candidate_reconcile import HDS候補証拠, HDS調停済証拠, HDS候補調停結果, HDS候補横断調停
-from .hds_choice_runtime import HDS選択実行結果, HDS選択問題, HDS選択推論実行
+from . import hds_choice_runtime as _hds_choice_runtime
+from .科学専門能力統合 import 科学専門能力を通常MINIDORAへ接続 as _科学専門能力を通常MINIDORAへ接続
+_科学専門能力を通常MINIDORAへ接続(_hds_choice_runtime)
+HDS選択実行結果 = _hds_choice_runtime.HDS選択実行結果
+HDS選択問題 = _hds_choice_runtime.HDS選択問題
+HDS選択推論実行 = _hds_choice_runtime.HDS選択推論実行
+from .科学専門能力 import 科学専門能力結果, 科学専門能力解決
 from .hds_data_k import HDS知識投入結果, HDSIR知識Adapter, HDS証拠事実, HDS証拠状態複製
 from .hds作業状態 import (
     HDS作業関係, HDS候補共同項目, HDS作業Checkpoint, HDS作業統計,
