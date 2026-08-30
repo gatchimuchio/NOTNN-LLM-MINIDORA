@@ -1,12 +1,13 @@
 MINIDORA GPQA benchmark request
-requested_at_jst: 2026-08-30T09:07:00+09:00
+requested_at_jst: 2026-08-30T09:35:00+09:00
 benchmark: GPQA Diamond
 scope: full 198 questions
 target: MINIDORA v0.5 日本語基底 + 既存能力群 + HDS監督介入制御 v1
-reason: 現行main 9265cb94032afc4688b083479ca9a1c073dc3810 の監督介入制御版を再測定する
+reason: 現行main 1242f9bd563e8fb94b5bfd1b97c64443c5b5dd3a の正式監督制御ベンチ入口で再測定する
 architecture: 既存MINIDORAを通常実行し、未閉包時だけHDSが既存作用へ介入。最終HDS判断ラッパーはactive pathで使用しない
+controlled_ab: baseline=同一初期RでK3/direct/Working/local/能力模型を全実行しHDSなし。current=同一初期RからHDS監督介入、必要時のみ追加R可
 existing_capabilities: K3/direct relation/graph/Working Relation/local reparse/能力状態差模型/参照R
 hds_boundary: HDSは回答ラベル・候補得点を受け取らず、既存作用の起動・再起動・停止のみを制御する
-gold_boundary: goldは推論後の採点にのみ使用する
-required_metrics: accuracy, answered_accuracy, answer_rate, suspended, intervention_count, intervention_actions, existing_capability_resolution, retrieval, compile failures
-note: 前回28/198は旧formal細経路の測定であり、新監督介入制御版とは別architectureとして扱う
+gold_boundary: goldはbaseline/current双方の推論後の採点にのみ使用する
+required_metrics: accuracy, answered_accuracy, answer_rate, suspended, controlled_delta, hds_supervisory_interventions, hds_intervention_cases, hds_intervention_action_counts, retrieval, compile failures
+note: run #178以前の旧formal経路測定は新監督介入制御版の性能値として採用しない
