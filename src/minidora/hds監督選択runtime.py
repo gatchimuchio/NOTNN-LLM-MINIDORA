@@ -35,6 +35,17 @@ from .能力状態差循環 import MINIDORA能力状態差模型核
 from .参照 import 参照供給器, 参照記録
 
 
+_介入不能理由 = frozenset({
+    "HDS_CHOICE_SET_INCOMPLETE",
+    "HDS_CHOICE_LABEL_DUPLICATE",
+    "HDS_CHOICE_UNRESOLVED",
+    "HDS_QUESTION_SEMANTIC_LOSS",
+    "HDS_K_QUESTION_SEMANTIC_LOSS",
+    "HDS_CHOICE_COMPILE_FAILED",
+    "HDS_CHOICE_SEMANTIC_LOSS",
+})
+
+
 def _hash(value: object) -> str:
     raw = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str, separators=(",", ":"))
     return sha256(raw.encode("utf-8")).hexdigest()[:20]
@@ -185,6 +196,16 @@ class _Session:
     def _all_results(self) -> tuple[HDS選択実行結果, ...]:
         return tuple(self.legacy_results) + ((self.model_result,) if self.model_result else ())
 
+    def all_reasons(self) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(
+            reason
+            for result in self._all_results()
+            for reason in result.理由
+        ))
+
+    def intervention_blockers(self) -> tuple[str, ...]:
+        return tuple(reason for reason in self.all_reasons() if reason in _介入不能理由)
+
     def _legacy(self, *, working: bool, local: bool) -> HDS選択実行結果:
         result = HDS選択推論実行(
             self.question_ir,
@@ -327,6 +348,7 @@ class _Session:
                     break
 
         reasons: list[str] = [
+            *self.all_reasons(),
             *resolved.理由,
             "EXISTING_MINIDORA_CAPABILITY_RESOLVER",
             "HDS_SUPERVISORY_CONTROL_ONLY",
@@ -366,9 +388,9 @@ def HDS監督選択実行(
     )
     session.evaluate_base()
     records: list[HDS介入記録] = []
-    stop_reasons: tuple[str, ...] = ()
+    stop_reasons: tuple[str, ...] = session.intervention_blockers()
 
-    while HDS制御 is not None:
+    while HDS制御 is not None and not stop_reasons:
         state = session.supervisory_state()
         if state.既存判定 == 既存判定.承認 and state.出力存在 and not state.残差:
             break
@@ -396,6 +418,10 @@ def HDS監督選択実行(
             break
         progressed = session.run_action(directive.作用)
         records.append(HDS介入記録(directive.作用, offer.作用入力署名, directive.対象残差, progressed))
+        blockers = session.intervention_blockers()
+        if blockers:
+            stop_reasons = blockers
+            break
 
     selection = session.final_result(records=tuple(records), stop_reasons=stop_reasons)
     return HDS監督選択結果(
