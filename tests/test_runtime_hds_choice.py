@@ -106,7 +106,7 @@ class _Provider:
 
 
 class RuntimeHDSChoice試験(unittest.TestCase):
-    def test_手順なしchoiceを既存能力_HDS監督経路で解く(self) -> None:
+    def test_手順なしchoiceを通常MINIDORAで解きHDS非介入なら完全透過(self) -> None:
         compiler = _Compiler()
         record = 参照記録("doc:1", "Alpha", "Alpha uses engine.", "fixture://doc1", "fixture")
         runtime = ミニドラ(_Provider((record,)), HDSコンパイラ_=compiler)
@@ -119,12 +119,9 @@ class RuntimeHDSChoice試験(unittest.TestCase):
         self.assertEqual(result.状態["HDS候補ラベル"], "A")
         self.assertEqual(result.状態["HDS候補コンパイル数"], 2)
         self.assertEqual(result.状態["HDS_Dataコンパイル数"], 1)
-        self.assertGreater(result.状態["K追加事実数"], 0)
-        self.assertGreater(result.状態["K証拠事実数"], 0)
-        self.assertIn("EXISTING_MINIDORA_CAPABILITY_RESOLVER", result.採否.理由)
-        self.assertIn("HDS_SUPERVISORY_CONTROL_ONLY", result.採否.理由)
-        self.assertIn("NO_FINAL_HDS_JUDGEMENT_WRAPPER", result.採否.理由)
-        self.assertIn("HDS_SUPERVISORY_INTERVENTIONS:0", result.採否.理由)
+        self.assertNotIn("EXISTING_MINIDORA_CAPABILITY_RESOLVER", result.採否.理由)
+        self.assertNotIn("HDS_FEEDBACK_SAFETY_VALVE", result.採否.理由)
+        self.assertNotIn("HDS_SUPERVISORY_INTERVENTIONS:0", result.採否.理由)
         self.assertNotIn("HDS_OUTPUT_ONLY_BOUNDARY", result.採否.理由)
         self.assertNotIn("HDS_OUTPUT_APPROVED", result.採否.理由)
         self.assertIn("engine", compiler.calls)
@@ -143,8 +140,7 @@ class RuntimeHDSChoice試験(unittest.TestCase):
 
         self.assertEqual(result.採否.状態, 実行状態.合格, result.採否.理由)
         self.assertEqual(result.値, "engine")
-        self.assertIn("HDS_SUPERVISORY_CONTROL_ONLY", result.採否.理由)
-        self.assertIn("NO_FINAL_HDS_JUDGEMENT_WRAPPER", result.採否.理由)
+        self.assertNotIn("HDS_FEEDBACK_SAFETY_VALVE", result.採否.理由)
         self.assertNotIn("HDS_OUTPUT_APPROVED", result.採否.理由)
         self.assertNotIn("HDS_EVIDENCE_INSUFFICIENT", result.採否.理由)
 
@@ -158,7 +154,7 @@ class RuntimeHDSChoice試験(unittest.TestCase):
         self.assertEqual(result.採否.状態, 実行状態.保留)
         self.assertIsNone(result.値)
         self.assertIn("HDS_CHOICE_COMPILE_FAILED", result.採否.理由)
-        self.assertIn("HDS_SUPERVISORY_INTERVENTIONS:0", result.採否.理由)
+        self.assertNotIn("HDS_SUPERVISORY_INTERVENTIONS:0", result.採否.理由)
 
     def test_Data一件失敗でも生Dataを使わず残りHDS入力だけでMINIDORAを実行する(self) -> None:
         compiler = _Compiler(fail_data={"bad raw document"})
@@ -186,7 +182,7 @@ class RuntimeHDSChoice試験(unittest.TestCase):
         self.assertEqual(result.採否.状態, 実行状態.保留)
         self.assertIsNone(result.値)
         self.assertIn("HDS_CHOICE_UNRESOLVED", result.採否.理由)
-        self.assertIn("HDS_SUPERVISORY_INTERVENTIONS:0", result.採否.理由)
+        self.assertNotIn("HDS_SUPERVISORY_INTERVENTIONS:0", result.採否.理由)
         self.assertNotIn("engine", compiler.calls)
         self.assertNotIn("Alpha uses engine.", compiler.calls)
 

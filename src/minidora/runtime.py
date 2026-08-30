@@ -3,11 +3,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from fractions import Fraction
 
-from .hds_choice_runtime import HDS選択問題
-from .hds_reference import HDS参照予算選択
+from .hds_choice_runtime import HDS選択問題, HDS選択推論実行
+from .hds_reference import HDS参照予算選択, HDS参照検索
 from .hds_runtime_projection import HDSR質問射影
 from .hds介入制御 import HDS介入制御, 標準HDS介入制御
-from .hds参照拡張 import HDS参照検索強化
 from .hds監督選択runtime import HDS監督選択実行
 from .runtime_v03 import ミニドラ as _ミニドラV03, 結果, 要求
 from .模型 import MINIDORA模型核, 模型結果, 成立候補, 言語状態
@@ -32,10 +31,10 @@ class ミニドラ(_ミニドラV03):
     - ``言語模型核``: 完全言語状態上の整合した確率法則を担う非ニューラル厳密言語模型。
     - ``能力模型核``: 候補・証拠・関係評価と状態差起動の能力側。
     - ``計算実行器``: 算術・比較等の決定論的計算境界。
-    - ``HDS監督制御``: 選択問題が既存能力だけで閉じない時に、既存作用へだけ介入する制御系。
+    - ``HDS監督制御``: 通常MINIDORAのフィードバックループを俯瞰し、異常時だけ既存作用へ介入する安全弁。
 
     HDS監督制御は回答ラベル・候補得点を受け取らず、回答を生成・採用しない。
-    最終回答は既存MINIDORA能力resolverが決める。旧output-only/outer HDS判断ラッパーはactive pathで使わない。
+    通常MINIDORAが閉包した場合は完全透過し、結果を再解釈しない。
 
     既存 ``模型核`` 属性は後方互換のため ``能力模型核`` の互換名として保持する。
     候補得点を確率へ読み替えて厳密言語模型を偽装しない。
@@ -81,7 +80,10 @@ class ミニドラ(_ミニドラV03):
         return core
 
     def 実行(self, 要求_: 要求) -> 結果:
-        """選択問題だけ監督統合経路へ送り、それ以外は既存Runtimeをそのまま使う。"""
+        """通常MINIDORAを先に実行し、異常時だけHDS安全弁へ渡す。
+
+        HDS非介入時の選択結果・初期参照経路は監督導入前と同一に保つ。
+        """
         if 要求_.手順 is None and self.HDSコンパイラ is not None:
             try:
                 hds_ir = self.コンパイル(要求_.問合せ)
@@ -91,13 +93,28 @@ class ミニドラ(_ミニドラV03):
                 references = ()
                 if self.参照供給器 is not None:
                     budget = HDS参照予算選択(hds_ir)
-                    references = HDS参照検索強化(
+                    references = HDS参照検索(
                         self.参照供給器,
                         HDSR質問射影(hds_ir),
                         上限=budget.取得上限,
                         一問合せ上限=budget.一問合せ上限,
                         最大問合せ並列=budget.最大問合せ並列,
                     )
+
+                initial = HDS選択推論実行(
+                    hds_ir,
+                    tuple(references),
+                    コンパイル=self.コンパイル,
+                    基礎能力核=self.K3能力核,
+                )
+
+                # 正常系は完全透過。安全弁は呼ばない。
+                if (
+                    self.HDS監督制御 is None
+                    or (initial.状態 == "APPROVE" and initial.回答ラベル is not None)
+                ):
+                    return self._HDS選択結果(要求_, hds_ir, tuple(references), initial)
+
                 supervised = HDS監督選択実行(
                     hds_ir,
                     tuple(references),
@@ -106,6 +123,7 @@ class ミニドラ(_ミニドラV03):
                     模型核=self.能力模型核,
                     参照供給器=self.参照供給器,
                     HDS制御=self.HDS監督制御,
+                    初期選択=initial,
                 )
                 return self._HDS選択結果(要求_, hds_ir, supervised.参照, supervised.選択)
         return super().実行(要求_)

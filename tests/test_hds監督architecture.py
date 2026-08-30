@@ -15,18 +15,25 @@ class HDS監督ArchitectureTest(unittest.TestCase):
         self.assertNotIn("HDS駆動選択実行", text)
         self.assertNotIn("MINIDORAHDS判断主体", text)
 
-    def test_supervised_runtimeは旧output_only_HDSを使わない(self):
+    def test_supervised_runtimeは通常MINIDORAを再構成しない(self):
         text = inspect.getsource(supervised)
         self.assertNotIn("HDS判断主体", text)
         self.assertNotIn("HDSMINIDORA模型評価", text)
         self.assertNotIn("HDS適応候補提案実行", text)
         self.assertNotIn("HDS能力経路V2候補提案実行", text)
+        self.assertNotIn("hds既存能力resolver", text)
+        self.assertNotIn("既存MINIDORA提案解決", text)
 
     def test_HDS制御は回答を生成しない(self):
         text = inspect.getsource(control.標準HDS介入制御)
         self.assertNotIn("回答ラベル", text)
         self.assertNotIn("候補得点", text)
         self.assertNotIn("COMMIT", text)
+
+    def test_通常MINIDORA閉包は完全透過と明記される(self):
+        text = inspect.getsource(supervised.HDS監督選択実行)
+        self.assertIn("完全透過", text)
+        self.assertIn("安全弁", text)
 
 
 if __name__ == "__main__":
