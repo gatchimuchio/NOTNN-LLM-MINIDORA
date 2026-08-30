@@ -16,7 +16,6 @@ from .能力状態差循環 import (
     能力状態差記録,
     能力後続利用記録,
 )
-from .hds判断主体 import HDS判断主体, HDS判断結果, MINIDORA出力, MINIDORA出力化
 
 _BLOCKING_ENDPOINT = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
 _SCOPE_KEYS = frozenset({"様相", "量化", "条件scope", "scope", "条件作用"})
@@ -127,7 +126,7 @@ def _文脈条件(question_ir):
 
 
 def HDS能力作用構造射影(structure: HDS作用差分構造) -> 能力作用構造:
-    """HDS固有型をMINIDORA能力核の日本語内部型へ有限射影する。"""
+    """HDS Compiler成果をMINIDORA能力核の日本語内部型へ有限射影する。"""
     return 能力作用構造(
         作用=tuple(
             能力作用記録(
@@ -164,12 +163,45 @@ def HDS能力作用構造射影(structure: HDS作用差分構造) -> 能力作�
 
 @dataclass(frozen=True, slots=True)
 class HDSMINIDORA射影結果:
+    """名称は互換維持。終端採否はMINIDORA能力核自身が形成する。"""
+
     模型結果: 模型結果
     状態: str
     回答ラベル: str | None
     理由: tuple[str, ...]
-    HDS判断: HDS判断結果 | None = None
-    MINIDORA出力: MINIDORA出力 | None = None
+    HDS判断: object | None = None
+    MINIDORA出力: object | None = None
+
+
+def _能力核終端(result: 模型結果) -> tuple[str, str | None, list[str]]:
+    """後段HDSを使わず、能力核の参照由来差だけで通常MINIDORAを閉じる。"""
+    answer = result.参照最有力候補ID
+    if answer is not None:
+        return (
+            "APPROVE",
+            answer,
+            [
+                "MINIDORA_MODEL_CORE_SELECTED",
+                "REFERENCE_CONTRIBUTION_PRESENT",
+                "REFERENCE_DIFFERENCE_SELECTED",
+            ],
+        )
+
+    ref_scores = result.参照候補辞書()
+    if not any(ref_scores.values()):
+        return (
+            "SUSPEND",
+            None,
+            ["MINIDORA_MODEL_CORE_NO_REFERENCE_CONTRIBUTION", "NO_GUESS"],
+        )
+    return (
+        "SUSPEND",
+        None,
+        [
+            "MINIDORA_MODEL_CORE_NO_UNIQUE_POSITIVE_DIFFERENCE",
+            "REFERENCE_DIFFERENCE_NOT_UNIQUE",
+        ],
+    )
 
 
 def HDSMINIDORA模型評価(
@@ -178,12 +210,16 @@ def HDSMINIDORA模型評価(
     data_irs: Sequence[HDSIR],
     *,
     模型核: MINIDORA模型核 | None = None,
-    判断主体: HDS判断主体 | None = None,
+    判断主体: object | None = None,
     参照識別子: Sequence[str] | None = None,
     参照信頼: Sequence[float] | None = None,
     作用差分構造群: Sequence[HDS作用差分構造] = (),
 ):
-    """HDS Compiler成果をMINIDORA能力核へ渡し、MINIDORA出力だけを後段HDSへ渡す。"""
+    """HDS Compiler成果をMINIDORA能力核へ渡し、通常MINIDORA自身で候補差を閉じる。
+
+    ``判断主体`` は旧API互換の受取口として残すがactive pathでは使用しない。
+    HDSの実体はこの能力評価内部には置かず、外側のフィードバック安全弁だけに置く。
+    """
     core = 模型核 or 標準能力模型核()
     target = _対象言語体系(question_ir)
     question = HDS内部言語状態(question_ir, 識別子="question", 言語体系=target)
@@ -228,19 +264,8 @@ def HDSMINIDORA模型評価(
             参照状態=ref_internal,
         )
 
-    model_output = MINIDORA出力化(result)
-    judge = 判断主体 or HDS判断主体()
-    decision = judge.判断(model_output)
-    runtime_state = "APPROVE" if decision.状態 == "APPROVE" else "SUSPEND"
-    answer = decision.選択候補ID if decision.状態 == "APPROVE" else None
-
-    reasons = [
-        *decision.理由,
-        "HDS_JUDGEMENT_SUBJECT_V2",
-        "HDS_OUTPUT_ONLY_BOUNDARY",
-        "CAPABILITY_PROJECTION_V1",
-        "CAPABILITY_STATE_DELTA_V1",
-    ]
+    runtime_state, answer, reasons = _能力核終端(result)
+    reasons.extend(("MINIDORA_CAPABILITY_CORE_TERMINAL", "CAPABILITY_PROJECTION_V1", "CAPABILITY_STATE_DELTA_V1"))
     if ability_structures:
         reasons.append("HDS_ACTION_DELTA_ATTACHED")
     if any(
@@ -259,8 +284,8 @@ def HDSMINIDORA模型評価(
         runtime_state,
         answer,
         tuple(dict.fromkeys(reasons)),
-        decision,
-        model_output,
+        None,
+        None,
     )
 
 
