@@ -9,3 +9,7 @@ MINIDORA 最小汎用core GPQA Diamond全数実測要求
 
 実行:
 python tools/benchmark_formal.py gpqa-diamond --controlled-ab --out gpqa_minimal_generic_core.json
+
+再実測トリガー:
+- 2026-09-01
+- current main after minimal generic core restore and maintenance cleanup
