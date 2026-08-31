@@ -1,0 +1,74 @@
+name: MINIDORA branch consolidation delete
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".maintenance/branch_consolidation_delete.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  consolidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: main以外のbranchを記録して削除
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
+          mkdir -p docs
+          {
+            echo '# Branch統廃合記録 — 2026-09-01'
+            echo
+            echo '2026-09-01時点で、開発正本を `main` 一本へ集約した。'
+            echo
+            echo '削除前に存在したmain以外のbranchを、tip commitとmain包含状態付きで記録する。未包含branchは旧実験・旧設計・benchmark局所実験として採用せず、現行最小汎用LLM coreへ無条件統合しない。必要な一般作用が将来必要になった場合は、現行正本から再導出する。'
+            echo
+            echo '| branch | tip | main包含 |'
+            echo '|---|---|---|'
+            for ref in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin | sort); do
+              [ "$ref" = "origin/main" ] && continue
+              [ "$ref" = "origin/HEAD" ] && continue
+              branch="${ref#origin/}"
+              tip=$(git rev-parse "$ref")
+              if git merge-base --is-ancestor "$ref" HEAD; then state='包含済み'; else state='未包含・未採用'; fi
+              echo "| \`$branch\` | \`$tip\` | $state |"
+            done
+          } > docs/BRANCH_CONSOLIDATION_2026-09-01.md
+
+          failures=0
+          while IFS= read -r ref; do
+            [ "$ref" = "origin/main" ] && continue
+            [ "$ref" = "origin/HEAD" ] && continue
+            branch="${ref#origin/}"
+            echo "DELETE $branch"
+            if ! git push origin --delete "$branch"; then
+              echo "FAILED $branch"
+              failures=$((failures+1))
+            fi
+          done < <(git for-each-ref --format='%(refname:short)' refs/remotes/origin | sort)
+
+          if [ "$failures" -ne 0 ]; then
+            echo "branch deletion failures=$failures"
+            exit 1
+          fi
+
+      - name: 統廃合記録と一時runner除去をmainへ反映
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/branch_consolidation_audit.yml
+          rm -f .github/workflows/branch_consolidation_delete.yml
+          rm -f .maintenance/branch_consolidation_request.txt
+          rm -f .maintenance/branch_consolidation_delete.txt
+          rmdir .maintenance 2>/dev/null || true
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore: branch統廃合を完了しmain一本化'
+          git push origin HEAD:main
