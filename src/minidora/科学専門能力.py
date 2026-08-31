@@ -10,7 +10,8 @@ from .科学専門能力_共通 import 科学専門能力結果, 問合せ正規
 
 def _相対論的媒質光速(question: str, choices: Sequence[str]):
     text = question.casefold()
-    if not ('index of refraction' in text and 'glass' in text and ('moving' in text) and ('speed of light' in text)):
+    moves = any(token in text for token in ('moving', 'moves', 'move'))
+    if not ('index of refraction' in text and 'glass' in text and moves and ('speed of light' in text)):
         return None
     hits = [i for i, c in enumerate(choices) if '(1+n*v)/(n+v)' in str(c).replace(' ', '').casefold()]
     return 科学専門能力結果(hits[0], 'relativistic_light_medium', 0.985, '(1+n v)/(n+v)', 'general-law') if len(hits) == 1 else None
