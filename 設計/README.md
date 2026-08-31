@@ -11,6 +11,43 @@
 
 局所規定: [`00_日本語基底規定_v1.md`](00_日本語基底規定_v1.md)
 
+## 言語模型成立規定
+
+- Repository: `https://github.com/gatchimuchio/LLM-Constitutive-Specification`
+- 版: `2026-08-28-成立規定-8`
+- 参照commit: `fcbc2fa4bc89d749942e8ebee2764115488d29c4`
+- 能力作用構成: `規定/07_能力作用構成.md`
+
+## 現行セーブポイント — 2026-09-01
+
+現行active設計は、**最小汎用LLM core + HDS異常時最小介入**とする。
+
+```text
+MINIDORA v0.5
+├─ 厳密言語模型核
+├─ 能力状態差模型核
+├─ HDS Compiler Architecture v1.3 / Pipeline v1.4
+├─ 計算実行器
+├─ 外部参照R
+└─ HDS監督介入制御
+      ├─ REFERENCE
+      └─ EXISTING_COMPUTE_EXECUTOR
+```
+
+HDSは後段の最終採否ラッパーではない。正常閉包時は完全透過し、未閉包・競合・観測不足等の異常時だけ既存作用を起動する。
+
+```text
+通常MINIDORA
+  ↑      ↓
+HDS監督制御
+```
+
+HDSへ回答ラベル・候補得点を渡さず、HDS自身が回答生成・winner selectionを行わない。
+
+専門領域solver、旧K3 helper、旧HDS終端・再統合経路は現行標準coreのactive pathへ含めない。必要な専門領域は外部モジュールとして分離する。
+
+セーブポイント記録: [`../docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md`](../docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md)
+
 ## 読み順
 
 1. [`00_日本語基底規定_v1.md`](00_日本語基底規定_v1.md)
@@ -26,39 +63,6 @@
 11. [`25_計算中間表現_実行境界_v1.md`](25_計算中間表現_実行境界_v1.md)
 12. [`04_外部参照R仕様.md`](04_外部参照R仕様.md)
 13. [`05_完成判定関門.md`](05_完成判定関門.md)
-
-旧版は履歴として保持する。特に `28_HDS判断主体_MINIDORA出力Gate_v2.md` と `31_MINIDORA_HDS統合判断主体_v1.md` は、32番の成立によりactive設計から外れた履歴文書である。
-
-## 言語模型成立規定
-
-- Repository: `https://github.com/gatchimuchio/LLM-Constitutive-Specification`
-- 版: `2026-08-28-成立規定-8`
-- 参照commit: `fcbc2fa4bc89d749942e8ebee2764115488d29c4`
-- 能力作用構成: `規定/07_能力作用構成.md`
-
-## 現行構造
-
-```text
-MINIDORA v0.5
-├─ 厳密言語模型核
-├─ 能力状態差模型核
-├─ K3 / graph / direct relation / candidate reconcile
-├─ Working Relation / local reparse
-├─ 計算実行器
-├─ HDS Compiler Architecture v1.3 / Pipeline v1.4
-└─ HDS監督介入制御
-      └─ 未閉包時だけ既存作用へ介入
-```
-
-HDSは後段の最終採否ラッパーではない。正常閉包時は介入せず、未閉包・競合・観測不足時だけ既存MINIDORAが公開した作用候補から次作用を選ぶ。
-
-```text
-既存MINIDORA
-  ↑      ↓
-HDS監督制御
-```
-
-HDSへ回答ラベル・候補得点を渡さず、最終回答は既存MINIDORA能力resolverが形成する。
 
 ## HDS Compiler境界
 
@@ -77,7 +81,7 @@ Compilerは意味・監査・作用差分構造を生成するが、後続作用
 
 状態差がなければ再作用しない。同一参照証拠を段階名だけ変えて再加点しない。
 
-HDS監督制御では、同一Dataの候補集合縮小だけで新しい票を作らず、実観測または作業状態が変化した場合だけ新しい評価Runへ進む。
+HDS監督制御では、同一Dataの候補集合縮小だけで新しい票を作らず、実観測または作業状態が変化した場合だけ通常MINIDORAの再評価へ進む。
 
 ## 能力作用観測単位
 
@@ -91,6 +95,19 @@ v8観測単位:
 
 Compiler v1.3は作用・状態差・後続利用を構文化し、MINIDORA能力系とHDS監督制御が責任分離して次作用へ接続する。
 
+## Legacy
+
+旧版は削除せず履歴として保持する。
+
+特に次は現行active設計ではない。
+
+- [`28_HDS判断主体_MINIDORA出力Gate_v2.md`](28_HDS判断主体_MINIDORA出力Gate_v2.md)
+- [`31_MINIDORA_HDS統合判断主体_v1.md`](31_MINIDORA_HDS統合判断主体_v1.md)
+- 旧K3 helper / graph / direct relation / candidate reconcileの通常経路先行実行
+- 専門領域solverによる通常経路先行解決
+
+Legacyを現行正本へ無言復帰させない。
+
 ## 変更規則
 
 - 日本語を内部意味正本とする。
@@ -100,8 +117,9 @@ Compiler v1.3は作用・状態差・後続利用を構文化し、MINIDORA能�
 - 同一証拠を別名で再加点しない。
 - 候補得点を厳密言語模型確率へ変換しない。
 - GPQAを言語模型成立証拠へしない。
+- benchmark固有規則をcoreへ追加しない。
+- 専門領域は原則として外部モジュールへ分離する。
 - HDS型を厳密言語模型核へ逆流させない。
 - HDSへ回答ラベル・候補得点を渡さない。
-- HDSが既存能力間の競合時に回答を選ばない。
-- Legacyを現行正本へ無言復帰させない。
+- HDSが回答を生成・選択しない。
 - 設計変更時は実装・試験・README・評価解釈を同期する。
