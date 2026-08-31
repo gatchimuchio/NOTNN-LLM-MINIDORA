@@ -25,6 +25,8 @@ jobs:
           echo '472fdddc1aedb2fd47636516b06a06f90b6e089b81fb694902e93dd738927f06  /tmp/apply_core2.py' | sha256sum -c -
       - name: 改善差分適用
         run: python /tmp/apply_core2.py
+      - name: 整合性補正
+        run: python tools/.core2_payload/fix_consistency.py
       - name: 一時適用物除去
         shell: bash
         run: |
