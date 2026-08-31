@@ -1,0 +1,40 @@
+name: MINIDORA branch consolidation audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".maintenance/branch_consolidation_request.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 全branch監査
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
+          echo "MAIN=$(git rev-parse HEAD)"
+          echo "=== BRANCH AUDIT ==="
+          for ref in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin | sort); do
+            [ "$ref" = "origin/main" ] && continue
+            [ "$ref" = "origin/HEAD" ] && continue
+            branch="${ref#origin/}"
+            tip=$(git rev-parse "$ref")
+            if git merge-base --is-ancestor "$ref" HEAD; then
+              echo "MERGED|$branch|$tip|ahead=0"
+            else
+              ahead=$(git rev-list --count HEAD.."$ref")
+              behind=$(git rev-list --count "$ref"..HEAD)
+              echo "UNMERGED|$branch|$tip|ahead=$ahead|behind=$behind"
+              git log --oneline --no-merges -n 8 HEAD.."$ref" | sed 's/^/  COMMIT|/'
+              git diff --stat HEAD..."$ref" | tail -n 8 | sed 's/^/  DIFF|/'
+            fi
+          done
