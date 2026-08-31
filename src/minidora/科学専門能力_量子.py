@@ -183,7 +183,6 @@ def solve_infinite_well_fermions_generic(q, choices):
         return None
     max_n = n_particles + 3
     energies = set()
-
     def rec(level, left, total):
         if left == 0:
             energies.add(total)

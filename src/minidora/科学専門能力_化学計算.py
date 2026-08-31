@@ -128,7 +128,7 @@ def solve_neutralization(q, choices):
         if not vals:
             continue
         val = vals[0]
-        target = targets[0] if 'kj' in c.casefold() else targets[1] if 'kcal' in c.casefold() else targets[1]
+        target = targets[0] if 'kj' in c.casefold() else targets[1] if 'kcal' in c.casefold() else targets[0]
         best.append((abs(val - target), i))
     if not best:
         return None

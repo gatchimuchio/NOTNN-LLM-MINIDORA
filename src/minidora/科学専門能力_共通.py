@@ -126,7 +126,7 @@ def _parse_complex_coeff(raw: str) -> complex | None:
     t = t.replace('i', 'j')
     t = re.sub('(?<![0-9.])\\+j', '+1j', t)
     t = re.sub('(?<![0-9.])-j', '-1j', t)
-    if t ==&§j':
+    if t == 'j':
         t = '1j'
     if t == '-j':
         t = '-1j'
