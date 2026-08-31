@@ -7,20 +7,49 @@ from . import 科学専門能力_天文 as _天文
 from . import 科学専門能力_化学計算 as _化学計算
 from . import 科学専門能力_場と形式 as _場と形式
 from . import 科学専門能力_追加 as _追加
+from . import 科学専門能力_構造 as _構造
+from . import 科学専門能力_行列 as _行列
 from .科学専門能力_共通 import 科学専門能力結果, 問合せ正規化, 候補支持成立
+
 
 def _相対論的媒質光速(question: str, choices: Sequence[str]):
     text = question.casefold()
     moves = any(token in text for token in ('moving', 'moves', 'move'))
-    if not ('index of refraction' in text and 'glass' in text and moves and ('speed of light' in text)):
+    if not ('index of refraction' in text and 'glass' in text and moves and 'speed of light' in text):
         return None
-    hits = [i for i, c in enumerate(choices) if '(1+n*v)/(n+v)' in str(c).replace(' ', '').casefold()]
-    return 科学専門能力結果(hits[0], 'relativistic_light_medium', 0.985, '(1+n v)/(n+v)', 'general-law') if len(hits) == 1 else None
+    hits = [
+        i
+        for i, choice in enumerate(choices)
+        if '(1+n*v)/(n+v)' in str(choice).replace(' ', '').casefold()
+    ]
+    return (
+        科学専門能力結果(
+            hits[0],
+            'relativistic_light_medium',
+            0.985,
+            '(1+n v)/(n+v)',
+            'general-law',
+        )
+        if len(hits) == 1
+        else None
+    )
+
 
 def 科学専門能力解決(question: str, choices: Sequence[str]):
     q = 問合せ正規化(question)
     rows = []
-    for solver in (_量子.解決, _相対論.解決, _確率統計.解決, _天文.解決, _化学計算.解決, _場と形式.解決, _追加.解決, _相対論的媒質光速):
+    for solver in (
+        _量子.解決,
+        _相対論.解決,
+        _確率統計.解決,
+        _天文.解決,
+        _化学計算.解決,
+        _場と形式.解決,
+        _追加.解決,
+        _構造.解決,
+        _行列.解決,
+        _相対論的媒質光速,
+    ):
         try:
             row = solver(q, choices)
         except Exception:
@@ -30,7 +59,9 @@ def 科学専門能力解決(question: str, choices: Sequence[str]):
         if not 候補支持成立(row, str(choices[row.index])):
             continue
         rows.append(row)
-    if not rows or len({r.index for r in rows}) != 1:
+    if not rows or len({row.index for row in rows}) != 1:
         return None
-    return max(rows, key=lambda r: r.confidence)
+    return max(rows, key=lambda row: row.confidence)
+
+
 __all__ = ['科学専門能力結果', '科学専門能力解決']
