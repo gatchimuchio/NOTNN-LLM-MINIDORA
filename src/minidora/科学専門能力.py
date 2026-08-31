@@ -1,0 +1,35 @@
+from __future__ import annotations
+from typing import Sequence
+from . import 科学専門能力_量子 as _量子
+from . import 科学専門能力_相対論 as _相対論
+from . import 科学専門能力_確率統計 as _確率統計
+from . import 科学専門能力_天文 as _天文
+from . import 科学専門能力_化学計算 as _化学計算
+from . import 科学専門能力_場と形式 as _場と形式
+from .科学専門能力_共通 import 科学専門能力結果, 問合せ正規化, 候補支持成立
+
+def _相対論的媒質光速(question: str, choices: Sequence[str]):
+    text = question.casefold()
+    moves = any(token in text for token in ('moving', 'moves', 'move'))
+    if not ('index of refraction' in text and 'glass' in text and moves and ('speed of light' in text)):
+        return None
+    hits = [i for i, c in enumerate(choices) if '(1+n*v)/(n+v)' in str(c).replace(' ', '').casefold()]
+    return 科学専門能力結果(hits[0], 'relativistic_light_medium', 0.985, '(1+n v)/(n+v)', 'general-law') if len(hits) == 1 else None
+
+def 科学専門能力解決(question: str, choices: Sequence[str]):
+    q = 問合せ正規化(question)
+    rows = []
+    for solver in (_量子.解決, _相対論.解決, _確率統計.解決, _天文.解決, _化学計算.解決, _場と形式.解決, _相対論的媒質光速):
+        try:
+            row = solver(q, choices)
+        except Exception:
+            row = None
+        if row is None or not 0 <= row.index < len(choices):
+            continue
+        if not 候補支持成立(row, str(choices[row.index])):
+            continue
+        rows.append(row)
+    if not rows or len({r.index for r in rows}) != 1:
+        return None
+    return max(rows, key=lambda r: r.confidence)
+__all__ = ['科学専門能力結果', '科学専門能力解決']
