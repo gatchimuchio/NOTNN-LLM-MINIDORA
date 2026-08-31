@@ -22,12 +22,11 @@ class Runtime参照射影V15試験(unittest.TestCase):
         runtime = ミニドラ(参照供給器_=_空R(), HDSコンパイラ_=compiler)
         budget = HDS参照予算("max", 16, 4, 4)
 
-        # v0.4のミニドラはv0.3運用経路を互換継承する。
-        # 参照予算/検索はそのlegacy moduleのglobalを参照するため、
-        # wrapperではなく実際の責任所有moduleをpatchする。
+        # v0.5の通常実行責任はnative runtimeが所有する。
+        # 旧runtime_v03ではなく現行責任moduleをpatchする。
         with (
-            patch("minidora.runtime_v03.HDS参照予算選択", return_value=budget) as choose_budget,
-            patch("minidora.runtime_v03.HDS参照検索", return_value=()) as search,
+            patch("minidora.runtime.HDS参照予算選択", return_value=budget) as choose_budget,
+            patch("minidora.runtime.HDS参照検索", return_value=()) as search,
         ):
             runtime.実行(
                 要求("Which molecule is least likely to inhibit Enzyme X?")
