@@ -314,10 +314,20 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
                 break
 
             scores = work.得点()
+            ordered = sorted(ids, key=lambda cid: (-scores[cid], cid))
             changed = sorted(pending.変化候補ID, key=lambda cid: (-scores[cid], cid))
-            active = list(changed[:2])
+            # 再作用は「変化した候補どうし」だけで閉じず、現在の成立境界を必ず含める。
+            # 現在首位 + 最も強い変化候補を比較し、首位自身が変化候補なら次の変化候補を使う。
+            active: list[str] = []
+            if ordered:
+                active.append(ordered[0])
+            for cid in changed:
+                if cid not in active:
+                    active.append(cid)
+                if len(active) >= 2:
+                    break
             if len(active) < 2:
-                for cid in sorted(ids, key=lambda item: (-scores[item], item)):
+                for cid in ordered:
                     if cid not in active:
                         active.append(cid)
                         break
