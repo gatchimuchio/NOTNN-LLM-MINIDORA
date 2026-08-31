@@ -61,3 +61,11 @@
 | `redo/hds-existing-minidora-integration` | `9265cb94032afc4688b083479ca9a1c073dc3810` | 包含済み |
 | `sandbox/causal-arithmetic-v1` | `a43afc468ed8142bf96ebdaf0ec117a948d13102` | 未包含・未採用 |
 | `unused-validation-branch-do-not-create` | `dbecc99fd1a4d4b488e16e76014c597e2ebd50ef` | 包含済み |
+
+## 完了確認
+
+- 開発branch: `main` のみ
+- open PR: 0
+- branch統廃合完了commit: `62dfe1798ec3c31645cd78dd2e8037d3bda4fc71`
+- READMEパラダイム明示commit: `bd3a0c66f92522feb27a4e7fbc891adb1df1356d`
+- 以後の完成差分は `main` を現行正本として直接集約する。
