@@ -105,7 +105,9 @@ class ミニドラ(_ミニドラV03):
                     hds_ir,
                     tuple(references),
                     コンパイル=self.コンパイル,
-                    基礎能力核=self.K3能力核,
+                    基礎能力核=None,
+                    模型核=self.能力模型核,
+                    正式模型評価=True,
                 )
 
                 # 正常系は完全透過。安全弁は呼ばない。
@@ -119,9 +121,10 @@ class ミニドラ(_ミニドラV03):
                     hds_ir,
                     tuple(references),
                     コンパイル=self.コンパイル,
-                    基礎能力核=self.K3能力核,
+                    基礎能力核=None,
                     模型核=self.能力模型核,
                     参照供給器=self.参照供給器,
+                    計算実行器_=self.計算実行器,
                     HDS制御=self.HDS監督制御,
                     初期選択=initial,
                 )

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
 from .hds_adapter import HDSコンパイラProtocol, HDS文脈
 from .hds_choice_runtime import HDS選択実行結果, HDS選択問題, HDS選択推論実行
 from .hds_ir import HDSIR
 from .hds_reference import HDS参照予算選択, HDS参照検索
 from .hds_runtime_projection import HDSR質問射影
-from .k3_functional import K3相当能力核, SystemResult as K3能力結果
 from .layer0 import Layer0
 from .multilingual_surface import 表面化 as 多言語表面化
 from .trinity_context import Trinity文脈系
@@ -17,6 +16,9 @@ from .参照 import 参照供給器, 参照記録, 参照矛盾数
 from .命令 import 手順
 from .採否 import 実行状態, 採否, 採否結果
 from .言語 import 自然言語器
+
+if TYPE_CHECKING:
+    from .k3_functional import K3相当能力核, SystemResult as K3能力結果
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +83,7 @@ class ミニドラ:
     @property
     def K3能力核(self) -> K3相当能力核:
         if self._K3能力核 is None:
+            from .k3_functional import K3相当能力核
             self._K3能力核 = K3相当能力核()
         return self._K3能力核
 
