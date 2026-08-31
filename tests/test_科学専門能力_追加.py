@@ -59,6 +59,16 @@ class 追加科学専門能力健全性試験(unittest.TestCase):
         q = 'An uncharged spherical conductor has a cavity with charge q inside. What is the electric field outside the spherical conductor? L is distance from conductor centre and l from cavity centre.'
         self.assert_solver(q, ('E=kq/l^2', 'E=kq/L^2', 'E=kq/(l-s)^2', 'E=0'), 1)
 
+    def test_Boltzmann温度式は分母二乗の誤式を採らない(self):
+        q = 'In LTE, an upper state is twice as excited at T1 as at T2. Using the Boltzmann law, which temperature relation is correct?'
+        choices = (
+            'DeltaE/k = ln(2)*(T1-T2)/(T1^2*T2)',
+            'DeltaE/k = ln(2)*(T1-T2)/(T1*T2)',
+            'DeltaE/k = ln(2)*(T1-T2)/(T1*T2^2)',
+            'DeltaE/k = ln(2)*(T1+T2)/(T1*T2)',
+        )
+        self.assert_solver(q, choices, 1)
+
     def test_無関係な一般科学文へ誤発火しない(self):
         result = 科学専門能力解決('A black hole is mentioned in a qualitative history question.', ('one', 'two', 'three', 'four'))
         self.assertIsNone(result)
