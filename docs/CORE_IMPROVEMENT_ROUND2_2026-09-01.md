@@ -70,6 +70,24 @@ root `minidora/__init__.py` のeager importを遅延attributeへ変更する。
 - plain package import: legacy submodule自動起動なし
 - native v0.5 Runtime smoke: PASS
 
+## リポ還元結果
+
+製品commit: `a621348e91a1b29f5ecff4df931baed79ca6f957`
+
+還元時の全体検証:
+
+- repository consistency: PASS
+- 日本語基底作用構文化v3監査: 合格
+- 日本語基底監査: 合格
+- `compileall`: PASS
+- unit tests: 509 / 509 PASS
+- legacy規模測定回帰: PASS
+- module CLI smoke: PASS (`python -m minidora "2+3"` → `5です。`)
+- console CLI smoke: PASS (`minidora "2+3"` → `5です。`)
+- 一時適用workflow / payload: 還元commitから除去済み
+
+GPQAは本改善の設計入力にせず、改善後の再測定もこの還元工程では実施していない。
+
 ## 境界
 
 追加していないもの:
