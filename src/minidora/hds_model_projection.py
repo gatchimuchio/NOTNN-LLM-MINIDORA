@@ -173,10 +173,176 @@ class HDSMINIDORA射影結果:
     MINIDORA出力: object | None = None
 
 
-def _能力核終端(result: 模型結果) -> tuple[str, str | None, list[str]]:
-    """後段HDSを使わず、能力核の参照由来差だけで通常MINIDORAを閉じる。"""
+@dataclass(frozen=True, slots=True)
+class 参照確定品質:
+    """一意な参照差と、回答を確定してよい証拠閉包を分離する。"""
+
+    閉包: bool
+    理由: str
+    構造支持出典: tuple[str, ...] = ()
+    構造反証出典: tuple[str, ...] = ()
+    再照合支持出典: tuple[str, ...] = ()
+    反転集約のみ: bool = False
+
+
+def _参照信頼辞書(
+    参照識別子: Sequence[str] | None,
+    参照信頼: Sequence[float] | None,
+) -> dict[str, float]:
+    ids = tuple(参照識別子 or ())
+    if 参照信頼 is None:
+        return {str(item): 1.0 for item in ids}
+    confidence = tuple(参照信頼)
+    if len(ids) != len(confidence):
+        raise ValueError("参照識別子と参照信頼は同数である必要がある")
+    return {
+        str(ref_id): max(0.0, float(value))
+        for ref_id, value in zip(ids, confidence)
+    }
+
+
+def 参照確定品質判定(
+    result: 模型結果,
+    *,
+    参照識別子: Sequence[str] | None = None,
+    参照信頼: Sequence[float] | None = None,
+) -> 参照確定品質:
+    """一意な参照差が、回答確定に足る独立証拠へ閉じているか判定する。
+
+    benchmark・領域語・正解ラベルは参照しない。明示的な構造証拠は一出典でも
+    閉包できるが、語彙/再照合だけの弱い差は二つ以上の独立出典を要求する。
+    構造支持と構造反証が共存する場合は相殺せず競合状態として保持する。
+    """
+    answer = result.参照最有力候補ID
+    if answer is None:
+        return 参照確定品質(False, "NO_UNIQUE_REFERENCE_WINNER")
+
+    row = next((item for item in result.候補差 if item.候補ID == answer), None)
+    if row is None:
+        return 参照確定品質(False, "WINNER_NOT_FOUND")
+
+    confidence = _参照信頼辞書(参照識別子, 参照信頼)
+    reverse = any(
+        str(item).casefold() == "選択意図=反転"
+        for item in result.文脈.条件
+    )
+
+    structural_support: set[str] = set()
+    structural_against: set[str] = set()
+    recheck_support: set[str] = set()
+    reverse_aggregate_only = False
+
+    for contribution in row.寄与:
+        if not contribution.関係名.startswith(
+            ("参照関係寄与", "候補共同参照", "候補共同再照合")
+        ):
+            continue
+        for raw in contribution.根拠:
+            marker = str(raw)
+
+            if marker.startswith("参照:"):
+                payload = marker[len("参照:"):]
+                ref_id, sep, raw_delta = payload.rpartition(":")
+                if not sep:
+                    continue
+                try:
+                    delta = int(raw_delta)
+                except ValueError:
+                    continue
+                if confidence.get(ref_id, 1.0) <= 0.0:
+                    continue
+                effective = -delta if reverse else delta
+                if effective > 0:
+                    structural_support.add(ref_id)
+                elif effective < 0:
+                    structural_against.add(ref_id)
+                continue
+
+            if marker.startswith("再照合:"):
+                payload = marker[len("再照合:"):]
+                ref_id = payload.split(":", 1)[0]
+                if ref_id and confidence.get(ref_id, 1.0) > 0.0:
+                    recheck_support.add(ref_id)
+                continue
+
+            if marker.startswith("反転例外:"):
+                reverse_aggregate_only = True
+
+    support = tuple(sorted(structural_support))
+    against = tuple(sorted(structural_against))
+    weak = tuple(sorted(recheck_support))
+
+    if structural_support and structural_against:
+        return 参照確定品質(
+            False,
+            "STRUCTURAL_EVIDENCE_CONFLICT",
+            support,
+            against,
+            weak,
+            reverse_aggregate_only,
+        )
+    if structural_support:
+        return 参照確定品質(
+            True,
+            "STRUCTURAL_EVIDENCE_CLOSED",
+            support,
+            (),
+            weak,
+            reverse_aggregate_only,
+        )
+    if len(recheck_support) >= 2:
+        return 参照確定品質(
+            True,
+            "MULTI_SOURCE_WEAK_EVIDENCE_CLOSED",
+            (),
+            (),
+            weak,
+            reverse_aggregate_only,
+        )
+    if reverse_aggregate_only:
+        return 参照確定品質(
+            False,
+            "REVERSE_AGGREGATE_UNTRACEABLE",
+            (),
+            (),
+            weak,
+            True,
+        )
+    if len(recheck_support) == 1:
+        return 参照確定品質(
+            False,
+            "SINGLE_WEAK_SOURCE",
+            (),
+            (),
+            weak,
+            False,
+        )
+    return 参照確定品質(False, "REFERENCE_EVIDENCE_UNTRACEABLE")
+
+
+def _能力核終端(
+    result: 模型結果,
+    *,
+    参照識別子: Sequence[str] | None = None,
+    参照信頼: Sequence[float] | None = None,
+) -> tuple[str, str | None, list[str]]:
+    """後段HDSを使わず、能力核自身で参照差と証拠閉包を分離して閉じる。"""
     answer = result.参照最有力候補ID
     if answer is not None:
+        quality = 参照確定品質判定(
+            result,
+            参照識別子=参照識別子,
+            参照信頼=参照信頼,
+        )
+        if not quality.閉包:
+            return (
+                "SUSPEND",
+                None,
+                [
+                    "MINIDORA_MODEL_CORE_REFERENCE_EVIDENCE_NOT_CLOSED",
+                    quality.理由,
+                ],
+            )
         return (
             "APPROVE",
             answer,
@@ -184,6 +350,7 @@ def _能力核終端(result: 模型結果) -> tuple[str, str | None, list[str]]:
                 "MINIDORA_MODEL_CORE_SELECTED",
                 "REFERENCE_CONTRIBUTION_PRESENT",
                 "REFERENCE_DIFFERENCE_SELECTED",
+                quality.理由,
             ],
         )
 
@@ -235,7 +402,8 @@ def HDSMINIDORA模型評価(
     ids = tuple(参照識別子 or tuple(f"reference:{i}" for i in range(len(data_irs))))
     if len(ids) != len(data_irs):
         raise ValueError("参照識別子はData IRと同数である必要がある")
-    if 参照信頼 is not None and len(tuple(参照信頼)) != len(data_irs):
+    confidence_values = tuple(参照信頼) if 参照信頼 is not None else None
+    if confidence_values is not None and len(confidence_values) != len(data_irs):
         raise ValueError("参照信頼はData IRと同数である必要がある")
     ref_internal = tuple(
         HDS内部言語状態(
@@ -264,7 +432,11 @@ def HDSMINIDORA模型評価(
             参照状態=ref_internal,
         )
 
-    runtime_state, answer, reasons = _能力核終端(result)
+    runtime_state, answer, reasons = _能力核終端(
+        result,
+        参照識別子=ids,
+        参照信頼=confidence_values,
+    )
     reasons.extend(("MINIDORA_CAPABILITY_CORE_TERMINAL", "CAPABILITY_PROJECTION_V1", "CAPABILITY_STATE_DELTA_V1"))
     if ability_structures:
         reasons.append("HDS_ACTION_DELTA_ATTACHED")
@@ -293,5 +465,7 @@ __all__ = [
     "HDS内部言語状態",
     "HDS能力作用構造射影",
     "HDSMINIDORA射影結果",
+    "参照確定品質",
+    "参照確定品質判定",
     "HDSMINIDORA模型評価",
 ]
