@@ -20,6 +20,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: payload断片監査
+        shell: bash
+        run: |
+          echo '1de709e1ddc097495809e145a293cd1adb4eacd478de62c21f40dde3d4bb8846  tools/.precision_gate_payload/b64_00' | sha256sum -c -
+          echo '12b10c5a56f8dfb60e515dc7b09f8dd632194413b66a0f86e62ffbac9d6e43c7  tools/.precision_gate_payload/b64_01' | sha256sum -c -
+          echo 'b8a186414010fc4ac0dac16962ac49b9086916aba51aa07494a934da7ab37071  tools/.precision_gate_payload/b64_02' | sha256sum -c -
+          echo 'bdeb03485d0b1cc64e888f2bc73e810f63eca247ac28eb4eedc9014083d48c82  tools/.precision_gate_payload/b64_03' | sha256sum -c -
+          echo '18083f3e596ebb7eb89ca6b1a9906753d7f62a29e5a4e5927d448b62c814d250  tools/.precision_gate_payload/b64_04' | sha256sum -c -
       - name: 適用script復元・検証・実行
         shell: bash
         run: |
