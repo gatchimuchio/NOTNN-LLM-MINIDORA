@@ -1,0 +1,181 @@
+# 01 GLM作用構文
+
+## 1. GLM-5.3-Flashから抽出した最小作用列
+
+```text
+INPUT
+↓
+MODALITY_ADAPTER_IF_REQUIRED
+↓
+CANONICAL_REPRESENTATION
+↓
+COMMON_TRANSFORM
+↓
+SELECT_EFFORT_BUDGET
+↓
+
+LOCAL_STATE_UPDATE
+↓
+CONSTRAINED_PARALLEL_STATE_MIX
+↓
+LOCAL_STATE_UPDATE
+↓
+CONSTRAINED_PARALLEL_STATE_MIX
+↓
+LOCAL_STATE_UPDATE
+↓
+CONSTRAINED_PARALLEL_STATE_MIX
+↓
+
+IF retrieval-plan invalid
+ OR evidence changed
+ OR contradiction exists
+ OR evidence gap exists
+ OR global period reached:
+    COMPRESS_SEARCH_INDEX
+    ↓
+    SELECT_GLOBAL_REFERENCE_IDS
+    ↓
+    LEASE_RETRIEVAL_PLAN
+ELSE:
+    REUSE_RETRIEVAL_PLAN
+↓
+LOAD_EXACT_EVIDENCE
+↓
+COMMON_ACTION
++
+ROUTE_SPECIALIST_ACTIONS_TOPK
+↓
+MERGE_CANDIDATE_EFFECTS
+↓
+CANDIDATE_PROPOSE
+↓
+J/HDS
+```
+
+## 2. 生成効率補助
+
+```text
+DRAFT_AHEAD
+↓
+VERIFY_PREFIX
+├─ valid   → ACCEPT_PREFIX
+└─ invalid → ROLLBACK
+```
+
+これはJ/HDSの採否とは別責任。
+
+## 3. memory/reference構文
+
+```text
+M_ARCHIVE
+  exact evidence / provenance-preserving
+
+M_WORKING
+  request-local working differences / checkpoints
+
+M_INDEX
+  compressed coarse search index
+
+M_RETRIEVAL_PLAN
+  selected source IDs + finite lease
+```
+
+作用:
+
+```text
+NEW_OBSERVATION
+↓
+UPDATE_WORKING_STATE
+↓
+CHECK_RETRIEVAL_PLAN_VALIDITY
+├─ valid
+│   └→ REUSE_PLAN
+└─ invalid
+    ├→ UPDATE_OR_REBUILD_INDEX
+    ├→ SELECT_REFERENCE_IDS
+    └→ CREATE_PLAN_LEASE
+↓
+READ_EXACT_ARCHIVE
+```
+
+## 4. parallel-state構文
+
+```text
+STATE_LANE[0]
+STATE_LANE[1]
+STATE_LANE[2]
+STATE_LANE[3]
+↓
+CONSTRAINED_READ_MIX
+↓
+TRANSFORM
+↓
+CONSTRAINED_WRITE_MIX
+↓
+STATE_LANE[0..3]
+```
+
+`0..3`へ意味役割は割り当てない。
+
+## 5. blocker構文
+
+```text
+BLOCKER
+↓
+CLASSIFY_CAUSE
+├─ evidence/reference/provenance/observation
+│   ├→ INVALIDATE_RETRIEVAL_PLAN
+│   └→ REOBSERVE_ON_NEXT_R_CYCLE
+├─ depth/budget/search exhaustion
+│   └→ RAISE_EFFORT_CANDIDATE
+└─ unresolved
+    └→ SUSPEND_TO_J
+```
+
+## 6. K3と共有する作用
+
+以下はGLM独自作用として二重化しない。
+
+```text
+SELECTIVE_STATE_UPDATE
+LOCAL ↔ GLOBAL RECONCILE
+CHECKPOINT REENTRY
+COMMON + SPECIALIST ACTIONS
+EFFORT CONTROL
+CANDIDATE / J AUTHORITY SEPARATION
+```
+
+## 7. MINIDORAでの命令名
+
+```text
+COMPRESS_SEARCH_INDEX
+  → HDS参照索引圧縮
+
+SELECT_GLOBAL_REFERENCE_IDS / LEASE_RETRIEVAL_PLAN
+  → HDS参照計画作成
+
+LOAD_EXACT_EVIDENCE
+  → HDS参照計画適用
+
+REUSE_RETRIEVAL_PLAN
+  → HDS参照計画再利用可能 + HDS参照計画消費
+
+INVALIDATE_RETRIEVAL_PLAN
+  → HDS参照計画無効化
+
+CONSTRAINED_READ/WRITE_MIX
+  → HDS並列状態読書混合
+
+LOCAL/GLOBAL POLICY
+  → HDS多時間尺度政策 + HDS大域再照合判断
+
+BLOCKER RECOVERY
+  → HDS阻害回復方針
+
+DRAFT / VERIFY / ROLLBACK
+  → HDS先行草案検証
+
+MODALITY ADAPTER BOUNDARY
+  → HDS異種入力射影
+```
