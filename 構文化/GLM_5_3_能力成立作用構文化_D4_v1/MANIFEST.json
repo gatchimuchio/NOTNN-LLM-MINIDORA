@@ -1,0 +1,28 @@
+{
+  "schema": "minidora.constructuration.package.v1",
+  "name": "GLM-5.3系 能力成立作用構文化 D4 v1",
+  "date": "2026-09-02",
+  "language": "ja",
+  "observation_depth": "D4",
+  "files": [
+    "README.md",
+    "00_統合報告.md",
+    "01_GLM作用構文.md",
+    "02_K3との差分.md",
+    "03_MINIDORA還元対応.md",
+    "D4_WEIGHT_AUDIT_SUMMARY.json",
+    "MANIFEST.json"
+  ],
+  "comparison_index": "../K3_GLM_作用比較索引_v1.md",
+  "implementation_contract": "../../設計/33_GLM還元_参照計画と並列作業状態_v1.md",
+  "runtime_modules": [
+    "../../src/minidora/hds参照計画.py",
+    "../../src/minidora/hds並列作業状態.py",
+    "../../src/minidora/hds多時間尺度.py",
+    "../../src/minidora/hds能力経路_v3.py",
+    "../../src/minidora/構文化由来.py"
+  ],
+  "tests": [
+    "../../tests/test_glm_構文化還元.py"
+  ]
+}
