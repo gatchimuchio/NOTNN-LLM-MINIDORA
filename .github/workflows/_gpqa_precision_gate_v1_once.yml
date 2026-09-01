@@ -1,0 +1,88 @@
+name: MINIDORA GPQA precision gate v1 one-shot
+
+on:
+  push:
+    paths:
+      - '.github/workflows/_gpqa_precision_gate_v1_once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+      PRECISION_GATE_PRODUCT_SHA: 9e90f73609eae4e883d6c874f1b19670465f6f93
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: GPQA Diamond 198問 precision gate controlled A/B
+        id: bench
+        run: python tools/benchmark_formal.py gpqa-diamond --controlled-ab --out gpqa_precision_gate_v1_measurement.json
+      - name: 結果記録生成
+        if: steps.bench.outcome == 'success'
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path('gpqa_precision_gate_v1_measurement.json')
+          d=json.loads(p.read_text(encoding='utf-8'))
+          m=d['metrics']; cb=d.get('controlled_baseline') or {}; cd=d.get('controlled_delta') or {}
+          pre={'correct':24,'total':198,'accuracy_percent':12.121212121212121,'answered':119,'answer_rate_percent':60.101010101010104,'answered_accuracy_percent':20.168067226890756,'suspended':79}
+          reasons=m.get('reason_counts',{})
+          gate_reasons={k:v for k,v in reasons.items() if any(x in k for x in ('EVIDENCE_NOT_CLOSED','SINGLE_WEAK_SOURCE','STRUCTURAL_EVIDENCE','MULTI_SOURCE_WEAK','REVERSE_AGGREGATE'))}
+          comparison={
+            'pre_gate':pre,
+            'post_gate':{k:m.get(k) for k in ('correct','total','accuracy_percent','answered','answer_rate_percent','answered_accuracy_percent','suspended')},
+            'delta_vs_pre_gate':{
+              'correct':m.get('correct',0)-pre['correct'],
+              'accuracy_points':m.get('accuracy_percent',0)-pre['accuracy_percent'],
+              'answered':m.get('answered',0)-pre['answered'],
+              'answer_rate_points':m.get('answer_rate_percent',0)-pre['answer_rate_percent'],
+              'answered_accuracy_points':m.get('answered_accuracy_percent',0)-pre['answered_accuracy_percent'],
+              'suspended':m.get('suspended',0)-pre['suspended'],
+            },
+            'gate_reason_counts':gate_reasons,
+            'specialist_actions_invoked':m.get('specialist_actions_invoked'),
+          }
+          out=Path('評価/GPQA_Diamond_参照証拠閉包Gate_v1_実測_2026-09-02.md')
+          out.parent.mkdir(parents=True,exist_ok=True)
+          lines=[
+            '# GPQA Diamond 参照証拠閉包Gate v1 実測', '',
+            f"- 製品commit: `{os.environ['PRECISION_GATE_PRODUCT_SHA']}`",
+            '- 問題数: 198', '- 専門module: 除外', '- gold: 推論後採点のみ', '',
+            '## Gate前後比較','', '```json',json.dumps(comparison,ensure_ascii=False,indent=2),'```','',
+            '## Metrics','', '```json',json.dumps(m,ensure_ascii=False,indent=2),'```','',
+            '## Controlled baseline','', '```json',json.dumps(cb,ensure_ascii=False,indent=2),'```','',
+            '## Controlled delta','', '```json',json.dumps(cd,ensure_ascii=False,indent=2),'```','',
+            '## Protocol','', '```json',json.dumps(d.get('protocol'),ensure_ascii=False,indent=2),'```','',
+          ]
+          out.write_text('\n'.join(lines),encoding='utf-8')
+          print('PRECISION_GATE_COMPARISON='+json.dumps(comparison,ensure_ascii=False))
+          PY
+      - name: 生JSON保存
+        if: steps.bench.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-gpqa-precision-gate-v1
+          path: gpqa_precision_gate_v1_measurement.json
+          if-no-files-found: error
+      - name: 結果をmainへ還元して一時workflowを除去
+        if: steps.bench.outcome == 'success'
+        shell: bash
+        run: |
+          rm -f .github/workflows/_gpqa_precision_gate_v1_once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'docs: 証拠閉包Gate後GPQA実測結果を記録'
+          git push origin HEAD:main
