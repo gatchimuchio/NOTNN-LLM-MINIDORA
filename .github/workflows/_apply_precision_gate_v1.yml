@@ -20,11 +20,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: 適用script検証と実行
+      - name: 適用script復元・検証・実行
         shell: bash
         run: |
-          echo 'd92117140b1c2ada4334e5101903b9c6c4638b49e8e88d07c61f218ca04cd350  tools/.precision_gate_payload/apply_precision_gate_v1.py' | sha256sum -c -
-          python tools/.precision_gate_payload/apply_precision_gate_v1.py
+          cat tools/.precision_gate_payload/b64_0* | base64 -d > /tmp/apply_precision_gate_v1.py
+          echo 'd92117140b1c2ada4334e5101903b9c6c4638b49e8e88d07c61f218ca04cd350  /tmp/apply_precision_gate_v1.py' | sha256sum -c -
+          python /tmp/apply_precision_gate_v1.py
           rm -rf tools/.precision_gate_payload
           rm -f .github/workflows/_apply_precision_gate_v1.yml
       - name: パッケージ導入
