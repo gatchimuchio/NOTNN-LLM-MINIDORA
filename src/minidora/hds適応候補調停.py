@@ -5,7 +5,7 @@ from typing import Callable
 
 from .hds_choice_runtime import HDS選択実行結果, HDS選択推論実行
 from .hds_ir import HDSIR
-from .hds能力経路_v2 import HDS能力経路V2候補提案実行
+from .hds能力経路_v3 import HDS能力経路V3候補提案実行
 from .k3_functional import K3相当能力核
 from .模型 import MINIDORA模型核
 from .参照 import 参照記録
@@ -99,9 +99,9 @@ def HDS適応候補提案実行(
     基礎能力核: K3相当能力核,
     模型核: MINIDORA模型核 | None = None,
 ) -> HDS選択実行結果:
-    """同一HDS-IR・同一Dataで能力v2 workerと基礎workerを生成し、一般規則で調停する。"""
+    """同一HDS-IR・同一Dataで能力v3 workerと基礎workerを生成し、一般規則で調停する。"""
 
-    primary = HDS能力経路V2候補提案実行(
+    primary = HDS能力経路V3候補提案実行(
         question_ir,
         references,
         コンパイル=コンパイル,
