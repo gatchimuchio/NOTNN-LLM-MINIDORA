@@ -53,8 +53,7 @@ jobs:
           import json, math, os, pathlib
           shards=[]
           for p in sorted(pathlib.Path('glm_audit/manifests').glob('*.json')):
-              m=json.loads(p.read_text())
-              shards.extend(m['shards'])
+              shards.extend(json.loads(p.read_text())['shards'])
           batch_size=max(1, math.ceil(len(shards)/220))
           batches=[]
           for i in range(0, len(shards), batch_size):
@@ -87,16 +86,21 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
-          import json, os, pathlib, subprocess, sys
+          import concurrent.futures, json, os, pathlib, subprocess, sys
           specs=json.loads(os.environ['BATCH_JSON'])
           pathlib.Path('glm_audit/results').mkdir(parents=True,exist_ok=True)
-          failures=[]
-          for spec in specs:
+          def run_one(spec):
               env=os.environ.copy()
               env['SHARD_SPEC']=json.dumps(spec,separators=(',',':'))
               rc=subprocess.run([sys.executable,'tools/glm_weight_stream_audit.py','audit-shard','--out-dir','glm_audit/results'],env=env).returncode
-              if rc:
-                  failures.append({'repo':spec['repo'],'path':spec['path'],'returncode':rc})
+              return spec, rc
+          failures=[]
+          with concurrent.futures.ThreadPoolExecutor(max_workers=max(1,len(specs))) as ex:
+              futures=[ex.submit(run_one,s) for s in specs]
+              for fut in concurrent.futures.as_completed(futures):
+                  spec,rc=fut.result()
+                  if rc:
+                      failures.append({'repo':spec['repo'],'path':spec['path'],'returncode':rc})
           pathlib.Path('glm_audit/batch_status.json').write_text(json.dumps({'failures':failures},indent=2))
           if failures:
               raise SystemExit(1)
