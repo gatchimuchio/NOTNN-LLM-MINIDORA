@@ -1,0 +1,19 @@
+name: Cancel duplicate GLM D4 audit run
+
+on:
+  push:
+    paths:
+      - ".github/workflows/cancel_glm_duplicate.yml"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cancel-duplicate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel duplicate run 33557727984
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST repos/${{ github.repository }}/actions/runs/33557727984/cancel || true
