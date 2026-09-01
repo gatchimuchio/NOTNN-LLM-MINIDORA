@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/_apply_precision_gate_v1.yml'
-      - 'tools/.precision_gate_payload/proposed.patch'
+      - 'tools/.precision_gate_payload/**'
 
 permissions:
   contents: write
@@ -20,12 +20,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: 差分検証と適用
+      - name: 適用script検証と実行
         shell: bash
         run: |
-          echo 'd5a8b3471a5ebad3e29a3ab7ff7389c4ac22efd104e16c7505318ecd0177a546  tools/.precision_gate_payload/proposed.patch' | sha256sum -c -
-          git apply --check tools/.precision_gate_payload/proposed.patch
-          git apply tools/.precision_gate_payload/proposed.patch
+          echo 'd92117140b1c2ada4334e5101903b9c6c4638b49e8e88d07c61f218ca04cd350  tools/.precision_gate_payload/apply_precision_gate_v1.py' | sha256sum -c -
+          python tools/.precision_gate_payload/apply_precision_gate_v1.py
           rm -rf tools/.precision_gate_payload
           rm -f .github/workflows/_apply_precision_gate_v1.yml
       - name: パッケージ導入
