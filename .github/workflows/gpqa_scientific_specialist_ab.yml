@@ -1,0 +1,59 @@
+name: MINIDORA GPQA scientific specialist A-B
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - tools/benchmark_formal_scientific_ab.py
+      - .github/workflows/gpqa_scientific_specialist_ab.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gpqa-scientific-specialist-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: 構文検証
+        run: python -m compileall -q src tests tools
+      - name: 科学専門能力の既存回帰試験
+        run: python -m unittest discover -s tests -p 'test_科学専門能力_健全.py' -v
+      - name: GPQA Diamond 198問 科学専門能力 controlled A-B実測
+        run: python tools/benchmark_formal_scientific_ab.py gpqa-diamond --controlled-ab --out gpqa_scientific_specialist_ab.json
+      - name: 結果要約
+        if: always()
+        run: |
+          if [ -f gpqa_scientific_specialist_ab.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('gpqa_scientific_specialist_ab.json').read_text(encoding='utf-8'))
+          print(json.dumps(data['protocol'], ensure_ascii=False, indent=2))
+          print(json.dumps(data['metrics'], ensure_ascii=False, indent=2))
+          print(json.dumps(data.get('controlled_baseline'), ensure_ascii=False, indent=2))
+          print(json.dumps(data.get('controlled_delta'), ensure_ascii=False, indent=2))
+          print(json.dumps(data.get('scientific_specialist'), ensure_ascii=False, indent=2))
+          PY
+          fi
+      - name: 測定成果を保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-gpqa-scientific-specialist-ab
+          path: gpqa_scientific_specialist_ab.json
+          if-no-files-found: warn
