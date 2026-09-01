@@ -1,0 +1,55 @@
+name: MINIDORA precision gate v1 apply
+
+on:
+  push:
+    paths:
+      - '.github/workflows/_apply_precision_gate_v1.yml'
+      - 'tools/.precision_gate_payload/proposed.patch'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: 差分検証と適用
+        shell: bash
+        run: |
+          echo 'd5a8b3471a5ebad3e29a3ab7ff7389c4ac22efd104e16c7505318ecd0177a546  tools/.precision_gate_payload/proposed.patch' | sha256sum -c -
+          git apply --check tools/.precision_gate_payload/proposed.patch
+          git apply tools/.precision_gate_payload/proposed.patch
+          rm -rf tools/.precision_gate_payload
+          rm -f .github/workflows/_apply_precision_gate_v1.yml
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: リポジトリ整合性監査
+        run: python tools/repository_consistency_check.py
+      - name: 日本語基底監査
+        run: python tools/日本語基底監査.py
+      - name: 構文確認
+        run: python -m compileall -q src tests tools
+      - name: 全単体試験
+        run: python -m unittest discover -s tests -v
+      - name: 規模測定回帰
+        run: python tools/規模測定.py
+      - name: module CLI smoke
+        run: python -m minidora '2+3'
+      - name: console CLI smoke
+        run: minidora '2+3'
+      - name: main還元
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'feat: 参照証拠閉包Gateを統合'
+          git push origin HEAD:main
