@@ -1,0 +1,188 @@
+name: MINIDORA validate product route 6584ac3
+
+on:
+  push:
+    branches:
+      - audit/revalidate-structure-on-highwater
+    paths:
+      - .github/workflows/validate_product_route_once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: minidora-validate-product-route-6584ac3
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12', '3.13', '3.14']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6584ac399531a9e9f37cfabe32d55c42fa827c74
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: リポジトリ整合性監査
+        run: python tools/repository_consistency_check.py
+      - name: 日本語基底監査
+        run: python tools/日本語基底監査.py
+      - name: 構文確認
+        run: python -m compileall -q src tests tools
+      - name: 単体試験
+        run: python -m unittest discover -s tests -v
+      - name: module CLI smoke
+        run: python -m minidora "2+3"
+
+  gpqa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - start: 0
+            limit: 50
+            part: "000-049"
+          - start: 50
+            limit: 50
+            part: "050-099"
+          - start: 100
+            limit: 50
+            part: "100-149"
+          - start: 150
+            limit: 48
+            part: "150-197"
+    env:
+      OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6584ac399531a9e9f37cfabe32d55c42fa827c74
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: GPQA標準製品経路
+        run: >-
+          python tools/benchmark_formal.py gpqa-diamond
+          --controlled-ab
+          --start-index ${{ matrix.start }}
+          --limit ${{ matrix.limit }}
+          --out gpqa_chunk_${{ matrix.start }}.json
+      - name: chunk保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-product-route-chunk-${{ matrix.part }}
+          path: gpqa_chunk_${{ matrix.start }}.json
+          if-no-files-found: warn
+          retention-days: 90
+
+  aggregate:
+    needs: gpqa
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6584ac399531a9e9f37cfabe32d55c42fa827c74
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: chunk取得
+        uses: actions/download-artifact@v4
+        with:
+          pattern: minidora-product-route-chunk-*
+          path: chunks
+          merge-multiple: true
+      - name: 198問集約
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, str(Path.cwd() / 'tools'))
+          import benchmark
+
+          files = sorted(Path('chunks').glob('gpqa_chunk_*.json'))
+          if len(files) != 4:
+              raise SystemExit(f'expected 4 chunk files, got {len(files)}')
+          payloads = [json.loads(p.read_text(encoding='utf-8')) for p in files]
+          details = sorted(
+              [row for p in payloads for row in p.get('details', [])],
+              key=lambda row: int(row['index']),
+          )
+          indices = [int(row['index']) for row in details]
+          if indices != list(range(198)):
+              raise SystemExit(f'incomplete/duplicate indices count={len(indices)}')
+          protocols = [p['protocol'] for p in payloads]
+          csv_hashes = {p['dataset_csv_sha256'] for p in protocols}
+          zip_hashes = {p['dataset_zip_sha256'] for p in protocols}
+          openalex_values = {bool(p['openalex_enabled']) for p in protocols}
+          if len(csv_hashes) != 1 or len(zip_hashes) != 1 or len(openalex_values) != 1:
+              raise SystemExit('chunk protocol mismatch')
+          combined = benchmark._result_payload(
+              details=details,
+              selected=range(198),
+              zip_hash=next(iter(zip_hashes)),
+              csv_hash=next(iter(csv_hashes)),
+              repository_commit='6584ac399531a9e9f37cfabe32d55c42fa827c74',
+              openalex_enabled=next(iter(openalex_values)),
+              controlled_ab=True,
+          )
+          protocol = combined.setdefault('protocol', {})
+          protocol['benchmark_variant'] = 'committed-product-standard-route-v1'
+          protocol['benchmark_target_commit'] = '6584ac399531a9e9f37cfabe32d55c42fa827c74'
+          protocol['inference_patch'] = False
+          protocol['runner'] = 'tools/benchmark_formal.py unchanged; product HDS supervisor owns unified fallback'
+          fallback_commits = sum(
+              'HIGHWATER_MONOTONIC_FALLBACK_COMMIT' in row.get('reasons', [])
+              for row in details
+          )
+          fallback_correct = sum(
+              'HIGHWATER_MONOTONIC_FALLBACK_COMMIT' in row.get('reasons', []) and bool(row.get('correct'))
+              for row in details
+          )
+          combined['highwater_validation'] = {
+              'historic_highwater_correct': 55,
+              'candidate_correct': int(combined['metrics']['correct']),
+              'candidate_delta_vs_historic_highwater': int(combined['metrics']['correct']) - 55,
+              'fallback_committed_cases': fallback_commits,
+              'fallback_correct_cases': fallback_correct,
+              'promotion_eligible_by_score': int(combined['metrics']['correct']) >= 55,
+              'product_route_committed': True,
+              'benchmark_inference_patch': False,
+          }
+          Path('gpqa_product_route_measurement.json').write_text(
+              json.dumps(combined, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
+          )
+          print('=== metrics ===')
+          print(json.dumps(combined['metrics'], ensure_ascii=False, indent=2))
+          print('=== controlled_baseline ===')
+          print(json.dumps(combined.get('controlled_baseline'), ensure_ascii=False, indent=2))
+          print('=== controlled_delta ===')
+          print(json.dumps(combined.get('controlled_delta'), ensure_ascii=False, indent=2))
+          print('=== highwater_validation ===')
+          print(json.dumps(combined['highwater_validation'], ensure_ascii=False, indent=2))
+          PY
+      - name: 最終成果保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-gpqa-product-route-6584ac3
+          path: gpqa_product_route_measurement.json
+          if-no-files-found: error
+          retention-days: 90
