@@ -64,7 +64,6 @@ jobs:
           from minidora.hds監督選択runtime import HDS監督選択実行
           from minidora.hds統一実行 import HDS統一選択評価
           from minidora.hds統一状態循環 import HDS統一状態Session
-          from minidora.runtime import _LLM互換主体状態
           from minidora.能力状態差循環 import 標準能力模型核
 
           _last_key = None
@@ -140,16 +139,13 @@ jobs:
                       基礎能力核=基礎能力核,
                   )
 
-              # 高水準正本が閉包した問題は1bitも変更しない。
               if legacy.状態 == 'APPROVE' and legacy.回答ラベル is not None:
                   return legacy
 
-              # 今回追加要素は正本未閉包問題だけへ単調fallbackする。
-              subject = _LLM互換主体状態()
               session = HDS統一状態Session(
                   str(question_ir.正規化文 or question_ir.原文),
                   final_refs,
-                  主体状態=subject,
+                  主体状態=None,
                   認知世界ID=str(question_ir.認知世界ID or ''),
               )
               unified = HDS統一選択評価(
@@ -158,7 +154,7 @@ jobs:
                   コンパイル=コンパイル,
                   模型核=標準能力模型核(),
                   統一session=session,
-                  主体状態=subject,
+                  主体状態=None,
               )
               if unified.状態 == 'APPROVE' and unified.回答ラベル is not None:
                   return replace(
@@ -227,7 +223,6 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
-          from collections import Counter
           import json
           from pathlib import Path
           import sys
