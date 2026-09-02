@@ -1,0 +1,47 @@
+name: MINIDORA materialize clean high-water candidate
+
+on:
+  push:
+    branches:
+      - candidate/highwater-structure-product
+    paths:
+      - .github/workflows/materialize_highwater_candidate_once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: candidate/highwater-structure-product
+          fetch-depth: 0
+      - name: 製品差分だけ抽出
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin 6584ac399531a9e9f37cfabe32d55c42fa827c74
+          git checkout 6584ac399531a9e9f37cfabe32d55c42fa827c74 -- \
+            src/minidora/hds並列作業状態.py \
+            src/minidora/hds作用実効監査.py \
+            src/minidora/hds参照計画.py \
+            src/minidora/hds多時間尺度.py \
+            src/minidora/hds形成循環.py \
+            src/minidora/hds監督選択runtime.py \
+            src/minidora/hds統一実行.py \
+            src/minidora/hds統一状態循環.py \
+            src/minidora/hds能力経路_v3.py \
+            src/minidora/hds適応候補調停.py \
+            src/minidora/runtime.py \
+            src/minidora/構文化由来.py \
+            tests/test_glm_構文化還元.py \
+            tests/test_hds統一状態循環_repo.py \
+            設計/34_構文化統一状態循環_v1.md
+          rm .github/workflows/materialize_highwater_candidate_once.yml
+          git add -A
+          git diff --cached --check
+          git commit -m '候補: 55正本へ構文化統一fallbackを単調追加'
+          git push origin HEAD:candidate/highwater-structure-product
