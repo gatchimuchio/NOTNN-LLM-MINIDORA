@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from hashlib import sha256
 import json
+from typing import Callable
 
 from .hds_choice_runtime import HDS選択実行結果, HDS選択推論実行
 from .hds_ir import HDSIR
@@ -116,6 +117,7 @@ class _Session:
         参照供給器: 参照供給器 | None,
         計算実行器_: 計算実行器 | None,
         初期選択: HDS選択実行結果 | None,
+        評価実行: Callable[[tuple[参照記録, ...]], HDS選択実行結果] | None = None,
     ) -> None:
         self.question_ir = question_ir
         self.search_ir = HDSR質問射影(question_ir)
@@ -131,6 +133,7 @@ class _Session:
         self.compute_done = False
         self._compute_plan_checked = False
         self._compute_plan = None
+        self.評価実行 = 評価実行
         self.initial = 初期選択 if 初期選択 is not None else self._normal()
         self.current = self.initial
 
@@ -141,6 +144,9 @@ class _Session:
         local: bool = True,
         formal_model: bool = True,
     ) -> HDS選択実行結果:
+        # 追加参照・計算後も同じ統一評価入口へ戻し、初回だけ新経路になる二重構造を防ぐ。
+        if self.評価実行 is not None:
+            return self.評価実行(self.references)
         return HDS選択推論実行(
             self.question_ir,
             self.references,
@@ -358,6 +364,7 @@ def HDS監督選択実行(
     HDS制御: HDS介入制御 | None = None,
     HDS介入予算: int = 6,
     初期選択: HDS選択実行結果 | None = None,
+    評価実行: Callable[[tuple[参照記録, ...]], HDS選択実行結果] | None = None,
 ) -> HDS監督選択結果:
     """HDSをMINIDORAフィードバックループの安全弁として実行する。
 
@@ -373,6 +380,7 @@ def HDS監督選択実行(
         参照供給器=参照供給器,
         計算実行器_=計算実行器_,
         初期選択=初期選択,
+        評価実行=評価実行,
     )
 
     if HDS制御 is None or _approved(session.initial):
