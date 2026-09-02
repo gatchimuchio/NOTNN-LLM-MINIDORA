@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 
 from .hds_choice_runtime import HDS選択実行結果, HDS選択推論実行
 from .hds_ir import HDSIR
 from .hds能力経路_v3 import HDS能力経路V3候補提案実行
-from .k3_functional import K3相当能力核
+from .hds統一状態循環 import HDS統一状態Session, HDS統一状態政策
+if TYPE_CHECKING:
+    from .k3_functional import K3相当能力核
 from .模型 import MINIDORA模型核
 from .参照 import 参照記録
 
@@ -16,7 +18,6 @@ HDS候補worker = Callable[[HDSIR, tuple[参照記録, ...]], HDS選択実行結
 
 def _基礎提案化(result: HDS選択実行結果) -> HDS選択実行結果:
     """既存workerのAPPROVEを採用権限なしのPROPOSEへ落とす。"""
-
     if result.状態 != "APPROVE" or result.回答ラベル is None or result.回答内容 is None:
         return result
     return replace(
@@ -31,7 +32,6 @@ def _基礎提案化(result: HDS選択実行結果) -> HDS選択実行結果:
 
 def _能力経路優先可能(result: HDS選択実行結果) -> bool:
     """raw候補横断更新ではなく、実観測変化または専門作用消費だけを根拠にする。"""
-
     if result.状態 != "PROPOSE" or result.回答ラベル is None or result.回答内容 is None:
         return False
     reasons = set(result.理由)
@@ -40,6 +40,7 @@ def _能力経路優先可能(result: HDS選択実行結果) -> bool:
         or "HDS_ACTION_DELTA_CONSUMED" in reasons
         or "C_LOCAL_VIEW_RECHECK_SELECTED" in reasons
         or "NEW_REFERENCE_STATE_CONSUMED" in reasons
+        or any(str(x).startswith("UNIFIED_EVALUATION_ATTEMPTS:") and not str(x).endswith(":1") for x in reasons)
     )
 
 
@@ -49,17 +50,9 @@ def HDS適応候補調停(
 ) -> HDS選択実行結果:
     """観測状態の実変化に基づいて二つの候補workerを調停する。
 
-    判断規則:
-    - 能力経路が専門作用を実消費した、またはlocal/new-referenceという実観測変化を経て
-      PROPOSEを形成した場合だけ、その能力提案を基礎経路より優先する。
-    - `候補横断更新数 > 0` 単独は採用根拠にしない。同Dataの候補縮小で作れるためである。
-    - 上記が成立しない場合は、基礎経路が閉じた場合だけ基礎提案を採用候補へ残す。
-    - 双方に採用可能な提案が無ければSUSPENDする。
-
-    この関数はgold、正解ラベル、ベンチケースIDを受け取らない。
-    COMMIT権限も持たない。
+    V3統一状態循環が参照集合を実際に変更して形成したPROPOSEも、
+    `UNIFIED_EVALUATION_ATTEMPTS>1` として実観測変化に含める。COMMIT権限は持たない。
     """
-
     if _能力経路優先可能(能力提案):
         return replace(
             能力提案,
@@ -96,23 +89,32 @@ def HDS適応候補提案実行(
     references: tuple[参照記録, ...],
     *,
     コンパイル,
-    基礎能力核: K3相当能力核,
+    基礎能力核: K3相当能力核 | None = None,
     模型核: MINIDORA模型核 | None = None,
+    統一session: HDS統一状態Session | None = None,
+    統一政策: HDS統一状態政策 | None = None,
+    主体状態: object | None = None,
 ) -> HDS選択実行結果:
-    """同一HDS-IR・同一Dataで能力v3 workerと基礎workerを生成し、一般規則で調停する。"""
+    """同一HDS-IR・同一Dataで能力v3 workerと基礎workerを生成し、一般規則で調停する。
 
+    正式MINIDORA模型核が与えられる場合、旧K3 helperは必須ではない。
+    """
     primary = HDS能力経路V3候補提案実行(
         question_ir,
         references,
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
         模型核=模型核,
+        統一session=統一session,
+        統一政策=統一政策,
+        主体状態=主体状態,
     )
     base = HDS選択推論実行(
         question_ir,
         references,
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
+        模型核=模型核,
         作業再作用=False,
         局所再照合=False,
     )
