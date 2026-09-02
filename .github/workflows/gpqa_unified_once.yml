@@ -16,6 +16,23 @@ jobs:
   benchmark:
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - start: 0
+            limit: 50
+            part: "000-049"
+          - start: 50
+            limit: 50
+            part: "050-099"
+          - start: 100
+            limit: 50
+            part: "100-149"
+          - start: 150
+            limit: 48
+            part: "150-197"
     env:
       OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
     steps:
@@ -132,27 +149,123 @@ jobs:
           if __name__ == "__main__":
               raise SystemExit(formal._benchmark.main())
           PY
-      - name: GPQA Diamond 198問 統一状態循環 controlled A/B
-        run: python /tmp/benchmark_unified_once.py gpqa-diamond --controlled-ab --out gpqa_unified_measurement.json
-      - name: 結果要約
+      - name: GPQA Diamond chunk controlled A/B
+        run: >-
+          python /tmp/benchmark_unified_once.py gpqa-diamond
+          --controlled-ab
+          --start-index ${{ matrix.start }}
+          --limit ${{ matrix.limit }}
+          --out gpqa_chunk_${{ matrix.start }}.json
+      - name: chunk成果保存
         if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-gpqa-unified-chunk-${{ matrix.part }}
+          path: gpqa_chunk_${{ matrix.start }}.json
+          if-no-files-found: warn
+          retention-days: 90
+
+  aggregate:
+    needs: benchmark
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 5d0c01f0f85ea23d1002819f978c7de9ddd4a3d0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: chunk取得
+        uses: actions/download-artifact@v4
+        with:
+          pattern: minidora-gpqa-unified-chunk-*
+          path: chunks
+          merge-multiple: true
+      - name: 198問へ集約
         shell: bash
         run: |
-          if [ -f gpqa_unified_measurement.json ]; then
-            python - <<'PY'
+          python - <<'PY'
+          from collections import Counter
           import json
           from pathlib import Path
-          p=json.loads(Path('gpqa_unified_measurement.json').read_text(encoding='utf-8'))
-          for key in ('protocol','metrics','controlled_baseline','controlled_delta','comparison_reference'):
+          import sys
+
+          sys.path.insert(0, str(Path.cwd() / 'tools'))
+          import benchmark
+
+          files = sorted(Path('chunks').glob('gpqa_chunk_*.json'))
+          if len(files) != 4:
+              raise SystemExit(f'expected 4 chunk files, got {len(files)}: {files}')
+          payloads = [json.loads(p.read_text(encoding='utf-8')) for p in files]
+          details = sorted(
+              [row for payload in payloads for row in payload.get('details', [])],
+              key=lambda row: int(row['index']),
+          )
+          indices = [int(row['index']) for row in details]
+          if indices != list(range(198)):
+              raise SystemExit(f'incomplete/duplicate GPQA indices: count={len(indices)} head={indices[:5]} tail={indices[-5:]}')
+
+          protocols = [p['protocol'] for p in payloads]
+          csv_hashes = {p['dataset_csv_sha256'] for p in protocols}
+          zip_hashes = {p['dataset_zip_sha256'] for p in protocols}
+          openalex_values = {bool(p['openalex_enabled']) for p in protocols}
+          if len(csv_hashes) != 1 or len(zip_hashes) != 1 or len(openalex_values) != 1:
+              raise SystemExit('chunk protocol mismatch')
+
+          combined = benchmark._result_payload(
+              details=details,
+              selected=range(198),
+              zip_hash=next(iter(zip_hashes)),
+              csv_hash=next(iter(csv_hashes)),
+              repository_commit='5d0c01f0f85ea23d1002819f978c7de9ddd4a3d0',
+              openalex_enabled=next(iter(openalex_values)),
+              controlled_ab=True,
+          )
+          first = protocols[0]
+          protocol = combined.setdefault('protocol', {})
+          for key in (
+              'benchmark_variant', 'runtime', 'controlled_ab_definition',
+              'unified_state_cycle', 'final_hds_judgement_wrapper',
+              'benchmark_target_commit', 'hds_role', 'initial_reference_route',
+              'current_additional_reference', 'candidate_resolution',
+              'gold_boundary', 'non_intervention_invariant'
+          ):
+              if key in first:
+                  protocol[key] = first[key]
+          protocol['parallel_partition'] = '4 independent index ranges; per-case inference and A/B reference set unchanged'
+
+          interventions = 0
+          intervention_cases = 0
+          actions = Counter()
+          for row in details:
+              found = 0
+              for reason in row.get('reasons', []):
+                  text = str(reason)
+                  if text.startswith('HDS_SUPERVISORY_INTERVENTIONS:'):
+                      try:
+                          found = int(text.rsplit(':', 1)[1])
+                      except ValueError:
+                          found = 0
+                  elif text.startswith('HDS_INTERVENTION_ACTION:'):
+                      actions[text.split(':', 1)[1]] += 1
+              interventions += found
+              intervention_cases += int(found > 0)
+          combined['metrics']['hds_supervisory_interventions'] = interventions
+          combined['metrics']['hds_intervention_cases'] = intervention_cases
+          combined['metrics']['hds_intervention_action_counts'] = dict(sorted(actions.items()))
+
+          out = Path('gpqa_unified_measurement.json')
+          out.write_text(json.dumps(combined, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          for key in ('metrics','controlled_baseline','controlled_delta','comparison_reference'):
               print(f'=== {key} ===')
-              print(json.dumps(p.get(key), ensure_ascii=False, indent=2))
+              print(json.dumps(combined.get(key), ensure_ascii=False, indent=2))
           PY
-          fi
-      - name: 成果保存
-        if: always()
+      - name: 最終成果保存
         uses: actions/upload-artifact@v4
         with:
           name: minidora-gpqa-unified-5d0c01f
           path: gpqa_unified_measurement.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 90
