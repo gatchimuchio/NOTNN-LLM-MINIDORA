@@ -115,6 +115,8 @@ class ミニドラ(_ミニドラV03):
                 ):
                     return self._HDS選択結果(要求_, hds_ir, tuple(references), initial)
 
+                # HDS監督選択実行が、55/198正本経路の完走と統一状態fallbackを
+                # 一つの製品経路として管理する。runtime側では再実装しない。
                 supervised = HDS監督選択実行(
                     hds_ir,
                     tuple(references),
@@ -124,6 +126,7 @@ class ミニドラ(_ミニドラV03):
                     参照供給器=self.参照供給器,
                     HDS制御=self.HDS監督制御,
                     初期選択=initial,
+                    統一fallback=True,
                 )
                 return self._HDS選択結果(要求_, hds_ir, supervised.参照, supervised.選択)
         return super().実行(要求_)

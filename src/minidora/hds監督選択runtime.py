@@ -350,6 +350,7 @@ def HDS監督選択実行(
     HDS制御: HDS介入制御 | None = None,
     HDS介入予算: int = 6,
     初期選択: HDS選択実行結果 | None = None,
+    統一fallback: bool = True,
 ) -> HDS監督選択結果:
     """HDSをMINIDORAフィードバックループの安全弁として実行する。
 
@@ -421,6 +422,47 @@ def HDS監督選択実行(
             break
 
     selection = session.final_result(records=tuple(records), stop_reasons=stop_reasons)
+
+    # 歴代最高性能の既存経路を先に完走させ、その経路が未閉包の時だけ
+    # K3/GLM/Llama3由来の統一状態循環を単調fallbackとして許可する。
+    # 既存APPROVEを再解釈・置換しない。
+    if 統一fallback and not _approved(selection) and 模型核 is not None:
+        from .hds統一実行 import HDS統一選択評価
+        from .hds統一状態循環 import HDS統一状態Session
+
+        unified_session = HDS統一状態Session(
+            str(question_ir.正規化文 or question_ir.原文),
+            tuple(session.references),
+            主体状態=None,
+            認知世界ID=str(question_ir.認知世界ID or ""),
+        )
+        unified = HDS統一選択評価(
+            question_ir,
+            tuple(session.references),
+            コンパイル=コンパイル,
+            模型核=模型核,
+            統一session=unified_session,
+            主体状態=None,
+        )
+        if _approved(unified):
+            inherited_reasons = []
+            if records:
+                inherited_reasons.extend((
+                    "HDS_FEEDBACK_SAFETY_VALVE",
+                    f"HDS_SUPERVISORY_INTERVENTIONS:{len(records)}",
+                ))
+                inherited_reasons.extend(
+                    "HDS_INTERVENTION_ACTION:" + row.作用.value for row in records
+                )
+            selection = replace(
+                unified,
+                理由=tuple(dict.fromkeys(
+                    tuple(unified.理由)
+                    + tuple(inherited_reasons)
+                    + ("HIGHWATER_MONOTONIC_FALLBACK_COMMIT",)
+                )),
+            )
+
     return HDS監督選択結果(
         selection,
         session.references,
