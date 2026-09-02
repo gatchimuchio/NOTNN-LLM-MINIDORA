@@ -16,7 +16,6 @@ from minidora.hds_reference import HDS参照検索 as _標準初期参照検索
 from minidora.hds介入制御 import 標準HDS介入制御
 from minidora.hds監督選択runtime import HDS監督選択実行
 from minidora.能力状態差循環 import 標準能力模型核
-from minidora.計算実行器 import 計算実行器
 
 
 _現在Provider = None
@@ -51,9 +50,7 @@ def _通常MINIDORA推論(
         question_ir,
         tuple(references),
         コンパイル=コンパイル,
-        基礎能力核=None,
-        模型核=標準能力模型核(),
-        正式模型評価=True,
+        基礎能力核=基礎能力核,
     )
 
 
@@ -102,10 +99,9 @@ def _監督HDS選択推論実行(*args, **kwargs):
         question_ir,
         references,
         コンパイル=コンパイル,
-        基礎能力核=None,
+        基礎能力核=基礎能力核,
         模型核=標準能力模型核(),
         参照供給器=_現在Provider,
-        計算実行器_=計算実行器(),
         HDS制御=標準HDS介入制御(),
         HDS介入予算=6,
         初期選択=initial,
@@ -143,12 +139,12 @@ def _介入統計(details):
 def _監督_result_payload(*args, **kwargs):
     payload = _original_result_payload(*args, **kwargs)
     protocol = payload.setdefault("protocol", {})
-    protocol["runtime"] = "minimal generic MINIDORA formal core + HDS safety valve on anomaly only; specialist modules excluded"
+    protocol["runtime"] = "current repository checkout; normal MINIDORA feedback loop + HDS safety valve on anomaly only"
     protocol["hds_role"] = "通常MINIDORAを俯瞰監視し、未閉包・競合・観測不足等の異常時だけ既存作用を起動。正常推論は完全透過"
     protocol["initial_reference_route"] = "HDS投入前と同じ標準HDS参照検索。追加RはHDS介入時だけ"
     protocol["current_additional_reference"] = "HDSが観測不足等を検出した場合だけ追加Rを許可"
-    protocol["candidate_resolution"] = "formal MINIDORA generic model core only; no specialist solver, no supervisory resolver, no HDS winner selection"
-    protocol["formal_model_core"] = True
+    protocol["candidate_resolution"] = "normal MINIDORA selection only; no supervisory resolver and no HDS winner selection"
+    protocol["formal_model_core"] = False
     protocol["final_hds_judgement_wrapper"] = False
     protocol["gold_boundary"] = "gold used only after baseline/current inference for scoring"
     protocol["non_intervention_invariant"] = "HDS interventions=0 => current selection object is the exact normal MINIDORA baseline result"

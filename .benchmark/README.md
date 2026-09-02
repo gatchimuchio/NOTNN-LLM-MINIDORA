@@ -1,15 +1,13 @@
-# MINIDORA ベンチ入口
+# MINIDORA ベンチ起動入口
 
-GPQA Diamond全数測定は重いため、通常pushでは自動起動しない。
-
-現行の正式起動経路:
+GPQA Diamondの現行測定は `.benchmark/GPQA_REQUEST.txt` を更新して `main` へ反映すると自動起動する。
 
 - workflow: `.github/workflows/gpqa_current_measure.yml`
-- trigger: `workflow_dispatch`
-- 実行: `python tools/benchmark_formal.py gpqa-diamond --controlled-ab --out gpqa_current_measurement.json`
+- 実行: `tools/benchmark.py gpqa-diamond`
 - 対象: GPQA Diamond 198問
+- 出力: `gpqa_current_measurement.json`
 - 保存: GitHub Actions artifact `minidora-gpqa-current-measurement`
 
-benchmarkはMINIDORA本体の汎用能力を観測するために使い、benchmark固有機能をcoreへ追加する入口にはしない。
+`workflow_dispatch` も残すが、外部操作環境からdispatchできない場合の迂回は行わない。requestファイル更新を正式な常設起動経路として使用する。
 
-現行セーブポイントの実測値は [`../評価/GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md`](../評価/GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md) を参照する。
+通常の再構築CIは、このrequestファイルだけの変更では起動しない。

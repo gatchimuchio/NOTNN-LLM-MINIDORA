@@ -29,7 +29,10 @@ def _文脈復元(raw: str) -> tuple[str, ...]:
 
 @dataclass(frozen=True, slots=True)
 class 言語確率模型状態:
-    """MINIDORA厳密LMの持続模型状態。"""
+    """MINIDORA厳密LMの持続模型状態。
+
+    `遷移計数` は全てのbackoff文脈を含む。実行時に正規化された確率へ変換する。
+    """
 
     次数: int
     加算平滑化: int
@@ -42,34 +45,12 @@ class 言語確率模型状態:
             raise ValueError("次数は1以上である必要がある")
         if self.加算平滑化 < 1:
             raise ValueError("加算平滑化は1以上である必要がある")
-        if self.形成文書数 < 0:
-            raise ValueError("形成文書数は0以上である必要がある")
         if EOS記号 not in self.語彙 or UNK記号 not in self.語彙:
             raise ValueError("語彙にはEOS/UNKが必要")
         if BOS記号 in self.語彙:
             raise ValueError("BOSは出力語彙へ含めない")
         if len(self.語彙) != len(set(self.語彙)):
             raise ValueError("語彙は一意である必要がある")
-
-        vocabulary = frozenset(self.語彙)
-        contexts: set[tuple[str, ...]] = set()
-        for context, rows in self.遷移計数:
-            if context in contexts:
-                raise ValueError("遷移計数の文脈は一意である必要がある")
-            contexts.add(context)
-            if len(context) >= self.次数:
-                raise ValueError("遷移計数の文脈長は次数未満である必要がある")
-            if any(token != BOS記号 and token not in vocabulary for token in context):
-                raise ValueError("遷移計数の文脈に語彙外記号がある")
-            seen_tokens: set[str] = set()
-            for token, count in rows:
-                if token in seen_tokens:
-                    raise ValueError("同一文脈内の遷移記号は一意である必要がある")
-                seen_tokens.add(token)
-                if token not in vocabulary:
-                    raise ValueError("遷移計数に語彙外記号がある")
-                if count <= 0:
-                    raise ValueError("遷移計数は正整数である必要がある")
 
     def 辞書化(self) -> dict[str, object]:
         return {
@@ -128,10 +109,7 @@ class 条件付き記号分布:
         return dict(self.確率)
 
     def 確率_of(self, 記号: str) -> Fraction:
-        for token, probability in self.確率:
-            if token == 記号:
-                return probability
-        return Fraction(0, 1)
+        return self.辞書().get(記号, Fraction(0, 1))
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,7 +121,12 @@ class 言語確率監査結果:
 
 
 class MINIDORA厳密言語模型:
-    """非ニューラル・決定論的な厳密Language Model核。"""
+    """非ニューラル・決定論的な厳密Language Model核。
+
+    形成済みの有限n-gram計数とadditive smoothingから、各prefixに対する
+    exact rationalな次記号条件分布を返す。系列確率はchain ruleとEOSで閉じる。
+    samplingはこの模型核の責任ではない。
+    """
 
     def __init__(self, 状態: 言語確率模型状態) -> None:
         self.状態 = 状態
@@ -152,25 +135,6 @@ class MINIDORA厳密言語模型:
         self._counts: dict[tuple[str, ...], dict[str, int]] = {
             context: dict(rows) for context, rows in 状態.遷移計数
         }
-
-    @staticmethod
-    def _形成へ追加(
-        text: str,
-        *,
-        次数: int,
-        observed: set[str],
-        counts: dict[tuple[str, ...], Counter[str]],
-    ) -> None:
-        normalized = _正規化(text)
-        observed.update(normalized)
-        max_history = max(0, 次数 - 1)
-        history: tuple[str, ...] = (BOS記号,) * max_history
-        for token in (*normalized, EOS記号):
-            for width in range(次数):
-                context = history[-width:] if width else ()
-                counts[context][token] += 1
-            if max_history:
-                history = (*history, token)[-max_history:]
 
     @classmethod
     def 形成(
@@ -185,14 +149,19 @@ class MINIDORA厳密言語模型:
         if 加算平滑化 < 1:
             raise ValueError("加算平滑化は1以上である必要がある")
 
-        observed: set[str] = set()
-        counts: dict[tuple[str, ...], Counter[str]] = defaultdict(Counter)
-        document_count = 0
-        for text in 文書群:
-            cls._形成へ追加(str(text), 次数=次数, observed=observed, counts=counts)
-            document_count += 1
-
+        docs = tuple(_正規化(text) for text in 文書群)
+        observed = {char for text in docs for char in text}
         vocabulary = tuple(sorted((*observed, UNK記号, EOS記号)))
+        counts: dict[tuple[str, ...], Counter[str]] = defaultdict(Counter)
+
+        for text in docs:
+            history: list[str] = [BOS記号] * max(0, 次数 - 1)
+            for token in (*tuple(text), EOS記号):
+                for width in range(0, 次数):
+                    context = tuple(history[-width:]) if width else ()
+                    counts[context][token] += 1
+                history.append(token)
+
         frozen_counts = tuple(
             (context, tuple(sorted(counter.items())))
             for context, counter in sorted(counts.items(), key=lambda row: row[0])
@@ -203,32 +172,7 @@ class MINIDORA厳密言語模型:
                 加算平滑化=加算平滑化,
                 語彙=vocabulary,
                 遷移計数=frozen_counts,
-                形成文書数=document_count,
-            )
-        )
-
-    def 追加形成(self, 文書群: Iterable[str]) -> "MINIDORA厳密言語模型":
-        """現在状態だけを基点にDataを増分形成し、新しい模型を返す。"""
-        observed = set(self._語彙) - {UNK記号, EOS記号}
-        counts: dict[tuple[str, ...], Counter[str]] = defaultdict(Counter)
-        for context, rows in self.状態.遷移計数:
-            counts[context].update(dict(rows))
-        document_count = self.状態.形成文書数
-        for text in 文書群:
-            self._形成へ追加(str(text), 次数=self.状態.次数, observed=observed, counts=counts)
-            document_count += 1
-        vocabulary = tuple(sorted((*observed, UNK記号, EOS記号)))
-        frozen_counts = tuple(
-            (context, tuple(sorted(counter.items())))
-            for context, counter in sorted(counts.items(), key=lambda row: row[0])
-        )
-        return type(self)(
-            言語確率模型状態(
-                次数=self.状態.次数,
-                加算平滑化=self.状態.加算平滑化,
-                語彙=vocabulary,
-                遷移計数=frozen_counts,
-                形成文書数=document_count,
+                形成文書数=len(docs),
             )
         )
 
@@ -248,27 +192,17 @@ class MINIDORA厳密言語模型:
         return tuple(char if char in self._語彙集合 else UNK記号 for char in normalized)
 
     def _有効文脈(self, history: Sequence[str]) -> tuple[str, ...]:
-        max_history = max(0, self.状態.次数 - 1)
-        tail = tuple(history[-max_history:]) if max_history else ()
-        padded = (BOS記号,) * max(0, max_history - len(tail)) + tail
-        for width in range(max_history, -1, -1):
-            context = padded[-width:] if width else ()
+        padded = [BOS記号] * max(0, self.状態.次数 - 1) + list(history)
+        for width in range(self.状態.次数 - 1, -1, -1):
+            context = tuple(padded[-width:]) if width else ()
             if context in self._counts:
                 return context
         return ()
 
-    def _分母(self, context: tuple[str, ...]) -> tuple[dict[str, int], int, int]:
+    def _分布_for_context(self, context: tuple[str, ...]) -> 条件付き記号分布:
         raw = self._counts.get(context, {})
         alpha = self.状態.加算平滑化
         denominator = sum(raw.values()) + alpha * len(self._語彙)
-        return raw, alpha, denominator
-
-    def _確率_for_context(self, context: tuple[str, ...], token: str) -> Fraction:
-        raw, alpha, denominator = self._分母(context)
-        return Fraction(raw.get(token, 0) + alpha, denominator)
-
-    def _分布_for_context(self, context: tuple[str, ...]) -> 条件付き記号分布:
-        raw, alpha, denominator = self._分母(context)
         probabilities = tuple(
             (token, Fraction(raw.get(token, 0) + alpha, denominator))
             for token in self._語彙
@@ -278,34 +212,31 @@ class MINIDORA厳密言語模型:
     def _分布_for_history(self, history: Sequence[str]) -> 条件付き記号分布:
         return self._分布_for_context(self._有効文脈(history))
 
-    def _確率_for_history(self, history: Sequence[str], token: str) -> Fraction:
-        return self._確率_for_context(self._有効文脈(history), token)
-
     def 次記号分布(self, 接頭辞: str = "") -> 条件付き記号分布:
         return self._分布_for_history(self._符号化(接頭辞))
 
-    def _系列確率(self, history: tuple[str, ...], tokens: Sequence[str]) -> Fraction:
+    def 系列確率(self, text: str) -> Fraction:
+        history: list[str] = []
         probability = Fraction(1, 1)
-        max_history = max(0, self.状態.次数 - 1)
-        for token in (*tokens, EOS記号):
-            probability *= self._確率_for_history(history, token)
-            if max_history:
-                history = (*history, token)[-max_history:]
+        for token in (*self._符号化(text), EOS記号):
+            dist = self._分布_for_history(history)
+            probability *= dist.確率_of(token)
+            history.append(token)
         return probability
 
-    def 系列確率(self, text: str) -> Fraction:
-        return self._系列確率((), self._符号化(text))
-
     def 条件付き系列確率(self, 接頭辞: str, 続き: str) -> Fraction:
-        max_history = max(0, self.状態.次数 - 1)
-        encoded_prefix = self._符号化(接頭辞)
-        history = encoded_prefix[-max_history:] if max_history else ()
-        return self._系列確率(history, self._符号化(続き))
+        history = list(self._符号化(接頭辞))
+        probability = Fraction(1, 1)
+        for token in (*self._符号化(続き), EOS記号):
+            dist = self._分布_for_history(history)
+            probability *= dist.確率_of(token)
+            history.append(token)
+        return probability
 
     def 最尤次記号(self, 接頭辞: str = "") -> str:
         dist = self.次記号分布(接頭辞)
-        # maxは同率時に最初の要素を保持する。分布自体が語彙順なので決定論性を維持する。
-        return max(dist.確率, key=lambda row: row[1])[0]
+        # 同率時は語彙順で決定し、samplingを持ち込まない。
+        return max(dist.確率, key=lambda row: (row[1], -self._語彙.index(row[0])))[0]
 
     def 正規化監査(self) -> 言語確率監査結果:
         contexts = tuple(self._counts) or ((),)
@@ -327,6 +258,12 @@ class MINIDORA厳密言語模型:
 
 
 def 最小厳密言語模型() -> MINIDORA厳密言語模型:
+    """世界知識を埋め込まない最小基底LM。
+
+    空の形成資料でもadditive priorによりUNK/EOS上の厳密確率法則を持つ。
+    能力の高さやLarge呼称を意味しない。
+    """
+
     return MINIDORA厳密言語模型.形成((), 次数=3, 加算平滑化=1)
 
 

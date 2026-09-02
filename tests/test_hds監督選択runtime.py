@@ -8,6 +8,7 @@ from minidora.hds_choice_runtime import HDS選択実行結果
 from minidora.hds_ir import HDSIR, HDS実行核, HDS座標
 from minidora.hds介入制御 import HDS指令, HDS指令種別, 標準HDS介入制御
 from minidora.hds監督選択runtime import HDS監督選択実行
+from minidora.k3_functional import K3相当能力核
 from minidora.参照 import 参照記録
 from minidora.能力状態差循環 import 標準能力模型核
 
@@ -52,34 +53,12 @@ class _StopControl:
         return HDS指令(HDS指令種別.停止要求, 理由=("TEST_STOP",))
 
 
-class _計算Compiler:
-    def 計算コンパイル(self, _text):
-        return SimpleNamespace(
-            参照必須=False,
-            計算IR=SimpleNamespace(名称="generic", 版="v1", 命令列=(object(),)),
-            初期状態={"x": 1},
-        )
-
-
-class _CompileOwner:
-    def __init__(self):
-        self.HDSコンパイラ = _計算Compiler()
-
-    def コンパイル(self, _text):
-        return qir()
-
-
-class _計算実行器:
-    def 計算実行(self, _ir, _state):
-        return SimpleNamespace(出力=2)
-
-
 class SupervisoryChoiceRuntimeTest(unittest.TestCase):
     @patch("minidora.hds監督選択runtime.HDS選択推論実行")
     def test_初期APPROVEは完全透過で再評価しない(self, mock_normal):
         initial = result("APPROVE", "A", ("NORMAL_MINIDORA",), proof=2)
         out = HDS監督選択実行(
-            qir(), (), コンパイル=lambda x: qir(), 基礎能力核=None,
+            qir(), (), コンパイル=lambda x: qir(), 基礎能力核=K3相当能力核(),
             模型核=標準能力模型核(), HDS制御=標準HDS介入制御(), 初期選択=initial,
         )
         self.assertIs(out.選択, initial)
@@ -90,7 +69,7 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
     def test_HDSなしはSUSPENDも完全透過(self, mock_normal):
         initial = result("SUSPEND", None, ("AMBIGUOUS_EVIDENCE",))
         out = HDS監督選択実行(
-            qir(), (), コンパイル=lambda x: qir(), 基礎能力核=None,
+            qir(), (), コンパイル=lambda x: qir(), 基礎能力核=K3相当能力核(),
             模型核=標準能力模型核(), HDS制御=None, 初期選択=initial,
         )
         self.assertIs(out.選択, initial)
@@ -98,24 +77,21 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
         mock_normal.assert_not_called()
 
     @patch("minidora.hds監督選択runtime.HDS選択推論実行")
-    def test_閉包済み計算IRがある時だけ汎用計算を起動して通常MINIDORAへ戻す(self, mock_normal):
-        initial = result("SUSPEND", None, ("NO_KNOWLEDGE_EVIDENCE",))
+    def test_未閉包時だけworkingを起動して通常MINIDORAへ戻す(self, mock_normal):
+        initial = result("SUSPEND", None, ("AMBIGUOUS_EVIDENCE",))
         mock_normal.return_value = result("APPROVE", "B", ("EVIDENCE_PRESENT",), proof=3)
-        owner = _CompileOwner()
         out = HDS監督選択実行(
-            qir(), (), コンパイル=owner.コンパイル, 基礎能力核=None,
-            模型核=標準能力模型核(), 計算実行器_=_計算実行器(),
-            HDS制御=標準HDS介入制御(), 初期選択=initial,
+            qir(), (参照記録("r", "t", "x", "u", "p"),),
+            コンパイル=lambda x: qir(), 基礎能力核=K3相当能力核(),
+            模型核=標準能力模型核(), HDS制御=標準HDS介入制御(), 初期選択=initial,
         )
         self.assertEqual(out.選択.状態, "APPROVE")
         self.assertEqual(out.選択.回答ラベル, "B")
-        self.assertEqual(out.HDS作用, ("EXISTING_COMPUTE_EXECUTOR",))
+        self.assertEqual(out.HDS作用, ("EXISTING_WORKING_RECONCILE",))
         self.assertEqual(out.HDS介入数, 1)
         self.assertEqual(mock_normal.call_count, 1)
-        self.assertIsNone(mock_normal.call_args.kwargs["基礎能力核"])
-        self.assertTrue(mock_normal.call_args.kwargs["正式模型評価"])
-        self.assertEqual(out.参照[-1].値, 2)
-        self.assertEqual(out.参照[-1].供給器, "MINIDORA計算実行器")
+        self.assertTrue(mock_normal.call_args.kwargs["作業再作用"])
+        self.assertFalse(mock_normal.call_args.kwargs["局所再照合"])
         self.assertIn("HDS_FEEDBACK_SAFETY_VALVE", out.選択.理由)
 
     @patch("minidora.hds監督選択runtime.HDS追加参照検索")
@@ -126,7 +102,7 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
         mock_extra.return_value = (extra,)
         mock_normal.return_value = result("APPROVE", "A", ("EVIDENCE_PRESENT",), proof=1)
         out = HDS監督選択実行(
-            qir(), (), コンパイル=lambda x: qir(), 基礎能力核=None,
+            qir(), (), コンパイル=lambda x: qir(), 基礎能力核=K3相当能力核(),
             模型核=標準能力模型核(), 参照供給器=object(),
             HDS制御=標準HDS介入制御(), 初期選択=initial,
         )
@@ -140,7 +116,7 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
     def test_STOPだけなら初期SUSPENDを改変しない(self, mock_normal):
         initial = result("SUSPEND", None, ("AMBIGUOUS_EVIDENCE",))
         out = HDS監督選択実行(
-            qir(), (), コンパイル=lambda x: qir(), 基礎能力核=None,
+            qir(), (), コンパイル=lambda x: qir(), 基礎能力核=K3相当能力核(),
             模型核=標準能力模型核(), HDS制御=_StopControl(), 初期選択=initial,
         )
         self.assertIs(out.選択, initial)
@@ -153,7 +129,7 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
         normal = result("APPROVE", "A", ("NORMAL_MINIDORA",), proof=1)
         mock_normal.return_value = normal
         out = HDS監督選択実行(
-            qir(), (), コンパイル=lambda x: qir(), 基礎能力核=None,
+            qir(), (), コンパイル=lambda x: qir(), 基礎能力核=K3相当能力核(),
             模型核=標準能力模型核(), HDS制御=標準HDS介入制御(),
         )
         self.assertIs(out.選択, normal)

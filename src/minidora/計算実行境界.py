@@ -85,23 +85,6 @@ class 計算実行境界:
             else:
                 raise ValueError(f"未対応計算作用: {op}")
 
-    @staticmethod
-    def _比較(left: Any, operator: Any, right: Any) -> bool:
-        """要求された比較だけを評価し、不要な演算を先行実行しない。"""
-        if operator == "同値":
-            return left == right
-        if operator == "不同":
-            return left != right
-        if operator == "大":
-            return left > right
-        if operator == "小":
-            return left < right
-        if operator == "以上":
-            return left >= right
-        if operator == "以下":
-            return left <= right
-        raise ValueError(f"未対応比較: {operator}")
-
     def 実行(
         self,
         中間表現: 計算中間表現,
@@ -147,22 +130,31 @@ class 計算実行境界:
             elif op in {計算作用.加算, 計算作用.減算, 計算作用.乗算, 計算作用.除算}:
                 result = inputs[0]
                 for value in inputs[1:]:
-                    # in-place演算はlist等の入力状態を破壊し得るため使わない。
                     if op == 計算作用.加算:
-                        result = result + value
+                        result += value
                     elif op == 計算作用.減算:
-                        result = result - value
+                        result -= value
                     elif op == 計算作用.乗算:
-                        result = result * value
+                        result *= value
                     else:
                         if value == 0:
                             raise ValueError("0では除算できない")
-                        result = result / value
+                        result /= value
                 if 命令_.出力住所 is not None:
                     状態[命令_.出力住所] = result
             elif op == 計算作用.比較:
                 left, operator, right = inputs
-                result = self._比較(left, operator, right)
+                table = {
+                    "同値": left == right,
+                    "不同": left != right,
+                    "大": left > right,
+                    "小": left < right,
+                    "以上": left >= right,
+                    "以下": left <= right,
+                }
+                if operator not in table:
+                    raise ValueError(f"未対応比較: {operator}")
+                result = table[operator]
                 if 命令_.出力住所 is not None:
                     状態[命令_.出力住所] = result
             elif op == 計算作用.計数:

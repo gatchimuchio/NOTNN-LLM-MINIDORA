@@ -3,22 +3,29 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
+from .choice_intent import HDS選択意図判定
 from .hds_adapter import HDS独立コンパイル
 from .hds_choice_hypothesis import HDS候補代入仮説群
+from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
+from .hds_direct_relation_verifier import HDS直接関係検証
 from .hds_ir import HDSIR, 値状態
 from .hds_model_projection import HDSMINIDORA模型評価
-from .hds入力参照境界 import HDS入力Data本文, HDS入力Data整列
+from .hds判断参照境界 import HDS判断Data整列
 from .hds_runtime_projection import (
     HDSKData射影, HDSK候補代入可能, HDSK候補射影, HDSK質問射影, HDS模型候補代入可能,
 )
+from .hds作業状態 import (
+    HDS一時証拠統合,
+    HDS作業状態構築,
+    HDS候補共同状態更新,
+    HDS寄与Gate再照合,
+)
+from .hds局所再照合 import HDS局所Window候補
+from .k3_functional import K3相当能力核, SemanticFrame
+from .k3_hds_native import HDSK3結果, HDSIRネイティブAdapter
 from .参照 import 参照記録
 from .模型 import MINIDORA模型核, 模型結果
-
-if TYPE_CHECKING:
-    from .k3_functional import K3相当能力核
-    from .k3_hds_native import HDSK3結果
 
 
 HDSコンパイル関数 = Callable[[str], HDSIR]
@@ -159,7 +166,7 @@ def _参照作用差分群(
 
     payloads = _一括コンパイル(
         lambda text: detailed(text).作用差分構造,
-        [HDS入力Data本文(record) for record in references],
+        [record.内容 for record in references],
         parallel=parallel,
         max_workers=max_workers,
     )
@@ -204,10 +211,6 @@ def _直接関係で再判定(
     k3: HDSK3結果,
 ) -> HDSK3結果:
     """旧v0.3 K3 helper診断だけに使う。正式回答を上書きしない。"""
-    from .choice_intent import HDS選択意図判定
-    from .hds_direct_relation_verifier import HDS直接関係検証
-    from .k3_functional import SemanticFrame
-    from .k3_hds_native import HDSK3結果
     if HDS選択意図判定(judgment_ir.原文).種別 == "EXCEPTION":
         return k3
     direct, _diagnostics = HDS直接関係検証(working, verification_candidate_irs)
@@ -336,18 +339,19 @@ def HDS選択推論実行(
         return _suspend("HDS_K_QUESTION_SEMANTIC_LOSS", candidate_count=len(candidate_irs), parallel=parallel_safe, workers=worker_count)
 
     k_candidate_irs = {label: HDSK候補射影(candidate_ir) for label, candidate_ir in candidate_irs.items()}
+    verification_candidate_irs = _検証候補群(k_question_ir, candidate_irs, k_candidate_irs)
     attached_model_core = 模型核 or getattr(基礎能力核, "_minidora_model_core", None)
     use_formal_model = bool(正式模型評価 or attached_model_core is not None)
-    evaluation_candidate_irs = (
+    formal_candidate_irs = (
         _正式模型候補群(k_question_ir, candidate_irs, k_candidate_irs)
         if use_formal_model
-        else _検証候補群(k_question_ir, candidate_irs, k_candidate_irs)
+        else verification_candidate_irs
     )
 
     data_payloads = _一括コンパイル(
-        compile_isolated, [HDS入力Data本文(record) for record in references], parallel=parallel_safe, max_workers=worker_count,
+        compile_isolated, [record.内容 for record in references], parallel=parallel_safe, max_workers=worker_count,
     )
-    data_bundle = HDS入力Data整列(references, data_payloads, HDSKData射影)
+    data_bundle = HDS判断Data整列(references, data_payloads, HDSKData射影)
     data_irs = list(data_bundle.IR群)
     data_compiled = len(data_bundle.IR群)
     data_failed = data_bundle.失敗数
@@ -355,14 +359,6 @@ def HDS選択推論実行(
     choice_map = {label: content for label, content, _ in choices}
 
     if use_formal_model:
-        if attached_model_core is None:
-            return _suspend(
-                "MINIDORA_MODEL_CORE_NOT_CONFIGURED",
-                candidate_count=len(candidate_irs),
-                data_fail=data_failed,
-                parallel=parallel_safe,
-                workers=worker_count,
-            )
         action_structures, action_failed = _参照作用差分群(
             コンパイル,
             data_bundle.成功記録群,
@@ -371,7 +367,7 @@ def HDS選択推論実行(
         )
         formal = HDSMINIDORA模型評価(
             k_question_ir,
-            evaluation_candidate_irs,
+            formal_candidate_irs,
             tuple(data_irs),
             模型核=attached_model_core,
             参照識別子=data_bundle.出典ID群,
@@ -401,26 +397,6 @@ def HDS選択推論実行(
             formal.模型結果,
         )
 
-    if 基礎能力核 is None:
-        return _suspend(
-            "LEGACY_HELPER_NOT_CONFIGURED",
-            candidate_count=len(candidate_irs),
-            data_fail=data_failed,
-            parallel=parallel_safe,
-            workers=worker_count,
-        )
-
-    from .hds_data_k import HDSIR知識Adapter, HDS証拠状態複製
-    from .hds作業状態 import (
-        HDS一時証拠統合,
-        HDS作業状態構築,
-        HDS候補共同状態更新,
-        HDS寄与Gate再照合,
-    )
-    from .hds局所再照合 import HDS局所Window候補
-    from .k3_hds_native import HDSIRネイティブAdapter
-
-    verification_candidate_irs = evaluation_candidate_irs
     working = 基礎能力核.clone()
     HDS証拠状態複製(基礎能力核, working)
     ingest = HDSIR知識Adapter(working)

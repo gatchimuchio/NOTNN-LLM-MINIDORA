@@ -1,235 +1,328 @@
 # NOTNN-LLM-MINIDORA — ミニドラ
 
-> **ミニドラは、ニューラルネットワーク（NN）やTransformerを使わず、最小・最軽量・シンプルな構成でLLMとして成立する汎用言語模型核を作るプロジェクトです。**
+MINIDORAは、日本語を基底・規定・内部意味正本とする非ニューラルネットワーク型の言語模型研究実装である。
 
-MINIDORAは、日本語を基底・規定・内部意味正本とする非ニューラルネットワーク型LLM研究実装です。
+既定安定版は **v0.5.0**。  
+加えて、HDS Judgement Subjectを制御中心へ置く **v1試作Runtime** を併設する。
 
-目的は、専門知識・専門solver・巨大な内部Dataを本体へ詰め込み続けて性能を作ることではありません。
+## 最上位理論と言語規定
 
-**少数の一般作用だけを持つ小さなLLM核を成立させ、Data・専門知識・専門処理は必要に応じて外部参照またはモジュールとして接続する。**  
-これがMINIDORAの基本パラダイムです。
+本プロジェクトの最上位理論正本は [`cognitive-engineering-foundations`](https://github.com/gatchimuchio/cognitive-engineering-foundations) とする。
 
-現行安定版は **v0.5.0**。  
-2026-09-01時点の現行セーブポイントは **最小汎用LLM core + HDS異常時最小介入** です。
-
-## MINIDORAは何を変えるのか
-
-一般的な大規模ニューラルLLMは、知識・言語・専門能力・個別タスク能力を主として学習済み重みや追加学習へ内部化します。
+- 参照commit: `60131da52ba7931ed7f82c7648a74ac790f50d08`
+- 基底言語・規定言語: 日本語
 
 ```text
-知識
-+ 言語能力
-+ 数学能力
-+ 科学能力
-+ coding能力
-+ 各種専門能力
-        ↓
-巨大なニューラル模型へ内部化
-        ↓
-性能向上とともに模型も肥大化
+日本語で対象化・差異化・関係化
+→ 日本語で理論・設計・構文化・監査を成立
+→ 日本語正本を保持
+→ 実務上やむを得ない外部境界のみ多言語を例外使用
 ```
 
-MINIDORAはこの方向を採りません。
+外部API、規格、固有名、URL、言語コード、国際公開等に必要な外国語・英字は外部互換として認めるが、第二基底・並列正本・内部意味の主語にはしない。
 
-```text
-最小汎用LLM核
-+ 外部Data
-+ 外部参照R
-+ 汎用計算実行器
-+ 必要時だけ専門モジュール
-+ HDSによる異常時最小介入
-```
+局所規定: [`設計/00_日本語基底規定_v1.md`](設計/00_日本語基底規定_v1.md)
 
-専門領域が必要なら、物理・化学・法律・医学・codingなどを**本体へ焼き込まず外部モジュールとして接続**します。
+## 言語模型成立条件
 
-したがってMINIDORA本体で測りたいものは「どれだけ専門機能を持っているか」ではなく、
+責任正本は [`LLM-Constitutive-Specification`](https://github.com/gatchimuchio/LLM-Constitutive-Specification)。
 
-> **何も盛っていない最小の一般作用だけで、未知入力へどこまで同じ汎用処理を適用できるか**
+v0.5の厳密言語模型核は次のv8正本を参照して成立済みである。
 
-です。
-
-## パラダイム
-
-MINIDORAでは、能力追加より先に責任を分離します。
-
-```text
-Core      = 汎用作用
-Data      = 外部化可能
-Knowledge = 外部参照可能
-Module    = 専門領域
-Compute   = 汎用計算
-HDS       = 異常時だけ最小制御
-```
-
-本体へ新しい機能を追加する場合は、最低限次を満たす必要があります。
-
-1. benchmark名・分野名・問題名を消しても一般作用として成立する。
-2. 既存一般作用の組合せでは表現できない。
-3. Dataまたは外部専門モジュールへ分離できない。
-
-この三つを満たさない機能は原則としてcoreへ入れません。
-
-## 現行構造
-
-```text
-入力
-↓
-HDS Compiler
-↓
-意味IR / 計算計画 / Data
-↓
-MINIDORA能力模型核
-↓
-必要な場合だけ
-  ├─ REFERENCE
-  └─ EXISTING_COMPUTE_EXECUTOR
-        ↑
-       HDS
-  異常時のみ最小介入
-↓
-通常MINIDORAへ復帰
-↓
-出力
-```
-
-### 厳密言語模型核
-
-MINIDORAは、完全言語状態空間と持続模型状態の上に、整合した言語確率法則を持つ非ニューラル言語模型核を実装しています。
+- 版: `2026-08-28-成立規定-8`
+- 参照commit: `fcbc2fa4bc89d749942e8ebee2764115488d29c4`
 
 ```text
 完全言語状態空間
 + 持続模型状態
 → 整合した言語確率法則
-→ 条件分布
-→ 連鎖則 + 終端
-→ 完全系列確率
 ```
 
-現行実装は `src/minidora/言語確率法則.py`。
+その後、構成定義はv9で到達限界まで凍結された。
 
-### 能力模型核
+- 版: `2026-08-29-成立規定-9`
+- 参照commit: `3f5eb7b704dba5a06c717399c3400405b5e8944e`
 
-能力模型核は、候補・証拠・関係・状態差を一般作用として扱います。
+v9で固定された境界:
+
+```text
+局所作用再現
+≠ 作用関係再現
+≠ 意思決定構造再現
+≠ 能力主体
+```
+
+v1試作はこの境界を受け、LLM構成作用の追加だけで判断主体を代替せず、HDSを別責務として接続する。
+
+## v1 HDS駆動試作
+
+v1試作では、既存v0.5の厳密言語模型核・能力模型核・HDS Compiler・参照器をworkerとして維持し、**次作用と最終採否の権限だけをHDS Judgement Subjectへ集約**する。
+
+```text
+Compiled CognitiveWorld
+        ↓
+J_hds: REFERENCEが必要か
+   ├─ yes → C_execへ観測要求 → 帰還
+   └─ no
+        ↓
+J_hds: EVALUATE要求
+        ↓
+C_exec: PROPOSE / SUSPEND
+        ↓
+J_hds
+   ├─ PROPOSE + 局所閉包支持 → COMMIT
+   └─ 未閉包                 → SUSPEND
+```
+
+責任境界:
+
+```text
+C_exec: REFERENCE結果 / EVALUATE結果 / PROPOSE
+J_hds : 次作用要求 / COMMIT / SUSPEND / STOP / REOPEN
+```
+
+**`PROPOSE ≠ APPROVE ≠ COMMIT`** を固定し、候補生成系のSelf-Commitを禁止する。
+
+公開入口:
+
+```python
+from minidora import HDS駆動ミニドラ
+```
+
+選択問題では `HDS駆動ミニドラ` がHDS駆動経路を使用する。非選択問題・明示手順・HDS Compiler未接続時は既存v0.5 Runtimeへ委譲する。
+
+本試作はHDS Framework Kernel完全実装、AGI全体の自律主体、外部世界行動主体、LLM一般にHDSが普遍必須であることを主張しない。
+
+局所設計正本候補:
+
+- [`設計/31_MINIDORA_HDS統合判断主体_v1.md`](設計/31_MINIDORA_HDS統合判断主体_v1.md)
+
+## v0.5の二核
+
+```text
+[厳密言語模型核]
+完全言語状態空間
++ 持続模型状態
+→ 厳密に正規化された条件分布
+→ 連鎖則 + 終端
+→ 完全系列確率
+
+[能力状態差模型核]
+質問 / 候補 / 資料
+→ 関係・証拠・候補差
+→ 能力状態差
+→ 差がある場合だけ次作用を選択
+→ 再作用
+→ 新しい候補差 / 終了
+```
+
+候補得点をsoftmax等で確率へ変換して言語模型確率と読み替えない。
+
+## 厳密言語模型核
+
+`src/minidora/言語確率法則.py` に非ニューラル・決定論的な有限n-gram / finite-state成立形を実装する。方式名は外部互換名として保持する。
+
+- Python標準ライブラリのみ。
+- `Fraction` による厳密有理数確率。
+- NFKC Unicode文字 + `UNK/BOS/EOS`。
+- 加算平滑化。
+- 各接頭辞条件分布は厳密に1へ正規化。
+- 系列確率は連鎖則と終端で計算。
+- 全文脈で終端確率に正の下限。
+- 模型状態を保存・復元可能。
+- 同一形成資料なら順序に依存せず同じSHA-256。
+- 無作為抽出なし。
+
+`最小厳密言語模型()` は厳密言語模型法則の最小成立確認だけを担い、能力やLargeを意味しない。
+
+## 能力状態差模型核
+
+現行標準能力模型核は `src/minidora/能力状態差循環.py`。
+
+構成定義v8とK3除外横断構文化v3の観測座標を、次の実行契約へ接続する。
 
 ```text
 状態担体
-↓
 作用
-↓
 状態差
-↓
 後続利用
+参照変更
+経路変更
+計算量変更
+再参照
+再結合
+循環尺度
+```
+
+能力模型核では、
+
+```text
+状態を記録した
+≠ 状態が変化した
+≠ 状態差が次作用を開いた
+≠ 次作用が新しい差を作った
+```
+
+を分離する。
+
+### 再作用の発火条件
+
+```text
+一次能力作用
 ↓
-必要なら再参照 / 再結合 / 汎用計算
+前後の候補状態を比較
+↓
+状態差なし → 終了
+↓ 状態差あり
+変化した候補を起点に次作用集合を選択
+↓
+再作用
+↓
+新しい状態差あり → 次循環
+新しい状態差なし → 終了
 ```
 
-専門分野ごとの答え方を本体へ列挙する設計ではありません。
+同一状態差・同一候補集合・同一作用集合を再実行しない。
 
-### HDS
+同じ参照証拠を `候補共同参照` / `候補共同再照合` のように段階名だけ変えて再加点しない。
 
-HDSは回答主体ではなく**安全弁**です。
+局所設計正本:
 
-通常MINIDORAが自力で閉包した場合は介入しません。未閉包・競合・観測不足・停滞などの異常時だけ、既存の汎用作用を起動して通常MINIDORAへ戻します。
+- [`設計/30_MINIDORA能力状態差循環_v1.md`](設計/30_MINIDORA能力状態差循環_v1.md)
 
-HDSは回答を生成せず、候補の勝者を選びません。
+## HDS Compiler
 
-詳細: [`設計/32_MINIDORA_HDS監督介入制御_v1.md`](設計/32_MINIDORA_HDS監督介入制御_v1.md)
-
-## 専門能力の扱い
-
-専門solverはMINIDORA本体の汎用性能に含めません。
+現行公開HDS Compiler:
 
 ```text
-MINIDORA core
-├─ 汎用言語模型
-├─ 汎用能力模型
-├─ 汎用計算
-├─ 外部参照
-└─ HDS最小介入
-
-外部module
-├─ 物理
-├─ 化学
-├─ 医学
-├─ 法律
-├─ coding
-└─ その他専門領域
+Architecture v1.3
+Pipeline v1.4
+規定言語 = 日本語
+基底言語 = 日本語
+基底言語コード = ja
 ```
 
-必要ならmoduleを追加できますが、それによって上がった性能をcoreの汎用性能とは扱いません。
-
-## benchmarkの位置づけ
-
-benchmarkは**性能を作るための仕様書ではなく、汎用能力を外部から観測する試験**です。
-
-GPQAで高得点を取るだけなら、科学専門solverを追加し続けることもできます。しかしそれではMINIDORA本体の一般能力を測れません。
-
-そのため現行セーブポイントでは専門solverをactive pathから外して測定しています。
-
-### GPQA Diamond — 2026-09-01
-
-198問 controlled A/B:
+v1.3は状態遷移から、
 
 ```text
-正式MINIDORA汎用模型核 / HDS非介入 baseline = 19 / 198  (9.60%)
-最小汎用core + HDS異常時最小介入         = 23 / 198 (11.62%)
-差分                                      = +4問 / +2.02pt
-専門作用起動                              = 0
+作用
+→ 状態差
+→ 後続利用
 ```
 
-このスコア自体を完成指標にはしません。重要なのは、専門solverなしの同一汎用coreで測定していることです。
+を並列構文化する。後続利用は「後状態が次作用の入力状態条件を満たす」ことだけを意味し、次作用の発火・採用・実行をCompilerが決めない。
 
-詳細: [`評価/GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md`](評価/GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md)
+Pipeline v1.4は、
+
+```text
+意味IR
+計算計画
+作用差分構造
+```
+
+を別フィールドで保持する。作用差分構造を計算Pへ自動降下しない。
+
+Compiler固有型は能力模型核へ直接持ち込まず、日本語内部の能力作用構造へ有限射影する。
+
+- [`設計/09_公開HDS_Compiler仕様.md`](設計/09_公開HDS_Compiler仕様.md)
+- [`設計/29_HDS_Compiler_作用差分構文化_v1_3.md`](設計/29_HDS_Compiler_作用差分構文化_v1_3.md)
+- [`設計/26_HDS_Compiler_Pipeline_v1_4.md`](設計/26_HDS_Compiler_Pipeline_v1_4.md)
 
 ## 日本語基底
 
-MINIDORAでは日本語を、説明用言語ではなく**内部意味正本・設計正本・規定言語**として扱います。
+現行共有言語基底はv0.4。
 
 ```text
-日本語で対象化・差異化・関係化
-↓
-日本語で設計・構文化・監査
-↓
-日本語正本を保持
-↓
-外部API・規格・固有名など必要な境界だけ他言語を使用
+規定言語 = 日本語
+基底言語 = 日本語
+基底言語コード = ja
 ```
 
-英語等を第二基底や並列正本にはしません。
+`ja / en / zh` 等は外部互換識別コードであり、内部意味正本ではない。
 
-局所規定: [`設計/00_日本語基底規定_v1.md`](設計/00_日本語基底規定_v1.md)
+- [`設計/13_共有言語基底P仕様_v0_4.md`](設計/13_共有言語基底P仕様_v0_4.md)
+- [`設計/14_外部言語_日本語意味射影仕様_v0_4.md`](設計/14_外部言語_日本語意味射影仕様_v0_4.md)
 
-## Authority
+## 現行横断構文化
 
-詳細な優先順位は [`AGENTS.md`](AGENTS.md) を正とします。
+K3を除く10模型の現行横断観測:
 
-最上位理論正本:
+- [`構文化/言語模型横断_日本語基底作用構文化_v3/`](構文化/言語模型横断_日本語基底作用構文化_v3/)
 
-- Repository: `https://github.com/gatchimuchio/cognitive-engineering-foundations`
-- 参照commit: `60131da52ba7931ed7f82c7648a74ac790f50d08`
-- 基底言語・規定言語: 日本語
+旧 `構文化/LLM横断_状態差作用構文化_v2/` は履歴として保持する。
 
-LLM成立条件の責任正本:
+## GPQA能力診断 — 2026-08-28
 
-- Repository: `https://github.com/gatchimuchio/LLM-Constitutive-Specification`
-- 版: `2026-08-28-成立規定-8`
-- 参照commit: `fcbc2fa4bc89d749942e8ebee2764115488d29c4`
+状態差起動能力模型核をGPQA Diamond全198問でcontrolled A/Bした。
 
-## 現行セーブポイント
+```text
+current                           = 16 / 198
+同一取得資料 controlled baseline = 22 / 198
+正答差                            = -6
+```
 
-2026-09-01の確定点:
+機構実測:
 
-- 最小汎用LLM core
-- 専門solver active path = なし
-- 旧K3 helper通常先行実行 = なし
-- HDS = 異常時安全弁
-- HDSによるwinner selection = なし
-- 外部R = 汎用参照
-- Compute IR = 汎用計算
-- GPQA 198問実測済み
-- main一本運用
+```text
+checkpoint再活性     = 134
+大域再照合           = 134
+候補横断更新         = 21
+専門作用起動         = 0
+```
 
-詳細: [`docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md`](docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md)
+再活性回数分布:
+
+```text
+0回 = 85問
+1回 = 92問
+2回 = 21問
+```
+
+2回再活性した21問は全件で候補横断更新が発生した。
+
+```text
+状態差なしで不発火                 = 合格
+状態差による実再作用               = 合格
+再作用後の新状態差                 = 合格
+新状態差による二段目再活性         = 合格
+GPQA能力改善                        = 不合格
+```
+
+詳細:
+
+- [`評価/MINIDORA_v0_5_能力状態差循環_GPQA_2026-08-28.md`](評価/MINIDORA_v0_5_能力状態差循環_GPQA_2026-08-28.md)
+
+## 能力・Large・呼称
+
+```text
+厳密言語模型成立
+!= 高推論能力
+!= GPQA高得点
+!= Large
+!= 現代LLM呼称適合
+```
+
+`Large`、`LLM`、`GPQA` は外部名称として保持する。
+
+## 現在の受入状態
+
+```text
+v0.5厳密言語模型核          = 合格
+厳密正規化 / 終端           = 合格
+模型状態保存・復元           = 合格
+二核分離                     = 合格
+日本語基底規定               = 現行v0.4
+HDS Compiler作用差分構文化   = Architecture v1.3
+HDS Compiler責任分離         = Pipeline v1.4
+能力状態差実発火             = 合格
+v1 HDS Judgement Subject最小成立 = 合格
+v1 PROPOSE / COMMIT責任分離      = 合格
+v1 実Runtime循環                 = 合格
+v1 GPQA能力改善                  = 未測定
+Large / 現代LLM呼称             = 再監査要
+```
+
+過去のCI合格を新commitへ無条件継承せず、正本更新ごとにUbuntu / Windows × Python 3.11–3.14を確認する。
 
 ## 試験
 
@@ -241,33 +334,19 @@ python -m unittest discover -s tests -v
 python -m minidora "2+3"
 ```
 
-CIは Ubuntu / Windows × Python 3.11–3.14 を対象にします。
-
 ## 文書入口
 
-- [`AGENTS.md`](AGENTS.md) — 実装・監査規約
-- [`設計/README.md`](設計/README.md) — 現行設計正本ガイド
-- [`設計/00_日本語基底規定_v1.md`](設計/00_日本語基底規定_v1.md) — 日本語基底
-- [`設計/30_MINIDORA能力状態差循環_v1.md`](設計/30_MINIDORA能力状態差循環_v1.md) — 汎用能力状態差循環
-- [`設計/32_MINIDORA_HDS監督介入制御_v1.md`](設計/32_MINIDORA_HDS監督介入制御_v1.md) — HDS安全弁
-- [`docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md`](docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md) — 現行セーブポイント
-- [`評価/README.md`](評価/README.md) — 実測履歴
-
-## 能力・Large・呼称
-
-```text
-LLM核成立
-!= 高推論能力
-!= benchmark高得点
-!= 専門能力の多さ
-!= Largeの十分条件
-```
-
-MINIDORAはLLM核としての成立と汎用能力を分けて監査します。`Large`および現代的LLM呼称との対応範囲は必要に応じて再監査します。
+- [`設計/README.md`](設計/README.md)
+- [`設計/00_日本語基底規定_v1.md`](設計/00_日本語基底規定_v1.md)
+- [`設計/30_MINIDORA能力状態差循環_v1.md`](設計/30_MINIDORA能力状態差循環_v1.md)
+- [`設計/31_MINIDORA_HDS統合判断主体_v1.md`](設計/31_MINIDORA_HDS統合判断主体_v1.md)
+- [`REFERENCES.md`](REFERENCES.md)
+- [`構文化/README.md`](構文化/README.md)
+- [`評価/MINIDORA_v0_5_能力状態差循環_GPQA_2026-08-28.md`](評価/MINIDORA_v0_5_能力状態差循環_GPQA_2026-08-28.md)
 
 ## ライセンス
 
 - **ソースコード、実行系、Compiler、ライブラリ、テスト、ツール、CI・パッケージ設定**: Apache License 2.0 (`Apache-2.0`)
 - **仕様、設計、理論、論文、解説、図表、構文化・評価文書、README等**: Creative Commons Attribution 4.0 International (`CC-BY-4.0`)
 
-これはデュアルライセンスではありません。適用範囲は `LICENSE`、正式条件は `LICENSE-APACHE-2.0` / `LICENSE-CC-BY-4.0`、帰属は `NOTICE` を参照してください。
+これはデュアルライセンスではない。適用範囲は `LICENSE`、正式条件は `LICENSE-APACHE-2.0` / `LICENSE-CC-BY-4.0`、帰属は `NOTICE` を参照する。

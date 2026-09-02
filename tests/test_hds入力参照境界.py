@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from minidora.hds_ir import HDSIR, HDS実行核
-from minidora.hds入力参照境界 import HDS入力Data本文, HDS入力Data整列, HDS入力出典ID
+from minidora.hds入力参照境界 import HDS入力Data整列, HDS入力出典ID
 from minidora.参照 import 参照記録
 
 
@@ -40,20 +40,6 @@ class HDS入力参照境界試験(unittest.TestCase):
         self.assertEqual(bundle.出典ID群, ("good",))
         self.assertEqual(bundle.信頼群, (0.25,))
         self.assertEqual(tuple(x.識別子 for x in bundle.成功記録群), ("good",))
-
-    def test_型付きDataは対象意味キー値を保持してCompilerへ渡す(self):
-        record = 参照記録(
-            "calc:1", "request", "raw", "internal://compute", "compute",
-            意味キー="計算結果", 値=47, 意味確定=True,
-        )
-        packaged = HDS入力Data本文(record)
-        self.assertIn("request", packaged)
-        self.assertIn("計算結果", packaged)
-        self.assertIn("47", packaged)
-
-    def test_未構造Dataは内容を改変しない(self):
-        record = 参照記録("raw:1", "x", "original text", "fixture://x", "fixture")
-        self.assertEqual(HDS入力Data本文(record), "original text")
 
 
 if __name__ == "__main__":

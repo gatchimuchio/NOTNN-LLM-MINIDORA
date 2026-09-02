@@ -28,15 +28,6 @@ def HDS入力出典ID(record: 参照記録) -> str:
     return fallback or "anonymous-reference"
 
 
-def HDS入力Data本文(record: 参照記録) -> str:
-    """型付きDataは対象・意味キー・値を保持し、未構造Dataは原文をそのまま渡す。"""
-    if record.意味確定 and record.意味キー is not None:
-        target = str(record.対象).strip() or "対象"
-        key = str(record.意味キー).strip()
-        return f"{target}。{key} は {record.表示値}。"
-    return str(record.内容)
-
-
 def HDS入力Data整列(
     references: Sequence[参照記録],
     payloads: Sequence[HDSIR | Exception],
@@ -65,4 +56,4 @@ def HDS入力Data整列(
     return HDS入力Data束(tuple(irs), tuple(ids), tuple(trusts), tuple(records), failed)
 
 
-__all__ = ["HDS入力Data束", "HDS入力出典ID", "HDS入力Data本文", "HDS入力Data整列"]
+__all__ = ["HDS入力Data束", "HDS入力出典ID", "HDS入力Data整列"]
