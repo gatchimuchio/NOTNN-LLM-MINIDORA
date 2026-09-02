@@ -115,8 +115,8 @@ class ミニドラ(_ミニドラV03):
                 ):
                     return self._HDS選択結果(要求_, hds_ir, tuple(references), initial)
 
-                # 55/198を成立させた既存MINIDORA経路を先に最後まで実行する。
-                # 既存経路が閉包した場合は一切再解釈せず、その結果をそのまま返す。
+                # HDS監督選択実行が、55/198正本経路の完走と統一状態fallbackを
+                # 一つの製品経路として管理する。runtime側では再実装しない。
                 supervised = HDS監督選択実行(
                     hds_ir,
                     tuple(references),
@@ -126,34 +126,8 @@ class ミニドラ(_ミニドラV03):
                     参照供給器=self.参照供給器,
                     HDS制御=self.HDS監督制御,
                     初期選択=initial,
+                    統一fallback=True,
                 )
-                if supervised.選択.状態 == "APPROVE" and supervised.選択.回答ラベル is not None:
-                    return self._HDS選択結果(要求_, hds_ir, supervised.参照, supervised.選択)
-
-                # K3/GLM/Llama3統一状態循環は既存経路が未閉包の時だけfallbackとして発火する。
-                # 既存の正答・採否・科学専門能力経路を置換しない。
-                from .hds統一実行 import HDS統一選択評価
-                from .hds統一状態循環 import HDS統一状態Session
-
-                fallback_references = tuple(supervised.参照)
-                unified_session = HDS統一状態Session(
-                    str(hds_ir.正規化文 or hds_ir.原文),
-                    fallback_references,
-                    主体状態=self.主体状態,
-                    認知世界ID=str(hds_ir.認知世界ID or ""),
-                )
-                unified = HDS統一選択評価(
-                    hds_ir,
-                    fallback_references,
-                    コンパイル=self.コンパイル,
-                    模型核=self.能力模型核,
-                    統一session=unified_session,
-                    主体状態=self.主体状態,
-                )
-                if unified.状態 == "APPROVE" and unified.回答ラベル is not None:
-                    return self._HDS選択結果(要求_, hds_ir, fallback_references, unified)
-
-                # fallbackが閉包できなければ既存MINIDORAの未閉包結果を保持する。
                 return self._HDS選択結果(要求_, hds_ir, supervised.参照, supervised.選択)
         return super().実行(要求_)
 
