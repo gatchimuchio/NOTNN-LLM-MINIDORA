@@ -1,0 +1,322 @@
+name: MINIDORA GPQA high-water candidate one-shot
+
+on:
+  push:
+    branches:
+      - audit/revalidate-structure-on-highwater
+    paths:
+      - .github/workflows/gpqa_highwater_candidate_once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: minidora-gpqa-highwater-candidate
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - start: 0
+            limit: 50
+            part: "000-049"
+          - start: 50
+            limit: 50
+            part: "050-099"
+          - start: 100
+            limit: 50
+            part: "100-149"
+          - start: 150
+            limit: 48
+            part: "150-197"
+    env:
+      OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aac6b9b9fde35ce4e920016876b366d3d7d55b77
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: 55正本paired候補runner生成
+        shell: bash
+        run: |
+          cat > /tmp/benchmark_highwater_candidate.py <<'PY'
+          from __future__ import annotations
+
+          from dataclasses import replace
+          from pathlib import Path
+          import sys
+
+          root = Path.cwd()
+          sys.path.insert(0, str(root / 'tools'))
+
+          import benchmark_formal as formal
+          from minidora.hds介入制御 import 標準HDS介入制御
+          from minidora.hds監督選択runtime import HDS監督選択実行
+          from minidora.hds統一実行 import HDS統一選択評価
+          from minidora.hds統一状態循環 import HDS統一状態Session
+          from minidora.runtime import _LLM互換主体状態
+          from minidora.能力状態差循環 import 標準能力模型核
+
+          _last_key = None
+          _last_legacy = None
+          _last_refs = None
+
+          def _key(question_ir, references):
+              return (
+                  id(question_ir),
+                  tuple((r.識別子, r.信頼, r.条件) for r in references),
+              )
+
+          def _legacy_product(question_ir, references, *, コンパイル, 基礎能力核):
+              initial = formal._通常MINIDORA推論(
+                  question_ir,
+                  references,
+                  コンパイル=コンパイル,
+                  基礎能力核=基礎能力核,
+              )
+              supervised = HDS監督選択実行(
+                  question_ir,
+                  tuple(references),
+                  コンパイル=コンパイル,
+                  基礎能力核=基礎能力核,
+                  模型核=標準能力模型核(),
+                  参照供給器=formal._現在Provider,
+                  HDS制御=標準HDS介入制御(),
+                  HDS介入予算=6,
+                  初期選択=initial,
+              )
+              return supervised.選択, tuple(supervised.参照)
+
+          def paired_candidate(*args, **kwargs):
+              global _last_key, _last_legacy, _last_refs
+              if len(args) < 2:
+                  raise TypeError('paired candidate requires question_ir and references')
+              question_ir = args[0]
+              references = tuple(args[1])
+              コンパイル = kwargs.get('コンパイル')
+              基礎能力核 = kwargs.get('基礎能力核')
+              if コンパイル is None or 基礎能力核 is None:
+                  raise TypeError('paired candidate requires コンパイル and 基礎能力核')
+
+              controlled_baseline = (
+                  kwargs.get('作業再作用') is False
+                  and kwargs.get('局所再照合') is False
+              )
+              key = _key(question_ir, references)
+
+              if controlled_baseline:
+                  legacy, final_refs = _legacy_product(
+                      question_ir,
+                      references,
+                      コンパイル=コンパイル,
+                      基礎能力核=基礎能力核,
+                  )
+                  _last_key = key
+                  _last_legacy = legacy
+                  _last_refs = final_refs
+                  return legacy
+
+              if _last_key == key and _last_legacy is not None and _last_refs is not None:
+                  legacy = _last_legacy
+                  final_refs = _last_refs
+                  _last_key = None
+                  _last_legacy = None
+                  _last_refs = None
+              else:
+                  legacy, final_refs = _legacy_product(
+                      question_ir,
+                      references,
+                      コンパイル=コンパイル,
+                      基礎能力核=基礎能力核,
+                  )
+
+              # 高水準正本が閉包した問題は1bitも変更しない。
+              if legacy.状態 == 'APPROVE' and legacy.回答ラベル is not None:
+                  return legacy
+
+              # 今回追加要素は正本未閉包問題だけへ単調fallbackする。
+              subject = _LLM互換主体状態()
+              session = HDS統一状態Session(
+                  str(question_ir.正規化文 or question_ir.原文),
+                  final_refs,
+                  主体状態=subject,
+                  認知世界ID=str(question_ir.認知世界ID or ''),
+              )
+              unified = HDS統一選択評価(
+                  question_ir,
+                  final_refs,
+                  コンパイル=コンパイル,
+                  模型核=標準能力模型核(),
+                  統一session=session,
+                  主体状態=subject,
+              )
+              if unified.状態 == 'APPROVE' and unified.回答ラベル is not None:
+                  return replace(
+                      unified,
+                      理由=tuple(dict.fromkeys(tuple(unified.理由) + ('HIGHWATER_MONOTONIC_FALLBACK_COMMIT',))),
+                  )
+              return replace(
+                  legacy,
+                  理由=tuple(dict.fromkeys(tuple(legacy.理由) + ('HIGHWATER_MONOTONIC_FALLBACK_NO_COMMIT',))),
+              )
+
+          formal._gpqa.HDS選択推論実行 = paired_candidate
+
+          previous_payload = formal._benchmark._result_payload
+          def candidate_payload(*args, **kwargs):
+              payload = previous_payload(*args, **kwargs)
+              protocol = payload.setdefault('protocol', {})
+              protocol['benchmark_variant'] = 'highwater-55-product-vs-monotonic-structure-fallback-v1'
+              protocol['benchmark_target_commit'] = 'aac6b9b9fde35ce4e920016876b366d3d7d55b77'
+              protocol['canonical_highwater_commit'] = '7ab2a0b61f7ec510228e0fb244c17c6ad0810545'
+              protocol['canonical_highwater_score'] = '55/198'
+              protocol['baseline_definition'] = 'same references; historical high-water product path including scientific capability wrapper and HDS supervisor'
+              protocol['candidate_definition'] = 'exact baseline when it APPROVEs; K3/GLM/Llama3 unified-state fallback only when baseline remains SUSPEND'
+              protocol['non_regression_invariant'] = 'baseline APPROVE result is returned unchanged; candidate cannot replace a high-water answered case'
+              return payload
+          formal._benchmark._result_payload = candidate_payload
+
+          if __name__ == '__main__':
+              raise SystemExit(formal._benchmark.main())
+          PY
+      - name: GPQA Diamond chunk paired検証
+        run: >-
+          python /tmp/benchmark_highwater_candidate.py gpqa-diamond
+          --controlled-ab
+          --start-index ${{ matrix.start }}
+          --limit ${{ matrix.limit }}
+          --out gpqa_chunk_${{ matrix.start }}.json
+      - name: chunk保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-highwater-candidate-chunk-${{ matrix.part }}
+          path: gpqa_chunk_${{ matrix.start }}.json
+          if-no-files-found: warn
+          retention-days: 90
+
+  aggregate:
+    needs: benchmark
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aac6b9b9fde35ce4e920016876b366d3d7d55b77
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: chunk取得
+        uses: actions/download-artifact@v4
+        with:
+          pattern: minidora-highwater-candidate-chunk-*
+          path: chunks
+          merge-multiple: true
+      - name: 198問集約と正本採否
+        shell: bash
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          import json
+          from pathlib import Path
+          import sys
+
+          sys.path.insert(0, str(Path.cwd() / 'tools'))
+          import benchmark
+
+          files = sorted(Path('chunks').glob('gpqa_chunk_*.json'))
+          if len(files) != 4:
+              raise SystemExit(f'expected 4 chunk files, got {len(files)}')
+          payloads = [json.loads(p.read_text(encoding='utf-8')) for p in files]
+          details = sorted(
+              [row for payload in payloads for row in payload.get('details', [])],
+              key=lambda row: int(row['index']),
+          )
+          indices = [int(row['index']) for row in details]
+          if indices != list(range(198)):
+              raise SystemExit(f'incomplete/duplicate indices: {len(indices)}')
+
+          protocols = [p['protocol'] for p in payloads]
+          csv_hashes = {p['dataset_csv_sha256'] for p in protocols}
+          zip_hashes = {p['dataset_zip_sha256'] for p in protocols}
+          openalex_values = {bool(p['openalex_enabled']) for p in protocols}
+          if len(csv_hashes) != 1 or len(zip_hashes) != 1 or len(openalex_values) != 1:
+              raise SystemExit('chunk protocol mismatch')
+
+          combined = benchmark._result_payload(
+              details=details,
+              selected=range(198),
+              zip_hash=next(iter(zip_hashes)),
+              csv_hash=next(iter(csv_hashes)),
+              repository_commit='aac6b9b9fde35ce4e920016876b366d3d7d55b77',
+              openalex_enabled=next(iter(openalex_values)),
+              controlled_ab=True,
+          )
+          protocol = combined.setdefault('protocol', {})
+          protocol.update({
+              'benchmark_variant': 'highwater-55-product-vs-monotonic-structure-fallback-v1',
+              'benchmark_target_commit': 'aac6b9b9fde35ce4e920016876b366d3d7d55b77',
+              'canonical_highwater_commit': '7ab2a0b61f7ec510228e0fb244c17c6ad0810545',
+              'canonical_highwater_score': '55/198',
+              'baseline_definition': 'same references; high-water product path including scientific capability wrapper and HDS supervisor',
+              'candidate_definition': 'exact baseline when APPROVE; unified-state fallback only on baseline SUSPEND',
+              'parallel_partition': '4 independent index ranges; same per-case initial references for paired A/B',
+          })
+
+          fallback_attempted = sum(not bool(row.get('baseline_answered')) for row in details)
+          fallback_committed = sum('HIGHWATER_MONOTONIC_FALLBACK_COMMIT' in row.get('reasons', []) for row in details)
+          fallback_correct = sum(
+              'HIGHWATER_MONOTONIC_FALLBACK_COMMIT' in row.get('reasons', []) and bool(row.get('correct'))
+              for row in details
+          )
+          fallback_wrong = fallback_committed - fallback_correct
+          baseline_regressed = sum(
+              bool(row.get('baseline_correct')) and not bool(row.get('correct'))
+              for row in details
+          )
+          current_correct = int(combined['metrics']['correct'])
+          historic_highwater = 55
+          promotion = current_correct >= historic_highwater and baseline_regressed == 0
+          combined['highwater_validation'] = {
+              'historic_highwater_correct': historic_highwater,
+              'candidate_correct': current_correct,
+              'candidate_delta_vs_historic_highwater': current_correct - historic_highwater,
+              'paired_baseline_correct': int(combined['controlled_baseline']['correct']),
+              'paired_delta_correct': int(combined['controlled_delta']['correct_delta']),
+              'fallback_attempted_cases': fallback_attempted,
+              'fallback_committed_cases': fallback_committed,
+              'fallback_correct_cases': fallback_correct,
+              'fallback_wrong_cases': fallback_wrong,
+              'baseline_correct_regressed_cases': baseline_regressed,
+              'promotion_eligible': promotion,
+              'rule': 'candidate must equal or exceed verified product high-water 55/198 and must not regress a paired baseline-correct case',
+          }
+          out = Path('gpqa_highwater_candidate_measurement.json')
+          out.write_text(json.dumps(combined, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print('=== metrics ===')
+          print(json.dumps(combined['metrics'], ensure_ascii=False, indent=2))
+          print('=== paired baseline ===')
+          print(json.dumps(combined['controlled_baseline'], ensure_ascii=False, indent=2))
+          print('=== paired delta ===')
+          print(json.dumps(combined['controlled_delta'], ensure_ascii=False, indent=2))
+          print('=== highwater validation ===')
+          print(json.dumps(combined['highwater_validation'], ensure_ascii=False, indent=2))
+          PY
+      - name: 最終成果保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-gpqa-highwater-candidate-aac6b9b
+          path: gpqa_highwater_candidate_measurement.json
+          if-no-files-found: error
+          retention-days: 90
