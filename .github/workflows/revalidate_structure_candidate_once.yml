@@ -26,7 +26,8 @@ jobs:
       - name: 正本履歴確認
         run: |
           test "$(git rev-parse 4d34dc2e9901bbe309170d6207446e9aa09dfb08^{tree})" = "762b860997ec1a65b76ada68fe5a1e5748363564"
-          test "$(git rev-parse HEAD^)" = "4d34dc2e9901bbe309170d6207446e9aa09dfb08"
+          git merge-base --is-ancestor 4d34dc2e9901bbe309170d6207446e9aa09dfb08 HEAD
+          git diff --quiet 4d34dc2e9901bbe309170d6207446e9aa09dfb08 HEAD -- src/minidora tests tools
       - name: GLM基盤を再適用
         run: |
           git config user.name 'github-actions[bot]'
