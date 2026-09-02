@@ -23,10 +23,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: 履歴確認
+      - name: 正本履歴確認
         run: |
-          git log --oneline --decorate -8
           test "$(git rev-parse 4d34dc2e9901bbe309170d6207446e9aa09dfb08^{tree})" = "762b860997ec1a65b76ada68fe5a1e5748363564"
+          test "$(git rev-parse HEAD^)" = "4d34dc2e9901bbe309170d6207446e9aa09dfb08"
       - name: GLM基盤を再適用
         run: |
           git config user.name 'github-actions[bot]'
@@ -39,7 +39,7 @@ jobs:
             5c5c5dcf8d156f70437ea1c1e61ff84490ce781e \
             246153e35be011cfc0493c5b54290d7fd1c3637a \
             16d80ecb9dc5f56936dd5d442add35520e438011
-      - name: 統一状態循環を再適用
+      - name: 統一状態循環本体を再適用
         run: |
           git cherry-pick -x \
             ff37b9e08f996d580361613595a1b8c6798c4dcd \
@@ -49,11 +49,76 @@ jobs:
             9edec7063529539b4653140c42c813a65d1030fa \
             998cb138c99db96a45b20e57d7126cf3c56503ec \
             6c67e2d69c05a18bd360c1dee4aa0eb9fe3df89b \
-            6b4c27424db667e3841699a9cfb1799625809e1d \
-            2ef62f8a25e39875319eb03bf1969408a1838f13
+            6b4c27424db667e3841699a9cfb1799625809e1d
+      - name: 55正本を壊さない単調fallback接続
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/minidora/runtime.py')
+          s = p.read_text(encoding='utf-8')
+          old = '''                supervised = HDS監督選択実行(
+                    hds_ir,
+                    tuple(references),
+                    コンパイル=self.コンパイル,
+                    基礎能力核=self.K3能力核,
+                    模型核=self.能力模型核,
+                    参照供給器=self.参照供給器,
+                    HDS制御=self.HDS監督制御,
+                    初期選択=initial,
+                )
+                return self._HDS選択結果(要求_, hds_ir, supervised.参照, supervised.選択)
+'''
+          new = '''                # 55/198を成立させた既存MINIDORA経路を先に最後まで実行する。
+                # 既存経路が閉包した場合は一切再解釈せず、その結果をそのまま返す。
+                supervised = HDS監督選択実行(
+                    hds_ir,
+                    tuple(references),
+                    コンパイル=self.コンパイル,
+                    基礎能力核=self.K3能力核,
+                    模型核=self.能力模型核,
+                    参照供給器=self.参照供給器,
+                    HDS制御=self.HDS監督制御,
+                    初期選択=initial,
+                )
+                if supervised.選択.状態 == "APPROVE" and supervised.選択.回答ラベル is not None:
+                    return self._HDS選択結果(要求_, hds_ir, supervised.参照, supervised.選択)
+
+                # 今回追加したK3/GLM/Llama3統一状態循環は、既存経路が未閉包の時だけ
+                # fallbackとして発火する。したがって既存の正答経路を置換しない。
+                from .hds統一実行 import HDS統一選択評価
+                from .hds統一状態循環 import HDS統一状態Session
+
+                fallback_references = tuple(supervised.参照)
+                unified_session = HDS統一状態Session(
+                    str(hds_ir.正規化文 or hds_ir.原文),
+                    fallback_references,
+                    主体状態=self.主体状態,
+                    認知世界ID=str(hds_ir.認知世界ID or ""),
+                )
+                unified = HDS統一選択評価(
+                    hds_ir,
+                    fallback_references,
+                    コンパイル=self.コンパイル,
+                    模型核=self.能力模型核,
+                    統一session=unified_session,
+                    主体状態=self.主体状態,
+                )
+                if unified.状態 == "APPROVE" and unified.回答ラベル is not None:
+                    return self._HDS選択結果(要求_, hds_ir, fallback_references, unified)
+
+                # fallbackが閉包できなければ、既存MINIDORAの未閉包結果を保持する。
+                return self._HDS選択結果(要求_, hds_ir, supervised.参照, supervised.選択)
+'''
+          if s.count(old) != 1:
+              raise SystemExit(f'runtime anchor mismatch: {s.count(old)}')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+          PY
+          git add src/minidora/runtime.py
+          git commit -m '統一状態循環を55正本の未閉包fallbackとして接続'
       - name: パッケージ導入
         run: python -m pip install -e .
-      - name: 正本検証契約
+      - name: 基本検証
         run: |
           python tools/repository_consistency_check.py
           python tools/日本語基底監査.py
@@ -63,3 +128,32 @@ jobs:
           git diff --check
       - name: 候補枝へ保存
         run: git push origin HEAD:audit/revalidate-structure-on-highwater
+
+  matrix-validate:
+    needs: apply-and-validate
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12', '3.13', '3.14']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/revalidate-structure-on-highwater
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: リポジトリ整合性監査
+        run: python tools/repository_consistency_check.py
+      - name: 日本語基底監査
+        run: python tools/日本語基底監査.py
+      - name: 構文確認
+        run: python -m compileall -q src tests tools
+      - name: 単体試験
+        run: python -m unittest discover -s tests -v
+      - name: module CLI smoke
+        run: python -m minidora "2+3"
