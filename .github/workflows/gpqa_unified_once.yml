@@ -1,0 +1,158 @@
+name: MINIDORA GPQA unified one-shot
+
+on:
+  push:
+    paths:
+      - ".github/workflows/gpqa_unified_once.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: minidora-gpqa-unified-once
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 5d0c01f0f85ea23d1002819f978c7de9ddd4a3d0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: 統一状態循環 controlled A/B runner生成
+        shell: bash
+        run: |
+          cat > /tmp/benchmark_unified_once.py <<'PY'
+          from __future__ import annotations
+
+          from pathlib import Path
+          import sys
+
+          root = Path.cwd()
+          sys.path.insert(0, str(root / "tools"))
+
+          import benchmark_formal as formal
+          from minidora.hds介入制御 import 標準HDS介入制御
+          from minidora.hds監督選択runtime import HDS監督選択実行
+          from minidora.hds統一実行 import HDS統一選択評価
+          from minidora.hds統一状態循環 import HDS統一状態Session
+          from minidora.runtime import _LLM互換主体状態
+          from minidora.能力状態差循環 import 標準能力模型核
+          from minidora.計算実行器 import 計算実行器
+
+          def 統一状態循環選択(*args, **kwargs):
+              if len(args) < 2:
+                  raise TypeError("GPQA統一状態循環ベンチは question_ir と references を必要とする")
+              question_ir = args[0]
+              references = tuple(args[1])
+              コンパイル = kwargs.get("コンパイル")
+              基礎能力核 = kwargs.get("基礎能力核")
+              if コンパイル is None or 基礎能力核 is None:
+                  raise TypeError("GPQA統一状態循環ベンチは コンパイル と 基礎能力核 を必要とする")
+
+              controlled_baseline = (
+                  kwargs.get("作業再作用") is False
+                  and kwargs.get("局所再照合") is False
+              )
+              if controlled_baseline:
+                  return formal._通常MINIDORA推論(
+                      question_ir,
+                      references,
+                      コンパイル=コンパイル,
+                      基礎能力核=基礎能力核,
+                  )
+
+              模型核 = 標準能力模型核()
+              主体状態 = _LLM互換主体状態()
+              session = HDS統一状態Session(
+                  str(question_ir.正規化文 or question_ir.原文),
+                  references,
+                  主体状態=主体状態,
+                  認知世界ID=str(question_ir.認知世界ID or ""),
+              )
+
+              def 評価実行(current_references):
+                  return HDS統一選択評価(
+                      question_ir,
+                      tuple(current_references),
+                      コンパイル=コンパイル,
+                      模型核=模型核,
+                      統一session=session,
+                      主体状態=主体状態,
+                  )
+
+              initial = 評価実行(references)
+              if initial.状態 == "APPROVE" and initial.回答ラベル is not None:
+                  return initial
+
+              supervised = HDS監督選択実行(
+                  question_ir,
+                  references,
+                  コンパイル=コンパイル,
+                  基礎能力核=None,
+                  模型核=模型核,
+                  参照供給器=formal._現在Provider,
+                  計算実行器_=計算実行器(),
+                  HDS制御=標準HDS介入制御(),
+                  HDS介入予算=6,
+                  初期選択=initial,
+                  評価実行=評価実行,
+              )
+              return supervised.選択
+
+          formal._gpqa.HDS選択推論実行 = 統一状態循環選択
+
+          previous_payload = formal._benchmark._result_payload
+
+          def 統一結果payload(*args, **kwargs):
+              payload = previous_payload(*args, **kwargs)
+              protocol = payload.setdefault("protocol", {})
+              protocol["benchmark_variant"] = "unified-state-cycle-vs-formal-controlled-ab-v1"
+              protocol["runtime"] = "MINIDORA main 5d0c01f: K3/GLM/Llama3 cross-model unified state cycle -> HDS J; anomaly safety valve re-enters same unified evaluator"
+              protocol["controlled_ab_definition"] = (
+                  "same question IR + same initial retrieved references. "
+                  "baseline=pre-unified formal MINIDORA model evaluation; "
+                  "current=unified state cycle with retrieval-plan lifetime/rebuild, parallel candidate lanes, V3 capability path, HDS J, and same-path re-evaluation after supervisory actions"
+              )
+              protocol["unified_state_cycle"] = True
+              protocol["final_hds_judgement_wrapper"] = True
+              protocol["benchmark_target_commit"] = "5d0c01f0f85ea23d1002819f978c7de9ddd4a3d0"
+              return payload
+
+          formal._benchmark._result_payload = 統一結果payload
+
+          if __name__ == "__main__":
+              raise SystemExit(formal._benchmark.main())
+          PY
+      - name: GPQA Diamond 198問 統一状態循環 controlled A/B
+        run: python /tmp/benchmark_unified_once.py gpqa-diamond --controlled-ab --out gpqa_unified_measurement.json
+      - name: 結果要約
+        if: always()
+        shell: bash
+        run: |
+          if [ -f gpqa_unified_measurement.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('gpqa_unified_measurement.json').read_text(encoding='utf-8'))
+          for key in ('protocol','metrics','controlled_baseline','controlled_delta','comparison_reference'):
+              print(f'=== {key} ===')
+              print(json.dumps(p.get(key), ensure_ascii=False, indent=2))
+          PY
+          fi
+      - name: 成果保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-gpqa-unified-5d0c01f
+          path: gpqa_unified_measurement.json
+          if-no-files-found: warn
+          retention-days: 90
