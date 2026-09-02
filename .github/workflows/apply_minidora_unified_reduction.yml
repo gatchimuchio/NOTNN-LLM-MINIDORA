@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  APPLY_REVISION: "2"
+
 jobs:
   apply:
     runs-on: ubuntu-latest
