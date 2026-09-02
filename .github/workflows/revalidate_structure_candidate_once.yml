@@ -68,7 +68,7 @@ jobs:
                     初期選択=initial,
                 )
                 return self._HDS選択結果(要求_, hds_ir, supervised.参照, supervised.選択)
-'''
+          '''
           new = '''                # 55/198を成立させた既存MINIDORA経路を先に最後まで実行する。
                 # 既存経路が閉包した場合は一切再解釈せず、その結果をそのまま返す。
                 supervised = HDS監督選択実行(
@@ -109,7 +109,7 @@ jobs:
 
                 # fallbackが閉包できなければ、既存MINIDORAの未閉包結果を保持する。
                 return self._HDS選択結果(要求_, hds_ir, supervised.参照, supervised.選択)
-'''
+          '''
           if s.count(old) != 1:
               raise SystemExit(f'runtime anchor mismatch: {s.count(old)}')
           p.write_text(s.replace(old, new), encoding='utf-8')
