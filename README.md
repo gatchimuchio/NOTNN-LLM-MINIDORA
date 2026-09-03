@@ -4,6 +4,27 @@
 
 [English translation](README.en.md) / [ハッカソン実装](ハッカソン/README.md) / [設計正本](設計/README.md) / [評価・実測](評価/README.md)
 
+## 上位正本・関連リポジトリ
+
+MINIDORAは単独の閉じたリポジトリではなく、次の上位正本を参照して実装されています。
+
+| リポジトリ | 役割 | 関係 |
+|---|---|---|
+| [**認知工学基盤 — cognitive-engineering-foundations**](https://github.com/gatchimuchio/cognitive-engineering-foundations) | 認知工学・言語基底・HDS等の最上位理論正本 | MINIDORAの理論・意味・日本語基底の上位参照 |
+| [**LLM構成定義 — LLM-Constitutive-Specification**](https://github.com/gatchimuchio/LLM-Constitutive-Specification) | LLMとして何が成立条件かを定める構成定義正本 | MINIDORAの言語模型成立条件・能力作用構成の責任正本 |
+
+```text
+認知工学基盤
+    ↓ 理論・意味・言語基底
+LLM構成定義
+    ↓ 言語模型成立条件・能力作用構成
+MINIDORA
+    ↓ 実装・実測・製品化
+ハッカソン専用チャット層
+```
+
+詳細な参照版・commit・責任境界は [REFERENCES.md](REFERENCES.md) を参照してください。
+
 ## 30秒でわかるMINIDORA
 
 MINIDORAは、知識・専門能力・個別タスク能力を一つの巨大な模型へ詰め込む方向ではなく、責任を分離します。
@@ -167,6 +188,11 @@ python -m minidora.ハッカソン
 | [`構文化/`](構文化/) | 観測・再構成・構文化履歴 |
 | [`artifacts/`](artifacts/) | 固定取得物・派生成果 |
 | [`REFERENCES.md`](REFERENCES.md) | 上位正本と参照関係 |
+
+外部上位正本:
+
+- [認知工学基盤 — cognitive-engineering-foundations](https://github.com/gatchimuchio/cognitive-engineering-foundations)
+- [LLM構成定義 — LLM-Constitutive-Specification](https://github.com/gatchimuchio/LLM-Constitutive-Specification)
 
 より詳しい読み順: [docs/README.md](docs/README.md)
 
