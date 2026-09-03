@@ -88,15 +88,13 @@ HDSは正解ラベルやgoldを見て異常を判定しない。
 
 ## 5. HDS介入可能作用
 
-現行選択問題では最低限次を扱う。
+標準MINIDORA coreでHDSが外側から起動する作用は、原則として次の二つへ限定する。
 
 - `REFERENCE` — 既存Rを段階的に広げて追加観測する。
-- `EXISTING_WORKING_RECONCILE` — 既存Working Relation / 寄与Gate再作用。
-- `EXISTING_LOCAL_REPARSE` — 既存局所Window再構文化。
-- `EXISTING_CAPABILITY_MODEL` — 既存能力模型照合。
-- `EXISTING_COMPUTE_EXECUTOR` — Compute IRが成立する領域で既存計算実行器を使う。
+- `EXISTING_COMPUTE_EXECUTOR` — Compilerが閉包済みCompute IRを生成できた場合だけ既存計算実行器を使う。
 
-HDSが新しい能力作用を発明してはならない。既存側が作用機会として公開したものだけを起動できる。
+Working Relation再作用、局所再照合、能力模型再照合は能力模型核内部の一般作用であり、標準HDS監督が別経路として再実行しない。
+専門領域solverをHDS作用候補へ入れない。HDSは計算法則・専門知識・候補勝者を生成しない。
 
 ## 6. 作用固有入力署名
 

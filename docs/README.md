@@ -6,7 +6,8 @@
 
 ## 現在の文書
 
-- [`HDS_IR_NATIVE_K3.md`](HDS_IR_NATIVE_K3.md) — HDS-IRからK3相当能力核へ直接接続する経路の要約。
+- [`SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md`](SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md) — 最小汎用LLM core + HDS異常時最小介入を再開地点として固定したセーブポイント。
+- [`HDS_IR_NATIVE_K3.md`](HDS_IR_NATIVE_K3.md) — HDS-IRからK3相当能力核へ直接接続する旧経路の補助記録。現行標準coreのactive pathではない。
 
 ## 境界
 

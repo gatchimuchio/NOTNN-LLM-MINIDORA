@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, TYPE_CHECKING
 
 from .hds_choice_runtime import (
     HDS選択実行結果,
@@ -23,7 +23,8 @@ from .hds_model_projection import (
 )
 from .hds_runtime_projection import HDSKData射影, HDSK候補射影, HDSK質問射影
 from .hds判断参照境界 import HDS判断Data整列
-from .k3_functional import K3相当能力核
+if TYPE_CHECKING:
+    from .k3_functional import K3相当能力核
 from .模型 import MINIDORA模型核, 成立候補, 模型結果
 from .能力状態差循環 import MINIDORA能力状態差模型核, 標準能力模型核
 from .参照 import 参照記録
@@ -138,7 +139,7 @@ def HDS候補提案実行(
     references: tuple[参照記録, ...],
     *,
     コンパイル,
-    基礎能力核: K3相当能力核,
+    基礎能力核: K3相当能力核 | None,
     最大コンパイル並列: int = 4,
     模型核: MINIDORA模型核 | None = None,
 ) -> HDS選択実行結果:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 import unicodedata
-from typing import Iterable
+from typing import Iterable, TYPE_CHECKING
 
 from .hds_choice_runtime import HDS選択実行結果
 from .hds_ir import HDSIR
@@ -18,7 +18,8 @@ from .hds_reference import (
 )
 from .hds候補提案runtime import HDS候補提案実行
 from .hds局所再照合 import HDS局所Window候補
-from .k3_functional import K3相当能力核
+if TYPE_CHECKING:
+    from .k3_functional import K3相当能力核
 from .模型 import MINIDORA模型核, 模型結果
 from .能力状態差循環 import MINIDORA能力状態差模型核, 標準能力模型核
 from .参照 import 参照供給器, 参照記録
@@ -259,7 +260,7 @@ def HDS能力経路V2候補提案実行(
     references: tuple[参照記録, ...],
     *,
     コンパイル,
-    基礎能力核: K3相当能力核,
+    基礎能力核: K3相当能力核 | None,
     最大コンパイル並列: int = 4,
     模型核: MINIDORA模型核 | None = None,
     最大局所Window数: int = 12,

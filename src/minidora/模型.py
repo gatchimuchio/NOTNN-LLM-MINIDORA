@@ -120,7 +120,14 @@ class 言語対応:
     def 文脈化(self,現在,履歴:Sequence[言語状態]=(),条件:Sequence[str]=(),参照状態:Sequence[言語状態]=()):
         for state in (*履歴,*参照状態):
             if state.言語体系!=現在.言語体系: raise ValueError("同一の文脈評価内で言語体系を無言混在させない")
-        return 文脈付き言語状態(self.内部化(現在),tuple(self.内部化(x) for x in 履歴),tuple(str(x) for x in 条件),tuple(self.内部化(x) for x in 参照状態))
+        # 同一の意味・関係構造を持つDataを、出典IDが違うだけで複数票へ増幅しない。
+        references=[]; seen_reference=set()
+        for state in 参照状態:
+            internal=self.内部化(state)
+            signature=internal.構造署名
+            if signature in seen_reference: continue
+            seen_reference.add(signature); references.append(internal)
+        return 文脈付き言語状態(self.内部化(現在),tuple(self.内部化(x) for x in 履歴),tuple(str(x) for x in 条件),tuple(references))
 
 class 模型関係(Protocol):
     名称:str

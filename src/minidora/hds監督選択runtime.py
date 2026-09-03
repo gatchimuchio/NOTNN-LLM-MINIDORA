@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from hashlib import sha256
 import json
+from typing import Callable
 
 from .hds_choice_runtime import HDS選択実行結果, HDS選択推論実行
 from .hds_ir import HDSIR
@@ -20,9 +21,9 @@ from .hds介入制御 import (
     標準HDS介入制御,
 )
 from .hds参照拡張 import HDS候補被覆優先統合, HDS追加参照検索
-from .k3_functional import K3相当能力核
 from .模型 import MINIDORA模型核
 from .参照 import 参照供給器, 参照記録
+from .計算実行器 import 計算実行器
 
 
 _介入不能理由 = frozenset({
@@ -111,10 +112,12 @@ class _Session:
         references: tuple[参照記録, ...],
         *,
         コンパイル,
-        基礎能力核: K3相当能力核,
+        基礎能力核,
         模型核: MINIDORA模型核 | None,
         参照供給器: 参照供給器 | None,
+        計算実行器_: 計算実行器 | None,
         初期選択: HDS選択実行結果 | None,
+        評価実行: Callable[[tuple[参照記録, ...]], HDS選択実行結果] | None = None,
     ) -> None:
         self.question_ir = question_ir
         self.search_ir = HDSR質問射影(question_ir)
@@ -123,12 +126,14 @@ class _Session:
         self.基礎能力核 = 基礎能力核
         self.模型核 = 模型核
         self.参照供給器 = 参照供給器
+        self.計算実行器 = 計算実行器_
         self.choice_map = _choices(question_ir)
         self.generation = 0
         self.extra_r_level = 0
-        self.ran_working: set[int] = set()
-        self.ran_local: set[int] = set()
-        self.ran_model: set[int] = set()
+        self.compute_done = False
+        self._compute_plan_checked = False
+        self._compute_plan = None
+        self.評価実行 = 評価実行
         self.initial = 初期選択 if 初期選択 is not None else self._normal()
         self.current = self.initial
 
@@ -137,22 +142,42 @@ class _Session:
         *,
         working: bool = True,
         local: bool = True,
-        formal_model: bool = False,
+        formal_model: bool = True,
     ) -> HDS選択実行結果:
-        kwargs = {
-            "コンパイル": self.コンパイル,
-            "基礎能力核": self.基礎能力核,
-            "作業再作用": working,
-            "局所再照合": local,
-        }
-        if formal_model:
-            kwargs["模型核"] = self.模型核
-            kwargs["正式模型評価"] = True
+        # 追加参照・計算後も同じ統一評価入口へ戻し、初回だけ新経路になる二重構造を防ぐ。
+        if self.評価実行 is not None:
+            return self.評価実行(self.references)
         return HDS選択推論実行(
             self.question_ir,
             self.references,
-            **kwargs,
+            コンパイル=self.コンパイル,
+            基礎能力核=None,
+            模型核=self.模型核,
+            正式模型評価=True,
         )
+
+    def _計算機会(self):
+        if self._compute_plan_checked:
+            return self._compute_plan
+        self._compute_plan_checked = True
+        if self.計算実行器 is None:
+            return None
+        owner = getattr(self.コンパイル, "__self__", None)
+        compiler = getattr(owner, "HDSコンパイラ", None)
+        if compiler is None and callable(getattr(owner, "計算コンパイル", None)):
+            compiler = owner
+        compile_compute = getattr(compiler, "計算コンパイル", None)
+        if not callable(compile_compute):
+            return None
+        try:
+            plan = compile_compute(self.question_ir.原文)
+        except (ValueError, TypeError):
+            return None
+        compute_ir = getattr(plan, "計算IR", None)
+        if bool(getattr(plan, "参照必須", True)) or not tuple(getattr(compute_ir, "命令列", ())):
+            return None
+        self._compute_plan = plan
+        return plan
 
     def _ref_sig(self) -> str:
         return _hash(tuple((r.識別子, r.信頼, r.条件) for r in self.references))
@@ -171,7 +196,10 @@ class _Session:
         ))
 
     def residuals(self) -> frozenset[残差種別]:
-        return _residuals(self.current, self.references)
+        out = set(_residuals(self.current, self.references))
+        if not _approved(self.current) and not self.compute_done and self._計算機会() is not None:
+            out.add(残差種別.計算要求)
+        return frozenset(out)
 
     def intervention_blockers(self) -> tuple[str, ...]:
         return tuple(reason for reason in self.current.理由 if reason in _介入不能理由)
@@ -201,46 +229,14 @@ class _Session:
         base_sig = f"g{self.generation}:{self._ref_sig()}:{self._candidate_sig()}"
         offers: list[既存作用機会] = []
 
-        if self.generation not in self.ran_working and residuals.intersection({
-            残差種別.候補競合,
-            残差種別.候補識別不足,
-            残差種別.状態差未消費,
-        }):
+        if 残差種別.計算要求 in residuals and self._計算機会() is not None:
             offers.append(既存作用機会(
-                既存作用.作業再作用,
-                frozenset({残差種別.候補競合, 残差種別.候補識別不足, 残差種別.状態差未消費}),
-                f"working:{base_sig}",
+                既存作用.計算実行,
+                frozenset({残差種別.計算要求, 残差種別.観測不足, 残差種別.候補識別不足}),
+                f"compute:{base_sig}",
                 1,
                 True,
-                ("NORMAL_MINIDORA_WORKING_REACTION_AVAILABLE",),
-            ))
-
-        if self.generation not in self.ran_local and residuals.intersection({
-            残差種別.Data意味損失,
-            残差種別.候補競合,
-            残差種別.候補識別不足,
-        }):
-            offers.append(既存作用機会(
-                既存作用.局所再照合,
-                frozenset({残差種別.Data意味損失, 残差種別.候補競合, 残差種別.候補識別不足}),
-                f"local:{base_sig}",
-                2,
-                True,
-                ("NORMAL_MINIDORA_LOCAL_REPARSE_AVAILABLE",),
-            ))
-
-        if self.generation not in self.ran_model and self.模型核 is not None and residuals.intersection({
-            残差種別.候補競合,
-            残差種別.候補識別不足,
-            残差種別.状態差未消費,
-        }):
-            offers.append(既存作用機会(
-                既存作用.能力模型照合,
-                frozenset({残差種別.候補競合, 残差種別.候補識別不足, 残差種別.状態差未消費}),
-                f"model:{base_sig}",
-                3,
-                True,
-                ("NORMAL_MINIDORA_CAPABILITY_MODEL_AVAILABLE",),
+                ("GENERIC_COMPUTE_IR_AVAILABLE",),
             ))
 
         if self.参照供給器 is not None and residuals.intersection({
@@ -271,15 +267,35 @@ class _Session:
             tuple(sorted(x.value for x in self.residuals())),
         )
 
-        if action == 既存作用.作業再作用:
-            self.ran_working.add(self.generation)
-            self.current = self._normal(working=True, local=False)
-        elif action == 既存作用.局所再照合:
-            self.ran_local.add(self.generation)
-            self.current = self._normal(working=False, local=True)
-        elif action == 既存作用.能力模型照合:
-            self.ran_model.add(self.generation)
-            self.current = self._normal(working=False, local=False, formal_model=True)
+        if action == 既存作用.計算実行:
+            plan = self._計算機会()
+            if plan is None or self.計算実行器 is None:
+                return False
+            try:
+                executed = self.計算実行器.計算実行(plan.計算IR, dict(plan.初期状態))
+            except (ValueError, TypeError, ZeroDivisionError):
+                return False
+            output = executed.出力
+            if output is None:
+                return False
+            record = 参照記録(
+                識別子="compute:" + _hash((plan.計算IR.名称, plan.計算IR.版, plan.初期状態, output)),
+                対象=self.question_ir.認知世界ID or "計算対象",
+                内容=f"計算結果 {output}",
+                由来="MINIDORA汎用計算実行",
+                供給器="MINIDORA計算実行器",
+                信頼=1.0,
+                意味キー="計算結果",
+                値=output,
+                条件=(("hds_query_kind", "compute"),),
+                意味確定=True,
+            )
+            if any(item.識別子 == record.識別子 for item in self.references):
+                return False
+            self.references = (*self.references, record)
+            self.compute_done = True
+            self.generation += 1
+            self.current = self._normal()
         elif action == 既存作用.参照取得:
             if self.参照供給器 is None:
                 return False
@@ -302,9 +318,6 @@ class _Session:
                 return False
             self.references = merged
             self.generation += 1
-            self.ran_working.discard(self.generation)
-            self.ran_local.discard(self.generation)
-            self.ran_model.discard(self.generation)
             self.current = self._normal()
         else:
             return False
@@ -344,12 +357,14 @@ def HDS監督選択実行(
     references: tuple[参照記録, ...],
     *,
     コンパイル,
-    基礎能力核: K3相当能力核,
-    模型核: MINIDORA模型核 | None,
+    基礎能力核=None,
+    模型核: MINIDORA模型核 | None = None,
     参照供給器: 参照供給器 | None = None,
+    計算実行器_: 計算実行器 | None = None,
     HDS制御: HDS介入制御 | None = None,
     HDS介入予算: int = 6,
     初期選択: HDS選択実行結果 | None = None,
+    評価実行: Callable[[tuple[参照記録, ...]], HDS選択実行結果] | None = None,
 ) -> HDS監督選択結果:
     """HDSをMINIDORAフィードバックループの安全弁として実行する。
 
@@ -363,7 +378,9 @@ def HDS監督選択実行(
         基礎能力核=基礎能力核,
         模型核=模型核,
         参照供給器=参照供給器,
+        計算実行器_=計算実行器_,
         初期選択=初期選択,
+        評価実行=評価実行,
     )
 
     if HDS制御 is None or _approved(session.initial):

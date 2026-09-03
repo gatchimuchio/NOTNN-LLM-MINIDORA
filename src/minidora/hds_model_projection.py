@@ -105,12 +105,7 @@ def HDS内部言語状態(ir, *, 識別子="", 言語体系=None, 証拠境界=F
         if structure is not None:
             relations.append(structure)
     ls = str(言語体系 or _対象言語体系(ir)).strip()
-    return 言語状態(
-        str(ir.正規化文 or ir.原文),
-        ls,
-        識別子,
-        tuple(relations),
-    )
+    return 言語状態(str(ir.正規化文 or ir.原文), ls, 識別子, tuple(relations))
 
 
 def _文脈条件(question_ir):
@@ -129,23 +124,11 @@ def HDS能力作用構造射影(structure: HDS作用差分構造) -> 能力作�
     """HDS Compiler成果をMINIDORA能力核の日本語内部型へ有限射影する。"""
     return 能力作用構造(
         作用=tuple(
-            能力作用記録(
-                item.作用ID,
-                item.種別,
-                item.入力状態,
-                item.出力状態,
-                tuple(item.条件),
-            )
+            能力作用記録(item.作用ID, item.種別, item.入力状態, item.出力状態, tuple(item.条件))
             for item in structure.作用
         ),
         状態差=tuple(
-            能力状態差記録(
-                item.差分ID,
-                item.原因作用ID,
-                item.前状態,
-                item.後状態,
-                item.変化有無,
-            )
+            能力状態差記録(item.差分ID, item.原因作用ID, item.前状態, item.後状態, item.変化有無)
             for item in structure.状態差
         ),
         後続利用=tuple(
@@ -164,7 +147,6 @@ def HDS能力作用構造射影(structure: HDS作用差分構造) -> 能力作�
 @dataclass(frozen=True, slots=True)
 class HDSMINIDORA射影結果:
     """名称は互換維持。終端採否はMINIDORA能力核自身が形成する。"""
-
     模型結果: 模型結果
     状態: str
     回答ラベル: str | None
@@ -173,35 +155,126 @@ class HDSMINIDORA射影結果:
     MINIDORA出力: object | None = None
 
 
-def _能力核終端(result: 模型結果) -> tuple[str, str | None, list[str]]:
-    """後段HDSを使わず、能力核の参照由来差だけで通常MINIDORAを閉じる。"""
+@dataclass(frozen=True, slots=True)
+class 参照確定品質:
+    """一意な参照差と、回答を確定してよい証拠閉包を分離する。"""
+    閉包: bool
+    理由: str
+    構造支持出典: tuple[str, ...] = ()
+    構造反証出典: tuple[str, ...] = ()
+    再照合支持出典: tuple[str, ...] = ()
+    反転集約のみ: bool = False
+
+
+def _参照列検証(
+    参照識別子: Sequence[str] | None,
+    参照信頼: Sequence[float] | None,
+) -> tuple[str, ...]:
+    """参照列の整列だけを検証する。信頼値そのものを最終採否へ使わない。"""
+    ids = tuple(str(item) for item in (参照識別子 or ()))
+    if 参照信頼 is not None and len(ids) != len(tuple(参照信頼)):
+        raise ValueError("参照識別子と参照信頼は同数である必要がある")
+    return ids
+
+
+def 参照確定品質判定(
+    result: 模型結果,
+    *,
+    参照識別子: Sequence[str] | None = None,
+    参照信頼: Sequence[float] | None = None,
+) -> 参照確定品質:
+    """一意な参照差が、回答確定に足る独立証拠へ閉じているか判定する。
+
+    benchmark・領域語・正解ラベルは参照しない。明示的な構造証拠は一出典でも
+    閉包できるが、語彙/再照合だけの弱い差は二つ以上の独立出典を要求する。
+    構造支持と構造反証が共存する場合は相殺せず競合状態として保持する。
+    Rの信頼係数は証拠の来歴として保持するが、数値そのものを最終採否には使わない。
+    """
+    answer = result.参照最有力候補ID
+    if answer is None:
+        return 参照確定品質(False, "NO_UNIQUE_REFERENCE_WINNER")
+    row = next((item for item in result.候補差 if item.候補ID == answer), None)
+    if row is None:
+        return 参照確定品質(False, "WINNER_NOT_FOUND")
+
+    _参照列検証(参照識別子, 参照信頼)
+    reverse = any(str(item).casefold() == "選択意図=反転" for item in result.文脈.条件)
+    structural_support: set[str] = set()
+    structural_against: set[str] = set()
+    recheck_support: set[str] = set()
+    reverse_aggregate_only = False
+
+    for contribution in row.寄与:
+        if not contribution.関係名.startswith(("参照関係寄与", "候補共同参照", "候補共同再照合")):
+            continue
+        for raw in contribution.根拠:
+            marker = str(raw)
+            if marker.startswith("参照:"):
+                payload = marker[len("参照:"):]
+                ref_id, sep, raw_delta = payload.rpartition(":")
+                if not sep:
+                    continue
+                try:
+                    delta = int(raw_delta)
+                except ValueError:
+                    continue
+                effective = -delta if reverse else delta
+                if effective > 0:
+                    structural_support.add(ref_id)
+                elif effective < 0:
+                    structural_against.add(ref_id)
+                continue
+            if marker.startswith("再照合:"):
+                payload = marker[len("再照合:"):]
+                ref_id = payload.split(":", 1)[0]
+                if ref_id:
+                    recheck_support.add(ref_id)
+                continue
+            if marker.startswith("状態差連結:"):
+                payload = marker[len("状態差連結:"):]
+                structure_index = payload.split(":", 1)[0]
+                structural_support.add("作用差分:" + structure_index)
+                continue
+            if marker.startswith("反転例外:"):
+                reverse_aggregate_only = True
+
+    support = tuple(sorted(structural_support))
+    against = tuple(sorted(structural_against))
+    weak = tuple(sorted(recheck_support))
+    if structural_support and structural_against:
+        return 参照確定品質(False, "STRUCTURAL_EVIDENCE_CONFLICT", support, against, weak, reverse_aggregate_only)
+    if structural_support:
+        return 参照確定品質(True, "STRUCTURAL_EVIDENCE_CLOSED", support, (), weak, reverse_aggregate_only)
+    if len(recheck_support) >= 2:
+        return 参照確定品質(True, "MULTI_SOURCE_WEAK_EVIDENCE_CLOSED", (), (), weak, reverse_aggregate_only)
+    if reverse_aggregate_only:
+        return 参照確定品質(False, "REVERSE_AGGREGATE_UNTRACEABLE", (), (), weak, True)
+    if len(recheck_support) == 1:
+        return 参照確定品質(False, "SINGLE_WEAK_SOURCE", (), (), weak, False)
+    return 参照確定品質(False, "REFERENCE_EVIDENCE_UNTRACEABLE")
+
+
+def _能力核終端(
+    result: 模型結果,
+    *,
+    参照識別子: Sequence[str] | None = None,
+    参照信頼: Sequence[float] | None = None,
+) -> tuple[str, str | None, list[str]]:
+    """後段HDSを使わず、能力核自身で参照差と証拠閉包を分離して閉じる。"""
     answer = result.参照最有力候補ID
     if answer is not None:
+        quality = 参照確定品質判定(result, 参照識別子=参照識別子, 参照信頼=参照信頼)
+        if not quality.閉包:
+            return "SUSPEND", None, ["MINIDORA_MODEL_CORE_REFERENCE_EVIDENCE_NOT_CLOSED", quality.理由]
         return (
             "APPROVE",
             answer,
-            [
-                "MINIDORA_MODEL_CORE_SELECTED",
-                "REFERENCE_CONTRIBUTION_PRESENT",
-                "REFERENCE_DIFFERENCE_SELECTED",
-            ],
+            ["MINIDORA_MODEL_CORE_SELECTED", "REFERENCE_CONTRIBUTION_PRESENT", "REFERENCE_DIFFERENCE_SELECTED", quality.理由],
         )
-
     ref_scores = result.参照候補辞書()
     if not any(ref_scores.values()):
-        return (
-            "SUSPEND",
-            None,
-            ["MINIDORA_MODEL_CORE_NO_REFERENCE_CONTRIBUTION", "NO_GUESS"],
-        )
-    return (
-        "SUSPEND",
-        None,
-        [
-            "MINIDORA_MODEL_CORE_NO_UNIQUE_POSITIVE_DIFFERENCE",
-            "REFERENCE_DIFFERENCE_NOT_UNIQUE",
-        ],
-    )
+        return "SUSPEND", None, ["MINIDORA_MODEL_CORE_NO_REFERENCE_CONTRIBUTION", "NO_GUESS"]
+    return "SUSPEND", None, ["MINIDORA_MODEL_CORE_NO_UNIQUE_POSITIVE_DIFFERENCE", "REFERENCE_DIFFERENCE_NOT_UNIQUE"]
 
 
 def HDSMINIDORA模型評価(
@@ -215,56 +288,35 @@ def HDSMINIDORA模型評価(
     参照信頼: Sequence[float] | None = None,
     作用差分構造群: Sequence[HDS作用差分構造] = (),
 ):
-    """HDS Compiler成果をMINIDORA能力核へ渡し、通常MINIDORA自身で候補差を閉じる。
-
-    ``判断主体`` は旧API互換の受取口として残すがactive pathでは使用しない。
-    HDSの実体はこの能力評価内部には置かず、外側のフィードバック安全弁だけに置く。
-    """
+    """HDS Compiler成果をMINIDORA能力核へ渡し、通常MINIDORA自身で候補差を閉じる。"""
     core = 模型核 or 標準能力模型核()
     target = _対象言語体系(question_ir)
     question = HDS内部言語状態(question_ir, 識別子="question", 言語体系=target)
     candidate_internal = {
-        str(label): HDS内部言語状態(
-            ir,
-            識別子="candidate:" + str(label),
-            言語体系=target,
-        )
+        str(label): HDS内部言語状態(ir, 識別子="candidate:" + str(label), 言語体系=target)
         for label, ir in sorted(candidate_irs.items())
     }
     candidates = tuple(成立候補(label, state) for label, state in candidate_internal.items())
     ids = tuple(参照識別子 or tuple(f"reference:{i}" for i in range(len(data_irs))))
     if len(ids) != len(data_irs):
         raise ValueError("参照識別子はData IRと同数である必要がある")
-    if 参照信頼 is not None and len(tuple(参照信頼)) != len(data_irs):
+    confidence_values = tuple(参照信頼) if 参照信頼 is not None else None
+    if confidence_values is not None and len(confidence_values) != len(data_irs):
         raise ValueError("参照信頼はData IRと同数である必要がある")
     ref_internal = tuple(
-        HDS内部言語状態(
-            ir,
-            識別子=ids[i],
-            言語体系=target,
-            証拠境界=True,
-        )
+        HDS内部言語状態(ir, 識別子=ids[i], 言語体系=target, 証拠境界=True)
         for i, ir in enumerate(data_irs)
     )
 
     ability_structures = tuple(HDS能力作用構造射影(item) for item in 作用差分構造群)
     if isinstance(core, MINIDORA能力状態差模型核):
         result = core.評価言語状態(
-            question,
-            candidates,
-            条件=_文脈条件(question_ir),
-            参照状態=ref_internal,
-            作用構造群=ability_structures,
+            question, candidates, 条件=_文脈条件(question_ir), 参照状態=ref_internal, 作用構造群=ability_structures,
         )
     else:
-        result = core.評価言語状態(
-            question,
-            candidates,
-            条件=_文脈条件(question_ir),
-            参照状態=ref_internal,
-        )
+        result = core.評価言語状態(question, candidates, 条件=_文脈条件(question_ir), 参照状態=ref_internal)
 
-    runtime_state, answer, reasons = _能力核終端(result)
+    runtime_state, answer, reasons = _能力核終端(result, 参照識別子=ids, 参照信頼=confidence_values)
     reasons.extend(("MINIDORA_CAPABILITY_CORE_TERMINAL", "CAPABILITY_PROJECTION_V1", "CAPABILITY_STATE_DELTA_V1"))
     if ability_structures:
         reasons.append("HDS_ACTION_DELTA_ATTACHED")
@@ -278,20 +330,14 @@ def HDSMINIDORA模型評価(
         reasons.append("STATE_DELTA_REACTION")
     if result.統計.候補横断更新数:
         reasons.append("STATE_DELTA_CROSS_UPDATE")
-
-    return HDSMINIDORA射影結果(
-        result,
-        runtime_state,
-        answer,
-        tuple(dict.fromkeys(reasons)),
-        None,
-        None,
-    )
+    return HDSMINIDORA射影結果(result, runtime_state, answer, tuple(dict.fromkeys(reasons)), None, None)
 
 
 __all__ = [
     "HDS内部言語状態",
     "HDS能力作用構造射影",
     "HDSMINIDORA射影結果",
+    "参照確定品質",
+    "参照確定品質判定",
     "HDSMINIDORA模型評価",
 ]

@@ -3,8 +3,6 @@ name: MINIDORA 再構築CI
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - ".benchmark/GPQA_REQUEST.txt"
   pull_request:
   workflow_dispatch:
 

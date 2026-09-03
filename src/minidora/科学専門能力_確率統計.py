@@ -88,10 +88,17 @@ def solve_boltzmann(q, choices):
         target = math.exp(dE / k * (1 / T2 - 1 / T1))
         return _generic_result(_nearest(choices, target, rel_tol=0.2), 'boltzmann_population_ratio', target)
     if 'twice as excited' in s:
+        hits = []
         for i, c in enumerate(choices):
-            cc = c.replace(' ', '').casefold()
-            if 'ln(2)' in cc and ('t_1-t_2' in cc or 't1-t2' in cc) and ('t1*t2' in cc or 't_1t_2' in cc):
-                return _generic_result(i, 'boltzmann_temperature_relation', 'ln2=ΔE/k(1/T2-1/T1)')
+            cc = c.replace(' ', '').casefold().replace('{', '').replace('}', '')
+            has_log = 'ln(2)' in cc
+            has_difference = 't_1-t_2' in cc or 't1-t2' in cc
+            has_product = 't1*t2' in cc or 't_1t_2' in cc or 't_1*t_2' in cc or 't1t2' in cc
+            squared_temperature = bool(re.search(r't_?[12](?:\^|\*\*)2', cc)) or '(t1*t2)^2' in cc or '(t_1*t_2)^2' in cc
+            if has_log and has_difference and has_product and not squared_temperature:
+                hits.append(i)
+        if len(hits) == 1:
+            return _generic_result(hits[0], 'boltzmann_temperature_relation', 'ln2=ΔE/k(1/T2-1/T1)')
     return None
 
 def solve_mean_free_path_added_scattering(q, choices):
