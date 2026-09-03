@@ -48,26 +48,79 @@ HDSへ回答ラベル・候補得点を渡さず、HDS自身が回答生成・wi
 
 セーブポイント記録: [`../docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md`](../docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md)
 
-## 能力Module拡張 — 成立済み
+## 成立後能力成長 — Module拡張は成立済み
 
-2026-09-02、MINIDORAの**能力Module拡張経路は実装・実測済み**となった。
+2026-09-02、MINIDORAは**LLMとして成立した後の能力成長方式まで実装・実測済み**となった。
 
-> **MINIDORAは、Coreを再学習・再訓練・大型化せず、Core外に分離した能力Moduleを接続することで実効能力を追加できる。**
+正本として次を固定する。
 
-GPQA Diamond controlled replayでは、既存科学専門能力群を同一baselineへ接続した結果、Module OFFの8/198からModule ONの63/198へ変化し、Module発火55ケースは55改善・0退行だった。
+> **MINIDORAは既にLLMとして成立している。**
+>
+> **その成立済みCoreを再学習・再訓練・大型化・置換せず、Core外に分離した能力Moduleを追加接続することで、能力を後から増設できる。**
+>
+> **Module追加は単なる接続機構ではなく、実際の性能向上手段として機能することが外部benchmark上で実測済みである。**
+>
+> **したがってMINIDORAのシステム能力は、成立時点のCore単体性能へ固定されない。接続するCapability集合を増やすことで継続的に拡張できる。**
 
-この値をCore単体性能へ混ぜない。一方で、この差分は**モジュール拡張可能性の成立証拠**として保持する。
+GPQA Diamond controlled replayでは、既存科学専門能力群を同一baselineへ接続した結果、次を観測した。
+
+```text
+Module OFF = 8 / 198   (4.04%)
+Module ON  = 63 / 198  (31.82%)
+Module発火 = 55
+改善       = 55
+退行       = 0
+正答差     = +55
+```
+
+この実証の意味は「科学Moduleを付けたら点数が上がった」ではない。
+
+```text
+成立済みMINIDORA
+↓
+外部Capabilityを追加
+↓
+追加能力が発火
+↓
+実効能力が増える
+↓
+外部benchmark性能として上昇する
+```
+
+という**成立後の能力成長経路そのものが成立した**ことにある。
+
+### 固定有限benchmarkに対する100%到達経路
+
+GPQA Diamondのような固定有限問題集合では、未被覆領域へ正しく作用するModuleを追加し、不発火時の透過性と既存正答を退行させない接続境界を維持する限り、未被覆集合を反復的に縮小できる。
+
+```text
+未被覆 U0
+↓ Module追加
+U1 ⊂ U0
+↓ Module追加
+U2 ⊂ U1
+↓
+...
+↓
+未被覆 = 0
+```
+
+したがって、**固定有限benchmarkに限れば、Module被覆を追加し続けることで理論上100%まで到達可能な構成である。**
+
+これは100%実測済みという意味ではない。重要なのは、**100%へ向かう性能向上経路が、Core再学習ではなくCapability Moduleの追加という反復可能な操作として実装上開かれた**ことである。
+
+この値をCore単体性能へ混ぜない。一方で、この差分を単なる過去benchmark記録へ縮退させない。
 
 ```text
 Core評価系列
 !=
-Module拡張成立系列
+Module拡張・成立後能力成長系列
 ```
 
 詳細:
 
-- [`35_MINIDORA_能力Module拡張境界_v1.md`](35_MINIDORA_能力Module拡張境界_v1.md)
-- [`../評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md`](../評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md)
+- [`35_MINIDORA_能力Module拡張境界_v1.md`](35_MINIDORA_能力Module拡張境界_v1.md) — 成立後能力成長方式・Module拡張・固定有限benchmarkの100%到達経路の局所正本。
+- [`../評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md`](../評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md) — 実測根拠。
 
 ## 読み順
 
@@ -128,7 +181,7 @@ Compiler v1.3は作用・状態差・後続利用を構文化し、MINIDORA能�
 - 旧K3 helper / graph / direct relation / candidate reconcileの通常経路先行実行
 - 専門領域solverによる通常経路先行解決
 
-ここでいう「通常経路先行解決をactive coreへ含めない」は、能力Module拡張経路そのものを否定しない。Module拡張成立系列は [`35_MINIDORA_能力Module拡張境界_v1.md`](35_MINIDORA_能力Module拡張境界_v1.md) に従って別責任として保持する。
+ここでいう「通常経路先行解決をactive coreへ含めない」は、能力Module拡張経路そのものを否定しない。Module拡張・成立後能力成長系列は [`35_MINIDORA_能力Module拡張境界_v1.md`](35_MINIDORA_能力Module拡張境界_v1.md) に従って別責任として保持する。
 
 Legacyを現行正本へ無言復帰させない。
 
@@ -143,9 +196,12 @@ Legacyを現行正本へ無言復帰させない。
 - GPQAを言語模型成立証拠へしない。
 - benchmark固有規則をcoreへ追加しない。
 - 専門領域は原則として外部モジュールへ分離する。
-- **Core単体評価とModule拡張成立評価を混同しない。**
+- **Core単体評価とModule拡張・成立後能力成長評価を混同しない。**
 - **ModuleがCore性能ではないことを理由に、Module拡張成立証拠を削除しない。**
 - **成立済みのModule拡張可能性を未実証の将来構想へ戻さない。**
+- **Module実証を「科学Moduleでscoreが上がった」だけの説明へ縮退させない。**
+- **成立済みMINIDORAの能力上限を、特定時点のCore単体scoreへ固定しない。**
+- **固定有限benchmarkに対する100%到達経路の意味を、100%実測の有無だけで削除・否定しない。**
 - HDS型を厳密言語模型核へ逆流させない。
 - HDSへ回答ラベル・候補得点を渡さない。
 - HDSが回答を生成・選択しない。
