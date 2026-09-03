@@ -6,6 +6,27 @@
 
 > **Language note:** this file is an English translation for international access. The Japanese documents are the normative source of meaning and design.
 
+## Canonical upstream repositories
+
+MINIDORA is not defined in isolation. It is implemented against the following upstream canonical repositories.
+
+| Repository | Responsibility | Relationship to MINIDORA |
+|---|---|---|
+| [**Cognitive Engineering Foundations**](https://github.com/gatchimuchio/cognitive-engineering-foundations) | Top-level canon for cognitive engineering, language-base policy, HDS, and related theory | Upstream source for theory, semantics, and the Japanese-first foundation |
+| [**LLM Constitutive Specification**](https://github.com/gatchimuchio/LLM-Constitutive-Specification) | Defines what constitutes an LLM and the capability-action structure | Normative source for MINIDORA's language-model constitutive conditions and capability structure |
+
+```text
+Cognitive Engineering Foundations
+    ↓ theory / semantics / language base
+LLM Constitutive Specification
+    ↓ LLM constitutive conditions / capability structure
+MINIDORA
+    ↓ implementation / measurement / productization
+Hackathon chat layer
+```
+
+See [REFERENCES.md](REFERENCES.md) for referenced versions, commits, and responsibility boundaries.
+
 ## MINIDORA in 30 seconds
 
 MINIDORA does not aim to keep embedding world knowledge, specialist solvers, and task-specific capabilities into one increasingly large model. It separates responsibilities instead.
@@ -169,6 +190,11 @@ For a first visit, read from top to bottom.
 | [`構文化/`](構文化/) | Observation and reconstruction history |
 | [`artifacts/`](artifacts/) | Frozen inputs and derived artifacts |
 | [`REFERENCES.md`](REFERENCES.md) | Canonical upstream references and relationships |
+
+External upstream repositories:
+
+- [Cognitive Engineering Foundations](https://github.com/gatchimuchio/cognitive-engineering-foundations)
+- [LLM Constitutive Specification](https://github.com/gatchimuchio/LLM-Constitutive-Specification)
 
 More navigation: [docs/README.md](docs/README.md)
 
