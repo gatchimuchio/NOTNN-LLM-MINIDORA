@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import argparse
+import os
 
 from minidora import ミニドラ
+from .ガバナンス import JSONL監査保存先, 監査台帳
 from .チャット import ハッカソンチャット
+
+
+def _監査台帳() -> 監査台帳:
+    path = os.getenv("MINIDORA_AUDIT_LOG", "").strip()
+    return 監査台帳(JSONL監査保存先(path)) if path else 監査台帳()
 
 
 def main() -> int:
@@ -11,7 +18,7 @@ def main() -> int:
     parser.add_argument("message", nargs="*")
     parser.add_argument("--session", default="cli")
     args = parser.parse_args()
-    chat = ハッカソンチャット(基礎ミニドラ=ミニドラ())
+    chat = ハッカソンチャット(基礎ミニドラ=ミニドラ(), 監査台帳_=_監査台帳())
 
     if args.message:
         result = chat.応答(" ".join(args.message), セッションID=args.session)
@@ -29,7 +36,7 @@ def main() -> int:
             return 0
         result = chat.応答(text, セッションID=args.session)
         print(result.本文)
-        print(f"[trace:{result.追跡ID}]")
+        print(f"[trace:{result.追跡ID} hash:{result.監査ハッシュ}]")
 
 
 if __name__ == "__main__":

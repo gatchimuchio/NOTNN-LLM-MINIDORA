@@ -7,7 +7,7 @@ import re
 from .型 import ニュース項目
 
 
-要約モジュール版 = "deterministic-summary-v0.1"
+要約モジュール版 = "決定論的要約-v0.1"
 
 
 def _文分割(text: str) -> list[str]:

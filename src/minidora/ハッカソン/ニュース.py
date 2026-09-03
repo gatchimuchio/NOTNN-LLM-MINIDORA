@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from .型 import ニュース項目
 
 
-ニュースモジュール版 = "news-rss-v0.1"
+ニュースモジュール版 = "ニュースRSS-v0.1"
 既定RSS = ("https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja",)
 
 

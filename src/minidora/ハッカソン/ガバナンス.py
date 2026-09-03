@@ -3,14 +3,16 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
+import os
+from pathlib import Path
 from threading import RLock
-from typing import Any
+from typing import Any, Protocol
 from uuid import uuid4
 
 from .型 import 監査イベント, 監査記録, 監査値へ
 
 
-監査仕様版 = "MINIDORA-HACKATHON-GOVERNANCE-v0.1"
+監査仕様版 = "MINIDORA-ハッカソン監査-v0.2"
 
 
 def _正規JSON(value: Any) -> str:
@@ -19,6 +21,27 @@ def _正規JSON(value: Any) -> str:
 
 def _ハッシュ(value: Any) -> str:
     return sha256(_正規JSON(value).encode("utf-8")).hexdigest()
+
+
+class 監査保存先(Protocol):
+    def 保存(self, record: 監査記録) -> None: ...
+
+
+class JSONL監査保存先:
+    """1応答1行の追記専用JSONL保存先。単一プロセス内ではflush+fsyncまで行う。"""
+
+    def __init__(self, path: str | Path) -> None:
+        self.path = Path(path)
+        self._lock = RLock()
+
+    def 保存(self, record: 監査記録) -> None:
+        line = _正規JSON(record.監査辞書()) + "\n"
+        with self._lock:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            with self.path.open("a", encoding="utf-8", newline="\n") as stream:
+                stream.write(line)
+                stream.flush()
+                os.fsync(stream.fileno())
 
 
 class 監査セッション:
@@ -103,13 +126,11 @@ class 監査セッション:
 
 
 class 監査台帳:
-    """応答生成経路を追記保存するインメモリ監査台帳。
+    """応答生成経路を保持し、任意の追記専用保存先へ同時永続化できる監査台帳。"""
 
-    v0.1はプロセス内台帳。外部永続化は上位層から監査辞書を保存する。
-    """
-
-    def __init__(self) -> None:
+    def __init__(self, 保存先: 監査保存先 | None = None) -> None:
         self._記録: dict[str, 監査記録] = {}
+        self._保存先 = 保存先
         self._lock = RLock()
 
     def 開始(self, 入力文: str, セッションID: str) -> 監査セッション:
@@ -117,7 +138,11 @@ class 監査台帳:
 
     def _保存(self, record: 監査記録) -> None:
         with self._lock:
+            if record.追跡ID in self._記録:
+                raise RuntimeError("同一追跡IDへの上書きは禁止されている")
             self._記録[record.追跡ID] = record
+            if self._保存先 is not None:
+                self._保存先.保存(record)
 
     def 取得(self, 追跡ID: str) -> 監査記録 | None:
         with self._lock:

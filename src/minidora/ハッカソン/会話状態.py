@@ -25,6 +25,8 @@ class 会話状態:
         self.直前追跡ID = 追跡ID
         if ニュース:
             self.直前ニュース = tuple(ニュース)
+        elif 経路 not in {"要約"}:
+            self.直前ニュース = ()
 
 
 class 会話状態庫:

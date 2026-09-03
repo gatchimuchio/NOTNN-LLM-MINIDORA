@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 
-基本会話モジュール版 = "basic-chat-v0.1"
+基本会話モジュール版 = "基本会話-v0.1"
 
 
 class 基本会話モジュール:

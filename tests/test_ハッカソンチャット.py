@@ -1,9 +1,18 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
+from pathlib import Path
+import tempfile
 import unittest
 
-from minidora.ハッカソン import 固定ニュース供給器, ニュース項目, ハッカソンチャット
+from minidora.ハッカソン import (
+    JSONL監査保存先,
+    固定ニュース供給器,
+    ニュース項目,
+    ハッカソンチャット,
+    監査台帳,
+)
 
 
 class _基礎ミニドラ:
@@ -41,14 +50,20 @@ class ハッカソンチャット試験(unittest.TestCase):
         record = self.chat.監査台帳.取得(second.追跡ID)
         self.assertIsNotNone(record)
         stages = tuple(event.段階 for event in record.イベント)
+        self.assertIn("経路選択", stages)
         self.assertIn("文脈参照", stages)
         self.assertIn("能力実行", stages)
+        self.assertEqual(record.イベント[0].出力["直前追跡ID"], first.追跡ID)
+        self.assertEqual(record.イベント[0].出力["直前監査ハッシュ"], first.監査ハッシュ)
 
     def test_一般質問は基礎ミニドラへ委譲する(self) -> None:
         result = self.chat.応答("2+3は？", セッションID="general")
         self.assertEqual(result.経路, "基礎ミニドラ")
         self.assertEqual(result.本文, "基礎応答:2+3は？")
         self.assertTrue(self.chat.監査台帳.検証(result.追跡ID))
+        record = self.chat.監査台帳.取得(result.追跡ID)
+        core_event = next(event for event in record.イベント if event.モジュール == "MINIDORA Core")
+        self.assertEqual(core_event.出力["実行記録"]["追跡範囲"], "モジュール境界")
 
     def test_明示文章を要約できる(self) -> None:
         result = self.chat.応答(
@@ -63,6 +78,30 @@ class ハッカソンチャット試験(unittest.TestCase):
         result = self.chat.応答("こんにちは", セッションID="basic")
         self.assertEqual(result.経路, "基本会話")
         self.assertIn("ミニドラ", result.本文)
+
+    def test_別経路へ移った後は古いニュースを要約しない(self) -> None:
+        self.chat.応答("今日のニュースは？", セッションID="stale")
+        hello = self.chat.応答("こんにちは", セッションID="stale")
+        result = self.chat.応答("要約して", セッションID="stale")
+        self.assertNotIn("半導体企業が新製品を発表", result.本文)
+        self.assertIn("ミニドラ", hello.本文)
+
+    def test_JSONL監査保存先へ追記できる(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "audit.jsonl"
+            ledger = 監査台帳(JSONL監査保存先(path))
+            chat = ハッカソンチャット(
+                ニュース供給器_=固定ニュース供給器(self.items),
+                基礎ミニドラ=_基礎ミニドラ(),
+                監査台帳_=ledger,
+            )
+            result = chat.応答("こんにちは", セッションID="persist")
+            lines = path.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 1)
+            stored = json.loads(lines[0])
+            self.assertEqual(stored["追跡ID"], result.追跡ID)
+            self.assertEqual(stored["ルートハッシュ"], result.監査ハッシュ)
+            self.assertTrue(ledger.検証(result.追跡ID))
 
 
 if __name__ == "__main__":
