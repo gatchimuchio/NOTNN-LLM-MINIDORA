@@ -12,6 +12,43 @@ MINIDORAは、日本語を基底・規定・内部意味正本とする非ニュ
 現行安定版は **v0.5.0**。  
 2026-09-01時点の現行セーブポイントは **最小汎用LLM core + HDS異常時最小介入** です。
 
+## モジュール拡張可能性は実証済み
+
+MINIDORAの「Module」は将来構想ではありません。
+
+> **MINIDORAは、Coreを再学習・再訓練・大型化せず、外部の能力Moduleを接続することで実効能力を拡張できる。これはGPQA Diamond 198問のcontrolled replayで実測済みです。**
+
+この実証の主題は「科学Moduleを付けたらGPQAの点数が上がった」ことではありません。
+
+主題は、
+
+> **MINIDORAの能力面が閉じた一枚岩ではなく、Coreと能力Moduleを責任分離したまま、Module接続によって能力を追加できることが成立した**
+
+ことです。
+
+2026-09-02の既存科学専門能力Replayでは、保存済みFormal currentへ既存Module群を接続しただけで次の差が観測されました。
+
+| 条件 | 正答 | 全体正答率 | 回答時正答率 |
+|---|---:|---:|---:|
+| Module OFF | 8 / 198 | 4.04% | 20.51% |
+| Module ON | **63 / 198** | **31.82%** | **73.26%** |
+
+```text
+Module発火  55
+改善        55
+退行         0
+正答差      +55
+```
+
+不発火時は保存済みbaselineをそのまま返すため、差分はModuleが実際に作用したケースへ局所化されています。発火した55ケースは、このReplay境界では55ケースすべてgoldと一致しました。
+
+したがって、この測定は「63/198というスコア」をMINIDORA coreの性能として主張するものではなく、**能力追加がCore全体の再学習ではなく独立Moduleの接続として成立することの実装・実測証拠**として保持します。
+
+詳細:
+
+- [`評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md`](評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md)
+- [`評価/GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.md`](評価/GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.md)
+
 ## MINIDORAは何を変えるのか
 
 一般的な大規模ニューラルLLMは、知識・言語・専門能力・個別タスク能力を主として学習済み重みや追加学習へ内部化します。
@@ -156,7 +193,17 @@ MINIDORA core
 └─ その他専門領域
 ```
 
-必要ならmoduleを追加できますが、それによって上がった性能をcoreの汎用性能とは扱いません。
+Module追加による能力拡張そのものは2026-09-02に実測済みです。ただし、それによって上がった性能をcore単体の汎用性能とは扱いません。
+
+この区別は重要です。
+
+```text
+Module接続で能力を拡張できる
+!=
+Module込みの得点をCore単体性能と呼ぶ
+```
+
+前者は成立済みの実装特性、後者は採用しない評価上の混同です。
 
 ## benchmarkの位置づけ
 
@@ -164,9 +211,11 @@ benchmarkは**性能を作るための仕様書ではなく、汎用能力を外
 
 GPQAで高得点を取るだけなら、科学専門solverを追加し続けることもできます。しかしそれではMINIDORA本体の一般能力を測れません。
 
-そのため現行セーブポイントでは専門solverをactive pathから外して測定しています。
+そのため現行セーブポイントでは専門solverをactive pathから外してcoreを測定しています。
 
-### GPQA Diamond — 2026-09-01
+一方、専門solverを接続したcontrolled A/Bは、**Core点数の測定ではなくモジュール拡張可能性の成立実証**として別系列に保持します。
+
+### GPQA Diamond — 2026-09-01 Core測定
 
 198問 controlled A/B:
 
@@ -180,6 +229,20 @@ GPQAで高得点を取るだけなら、科学専門solverを追加し続ける�
 このスコア自体を完成指標にはしません。重要なのは、専門solverなしの同一汎用coreで測定していることです。
 
 詳細: [`評価/GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md`](評価/GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md)
+
+### GPQA Diamond — 2026-09-02 Module拡張実証
+
+```text
+Module OFF = 8 / 198  (4.04%)
+Module ON  = 63 / 198 (31.82%)
+発火       = 55
+改善       = 55
+退行       = 0
+```
+
+これはCore性能比較ではなく、**同一Coreへ外部Moduleを接続して能力を追加できることの成立証拠**です。
+
+詳細: [`評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md`](評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md)
 
 ## 日本語基底
 
@@ -229,7 +292,15 @@ LLM成立条件の責任正本:
 - GPQA 198問実測済み
 - main一本運用
 
-詳細: [`docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md`](docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md)
+追加成立特性:
+
+- **外部能力Moduleによる能力拡張 = 実測済み**
+- **能力追加のためのCore再学習 = 少なくとも実証済み科学能力群では不要**
+
+詳細:
+
+- [`docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md`](docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md)
+- [`評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md`](評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md)
 
 ## 試験
 
@@ -251,6 +322,7 @@ CIは Ubuntu / Windows × Python 3.11–3.14 を対象にします。
 - [`設計/30_MINIDORA能力状態差循環_v1.md`](設計/30_MINIDORA能力状態差循環_v1.md) — 汎用能力状態差循環
 - [`設計/32_MINIDORA_HDS監督介入制御_v1.md`](設計/32_MINIDORA_HDS監督介入制御_v1.md) — HDS安全弁
 - [`docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md`](docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md) — 現行セーブポイント
+- [`評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md`](評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md) — Module拡張成立証拠
 - [`評価/README.md`](評価/README.md) — 実測履歴
 
 ## 能力・Large・呼称
