@@ -48,6 +48,27 @@ HDSへ回答ラベル・候補得点を渡さず、HDS自身が回答生成・wi
 
 セーブポイント記録: [`../docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md`](../docs/SAVEPOINT_2026-09-01_MINIMAL_GENERIC_CORE.md)
 
+## 能力Module拡張 — 成立済み
+
+2026-09-02、MINIDORAの**能力Module拡張経路は実装・実測済み**となった。
+
+> **MINIDORAは、Coreを再学習・再訓練・大型化せず、Core外に分離した能力Moduleを接続することで実効能力を追加できる。**
+
+GPQA Diamond controlled replayでは、既存科学専門能力群を同一baselineへ接続した結果、Module OFFの8/198からModule ONの63/198へ変化し、Module発火55ケースは55改善・0退行だった。
+
+この値をCore単体性能へ混ぜない。一方で、この差分は**モジュール拡張可能性の成立証拠**として保持する。
+
+```text
+Core評価系列
+!=
+Module拡張成立系列
+```
+
+詳細:
+
+- [`35_MINIDORA_能力Module拡張境界_v1.md`](35_MINIDORA_能力Module拡張境界_v1.md)
+- [`../評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md`](../評価/MINIDORA_モジュール拡張成立実証_2026-09-02.md)
+
 ## 読み順
 
 1. [`00_日本語基底規定_v1.md`](00_日本語基底規定_v1.md)
@@ -60,9 +81,10 @@ HDSへ回答ラベル・候補得点を渡さず、HDS自身が回答生成・wi
 8. [`26_HDS_Compiler_Pipeline_v1_4.md`](26_HDS_Compiler_Pipeline_v1_4.md)
 9. [`30_MINIDORA能力状態差循環_v1.md`](30_MINIDORA能力状態差循環_v1.md)
 10. [`32_MINIDORA_HDS監督介入制御_v1.md`](32_MINIDORA_HDS監督介入制御_v1.md)
-11. [`25_計算中間表現_実行境界_v1.md`](25_計算中間表現_実行境界_v1.md)
-12. [`04_外部参照R仕様.md`](04_外部参照R仕様.md)
-13. [`05_完成判定関門.md`](05_完成判定関門.md)
+11. [`35_MINIDORA_能力Module拡張境界_v1.md`](35_MINIDORA_能力Module拡張境界_v1.md)
+12. [`25_計算中間表現_実行境界_v1.md`](25_計算中間表現_実行境界_v1.md)
+13. [`04_外部参照R仕様.md`](04_外部参照R仕様.md)
+14. [`05_完成判定関門.md`](05_完成判定関門.md)
 
 ## HDS Compiler境界
 
@@ -106,6 +128,8 @@ Compiler v1.3は作用・状態差・後続利用を構文化し、MINIDORA能�
 - 旧K3 helper / graph / direct relation / candidate reconcileの通常経路先行実行
 - 専門領域solverによる通常経路先行解決
 
+ここでいう「通常経路先行解決をactive coreへ含めない」は、能力Module拡張経路そのものを否定しない。Module拡張成立系列は [`35_MINIDORA_能力Module拡張境界_v1.md`](35_MINIDORA_能力Module拡張境界_v1.md) に従って別責任として保持する。
+
 Legacyを現行正本へ無言復帰させない。
 
 ## 変更規則
@@ -119,6 +143,9 @@ Legacyを現行正本へ無言復帰させない。
 - GPQAを言語模型成立証拠へしない。
 - benchmark固有規則をcoreへ追加しない。
 - 専門領域は原則として外部モジュールへ分離する。
+- **Core単体評価とModule拡張成立評価を混同しない。**
+- **ModuleがCore性能ではないことを理由に、Module拡張成立証拠を削除しない。**
+- **成立済みのModule拡張可能性を未実証の将来構想へ戻さない。**
 - HDS型を厳密言語模型核へ逆流させない。
 - HDSへ回答ラベル・候補得点を渡さない。
 - HDSが回答を生成・選択しない。
