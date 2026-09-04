@@ -38,9 +38,13 @@ Repository = "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA"
 
 [project.scripts]
 minidora = "minidora.__main__:main"
+minidora-product = "minidora.製品版.__main__:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"minidora.製品版" = ["web/*.html", "web/*.css", "web/*.js"]
