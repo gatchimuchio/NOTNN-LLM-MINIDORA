@@ -10,11 +10,25 @@
 <body class="gemini-page">
   <div class="gemini-shell">
     <header class="gemini-header">
-      <div class="gemini-brand"><div class="gemini-mark">G</div><div><strong>Gemini</strong><span>Independent Comparator</span></div></div>
-      <div class="gemini-header-actions"><span id="geminiStatus" class="gemini-status pending">接続確認中</span><button id="clearGemini" class="header-button" type="button">クリア</button></div>
+      <div class="gemini-brand">
+        <div class="gemini-mark">G</div>
+        <div>
+          <strong>Gemini</strong>
+          <span>Independent Comparator</span>
+        </div>
+      </div>
+      <div class="gemini-header-actions">
+        <span id="geminiStatus" class="gemini-status pending">接続確認中</span>
+        <button id="clearGemini" class="header-button" type="button">クリア</button>
+      </div>
     </header>
-    <div class="independence-notice">MINIDORAとは独立しています。受け取るのは比較用の同じ入力文だけで、MINIDORAの検索Data・Module出力・Sources・Traceにはアクセスしません。</div>
+
+    <div class="independence-notice">
+      MINIDORAとは独立しています。受け取るのは比較用の同じ入力文だけで、MINIDORAの検索Data・Module出力・Sources・Traceにはアクセスしません。
+    </div>
+
     <main id="geminiMessages" class="gemini-messages" aria-live="polite"></main>
+
     <section class="gemini-composer-zone">
       <form id="geminiComposer" class="composer gemini-composer">
         <textarea id="geminiInput" rows="1" placeholder="Geminiへ直接メッセージを送る" autocomplete="off" autofocus></textarea>

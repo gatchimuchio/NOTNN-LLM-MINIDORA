@@ -120,7 +120,7 @@ async function proxyJson(res, endpoint, options = {}) {
     if (error.code === 'BACKEND_NOT_CONFIGURED') {
       return sendJson(res, 503, {
         error: 'minidora_backend_not_configured',
-        detail: 'The MINIDORA product UI is running, but the real MINIDORA backend URL is not configured.',
+        detail: 'The comparison UI is running, but the real MINIDORA backend URL is not configured.',
       });
     }
     if (error.name === 'AbortError') {
@@ -236,7 +236,7 @@ const server = http.createServer(async (req, res) => {
           ok: false,
           frontend: 'ready',
           backend: 'not_configured',
-          service: 'MINIDORA Product UI',
+          service: 'MINIDORA Compare UI',
         });
       }
       return await proxyJson(res, '/health');
@@ -289,7 +289,9 @@ const server = http.createServer(async (req, res) => {
           contents: [...history, { role: 'user', parts: [{ text: message.slice(0, 20_000) }] }],
         });
         const responseText = extractGeminiText(body);
-        if (!responseText) return sendJson(res, 502, { error: 'gemini_empty_response' });
+        if (!responseText) {
+          return sendJson(res, 502, { error: 'gemini_empty_response' });
+        }
         return sendJson(res, 200, {
           response: responseText,
           model: GEMINI_MODEL,
@@ -317,7 +319,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`MINIDORA Product UI listening on http://${HOST}:${PORT}`);
+  console.log(`MINIDORA Compare UI listening on http://${HOST}:${PORT}`);
   console.log(BACKEND ? 'MINIDORA backend configured.' : 'MINIDORA_BACKEND_URL is NOT configured.');
   console.log(geminiConfigured() ? `Gemini comparator configured (${GEMINI_MODEL}).` : 'GEMINI_API_KEY is NOT configured.');
 });

@@ -46,7 +46,7 @@ GeminiはMINIDORAの内部経路へ一切入らない。
 
 > MINIDORAは検索APIからDataを取得して自身のCapability Moduleで処理し、Geminiは別ウィンドウで独立した比較対象として同じ質問に回答している。
 
-## 設定
+## 必須設定
 
 MINIDORA本窓:
 
