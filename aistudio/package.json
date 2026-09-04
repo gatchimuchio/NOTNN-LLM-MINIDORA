@@ -1,0 +1,14 @@
+{
+  "name": "minidora-aistudio-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Google AI Studio / Node bridge for the real MINIDORA Product backend",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "node --check server.js && node --check public/app.js"
+  },
+  "dependencies": {}
+}
