@@ -120,7 +120,7 @@ async function proxyJson(res, endpoint, options = {}) {
     if (error.code === 'BACKEND_NOT_CONFIGURED') {
       return sendJson(res, 503, {
         error: 'minidora_backend_not_configured',
-        detail: 'The comparison UI is running, but the real MINIDORA backend URL is not configured.',
+        detail: 'The MINIDORA product UI is running, but the real MINIDORA backend URL is not configured.',
       });
     }
     if (error.name === 'AbortError') {
@@ -236,7 +236,7 @@ const server = http.createServer(async (req, res) => {
           ok: false,
           frontend: 'ready',
           backend: 'not_configured',
-          service: 'MINIDORA Compare UI',
+          service: 'MINIDORA Product UI',
         });
       }
       return await proxyJson(res, '/health');
