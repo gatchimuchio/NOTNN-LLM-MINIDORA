@@ -1,0 +1,6 @@
+{
+  "name": "MINIDORA",
+  "description": "非ニューラル・非Transformer型 MINIDORA — 独立Core + optional Gemini comparator",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

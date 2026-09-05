@@ -1,0 +1,16 @@
+{
+  "name": "notnn-llm-minidora",
+  "private": true,
+  "version": "0.5.0",
+  "type": "module",
+  "workspaces": [
+    "aistudio"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=aistudio",
+    "build": "npm run build --workspace=aistudio",
+    "start": "npm run start --workspace=aistudio",
+    "test": "npm run test --workspace=aistudio",
+    "lint": "npm run lint --workspace=aistudio"
+  }
+}
