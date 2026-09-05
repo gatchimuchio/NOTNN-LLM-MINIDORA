@@ -1,102 +1,135 @@
-# MINIDORA — AI Studio / Web UI
+# AI Studio GitHub Import 用実装
 
-日本語正本。
+このディレクトリはAI StudioがGitHub Import後にroot workspace経由で起動するMINIDORA実装です。
+Python正本はRepositoryの`src/minidora/`。本実装はそのAI Studio向けTypeScript portです。
 
-このディレクトリは、MINIDORAの製品UIと、**完全に独立したGemini比較窓**を提供する。
+# MINIDORA — AI Studio Port
 
-## 画面構成
+非ニューラル・非Transformer型言語処理系 MINIDORA の AI Studio / Node.js 向け実装。
 
-### MINIDORA本窓
+この版は「GeminiをMINIDORAとして呼ぶUI」ではない。MINIDORA本体はGemini APIなしで起動・実行する。Geminiは任意の独立比較窓だけに隔離される。
 
-通常のチャットAI製品として使う主画面。
-
-- MINIDORA Chat
-- Capability Module表示
-- Sources表示
-- Governance Trace
-- 新しい会話
-- MINIDORA Backend接続状態
-- Gemini比較ON/OFF
-
-### Gemini比較窓
-
-`/gemini` で別ウィンドウとして開く。
-
-GeminiはMINIDORAの内部経路へ一切入らない。
+## 実装核
 
 ```text
-同じユーザー入力
-      ├─ MINIDORA
-      │    └─ Core / Capability Modules / Search API / Governance
-      │
-      └─ Gemini比較窓
-           └─ Gemini API
+User Input
+   ↓
+HDS semantic frontend
+   ├─ 対象 / 目的 / 手段
+   ├─ P（作用）/ Data 分離
+   ├─ 関係抽出 / 残差
+   └─ HDS semantic IR
+   ↓
+Operation Planner
+   ↓
+Capability Registry
+   ├─ Calculation
+   ├─ Summarization
+   ├─ Extraction
+   ├─ Transformation
+   ├─ Comparison
+   ├─ Conversation
+   ├─ Search
+   └─ Knowledge Reference
+   ↓
+Capability Result (structured state)
+   ↓
+Capability Model Kernel
+   ├─ 意味連続
+   ├─ 関係整合
+   ├─ 履歴近接
+   └─ 出力条件整合
+   ↓
+Strict Language Model Kernel
+   └─ deterministic finite-state character n-gram / exact rational probability
+   ↓
+Final Validation
+   ↓
+Response + Trace + Sources
 ```
 
-## 絶対境界
+厳密言語模型核と能力模型核を同一視しない。HDS semantic IRもLLM核そのものではなく、自然言語要求から運用入力へ射影する境界として扱う。
 
-- GeminiをMINIDORAのData sourceにしない。
-- GeminiをMINIDORAの検索、推論、要約、fallbackに使わない。
-- MINIDORAのSources、Trace、Module出力をGeminiへ渡さない。
-- Geminiの回答をMINIDORAへ渡さない。
-- 比較ON時に共有するのは**ユーザー入力文だけ**。
-- MINIDORAが必要とする外部情報は、MINIDORA側のSearch / Reference Moduleから検索APIへ接続する。
+## Data / Knowledge 境界
 
-この分離により、デモ時の説明は次の一文で閉じる。
+世界知識はCoreへ埋め込まない。
 
-> MINIDORAは検索APIからDataを取得して自身のCapability Moduleで処理し、Geminiは別ウィンドウで独立した比較対象として同じ質問に回答している。
+- SearchProvider: 外部検索Data
+- ReferenceProvider: 外部知識Data
+- SessionState: 会話内の作業状態
+- Capability: 処理作用
 
-## 必須設定
+Search / Reference Provider が未設定でもCoreは `ready`。外部知識を要求された場合だけ明示的に保留する。架空SourceやGemini fallbackは生成しない。
 
-MINIDORA本窓:
+## Gemini比較
+
+`GEMINI_API_KEY` は任意。設定した場合のみUIに「Geminiで比較」が表示される。
 
 ```text
-MINIDORA_BACKEND_URL=https://<minidora-backend>
+MINIDORA path: User → MINIDORA Core → Response
+Gemini path:   User → /api/gemini → Gemini Response
 ```
 
-Gemini比較窓をAPI接続する場合:
+MINIDORA Response / Trace / Sources をGeminiへ渡さない。Gemini ResponseもMINIDORAへ戻さない。
 
-```text
-GEMINI_API_KEY=...
-GEMINI_MODEL=...
-```
+## 実行
 
-`GEMINI_API_KEY` 未設定時もMINIDORA本窓は使用できる。比較窓は未設定を明示し、モック回答は生成しない。
-
-## 起動
-
-Node.js 18以上。
+前提: Node.js 20+ 推奨。
 
 ```bash
-npm start
+npm install
+npm run dev
 ```
 
-既定:
+MINIDORA本体にAPI keyは不要。
 
-```text
-MINIDORA: http://localhost:3000/
-Gemini比較窓: http://localhost:3000/gemini
+任意でGemini比較を使う場合だけ:
+
+```bash
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 ## API
 
-MINIDORA Backendへ透過:
-
-- `POST /api/chat`
-- `GET /api/trace/:trace_id`
-- `GET /api/capabilities`
 - `GET /health`
+- `GET /api/health`
+- `GET /api/capabilities`
+- `POST /api/chat`
+- `GET /api/trace/:traceId`
+- `POST /api/gemini` — comparator only
 
-独立Gemini比較:
+`POST /api/chat`:
 
-- `POST /api/gemini`
+```json
+{
+  "text": "日付を抜いてJSONにして: 会議は2026-09-05です。",
+  "sessionId": "optional-session-id"
+}
+```
 
-UI状態:
+## 実装済みCapability
 
-- `GET /bridge/status`
+- 厳密有理数を使う数式Parser（四則演算、括弧、整数指数）
+- 抽出要約（語頻度、関係密度、位置、冗長性抑制）
+- Email / URL / 日付 / 金額 / 数値 / key-value / relation抽出
+- JSON / 箇条書き / Markdown表 / 行番号 / 重複除去 / 空白整理 / 大小文字変換
+- 数値比較 / 二Dataの意味差分比較
+- セッション内会話状態
+- SearchProvider / ReferenceProvider交換境界
+- 多段Capability計画（例: Search → Summarization、Extraction → Transformation）
+- 実行経路から生成されるTrace
 
-## 同期
+## 検証
 
-`BroadcastChannel` が利用可能な場合、比較ON時にMINIDORA本窓からGemini比較窓へユーザー入力文だけを同期する。
+```bash
+npm test
+npm run lint
+npm run build
+```
 
-未対応ブラウザではGemini比較窓へ手動入力できる。
+テストでは、計算、要約、抽出、複数Module連鎖、会話状態、Provider未設定時の保留、Source由来、Trace一致、厳密言語模型監査、Gemini分離を確認する。
+
+## 非目標
+
+このAI Studio Portだけで「GPT-4級性能を達成した」とは主張しない。現在の目的は、MINIDORAの非ニューラル中核・責任分離・Capability成長経路を、実際に動くWeb製品境界へ持ち込むこと。
