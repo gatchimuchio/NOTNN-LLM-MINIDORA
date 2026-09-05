@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>MINIDORA vs Gemini Comparator</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f8fafc; color: #334155; }
+    h1 { font-size: 1.5rem; margin-bottom: 20px; }
+    .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .label { font-weight: bold; margin-bottom: 10px; color: #64748b; font-size: 0.9rem; }
+    .content { white-space: pre-wrap; }
+    .loading { color: #8b5cf6; font-style: italic; }
+    .error { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <h1>Gemini Comparator</h1>
+  <div class="box">
+    <div class="label">Original Input</div>
+    <div id="input" class="content"></div>
+  </div>
+  <div class="box" style="border-left: 4px solid #8b5cf6;">
+    <div class="label">Gemini API Response</div>
+    <div id="result" class="content loading">Loading...</div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const query = params.get('q');
+    
+    document.getElementById('input').textContent = query || 'No input provided';
+
+    if (query) {
+      fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: query })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if(data.error) {
+           document.getElementById('result').className = 'content error';
+           document.getElementById('result').textContent = data.error;
+        } else {
+           document.getElementById('result').className = 'content';
+           document.getElementById('result').textContent = data.text;
+        }
+      })
+      .catch(err => {
+        document.getElementById('result').className = 'content error';
+        document.getElementById('result').textContent = 'Error: ' + err.message;
+      });
+    } else {
+      document.getElementById('result').className = 'content error';
+      document.getElementById('result').textContent = 'No query parameter found.';
+    }
+  </script>
+</body>
+</html>
