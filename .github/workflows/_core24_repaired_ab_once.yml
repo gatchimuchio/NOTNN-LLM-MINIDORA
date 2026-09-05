@@ -1,0 +1,120 @@
+name: MINIDORA Core24 vs repaired same-reference A/B
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/_core24_repaired_ab_once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  ab:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {start: 0, limit: 50, name: 000-049}
+          - {start: 50, limit: 50, name: 050-099}
+          - {start: 100, limit: 50, name: 100-149}
+          - {start: 150, limit: 48, name: 150-197}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e .
+      - name: Same-reference Core A/B
+        run: >-
+          python tools/core24_repaired_ab.py
+          --start-index ${{ matrix.start }}
+          --limit ${{ matrix.limit }}
+          --out core_ab_${{ matrix.name }}.json
+          --snapshot-out refs_${{ matrix.name }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: core24-repaired-ab-${{ matrix.name }}
+          path: |
+            core_ab_${{ matrix.name }}.json
+            refs_${{ matrix.name }}.json
+
+  merge:
+    needs: ab
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: core24-repaired-ab-*
+          path: artifacts
+          merge-multiple: true
+      - name: Merge and gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files=sorted(Path('artifacts').glob('core_ab_*.json'))
+          payloads=[json.loads(p.read_text(encoding='utf-8')) for p in files]
+          details=[d for p in payloads for d in p['details']]
+          m={
+            'completed':len(details),
+            'core24_correct':sum(d['core24']['correct'] for d in details),
+            'current_correct':sum(d['current']['correct'] for d in details),
+            'improved_cases':sum(d['improved'] for d in details),
+            'regressed_cases':sum(d['regressed'] for d in details),
+            'answer_changed_cases':sum(d['answer_changed'] for d in details),
+            'current_specialist_actions':sum(d['current']['specialist_actions'] for d in details),
+            'current_local_view_selected_cases':sum('FORMAL_LOCAL_VIEW_RECHECK_SELECTED' in d['current']['reasons'] for d in details),
+          }
+          m['correct_delta']=m['current_correct']-m['core24_correct']
+          m['net_improved_cases']=m['improved_cases']-m['regressed_cases']
+          out={'schema':'minidora.core24-current.same-reference-ab.full.v1','metrics':m,'details':details}
+          Path('core24_repaired_ab_full.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(m,ensure_ascii=False,indent=2))
+          if m['completed'] != 198: raise SystemExit('incomplete A/B')
+          if m['regressed_cases'] != 0: raise SystemExit('Core regression detected')
+          if m['current_specialist_actions'] != 0: raise SystemExit('specialist action in Core')
+          if m['current_correct'] < m['core24_correct']: raise SystemExit('correct count regression')
+          if m['improved_cases'] < 1: raise SystemExit('no causal performance improvement observed')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-core24-repaired-ab-full
+          path: |
+            core24_repaired_ab_full.json
+            artifacts/refs_*.json
+      - name: Record result and remove one-shot workflow
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('core24_repaired_ab_full.json').read_text(encoding='utf-8'))
+          m=d['metrics']
+          text = "\n".join([
+              '# Core24 vs repaired Core same-reference A/B — 2026-09-05',
+              '',
+              '同一Question IR・同一Reference recordを24点系Coreと修正版Coreへ投入した因果A/B。',
+              'Goldは両推論完了後の採点にのみ使用。',
+              '',
+              '```json',
+              json.dumps(m,ensure_ascii=False,indent=2),
+              '```',
+              '',
+              'Reference本文snapshotはActions artifactに保存する。',
+              '',
+          ])
+          Path('評価/Core24_vs_整合化Core_同一Reference_AB_2026-09-05.md').write_text(text,encoding='utf-8')
+          PY
+          rm -f .github/workflows/_core24_repaired_ab_once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'docs: Core24同一Reference性能A/Bを記録'
+          git push origin HEAD:main
