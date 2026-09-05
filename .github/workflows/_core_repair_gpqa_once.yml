@@ -1,0 +1,104 @@
+name: MINIDORA Core repair GPQA one-shot 2026-09-05
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/_core_repair_gpqa_once.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: minidora-core-repair-gpqa-20260905
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 対象commit固定
+        shell: bash
+        run: echo "BENCH_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: Core active-path targeted tests
+        run: |
+          python -m unittest tests.test_core_active_path_lock_v1 -v
+          python -m unittest tests.test_core_local_view_monotonic_v1 -v
+      - name: GPQA Diamond 198問 Core controlled A/B
+        id: bench
+        continue-on-error: true
+        run: python tools/benchmark_formal.py gpqa-diamond --controlled-ab --out gpqa_core_repair_20260905.json
+      - name: 結果記録生成
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path('gpqa_core_repair_20260905.json')
+          out = Path('評価/GPQA_Diamond_Core整合化_2026-09-05.md')
+          out.parent.mkdir(parents=True, exist_ok=True)
+          sha = os.environ.get('BENCH_SHA', 'unknown')
+          lines = ['# GPQA Diamond Core整合化実測 — 2026-09-05', '', f'- 対象commit: `{sha}`', '- 基準履歴: 24 / 198 (`061d812...`)', '- 専門module: 除外', '- gold: 推論後採点のみ', '']
+          if not path.exists():
+              lines += ['## 結果', '', 'benchmark output missing', '']
+          else:
+              data = json.loads(path.read_text(encoding='utf-8'))
+              for title, key in [('Protocol','protocol'),('Metrics','metrics'),('Controlled baseline','controlled_baseline'),('Controlled delta','controlled_delta')]:
+                  lines += [f'## {title}', '', '```json', json.dumps(data.get(key), ensure_ascii=False, indent=2), '```', '']
+          out.write_text('\n'.join(lines), encoding='utf-8')
+          PY
+      - name: 生JSONをartifact保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-core-repair-gpqa-20260905
+          path: gpqa_core_repair_20260905.json
+          if-no-files-found: warn
+      - name: 結果をmainへ記録しone-shot workflowを除去
+        if: always()
+        shell: bash
+        run: |
+          rm -f .github/workflows/_core_repair_gpqa_once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "docs: Core整合化GPQA実測結果を記録" || true
+          git push origin HEAD:main
+      - name: 性能gate
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('gpqa_core_repair_20260905.json')
+          if not p.exists():
+              raise SystemExit('benchmark output missing')
+          d = json.loads(p.read_text(encoding='utf-8'))
+          m = d['metrics']
+          delta = d.get('controlled_delta') or {}
+          correct = int(m.get('correct', -1))
+          specialist = int(m.get('specialist_actions_invoked', -1))
+          regressions = int(delta.get('regressed_cases', -1))
+          print({'correct': correct, 'specialist_actions_invoked': specialist, 'regressed_cases': regressions})
+          if correct < 24:
+              raise SystemExit(f'Core regression: {correct}/198 < 24/198')
+          if specialist != 0:
+              raise SystemExit(f'Core boundary violation: specialist_actions_invoked={specialist}')
+          if regressions != 0:
+              raise SystemExit(f'HDS controlled regression detected: {regressions}')
+          PY

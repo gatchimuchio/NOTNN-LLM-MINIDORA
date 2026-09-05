@@ -110,7 +110,6 @@ class ミニドラ:
         言語模型核_: MINIDORA厳密言語模型 | None = None,
         計算実行器_: 計算実行器 | None = None,
         HDS監督制御_: HDS介入制御 | None | object = _標準HDS監督,
-        HDS形成台帳_=None,
     ) -> None:
         executor = 計算実行器_ or layer0 or 計算実行器()
         self.参照供給器 = 参照供給器_
@@ -132,10 +131,6 @@ class ミニドラ:
         self.能力模型核 = 模型核_ or 標準能力模型核()
         self.模型核 = self.能力模型核
         self.HDS監督制御 = 標準HDS介入制御() if HDS監督制御_ is _標準HDS監督 else HDS監督制御_
-        if HDS形成台帳_ is None:
-            from .hds形成循環 import HDS形成台帳
-            HDS形成台帳_ = HDS形成台帳()
-        self.HDS形成台帳 = HDS形成台帳_
 
     @property
     def 主体状態(self):
@@ -313,33 +308,6 @@ class ミニドラ:
             {"op":"HDS_CHOICE_NATIVE","status":選択.状態,"answer_label":選択.回答ラベル,"candidate_compiled":選択.候補コンパイル数},
             {"op":"R_TO_HDS_TO_K","reference_count":len(参照),"data_compiled":選択.Dataコンパイル数,"data_compile_failed":選択.Dataコンパイル失敗数,"k_facts_added":選択.K追加事実数,"evidence_facts":選択.K証拠事実数,"blocked_evidence_facts":選択.K証拠阻害事実数},
         )
-
-        # 形成循環は現在の推論・採否には使わず、実行後の観測だけを台帳へ残す。
-        if self.HDS形成台帳 is not None:
-            from hashlib import sha256
-            from .hds形成循環 import HDS形成観測
-
-            def _形成署名(value: object) -> str:
-                return sha256(repr(value).encode("utf-8")).hexdigest()[:20]
-
-            last_action = next(
-                (str(reason).split(":", 1)[1] for reason in 選択.理由 if str(reason).startswith("UNIFIED_LAST_ACTION:")),
-                "FINAL_EVALUATION",
-            )
-            before_residuals = tuple(str(x) for x in self.HDS文脈.未解残差)
-            after_residuals = () if 選択.状態 == "APPROVE" else tuple(str(x) for x in 選択.理由)
-            self.HDS形成台帳.記録(HDS形成観測(
-                str(ir.認知世界ID or _形成署名(ir.正規化文 or ir.原文)),
-                _形成署名(ir.正規化文 or ir.原文),
-                last_action,
-                before_residuals,
-                after_residuals,
-                _形成署名((self._HDS版, before_residuals)),
-                _形成署名((選択.状態, 選択.回答ラベル, 選択.理由)),
-                bool(選択.状態 == "APPROVE" and 選択.回答ラベル is not None),
-                tuple(str(record.識別子) for record in 参照),
-            ))
-
         return self._帰還(結果(
             value, state, 参照, history, decision, self.主体状態, subject,
             tuple(getattr(self.主体主幹, "履歴", ())), "HDS_CHOICE_NATIVE", ir,
@@ -367,34 +335,16 @@ class ミニドラ:
                         self.参照供給器, HDSR質問射影(hds_ir), 上限=budget.取得上限,
                         一問合せ上限=budget.一問合せ上限, 最大問合せ並列=budget.最大問合せ並列,
                     )
-                from .hds統一実行 import HDS統一選択評価
-                from .hds統一状態循環 import HDS統一状態Session
-
-                unified_session = HDS統一状態Session(
-                    str(hds_ir.正規化文 or hds_ir.原文),
-                    references,
-                    主体状態=self.主体状態,
-                    認知世界ID=str(hds_ir.認知世界ID or ""),
+                initial = HDS選択推論実行(
+                    hds_ir, references, コンパイル=self.コンパイル, 基礎能力核=None,
+                    模型核=self.能力模型核, 正式模型評価=True,
                 )
-
-                def _統一評価(current_references: tuple[参照記録, ...]) -> HDS選択実行結果:
-                    return HDS統一選択評価(
-                        hds_ir,
-                        current_references,
-                        コンパイル=self.コンパイル,
-                        模型核=self.能力模型核,
-                        統一session=unified_session,
-                        主体状態=self.主体状態,
-                    )
-
-                initial = _統一評価(references)
                 if self.HDS監督制御 is None or (initial.状態 == "APPROVE" and initial.回答ラベル is not None):
                     return self._HDS選択結果(要求_, hds_ir, references, initial)
                 supervised = HDS監督選択実行(
                     hds_ir, references, コンパイル=self.コンパイル, 基礎能力核=None,
                     模型核=self.能力模型核, 参照供給器=self.参照供給器,
                     計算実行器_=self.計算実行器, HDS制御=self.HDS監督制御, 初期選択=initial,
-                    評価実行=_統一評価,
                 )
                 return self._HDS選択結果(要求_, hds_ir, supervised.参照, supervised.選択)
 
