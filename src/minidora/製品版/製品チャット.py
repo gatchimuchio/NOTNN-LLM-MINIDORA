@@ -12,15 +12,16 @@ from .抽出 import 情報抽出Module
 from .計算 import 計算Module
 from .基本会話 import 基本会話Module
 from .知識 import 知識参照Module本体, Wikipedia知識供給器
-from .組込モジュール import ニュース能力,要約能力,変換能力,抽出能力,計算能力,基本会話能力,知識参照能力,Core能力
+from .検索 import Web検索Module本体, SearXNG検索供給器
+from .組込モジュール import ニュース能力,要約能力,変換能力,抽出能力,計算能力,基本会話能力,Web検索能力,知識参照能力,Core能力
 
-製品チャット版="MINIDORA-PRODUCT-CHAT-v2"
+製品チャット版="MINIDORA-PRODUCT-CHAT-v3"
 
 class 製品ミニドラ:
-    def __init__(self,*,基礎ミニドラ:Any=None,ニュース供給器=None,知識供給器=None,監査台帳_:監査台帳|None=None,状態庫:会話状態庫|None=None,追加Module:tuple=()) -> None:
+    def __init__(self,*,基礎ミニドラ:Any=None,ニュース供給器=None,知識供給器=None,検索供給器=None,監査台帳_:監査台帳|None=None,状態庫:会話状態庫|None=None,追加Module:tuple=()) -> None:
         self.基礎ミニドラ=基礎ミニドラ; self.監査台帳=監査台帳_ or 監査台帳(); self.状態庫=状態庫 or 会話状態庫()
-        news=ニュースModule(ニュース供給器 or RSSニュース供給器()); summary=汎用要約Module(); transform=文脈変換Module(); extract=情報抽出Module(); calc=計算Module(); basic=基本会話Module(); knowledge=知識参照Module本体(知識供給器 or Wikipedia知識供給器())
-        builtin=(ニュース能力(news),要約能力(summary),変換能力(transform),抽出能力(extract),計算能力(calc),基本会話能力(basic),知識参照能力(knowledge),Core能力(self._core))
+        news=ニュースModule(ニュース供給器 or RSSニュース供給器()); summary=汎用要約Module(); transform=文脈変換Module(); extract=情報抽出Module(); calc=計算Module(); basic=基本会話Module(); web=Web検索Module本体(検索供給器 or SearXNG検索供給器()); knowledge=知識参照Module本体(知識供給器 or Wikipedia知識供給器())
+        builtin=(ニュース能力(news),要約能力(summary),変換能力(transform),抽出能力(extract),計算能力(calc),基本会話能力(basic),Web検索能力(web),知識参照能力(knowledge),Core能力(self._core))
         self.能力レジストリ=能力レジストリ((*builtin,*追加Module))
 
     def 能力一覧(self)->tuple[str,...]: return tuple(m.名前 for m in self.能力レジストリ.一覧())+("完全経路監査",)

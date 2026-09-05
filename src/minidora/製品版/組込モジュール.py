@@ -9,6 +9,7 @@ from .抽出 import 情報抽出Module
 from .計算 import 計算Module
 from .基本会話 import 基本会話Module
 from .知識 import 知識参照Module本体
+from .検索 import Web検索Module本体
 
 class ニュース能力:
     名前="ニュース"; 優先度=90
@@ -62,6 +63,26 @@ class 基本会話能力:
     def 判定(self,c):
         s=c.入力文.replace(" ","").casefold(); return .94 if any(x in s for x in ("こんにちは","おはよう","こんばんは","ありがとう","君は誰","あなたは誰","何ができる","できること")) else 0
     def 実行(self,c): return self.body.実行(c.入力文)
+
+class Web検索能力:
+    名前="Web検索"; 優先度=75
+    def __init__(self,body:Web検索Module本体): self.body=body; self.版=body.版
+    def 判定(self,c):
+        s=re.sub(r"\s+","",c.入力文).casefold()
+        explicit=("検索して","検索しろ","web検索","ウェブ検索","ネット検索","webで検索","ウェブで検索","ネットで検索","webで調べ","ウェブで調べ","ネットで調べ")
+        if any(x in s for x in explicit): return .98
+        if any(x in s for x in ("最新","現在","今日","今")) and any(x in s for x in ("調べて","調査して","確認して")): return .92
+        return 0
+    def _query(self,s):
+        q=s
+        for x in ("Webで検索して","webで検索して","ウェブで検索して","ネットで検索して","Web検索して","web検索して","ウェブ検索して","ネット検索して","検索してみて","検索してください","検索して","検索しろ","Webで調べて","webで調べて","ウェブで調べて","ネットで調べて","調査して","確認して","調べて"):
+            q=q.replace(x,"")
+        q=re.sub(r"(?:について|を)$","",q.strip(" ？?。！!"))
+        return q.strip()
+    def 実行(self,c):
+        query=self._query(c.入力文)
+        if not query: return 能力結果(False,"",保留理由="検索語が空")
+        return self.body.実行(query)
 
 class 知識参照能力:
     名前="知識参照"; 優先度=45
