@@ -1,0 +1,151 @@
+name: MINIDORA GPQA formal parallel one-shot 2026-09-05
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/_gpqa_formal_parallel_once_20260905.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  measure:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {start: 0, limit: 50, name: 000-049}
+          - {start: 50, limit: 50, name: 050-099}
+          - {start: 100, limit: 50, name: 100-149}
+          - {start: 150, limit: 48, name: 150-197}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: GPQA formal shard
+        run: >-
+          python tools/benchmark_formal.py gpqa-diamond
+          --controlled-ab
+          --start-index ${{ matrix.start }}
+          --limit ${{ matrix.limit }}
+          --checkpoint-every 5
+          --out gpqa_formal_${{ matrix.name }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gpqa-formal-${{ matrix.name }}
+          path: gpqa_formal_${{ matrix.name }}.json
+
+  merge:
+    needs: measure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gpqa-formal-*
+          path: artifacts
+          merge-multiple: true
+      - name: Merge formal results
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          files = sorted(Path('artifacts').glob('gpqa_formal_*.json'))
+          payloads = [json.loads(p.read_text(encoding='utf-8')) for p in files]
+          details = sorted((d for p in payloads for d in p['details']), key=lambda d: int(d['index']))
+          if len(details) != 198 or [int(d['index']) for d in details] != list(range(198)):
+              raise SystemExit('incomplete formal GPQA merge')
+
+          current_correct = sum(bool(d.get('correct')) for d in details)
+          current_answered = sum(bool(d.get('answered')) for d in details)
+          baseline_correct = sum(bool(d.get('baseline_correct')) for d in details)
+          baseline_answered = sum(bool(d.get('baseline_answered')) for d in details)
+          improved = sum(bool(d.get('correct')) and not bool(d.get('baseline_correct')) for d in details)
+          regressed = sum((not bool(d.get('correct'))) and bool(d.get('baseline_correct')) for d in details)
+          changed = sum(d.get('predicted') != d.get('baseline_predicted') for d in details)
+          specialist = sum(int(d.get('specialist_actions_invoked', 0)) for d in details)
+          interventions = 0
+          intervention_cases = 0
+          action_counts = Counter()
+          for d in details:
+              found = 0
+              for reason in d.get('reasons', []):
+                  text = str(reason)
+                  if text.startswith('HDS_SUPERVISORY_INTERVENTIONS:'):
+                      try:
+                          found = int(text.rsplit(':',1)[1])
+                      except ValueError:
+                          found = 0
+                  elif text.startswith('HDS_INTERVENTION_ACTION:'):
+                      action_counts[text.split(':',1)[1]] += 1
+              interventions += found
+              intervention_cases += int(found > 0)
+
+          m = {
+              'completed': 198,
+              'current_correct': current_correct,
+              'current_accuracy_percent': 100.0 * current_correct / 198,
+              'current_answered': current_answered,
+              'current_answer_rate_percent': 100.0 * current_answered / 198,
+              'current_answered_accuracy_percent': 100.0 * current_correct / current_answered if current_answered else 0.0,
+              'current_suspended': 198 - current_answered,
+              'baseline_correct': baseline_correct,
+              'baseline_accuracy_percent': 100.0 * baseline_correct / 198,
+              'baseline_answered': baseline_answered,
+              'baseline_suspended': 198 - baseline_answered,
+              'correct_delta': current_correct - baseline_correct,
+              'improved_cases': improved,
+              'regressed_cases': regressed,
+              'net_improved_cases': improved - regressed,
+              'changed_answers': changed,
+              'specialist_actions_invoked': specialist,
+              'hds_supervisory_interventions': interventions,
+              'hds_intervention_cases': intervention_cases,
+              'hds_intervention_action_counts': dict(sorted(action_counts.items())),
+          }
+          protocol = {
+              'benchmark': 'GPQA Diamond',
+              'full_benchmark_total': 198,
+              'choice_shuffle_seed': 0,
+              'runner': 'tools/benchmark_formal.py',
+              'controlled_ab': True,
+              'gold_boundary': 'gold used only after baseline/current inference for scoring',
+              'specialist_modules': 'excluded',
+              'parallelization': '4 disjoint index shards; same formal runner; merged after completion',
+          }
+          out = {'schema':'minidora.gpqa.formal.parallel.full.v1','protocol':protocol,'metrics':m,'details':details}
+          Path('gpqa_formal_parallel_full.json').write_text(json.dumps(out, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+          Path('評価/GPQA_Diamond_Core整合化後_正式全数_2026-09-05.md').write_text(
+              '# GPQA Diamond Core整合化後 正式全数 — 2026-09-05\n\n'
+              '標準 `tools/benchmark_formal.py` を4つの非重複index範囲へ分割し、全198問を結合した正式測定。\n'
+              '専門Capability Moduleは除外。Goldは推論完了後の採点にのみ使用。\n\n'
+              '```json\n' + json.dumps(m, ensure_ascii=False, indent=2) + '\n```\n',
+              encoding='utf-8'
+          )
+          print(json.dumps(m, ensure_ascii=False, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-gpqa-formal-parallel-full
+          path: gpqa_formal_parallel_full.json
+      - name: Record result and remove one-shot workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/_gpqa_formal_parallel_once_20260905.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'docs: Core整合化後GPQA正式全数を記録'
+          git push origin HEAD:main
