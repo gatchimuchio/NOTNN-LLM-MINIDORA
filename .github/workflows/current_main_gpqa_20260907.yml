@@ -1,0 +1,50 @@
+name: TEMP current-main GPQA benchmark 2026-09-07
+
+on:
+  push:
+    branches:
+      - sandbox/current-main-gpqa-20260907
+    paths:
+      - '.github/workflows/current_main_gpqa_20260907.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: 正本由来HEAD確認
+        run: |
+          echo "BENCH_SOURCE_MAIN=22aa9adfb10b001330976bf9faa31a2a4d84c9f3"
+          git diff --exit-code 22aa9adfb10b001330976bf9faa31a2a4d84c9f3 -- src tests tools pyproject.toml
+      - name: GPQA Diamond 198問 正式模型核 controlled A/B実測
+        run: python tools/benchmark_formal.py gpqa-diamond --controlled-ab --out gpqa_current_main_20260907.json
+      - name: 結果要約
+        if: always()
+        run: |
+          if [ -f gpqa_current_main_20260907.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('gpqa_current_main_20260907.json').read_text(encoding='utf-8'))
+          for key in ('protocol','metrics','controlled_baseline','controlled_delta','comparison_reference'):
+              print(key.upper()+'='+json.dumps(data.get(key), ensure_ascii=False, sort_keys=True))
+          PY
+          fi
+      - name: 測定成果を保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-current-main-gpqa-20260907
+          path: gpqa_current_main_20260907.json
+          if-no-files-found: warn
