@@ -1,11 +1,11 @@
-name: MINIDORA v0.6 strict same-reference GPQA A/B
+name: MINIDORA v0.6 frozen-reference GPQA A/B
 
 on:
   push:
     branches:
       - sandbox/v0.6-score-20260906
     paths:
-      - tools/v06_unified_strict_same_reference_segment.py
+      - tools/v06_unified_frozen_reference_segment.py
       - .github/workflows/v06_sandbox_score.yml
 
 permissions:
@@ -32,7 +32,7 @@ jobs:
       OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
       MINIDORA_V06_AB_START: ${{ matrix.start }}
       MINIDORA_V06_AB_END: ${{ matrix.end }}
-      MINIDORA_V06_AB_OUT: v06_strict_ab_${{ matrix.label }}.json
+      MINIDORA_V06_AB_OUT: v06_frozen_ab_${{ matrix.label }}.json
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -40,15 +40,15 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install -e .
       - name: 評価器構文確認
-        run: python -m py_compile tools/v06_unified_strict_same_reference_segment.py
-      - name: GPQA Diamond strict same-Reference A/B
-        run: python tools/v06_unified_strict_same_reference_segment.py
+        run: python -m py_compile tools/v06_unified_frozen_reference_segment.py
+      - name: GPQA Diamond frozen-Reference A/B
+        run: python tools/v06_unified_frozen_reference_segment.py
       - name: 区間結果を保存
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v06-strict-ab-${{ matrix.label }}
-          path: v06_strict_ab_${{ matrix.label }}.json
+          name: v06-frozen-ab-${{ matrix.label }}
+          path: v06_frozen_ab_${{ matrix.label }}.json
           if-no-files-found: error
 
   merge:
@@ -57,7 +57,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: v06-strict-ab-*
+          pattern: v06-frozen-ab-*
           path: segments
           merge-multiple: true
       - name: 198問を結合・検証
@@ -66,7 +66,7 @@ jobs:
           import json
           from pathlib import Path
 
-          files = sorted(Path('segments').glob('v06_strict_ab_*.json'))
+          files = sorted(Path('segments').glob('v06_frozen_ab_*.json'))
           if len(files) != 4:
               raise SystemExit(f'expected 4 segment files, got {len(files)}')
           rows = [json.loads(p.read_text(encoding='utf-8')) for p in files]
@@ -91,7 +91,7 @@ jobs:
                   'suspended': total - answered,
               }
 
-          current = metric('current')
+          control = metric('control')
           v06 = metric('v06')
           improved = sum(int(bool(d['improved'])) for d in details)
           regressed = sum(int(bool(d['regressed'])) for d in details)
@@ -100,7 +100,7 @@ jobs:
           empty = sum(int(int(d['reference_count']) == 0) for d in details)
           zip_hash, csv_hash, seed = next(iter(hashes))
           payload = {
-              'schema': 'minidora.gpqa.v06-strict-same-reference-ab.v1',
+              'schema': 'minidora.gpqa.v06-frozen-reference-ab.v1',
               'protocol': {
                   'benchmark': 'GPQA Diamond',
                   'dataset_zip_sha256': zip_hash,
@@ -108,21 +108,21 @@ jobs:
                   'choice_shuffle_seed': seed,
                   'problem_count': 198,
                   'execution_partition': '4 non-overlapping index ranges: 0-49, 50-99, 100-149, 150-197',
-                  'reference_rule': 'one initial Reference tuple per case; no later external Reference acquisition in either arm',
-                  'current_arm': 'current formal choice + current HDS supervisor with reference provider disabled',
+                  'reference_rule': 'one immutable Reference tuple per case shared by both arms',
+                  'control_arm': 'current HDS formal selection core; no supervisory action',
                   'v06_arm': 'unified state session -> unified selection evaluation -> HDS/J',
                   'gold_boundary': 'gold used only after both outputs for scoring',
                   'main_modified': False,
                   'sandbox_branch_only': True,
               },
-              'current_same_reference_control': current,
+              'current_frozen_reference_control': control,
               'v06_unified': v06,
               'delta_v06_minus_control': {
-                  'correct_delta': v06['correct'] - current['correct'],
-                  'accuracy_points': v06['accuracy_percent'] - current['accuracy_percent'],
-                  'answered_delta': v06['answered'] - current['answered'],
-                  'answer_rate_points': v06['answer_rate_percent'] - current['answer_rate_percent'],
-                  'answered_accuracy_points': v06['answered_accuracy_percent'] - current['answered_accuracy_percent'],
+                  'correct_delta': v06['correct'] - control['correct'],
+                  'accuracy_points': v06['accuracy_percent'] - control['accuracy_percent'],
+                  'answered_delta': v06['answered'] - control['answered'],
+                  'answer_rate_points': v06['answer_rate_percent'] - control['answer_rate_percent'],
+                  'answered_accuracy_points': v06['answered_accuracy_percent'] - control['answered_accuracy_percent'],
                   'changed_cases': changed,
                   'improved_cases': improved,
                   'regressed_cases': regressed,
@@ -131,9 +131,9 @@ jobs:
               'retrieval': {'reference_documents': docs, 'retrieval_empty_cases': empty},
               'details': details,
           }
-          Path('v06_unified_strict_same_reference_ab.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          print('MINIDORA_V06_STRICT_AB_RESULT=' + json.dumps({
-              'current_same_reference_control': current,
+          Path('v06_unified_frozen_reference_ab.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print('MINIDORA_V06_FROZEN_AB_RESULT=' + json.dumps({
+              'current_frozen_reference_control': control,
               'v06_unified': v06,
               'delta': payload['delta_v06_minus_control'],
               'retrieval': payload['retrieval'],
@@ -141,6 +141,6 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: minidora-v06-strict-same-reference-gpqa-ab
-          path: v06_unified_strict_same_reference_ab.json
+          name: minidora-v06-frozen-reference-gpqa-ab
+          path: v06_unified_frozen_reference_ab.json
           if-no-files-found: error
