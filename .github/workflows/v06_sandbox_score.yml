@@ -5,7 +5,7 @@ on:
     branches:
       - sandbox/v0.6-score-20260906
     paths:
-      - tools/v06_unified_same_reference_ab.py
+      - tools/v06_unified_same_reference_segment.py
       - .github/workflows/v06_sandbox_score.yml
 
 permissions:
@@ -17,11 +17,30 @@ concurrency:
 
 jobs:
   measure:
+    name: measure-${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: 000-049
+            start: 0
+            end: 50
+          - label: 050-099
+            start: 50
+            end: 100
+          - label: 100-149
+            start: 100
+            end: 150
+          - label: 150-197
+            start: 150
+            end: 198
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 120
     env:
       OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
-      MINIDORA_V06_AB_OUT: v06_unified_same_reference_ab.json
+      MINIDORA_V06_AB_START: ${{ matrix.start }}
+      MINIDORA_V06_AB_END: ${{ matrix.end }}
+      MINIDORA_V06_AB_OUT: v06_ab_${{ matrix.label }}.json
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,28 +49,114 @@ jobs:
       - name: パッケージ導入
         run: python -m pip install -e .
       - name: 評価器構文確認
-        run: python -m py_compile tools/v06_unified_same_reference_ab.py
-      - name: GPQA Diamond 198問 same-Reference paired A/B
-        run: python tools/v06_unified_same_reference_ab.py
-      - name: 結果要約
+        run: python -m py_compile tools/v06_unified_same_reference_segment.py
+      - name: GPQA Diamond same-Reference paired A/B
+        run: python tools/v06_unified_same_reference_segment.py
+      - name: 区間結果を保存
         if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v06-ab-${{ matrix.label }}
+          path: v06_ab_${{ matrix.label }}.json
+          if-no-files-found: error
+
+  merge:
+    needs: measure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: v06-ab-*
+          path: segments
+          merge-multiple: true
+      - name: 198問を結合・検証
         run: |
-          if [ -f v06_unified_same_reference_ab.json ]; then
-            python - <<'PY'
+          python - <<'PY'
           import json
           from pathlib import Path
-          data=json.loads(Path('v06_unified_same_reference_ab.json').read_text(encoding='utf-8'))
-          print(json.dumps(data['protocol'], ensure_ascii=False, indent=2))
-          print(json.dumps(data['current_main'], ensure_ascii=False, indent=2))
-          print(json.dumps(data['v06_unified'], ensure_ascii=False, indent=2))
-          print(json.dumps(data['delta_v06_minus_current'], ensure_ascii=False, indent=2))
-          print(json.dumps(data['retrieval'], ensure_ascii=False, indent=2))
+
+          files = sorted(Path('segments').glob('v06_ab_*.json'))
+          if len(files) != 4:
+              raise SystemExit(f'expected 4 segment files, got {len(files)}')
+          rows = [json.loads(p.read_text(encoding='utf-8')) for p in files]
+          details = sorted((d for row in rows for d in row['details']), key=lambda d: int(d['index']))
+          indices = [int(d['index']) for d in details]
+          if indices != list(range(198)):
+              raise SystemExit('segment coverage is not exactly 0..197')
+          hashes = {(r['protocol']['dataset_zip_sha256'], r['protocol']['dataset_csv_sha256'], r['protocol']['choice_shuffle_seed']) for r in rows}
+          if len(hashes) != 1:
+              raise SystemExit('dataset/seed mismatch across segments')
+
+          def metric(prefix):
+              correct = sum(int(bool(d[f'{prefix}_correct'])) for d in details)
+              answered = sum(int(d[f'{prefix}_status'] == 'APPROVE' and d[f'{prefix}_predicted'] is not None) for d in details)
+              total = len(details)
+              return {
+                  'correct': correct,
+                  'total': total,
+                  'accuracy_percent': 100.0 * correct / total,
+                  'answered': answered,
+                  'answer_rate_percent': 100.0 * answered / total,
+                  'answered_accuracy_percent': 100.0 * correct / answered if answered else 0.0,
+                  'suspended': total - answered,
+              }
+
+          current = metric('current')
+          v06 = metric('v06')
+          improved = sum(int(bool(d['improved'])) for d in details)
+          regressed = sum(int(bool(d['regressed'])) for d in details)
+          changed = sum(int(bool(d['changed'])) for d in details)
+          initial_docs = sum(int(d['initial_reference_count']) for d in details)
+          current_final_docs = sum(int(d['current_final_reference_count']) for d in details)
+          retrieval_empty = sum(int(int(d['initial_reference_count']) == 0) for d in details)
+          zip_hash, csv_hash, seed = next(iter(hashes))
+          payload = {
+              'schema': 'minidora.gpqa.v06-unified-same-reference-ab.v1',
+              'protocol': {
+                  'benchmark': 'GPQA Diamond',
+                  'dataset_zip_sha256': zip_hash,
+                  'dataset_csv_sha256': csv_hash,
+                  'choice_shuffle_seed': seed,
+                  'problem_count': 198,
+                  'execution_partition': '4 non-overlapping index ranges: 0-49, 50-99, 100-149, 150-197',
+                  'initial_reference_rule': 'retrieve exactly once per case and share the same initial Reference tuple',
+                  'current_route': 'current formal MINIDORA choice then current HDS supervisory safety valve when not closed',
+                  'v06_route': 'HDS unified request-local state session -> unified selection evaluation -> HDS/J',
+                  'gold_boundary': 'gold used only after both outputs for scoring',
+                  'main_modified': False,
+                  'sandbox_branch_only': True,
+              },
+              'current_main_paired': current,
+              'v06_unified': v06,
+              'delta_v06_minus_current': {
+                  'correct_delta': v06['correct'] - current['correct'],
+                  'accuracy_points': v06['accuracy_percent'] - current['accuracy_percent'],
+                  'answered_delta': v06['answered'] - current['answered'],
+                  'answer_rate_points': v06['answer_rate_percent'] - current['answer_rate_percent'],
+                  'answered_accuracy_points': v06['answered_accuracy_percent'] - current['answered_accuracy_percent'],
+                  'changed_cases': changed,
+                  'improved_cases': improved,
+                  'regressed_cases': regressed,
+                  'net_improved_cases': improved - regressed,
+              },
+              'retrieval': {
+                  'initial_reference_documents': initial_docs,
+                  'current_final_reference_documents': current_final_docs,
+                  'retrieval_empty_cases': retrieval_empty,
+              },
+              'details': details,
+          }
+          Path('v06_unified_same_reference_ab.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print('MINIDORA_V06_AB_RESULT=' + json.dumps({
+              'current_main_paired': current,
+              'v06_unified': v06,
+              'delta': payload['delta_v06_minus_current'],
+              'retrieval': payload['retrieval'],
+          }, ensure_ascii=False))
           PY
-          fi
-      - name: 測定成果を保存
-        if: always()
+      - name: 統合結果を保存
         uses: actions/upload-artifact@v4
         with:
           name: minidora-v06-sandbox-gpqa-ab
           path: v06_unified_same_reference_ab.json
-          if-no-files-found: warn
+          if-no-files-found: error
