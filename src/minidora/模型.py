@@ -360,8 +360,10 @@ class 候補共同参照作用:
         common=frozenset.intersection(*sigs.values())
         distinct={cid:values-common for cid,values in sigs.items()}
         union=frozenset.union(*sigs.values())
-        anchors=(_順序識別特徴(文脈.現在.意味語集合,文脈.現在.意味語列)-union)|common
-        if not anchors:
+        question_features=_順序識別特徴(文脈.現在.意味語集合,文脈.現在.意味語列)
+        # 問い自身に意味anchorが無い場合、候補共通語を問い由来anchorへ偽装しない。
+        anchors=((question_features-union)|common) if question_features else frozenset()
+        if not anchors and question_features:
             anchors=文脈.現在.意味語集合
         frequency=Counter(token for ref in usable_refs for token in _順序識別特徴(ref.意味語集合,ref.意味語列))
         n=len(usable_refs)
@@ -388,7 +390,9 @@ class 候補共同参照作用:
             local={cid:0.0 for cid in sigs}
             for text in windows:
                 tokens=_順序識別特徴(意味語(text),意味列(text))
-                anchor=mass(anchors&tokens)/anchor_mass if anchor_mass else 0.0
+                # 問い側に意味anchorが無い制御的入力では、候補差とDataの局所対応だけを使う。
+                # これはData内容の差を保持するための縮退であり、候補IDや正解情報は使わない。
+                anchor=mass(anchors&tokens)/anchor_mass if anchor_mass else 1.0
                 if anchor<=0:
                     continue
                 for cid in sigs:
@@ -397,11 +401,21 @@ class 候補共同参照作用:
                     overlap=mass(distinct[cid]&tokens)/choice_mass[cid]
                     value=sqrt(anchor*overlap)
                     local[cid]=max(local[cid],value)
+            if anchor_mass <= 0:
+                # 問いanchor無しの縮退では、各Data内で候補が一意に識別できた時だけ1観測とする。
+                # 同一Dataは文脈化時に重複除去されるため、異なるDataだけが別観測として残る。
+                maximum=max(local.values(),default=0.0)
+                top=[cid for cid,value in local.items() if value==maximum and value>0]
+                if maximum>0 and len(top)==1:
+                    cid=top[0]
+                    score[cid]+=1.0
+                    evidence[cid].append(f"局所対応:{ref.識別子 or 'anonymous'}:1")
+                continue
             shared=min(local.values())
             for cid,value in local.items():
                 delta=value-shared
                 if delta>0:
-                    # 多数の弱い資料が、強い局所支持を票数で押し流すのを防ぐ。
+                    # 意味anchor有りでは、多数の弱い資料が強い局所支持を票数で押し流すのを防ぐ。
                     if delta>score[cid]:
                         score[cid]=delta
                         evidence[cid]=[f"最大局所対応:{ref.識別子 or 'anonymous'}:{delta:.9f}"]

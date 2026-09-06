@@ -358,8 +358,13 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
             for action in enabled:
                 action_name = str(getattr(action, "名称", type(action).__name__))
                 reused_labels.append(action_name)
-                # 参照比較だけは元の全候補を維持し、候補除外による人工的な固有語を作らない。
-                scope = tuple(internal) if isinstance(action, 候補共同参照作用) else active_rows
+                # 意味anchorを持つ通常問題では元の全候補を維持し、候補除外による人工差を作らない。
+                # 意味anchorを持たない制御的入力だけは、既存の状態差循環契約どおりactive境界を再照合する。
+                scope = (
+                    tuple(internal)
+                    if isinstance(action, 候補共同参照作用) and 文脈.現在.意味語集合
+                    else active_rows
+                )
                 result = action.再評価群(文脈, scope, round_index)
                 for cid, item in result.items():
                     if work.追加(cid, item):
