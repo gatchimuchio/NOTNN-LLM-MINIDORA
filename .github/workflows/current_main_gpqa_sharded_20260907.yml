@@ -1,0 +1,130 @@
+name: TEMP current-main GPQA sharded benchmark 2026-09-07
+
+on:
+  push:
+    branches:
+      - sandbox/current-main-gpqa-20260907
+    paths:
+      - '.github/workflows/current_main_gpqa_sharded_20260907.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { start: 0, limit: 10 }
+          - { start: 10, limit: 10 }
+          - { start: 20, limit: 10 }
+          - { start: 30, limit: 10 }
+          - { start: 40, limit: 10 }
+          - { start: 50, limit: 10 }
+          - { start: 60, limit: 10 }
+          - { start: 70, limit: 10 }
+          - { start: 80, limit: 10 }
+          - { start: 90, limit: 10 }
+          - { start: 100, limit: 10 }
+          - { start: 110, limit: 10 }
+          - { start: 120, limit: 10 }
+          - { start: 130, limit: 10 }
+          - { start: 140, limit: 10 }
+          - { start: 150, limit: 10 }
+          - { start: 160, limit: 10 }
+          - { start: 170, limit: 10 }
+          - { start: 180, limit: 10 }
+          - { start: 190, limit: 8 }
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: 正本由来HEAD確認
+        run: git diff --exit-code 22aa9adfb10b001330976bf9faa31a2a4d84c9f3 -- src tests tools pyproject.toml
+      - name: GPQA shard
+        run: python tools/benchmark_formal.py gpqa-diamond --controlled-ab --start-index ${{ matrix.start }} --limit ${{ matrix.limit }} --out gpqa_shard_${{ matrix.start }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gpqa-shard-${{ matrix.start }}
+          path: gpqa_shard_${{ matrix.start }}.json
+          if-no-files-found: error
+
+  merge:
+    needs: measure
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gpqa-shard-*
+          path: shards
+          merge-multiple: true
+      - name: 全数統合と検証
+        run: |
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, 'tools')
+          import benchmark_formal as formal
+
+          files=sorted(Path('shards').glob('gpqa_shard_*.json'))
+          if len(files)!=20:
+              raise SystemExit(f'expected 20 shards, got {len(files)}')
+          payloads=[json.loads(p.read_text(encoding='utf-8')) for p in files]
+          details=[]
+          csv_hashes=set(); zip_hashes=set(); openalex=set(); controlled=set()
+          for p in payloads:
+              proto=p['protocol']
+              csv_hashes.add(proto['dataset_csv_sha256'])
+              zip_hashes.add(proto['dataset_zip_sha256'])
+              openalex.add(bool(proto['openalex_enabled']))
+              controlled.add(bool(proto['controlled_ab']))
+              details.extend(p['details'])
+          indices=sorted(int(d['index']) for d in details)
+          if indices != list(range(198)):
+              raise SystemExit(f'index coverage invalid: {indices}')
+          if len({int(d['index']) for d in details}) != 198:
+              raise SystemExit('duplicate index detected')
+          if len(csv_hashes)!=1 or len(zip_hashes)!=1 or len(openalex)!=1 or controlled!={True}:
+              raise SystemExit('shard protocol mismatch')
+          merged=formal._benchmark._result_payload(
+              details=sorted(details, key=lambda d:int(d['index'])),
+              selected=range(198),
+              zip_hash=next(iter(zip_hashes)),
+              csv_hash=next(iter(csv_hashes)),
+              repository_commit='22aa9adfb10b001330976bf9faa31a2a4d84c9f3',
+              openalex_enabled=next(iter(openalex)),
+              controlled_ab=True,
+          )
+          merged['protocol']['bench_source_main']='22aa9adfb10b001330976bf9faa31a2a4d84c9f3'
+          merged['protocol']['source_code_diff_zero']=True
+          merged['protocol']['sharded']=True
+          merged['protocol']['shard_count']=20
+          out=Path('gpqa_current_main_20260907_merged.json')
+          out.write_text(json.dumps(merged, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+          print('METRICS='+json.dumps(merged['metrics'], ensure_ascii=False, sort_keys=True))
+          print('CONTROLLED_BASELINE='+json.dumps(merged.get('controlled_baseline'), ensure_ascii=False, sort_keys=True))
+          print('CONTROLLED_DELTA='+json.dumps(merged.get('controlled_delta'), ensure_ascii=False, sort_keys=True))
+          print('PROTOCOL='+json.dumps(merged['protocol'], ensure_ascii=False, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-current-main-gpqa-merged-20260907
+          path: gpqa_current_main_20260907_merged.json
+          if-no-files-found: error
