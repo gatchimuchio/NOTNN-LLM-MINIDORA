@@ -1,0 +1,25 @@
+name: MINIDORA sandbox source export v06
+
+on:
+  push:
+    branches:
+      - sandbox/v06-runtime-integration-20260906
+    paths:
+      - '.github/workflows/_sandbox_source_export_v06.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pack source tree
+        run: |
+          tar --exclude=.git -czf minidora-main-source.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-main-source-v06
+          path: minidora-main-source.tar.gz
+          retention-days: 1
