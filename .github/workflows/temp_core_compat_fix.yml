@@ -11,6 +11,8 @@ permissions:
 jobs:
   repair:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
     steps:
       - uses: actions/checkout@v4
       - name: Apply audited compatibility repair
