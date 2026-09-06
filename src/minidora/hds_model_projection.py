@@ -6,7 +6,7 @@ from typing import Mapping, Sequence
 from .hds_compiler_records_v1_3 import HDS作用差分構造
 from .hds_ir import HDSIR, 値状態
 from .semantic_tokens import 意味語
-from .言語構造 import 言語関係構造
+from .言語構造 import 言語関係構造, _意味集合
 from .模型 import MINIDORA模型核, 成立候補, 言語状態, 模型結果
 from .能力状態差循環 import (
     MINIDORA能力状態差模型核,
@@ -37,7 +37,7 @@ def _端点意味(ir, ids):
         coord = coords.get(cid)
         if coord is None or coord.値状態 in _BLOCKING_ENDPOINT:
             continue
-        out.update(意味語(coord.内容))
+        out.update(_意味集合(coord.内容))
     return frozenset(out)
 
 
@@ -96,10 +96,20 @@ def _残差証拠境界(ir):
 def HDS内部言語状態(ir, *, 識別子="", 言語体系=None, 証拠境界=False):
     source_blocked, impacted = _残差証拠境界(ir) if 証拠境界 else (False, frozenset())
     relations = []
+    coords = ir.座標辞書()
+    blocked_endpoints = set()
+    if 証拠境界:
+        for relation in ir.関係:
+            for cid in (*relation.始点, *relation.終点):
+                coord = coords.get(cid)
+                if coord is None or coord.値状態 in _BLOCKING_ENDPOINT:
+                    blocked_endpoints.add(cid)
     for relation in ir.関係:
         if source_blocked:
             continue
         if impacted and any(str(cid) in impacted for cid in (*relation.始点, *relation.終点)):
+            continue
+        if blocked_endpoints.intersection((*relation.始点, *relation.終点)):
             continue
         structure = _関係構造(ir, relation)
         if structure is not None:
@@ -110,6 +120,10 @@ def HDS内部言語状態(ir, *, 識別子="", 言語体系=None, 証拠境界=F
         ls,
         識別子,
         tuple(relations),
+        # 棄却済みの原文を内部化時の再解析・語彙照合で証拠へ戻さない。
+        # 原文は監査用に保持し、問題のない局所IRだけを継続利用する。
+        表層再解析可=not (source_blocked or impacted or blocked_endpoints),
+        証拠利用可=not source_blocked,
     )
 
 

@@ -5,6 +5,7 @@ from typing import Sequence
 
 from .semantic_tokens import 意味語
 from .模型 import (
+    _不成立入力の留保結果,
     MINIDORA模型核,
     内部言語状態,
     候補共同参照作用,
@@ -15,6 +16,7 @@ from .模型 import (
     模型結果,
     模型統計,
     関係寄与,
+    _コア寄与同一性,
 )
 
 
@@ -74,19 +76,7 @@ def _寄与名正規化(name: str) -> str:
 
 
 def _寄与同一性(item: 関係寄与) -> tuple[object, ...]:
-    name = _寄与名正規化(item.関係名)
-    if name == "候補共同参照":
-        refs = []
-        for raw in item.根拠:
-            text = str(raw)
-            if text.startswith("再照合:"):
-                parts = text.split(":", 2)
-                if len(parts) >= 2:
-                    refs.append(parts[1])
-            elif text.startswith("反転例外:"):
-                refs.append(text)
-        return (name, tuple(sorted(dict.fromkeys(refs))))
-    return (name, item.差, tuple(item.根拠))
+    return _コア寄与同一性(item)
 
 
 @dataclass
@@ -257,6 +247,9 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
                 raise ValueError("候補と言語文脈の言語体系が一致しない")
             internal.append((candidate.候補ID, self.言語対応.内部化(candidate.状態)))
 
+        incomplete = _不成立入力の留保結果(文脈, tuple(internal))
+        if incomplete is not None:
+            return incomplete
         work = _循環作業状態({cid: [] for cid in ids}, [], set())
         state_diffs: list[能力候補状態差] = []
 
@@ -365,7 +358,9 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
             for action in enabled:
                 action_name = str(getattr(action, "名称", type(action).__name__))
                 reused_labels.append(action_name)
-                result = action.再評価群(文脈, active_rows, round_index)
+                # 参照比較だけは元の全候補を維持し、候補除外による人工的な固有語を作らない。
+                scope = tuple(internal) if isinstance(action, 候補共同参照作用) else active_rows
+                result = action.再評価群(文脈, scope, round_index)
                 for cid, item in result.items():
                     if work.追加(cid, item):
                         work.再利用数 += 1

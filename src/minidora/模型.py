@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Protocol, Sequence
+from collections import Counter
+from math import log1p, sqrt
+import re
+import json
 
 from .semantic_tokens import 意味語
-from .言語構造 import 言語関係構造, 意味列, 言語関係抽出
-from .能力作用則 import 証拠状態合計寄与
+from .言語構造 import 言語関係構造, 意味列, 言語関係抽出, 問い候補関係形成, 問題前提関係抽出
+from .能力作用則 import 証拠状態合計寄与, 証拠状態照合, _端点意味同一, _述語対応, _比較成立域
 
 LLM成立規定リポジトリ = "https://github.com/gatchimuchio/LLM-Constitutive-Specification"
 LLM成立規定参照コミット = "306ff834e5ac7e7e958b513db723a24619c8895a"
@@ -27,7 +31,11 @@ class 言語状態:
     言語体系: str = "自然言語:ja"
     識別子: str = ""
     関係構造: tuple[言語関係構造,...] = ()
+    表層再解析可: bool = True
+    証拠利用可: bool = True
     def __post_init__(self):
+        if not isinstance(self.表層再解析可,bool) or not isinstance(self.証拠利用可,bool):
+            raise TypeError("言語状態の証拠境界フラグはboolである必要がある")
         if not self.言語体系.strip(): raise ValueError("言語体系は空にできない")
         if not isinstance(self.内容,str): raise TypeError("言語状態.内容は文字列である必要がある")
 
@@ -39,9 +47,12 @@ class 内部言語状態:
     識別子: str = ""
     意味語列: tuple[str,...] = ()
     関係構造: tuple[言語関係構造,...] = ()
+    表層再解析可: bool = True
+    証拠利用可: bool = True
     @property
     def 構造署名(self):
-        return (self.言語体系,self.意味語列,tuple(x.署名 for x in self.関係構造))
+        return (self.言語体系,self.意味語列,tuple(x.署名 for x in self.関係構造),
+                self.表層再解析可,self.証拠利用可)
 
 @dataclass(frozen=True, slots=True)
 class 文脈付き言語状態:
@@ -111,12 +122,12 @@ class 模型結果:
 
 class 言語対応:
     def 内部化(self, 状態:言語状態)->内部言語状態:
-        parsed=言語関係抽出(状態.内容,状態.言語体系)
+        parsed=言語関係抽出(状態.内容,状態.言語体系) if 状態.表層再解析可 and 状態.証拠利用可 else ()
         rels=[]; seen=set()
-        for item in (*parsed,*状態.関係構造):
+        for item in (*parsed,*(状態.関係構造 if 状態.証拠利用可 else ())):
             if item.署名 not in seen:
                 seen.add(item.署名); rels.append(item)
-        return 内部言語状態(状態.内容,状態.言語体系,意味語(状態.内容),状態.識別子,意味列(状態.内容),tuple(rels))
+        return 内部言語状態(状態.内容,状態.言語体系,意味語(状態.内容),状態.識別子,意味列(状態.内容),tuple(rels),状態.表層再解析可,状態.証拠利用可)
     def 文脈化(self,現在,履歴:Sequence[言語状態]=(),条件:Sequence[str]=(),参照状態:Sequence[言語状態]=()):
         for state in (*履歴,*参照状態):
             if state.言語体系!=現在.言語体系: raise ValueError("同一の文脈評価内で言語体系を無言混在させない")
@@ -223,64 +234,199 @@ class 条件結合関係:
                 else:score+=self.不一致差;ev.append(f"条件不一致:{base.種別}")
         return 関係寄与(self.名称,score,tuple(ev)) if score else None
 
+def _照合対象関係(文脈, 候補):
+    # Compilerが構造を供給した場合はそれを保持する。原文の空所束縛は原子的候補に限る。
+    if 候補.関係構造:
+        return 候補.関係構造
+    return 問い候補関係形成(文脈.現在.表層,候補.表層,文脈.現在.言語体系)
+
+
+def _照合証拠関係(文脈):
+    return tuple(item for ref in 文脈.参照状態 if ref.証拠利用可 for item in ref.関係構造) + 問題前提関係抽出(
+        文脈.現在.表層,文脈.現在.言語体系)
+
+
 @dataclass(frozen=True, slots=True)
 class 参照関係寄与作用:
-    名称:str="参照関係寄与"
-    def 評価(self,文脈,候補):
-        score=0; used=0; detail=[]
-        reverse=any(str(x).casefold()=="選択意図=反転" for x in 文脈.条件)
-        for state in 文脈.参照状態:
-            delta=証拠状態合計寄与(候補.関係構造,state.関係構造)
-            if delta:
-                score+=delta;used+=1;detail.append(f"参照:{state.識別子 or 'anonymous'}:{delta}")
-        if reverse:score=-score
-        return 関係寄与(self.名称,score,(f"参照状態:{used}",*detail)) if score else None
+    名称: str = "参照関係寄与"
+
+    def 評価(self, 文脈, 候補):
+        targets = _照合対象関係(文脈,候補)
+        relations = _照合証拠関係(文脈)
+        if not targets:
+            return None
+        state = 証拠状態照合(targets,relations)
+        diagnostics = (f"関係被覆:支持={state.支持};反証={state.反証};未観測={state.未観測};矛盾={state.矛盾}",)
+        if state.矛盾:
+            return 関係寄与(self.名称,0,(*diagnostics,"参照矛盾:支持と反証が併存"))
+        # 連言は全節支持で成立、一節の明示反証で反証。未観測は反証ではない。
+        score = 2 if state.完全支持 else -2 if state.反証 else 0
+        if "選択意図=反転" in 文脈.条件:
+            score = -score
+        sources = tuple(sorted(set(ref.識別子 or "anonymous" for ref in 文脈.参照状態 if ref.証拠利用可)))
+        return 関係寄与(self.名称,score,(*diagnostics,"参照再結合:"+json.dumps(sources,ensure_ascii=False)))
+
+
+def _順序識別特徴(terms,sequence):
+    pairs={"順序組:"+a+"\x1f"+b for a,b in zip(sequence,sequence[1:]) if a!=b}
+    return frozenset(terms)|frozenset(pairs)
+
+def _列挙参照解決(文脈,候補群):
+    """候補中の列挙記号を、同じ問いに宣言された対象に束縛する。"""
+    text=文脈.現在.表層
+    if re.search(r"\b(?:how many|number of)\b|何個|いくつ|何件",text,re.I):
+        return 候補群
+    matches=list(re.finditer(r"(?m)^\s*\(?([A-Za-z]|[1-9][0-9]?)\s*[.)]\s+",text))
+    if len(matches)<2:
+        return 候補群
+    labels=[m.group(1).casefold() for m in matches]
+    if len(set(labels))!=len(labels):
+        return 候補群
+    mapping={}
+    for i,m in enumerate(matches):
+        end=matches[i+1].start() if i+1<len(matches) else len(text)
+        body=text[m.end():end].strip()
+        body=re.split(r"\n\s*\n",body,maxsplit=1)[0].strip()
+        if not body:
+            return 候補群
+        mapping[labels[i]]=body
+    result=[]
+    for cid,state in 候補群:
+        raw=state.表層.strip()
+        if re.fullmatch(r"[A-Za-z0-9,;\s()]+",raw) is None:
+            result.append((cid,state));continue
+        parts=[p.casefold() for p in re.findall(r"[A-Za-z]+|[0-9]+",raw)]
+        parts=[p for p in parts if p not in {'and'}]
+        if not parts or any(p not in mapping for p in parts):
+            result.append((cid,state));continue
+        expanded=" ".join(mapping[p] for p in parts)
+        if not (state.証拠利用可 and state.表層再解析可):
+            result.append((cid,state));continue
+        result.append((cid,内部言語状態(expanded,state.言語体系,意味語(expanded),state.識別子,
+                         意味列(expanded),言語関係抽出(expanded,state.言語体系),True,True)))
+    return tuple(result)
 
 @dataclass(frozen=True, slots=True)
 class 候補共同参照作用:
     名称:str="候補共同参照"
     def _evaluate(self,文脈,候補群,*,name):
-        sigs={cid:s.意味語集合 for cid,s in 候補群}
-        distinctive={}
-        for cid,vals in sigs.items():
-            others=set()
-            for oid,ov in sigs.items():
-                if oid!=cid:others.update(ov)
-            distinctive[cid]=frozenset(set(vals)-others)
+        """問いと局所Dataの同時対応を、全候補間の対照で評価する。
+
+        出現重みは一requestの参照だけから計算する。正解・学習済み重み・分野辞書は使わない。
+        """
+        if not 候補群:
+            return {}
+        候補群=_列挙参照解決(文脈,候補群)
+        relations=tuple(x for ref in 文脈.参照状態 if ref.証拠利用可 for x in ref.関係構造)+問題前提関係抽出(文脈.現在.表層,文脈.現在.言語体系)
+        targets={cid:state.関係構造 or 問い候補関係形成(文脈.現在.表層,state.表層,文脈.現在.言語体系) for cid,state in 候補群}
+        matched={cid:証拠状態照合(targets[cid],relations) for cid,state in 候補群}
+        reverse="選択意図=反転" in 文脈.条件
+        complete={cid for cid,st in matched.items() if not st.矛盾 and (bool(st.反証) if reverse else st.完全支持)}
+        if complete:
+            return {cid:関係寄与(name,1,("一般関係再結合:全体成立",)) for cid in sorted(complete)}
+        if any(st.矛盾 for st in matched.values()):
+            return {}
+        if reverse:
+            # 反転選択は世界関係の「無観測=反証」へ変換しない。
+            # ただし他候補がすべて明示支持され、未支持が一候補だけなら、
+            # 候補集合上の相対例外差としてその一候補を選べる。
+            supported={cid for cid,st in matched.items() if st.完全支持}
+            residual=[cid for cid,st in matched.items()
+                      if not (st.支持 or st.反証 or st.矛盾)]
+            if len(residual)==1 and len(supported)==len(候補群)-1:
+                cid=residual[0]
+                return {cid:関係寄与(name,1,("選択意図反転:他候補全体支持による相対例外差",))}
+            return {}
+        blocked={cid for cid,st in matched.items() if st.反証}
+        for cid,state in 候補群:
+            bound=問い候補関係形成(文脈.現在.表層,state.表層,文脈.現在.言語体系)
+            closed_bound=any(t.種別!="開放述語" for t in bound)
+            related=False
+            for target in targets[cid]:
+                for observed in relations:
+                    same_comparison_domain=target.種別 in _比較成立域 and observed.種別 in _比較成立域
+                    if not (_述語対応(target,observed) or same_comparison_domain):
+                        continue
+                    if any(_端点意味同一(a,b) for a in (target.始点,target.終点)
+                           for b in (observed.始点,observed.終点)):
+                        related=True;break
+                if related:break
+            if closed_bound or related:
+                blocked.add(cid)
+        if not 文脈.参照状態:
+            return {}
+        usable_refs=tuple(ref for ref in 文脈.参照状態 if ref.証拠利用可 and ref.表層再解析可)
+        sigs={cid:_順序識別特徴(state.意味語集合,state.意味語列) for cid,state in 候補群}
+        common=frozenset.intersection(*sigs.values())
+        distinct={cid:values-common for cid,values in sigs.items()}
+        union=frozenset.union(*sigs.values())
+        anchors=(_順序識別特徴(文脈.現在.意味語集合,文脈.現在.意味語列)-union)|common
+        if not anchors:
+            anchors=文脈.現在.意味語集合
+        frequency=Counter(token for ref in usable_refs for token in _順序識別特徴(ref.意味語集合,ref.意味語列))
+        n=len(usable_refs)
+        def weight(token):
+            return log1p(n/(1+frequency[token]))
+        def mass(tokens):
+            return sum(weight(t) for t in sorted(tokens))
+        anchor_mass=mass(anchors)
+        choice_mass={cid:mass(tokens) for cid,tokens in distinct.items()}
+        score={cid:0.0 for cid in sigs}
+        evidence={cid:[] for cid in sigs}
         reverse=any(str(x).casefold()=="選択意図=反転" for x in 文脈.条件)
-        scores={cid:0 for cid,_ in 候補群}; evidence={cid:[] for cid,_ in 候補群}
-        aggregate_relation={cid:0 for cid,_ in 候補群}
-        aggregate_token={cid:0 for cid,_ in 候補群}
         for ref in 文脈.参照状態:
-            token_hits={cid:len(distinctive[cid].intersection(ref.意味語集合)) for cid,_ in 候補群}
-            relation_hits={cid:証拠状態合計寄与(state.関係構造,ref.関係構造) for cid,state in 候補群}
-            for cid,_ in 候補群:
-                aggregate_relation[cid]+=relation_hits[cid]
-                aggregate_token[cid]+=token_hits[cid]
-            if reverse:
+            if not (ref.証拠利用可 and ref.表層再解析可):
                 continue
-            # 関係差を第一軸、語の固有差を第二軸として序数比較する。加重和にしない。
-            rank={cid:(relation_hits[cid],token_hits[cid]) for cid,_ in 候補群}
-            maximum=max(rank.values(),default=(0,0))
-            if maximum<=(0,0): continue
-            top=[cid for cid,v in rank.items() if v==maximum]
-            if len(top)!=1: continue
-            cid=top[0]
-            scores[cid]+=1;evidence[cid].append(f"再照合:{ref.識別子 or 'anonymous'}:{maximum[0]}:{maximum[1]}")
-        if reverse and 候補群:
-            # 反転問題では支持を単に負へするのでなく、候補集合全体の相対差として例外を読む。
-            # 少なくとも候補間に参照差がある場合だけ、最小支持の一候補へ正の差を与える。
-            aggregate={cid:(aggregate_relation[cid],aggregate_token[cid]) for cid,_ in 候補群}
-            minimum=min(aggregate.values())
-            maximum=max(aggregate.values())
-            bottom=[cid for cid,v in aggregate.items() if v==minimum]
-            if minimum!=maximum and len(bottom)==1:
-                cid=bottom[0]
-                scores[cid]+=1
-                evidence[cid].append(f"反転例外:{minimum[0]}:{minimum[1]}->{maximum[0]}:{maximum[1]}")
-        return {cid:関係寄与(name,score,tuple(evidence[cid])) for cid,score in scores.items() if score}
+            sentences=[x.strip() for x in re.split(r"(?<![0-9])[.!?。！？]\s+|[\r\n]+",ref.表層) if x.strip()]
+            windows=list(sentences)
+            sentence_tokens=[意味語(x) for x in sentences]
+            for i in range(len(sentences)-1):
+                if sentence_tokens[i]&sentence_tokens[i+1]:
+                    windows.append(" ".join(sentences[i:i+2]))
+            if not windows:
+                windows=[ref.表層]
+            local={cid:0.0 for cid in sigs}
+            for text in windows:
+                tokens=_順序識別特徴(意味語(text),意味列(text))
+                anchor=mass(anchors&tokens)/anchor_mass if anchor_mass else 0.0
+                if anchor<=0:
+                    continue
+                for cid in sigs:
+                    if cid in blocked or choice_mass[cid]<=0:
+                        continue
+                    overlap=mass(distinct[cid]&tokens)/choice_mass[cid]
+                    value=sqrt(anchor*overlap)
+                    local[cid]=max(local[cid],value)
+            shared=min(local.values())
+            for cid,value in local.items():
+                delta=value-shared
+                if delta>0:
+                    # 多数の弱い資料が、強い局所支持を票数で押し流すのを防ぐ。
+                    if delta>score[cid]:
+                        score[cid]=delta
+                        evidence[cid]=[f"最大局所対応:{ref.識別子 or 'anonymous'}:{delta:.9f}"]
+                    elif delta==score[cid]:
+                        evidence[cid].append(f"最大局所対応:{ref.識別子 or 'anonymous'}:{delta:.9f}")
+        if reverse:
+            # 無観測を反証へ読み替えない。例外選択は明示関係寄与に委ねる。
+            return {}
+        return {cid:関係寄与(name,round(1000000*value),tuple(evidence[cid]))
+                for cid,value in score.items() if round(1000000*value)>0}
     def 評価群(self,文脈,候補群): return self._evaluate(文脈,候補群,name=self.名称)
     def 再評価群(self,文脈,候補群,round_index:int): return self._evaluate(文脈,候補群,name=f"候補共同再照合:{round_index}")
+
+def _不成立入力の留保結果(文脈,internal):
+    """基底Coreと状態差循環Coreで、同じ入力境界を共有する。"""
+    if 文脈.現在.証拠利用可 and all(state.証拠利用可 for _,state in internal):
+        return None
+    ids=tuple(cid for cid,_ in internal)
+    differences=tuple(成立差(cid,0,(関係寄与("入力境界未成立",0,("INCOMPLETE_INPUT_STATE",)),)) for cid in ids)
+    return 模型結果(文脈,differences,None,ids,(),模型統計(),None,ids)
+
+
+def _コア寄与同一性(item):
+    name = "候補共同参照" if item.関係名.startswith("候補共同再照合:") else item.関係名
+    return (name, item.差, tuple(sorted(set(item.根拠))))
 
 @dataclass
 class _作業状態:
@@ -289,8 +435,8 @@ class _作業状態:
     seen_active:set[tuple[str,...]]
     created:int=0; reused:int=0; reactivated:int=0; global_reconcile:int=0; cross_updates:int=0; rounds:int=0
     def add(self,cid,item):
-        key=(item.関係名,item.差,item.根拠)
-        if any((x.関係名,x.差,x.根拠)==key for x in self.contributions[cid]):
+        key=_コア寄与同一性(item)
+        if any(_コア寄与同一性(x)==key for x in self.contributions[cid]):
             return False
         self.contributions[cid].append(item);self.created+=1;return True
     def scores(self):return {cid:sum(x.差 for x in rows) for cid,rows in self.contributions.items()}
@@ -322,6 +468,11 @@ class MINIDORA模型核:
         for c in 候補群:
             if c.状態.言語体系!=文脈.現在.言語体系:raise ValueError("候補と言語文脈の言語体系が一致しない")
             internal.append((c.候補ID,self.言語対応.内部化(c.状態)))
+        # 未成立の問い/候補を取り除いて、一意候補を人工的に作ってはいけない。
+        # Data本文の存在と、Compilerが後続利用を許した入力であることを区別する。
+        incomplete=_不成立入力の留保結果(文脈,tuple(internal))
+        if incomplete is not None:
+            return incomplete
         work=_作業状態({cid:[] for cid in ids},[],set())
 
         # 1) 一般作用。ここでは確定せず寄与状態だけ作る。
@@ -360,7 +511,7 @@ class MINIDORA模型核:
             changed=0
             for action in self._能力作用群:
                 if not hasattr(action,"再評価群"):continue
-                result=action.再評価群(文脈,active_rows,round_index)
+                result=action.再評価群(文脈,tuple(internal) if isinstance(action,候補共同参照作用) else active_rows,round_index)
                 for cid,item in result.items():
                     if work.add(cid,item):changed+=1;work.reused+=1
             work.cross_updates+=changed
