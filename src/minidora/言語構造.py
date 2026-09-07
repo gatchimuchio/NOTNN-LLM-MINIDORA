@@ -5,7 +5,7 @@ import re
 import unicodedata
 
 from .semantic_tokens import 意味語
-from .言語基底_英語 import 英語明示関係構文 as _原本英語構文, 英語関係構文
+from .言語基底_英語 import 英語明示関係構文 as _原本英語構文, 英語関係一致, 英語関係構文
 
 
 _語 = re.compile(r"[A-Za-z0-9_+./^%µμΩ°\-]+|[Α-Ωα-ωϐ-Ͽ]+|[ぁ-んァ-ヶー]+|[一-龥々]+|[^\s]")
@@ -388,7 +388,7 @@ _補助英語構文 = (
 
 
 def _英文一致(text):
-    typed = [(sy,ma) for sy in _原本英語構文 for ma in sy.正規表現.finditer(text)]
+    typed = [(sy,ma) for sy in _原本英語構文 for ma in 英語関係一致(sy,text)]
     # be + 分詞を属性・同一性へ重複射影しない。比較述語も同様に優先する。
     spans = [ma.span() for _,ma in typed] + [ma.span() for ma in _自然文比較構文.finditer(text)]
     extra = [(sy,ma) for sy in _補助英語構文 for ma in sy.正規表現.finditer(text)

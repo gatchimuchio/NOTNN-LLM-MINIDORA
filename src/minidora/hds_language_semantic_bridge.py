@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import replace
-import re
 
 from .hds_ir import HDSIR, HDS座標, HDS関係, HDS残差, HDS意味作用, 値状態
+from .言語基底_英日意味 import 英語質問境界解析
 from .言語基底_英日意味強化 import 英日意味フレーム抽出
 
 
 _VERSION = "v0.5"
-_WH = re.compile(r"\b(?:which|what|who|where|when|why|how)\b", re.I)
 
 
 def _norm(value: object) -> str:
@@ -27,8 +26,18 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
 
     text = str(ir.正規化文 or ir.原文)
     frame = 英日意味フレーム抽出(text)
+    boundary = 英語質問境界解析(text)
+    質問表示 = boundary.質問表示
+    if boundary.境界状態 == "when前置句境界未確定" and not 質問表示:
+        # 疑問と条件主節の境界が閉じない場合、質問でないことを事実の成立へ読み替えない。
+        if not any(residual.残差ID == "lang-sem:question-boundary-unresolved" for residual in ir.残差):
+            ir = replace(ir, 残差=(*ir.残差, HDS残差(
+                "lang-sem:question-boundary-unresolved", "semantic_loss", boundary.焦点,
+                "when節の前置詞句と後続主節の境界を確定できない",
+                解消条件=("疑問の主節または条件の主節を構造として保持する",),
+            )))
     if not frame.正本意味 and not frame.外部検索語 and frame.関係質問 is None:
-        if _WH.search(text) and not any(residual.種別 == "semantic_loss" for residual in ir.残差):
+        if 質問表示 and not any(residual.種別 == "semantic_loss" for residual in ir.残差):
             residual = HDS残差(
                 "lang-sem:question-loss",
                 "semantic_loss",
@@ -132,7 +141,7 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
             str(coord.種別) == "制御.選択意図" and str(coord.内容) == "反転" for coord in coords
         ):
             add_coord("lang-sem:selection", "制御.選択意図", "反転")
-    elif _WH.search(text) and not any(residual.種別 == "semantic_loss" for residual in residuals):
+    elif 質問表示 and not any(residual.種別 == "semantic_loss" for residual in residuals):
         residuals.append(
             HDS残差(
                 "lang-sem:question-loss",

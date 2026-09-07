@@ -6,6 +6,7 @@ import re
 from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
 from .semantic_tokens import 意味語
 from .言語基底 import 言語基底P, 標準言語基底P
+from .言語基底_英語 import 英語関係一致
 from .言語基底_英日意味強化 import 英語明示述語関係抽出
 
 
@@ -128,7 +129,7 @@ def HDS英語基底関係射影(ir: HDSIR, 言語基底: 言語基底P | None = 
         added += 1
 
     for syntax in syntaxes:
-        for match in syntax.正規表現.finditer(text):
+        for match in 英語関係一致(syntax, text):
             subject = " ".join(match.group("s").split()).strip(" ,;:()[]")
             object_ = " ".join(match.group("o").split()).strip(" ,;:()[]")
             predicate = " ".join(match.group("v").split()).strip()

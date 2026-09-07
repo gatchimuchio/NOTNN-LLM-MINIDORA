@@ -34,19 +34,47 @@ class 英日意味フレーム:
     関係質問: 英日関係質問 | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class 英語質問境界:
+    焦点: str
+    本体: str
+    条件scope: tuple[str, ...]
+    質問表示: bool
+    表示根拠: str
+    境界状態: str
+
+
 _語 = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
 _末尾疑問符 = re.compile(r"[?？]+$")
 _文分割 = re.compile(r"(?<=[?!.。？！])\s+|\n+")
+_先頭疑問語 = re.compile(r"^(?:which|what|who|where|when|why|how)\b", re.I)
+_引用区間 = re.compile(
+    r'''"[^"]*"|“[^”]*”|「[^」]*」|『[^』]*』|(?<!\w)'(?:[^']|(?<=\w)'(?=\w))*'(?!\w)|‘[^’]*’'''
+)
 _関係句 = r"(?P<v>[A-Za-z]+(?:\s+(?:to|in|on|with|against|from|of))?)"
 _型 = r"(?P<kind>[A-Za-z][A-Za-z0-9 _-]{0,72}?)"
 _助動 = r"(?:(?:would|could|may|might|can|must)\s+)?"
 _受動助動 = r"(?:is|are|was|were|has\s+been|have\s+been|had\s+been|(?:would|could|may|might|can|must)\s+be)"
 
-_先頭条件付き質問 = re.compile(
-    r"^(?P<c>(?:(?:if|when|under|given|assuming|unless)\b|in\s+the\s+(?:presence|absence)\s+of\b)[^?？]{1,180}?)[,;]\s*"
-    r"(?P<q>(?:which|what)\b.+)$",
+_条件導入 = re.compile(
+    r"^(?:(?:if|when|under|given|assuming|unless)\b|in\s+the\s+(?:presence|absence)\s+of\b)",
     re.I,
 )
+_有限助動詞 = r"(?:do|does|did|is|are|was|were|has|have|had|can|could|may|might|must|should|would|will)"
+_先頭助動詞 = re.compile(rf"^{_有限助動詞}\b", re.I)
+_when倒置 = re.compile(rf"^when\s+(?P<adjunct>[^,;?!]*?)\b{_有限助動詞}\b", re.I)
+_疑問前置詞 = r"(?:in|on|at|to|for|from|with|without|by|of|about|under|over|between|among|through|within|during|before|after)"
+_前置疑問句 = re.compile(rf"^{_疑問前置詞}\s+(?:which|what|who|whom|whose)\b", re.I)
+_疑問時点修飾 = frozenset({
+    "exactly", "precisely", "approximately", "roughly", "actually", "typically",
+    "usually", "normally", "else", "ever", "again", "next",
+})
+_when前置句 = re.compile(
+    r"^when\s+(?:in|on|at|during|before|after|between|within|around|since|until|throughout)\b",
+    re.I,
+)
+_後置質問条件 = re.compile(r"\b(?:when|if|unless|under|given|assuming)\b", re.I)
+_括弧対応 = {"(": ")", "[": "]"}
 
 _受動未知対象 = re.compile(
     rf"^(?:which|what)\s+(?:of\s+the\s+following\s+)?{_型}\s+"
@@ -115,15 +143,168 @@ def _正規化(text: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", str(text)).split()).strip()
 
 
-def _質問焦点(text: str) -> str:
-    raw = _正規化(text)
+def _引用外(text: str) -> str:
+    """引用内容を位置を変えず覆う。単語内部のapostropheは引用開始にしない。"""
+    return _引用区間.sub(lambda match: " " * len(match.group(0)), text)
+
+
+def _括弧外位置(visible: str) -> frozenset[int] | None:
+    stack: list[str] = []
+    outside: set[int] = set()
+    for index, char in enumerate(visible):
+        if char in _括弧対応:
+            stack.append(_括弧対応[char])
+        elif char in _括弧対応.values():
+            if not stack or stack.pop() != char:
+                return None
+        elif not stack:
+            outside.add(index)
+    return frozenset(outside) if not stack else None
+
+
+def _全文括弧除去(text: str) -> str:
+    """本文全体を包む整合した括弧だけを外し、疑問・感嘆の根拠を残す。"""
+    raw = text.strip()
+    while raw:
+        body = raw.rstrip(".。?!？！").rstrip()
+        suffix = raw[len(body):]
+        visible = _引用外(body)
+        if not visible or visible[0] not in _括弧対応:
+            break
+        stack: list[str] = []
+        complete = False
+        for index, char in enumerate(visible):
+            if char in _括弧対応:
+                stack.append(_括弧対応[char])
+            elif char in _括弧対応.values():
+                if not stack or stack.pop() != char:
+                    break
+                if not stack:
+                    complete = index == len(visible) - 1
+                    break
+        if not complete:
+            break
+        raw = body[1:-1].strip() + suffix.strip()
+    return raw
+
+
+def _直接when疑問(visible: str) -> bool:
+    """when句に続く助動詞倒置を認定し、主語を含む条件節と分ける。"""
+    match = _when倒置.match(visible)
+    if match is None:
+        return False
+    adjunct = match.group("adjunct").strip().casefold()
+    tokens = _語.findall(adjunct)
+    if " ".join(tokens) != adjunct:
+        return False
+    while tokens and tokens[0] in _疑問時点修飾:
+        tokens.pop(0)
+    return not tokens
+
+
+def _when前置句未確定(visible: str) -> bool:
+    """前置詞句の終わりを推測せず、別主節が見つからない問い候補を全文保持する。"""
+    return _when前置句.match(visible) is not None and _when倒置.match(visible) is not None
+
+
+def _主節疑問表示(visible: str) -> bool:
+    if re.match(r"^when\b", visible, re.I):
+        if _直接when疑問(visible):
+            return True
+        outside = _括弧外位置(visible)
+        return (_when前置句未確定(visible) and outside is not None
+                and not any(visible[index] in ",;" for index in outside))
+    return bool(_先頭疑問語.match(visible) or _前置疑問句.match(visible))
+
+
+def _文の質問境界(text: str) -> 英語質問境界:
+    raw = _全文括弧除去(text)
+    visible = _引用外(raw)
+    explicit = "?" in visible or "？" in visible
+    exclamation = visible.rstrip(".。").endswith(("!", "！"))
+    direct_when = _直接when疑問(visible)
+    uncertain_when = _when前置句未確定(visible)
+    main_question = _主節疑問表示(visible)
+    conditional = _条件導入.match(visible) is not None and not main_question
+    outside = _括弧外位置(visible)
+    balanced = outside is not None
+    outside = outside if outside is not None else frozenset()
+    boundaries = [index for index in sorted(outside)
+                  if visible[index] in ",;"
+                  and (_主節疑問表示(visible[index + 1:].lstrip())
+                       or (explicit and _先頭助動詞.match(visible[index + 1:].lstrip())))] if conditional else []
+    body, conditions, state = raw, (), "主節"
+    if not balanced:
+        state = "括弧境界未確定"
+    elif len(boundaries) == 1 and boundaries[0] <= 220:
+        index = boundaries[0]
+        body, conditions = raw[index + 1:].strip(), (raw[:index].strip(),)
+        state = "先頭条件"
+    elif conditional and boundaries:
+        state = "条件境界未確定"
+    elif uncertain_when:
+        state = "when前置句境界未確定"
+    elif conditional:
+        state = "条件主節未確認"
+    elif direct_when:
+        state = "直接when疑問"
+    main_wh = _主節疑問表示(_引用外(body)) and not conditional
+    if len(boundaries) == 1:
+        main_wh = True
+    displayed = explicit or (not exclamation and (main_wh or bool(boundaries)))
+    # 後置条件は質問の主節が確認できた場合だけ分離する。直接when疑問は全文を保つ。
+    if displayed and state == "主節":
+        for match in _後置質問条件.finditer(visible):
+            if match.start() > 0 and match.start() in outside:
+                body = raw[:match.start()].strip(" ,;:")
+                conditions = (raw[match.start():].rstrip(" .。?!？！"),)
+                state = "後置条件"
+                break
+    reason = "疑問符" if explicit else "主節疑問語" if displayed else "なし"
+    return 英語質問境界(raw.rstrip(".。"), body.rstrip(" .。?!？！").strip(),
+                    conditions, displayed, reason, state)
+
+
+def 英語質問境界解析(text: str) -> 英語質問境界:
+    """焦点・質問表示・本体・条件を同じ有限な境界認定から返す。"""
+    raw = _全文括弧除去(_正規化(text))
     if not raw:
-        return ""
-    parts = [part.strip() for part in _文分割.split(raw) if part.strip()]
-    for part in reversed(parts):
-        if "?" in part or "？" in part:
+        return _文の質問境界("")
+    # 引用・括弧内の文末記号で外側の文を分断しない。
+    parts: list[str] = []
+    start = 0
+    visible = _引用外(raw)
+    outside = _括弧外位置(visible)
+    for boundary in _文分割.finditer(visible):
+        if outside is None or boundary.start() not in outside:
+            continue
+        part = _正規化(raw[start:boundary.start()])
+        if part:
+            parts.append(part)
+        start = boundary.end()
+    tail = _正規化(raw[start:])
+    if tail:
+        parts.append(tail)
+    parsed = [_文の質問境界(part) for part in parts]
+    for part in reversed(parsed):
+        if part.表示根拠 == "疑問符":
             return part
-    return parts[-1] if parts else raw
+    for part in reversed(parsed):
+        if part.質問表示:
+            return part
+    for part in reversed(parsed):
+        if part.境界状態 == "when前置句境界未確定":
+            return part
+    return parsed[-1] if parsed else _文の質問境界(raw)
+
+
+def _質問焦点(text: str) -> str:
+    return 英語質問境界解析(text).焦点
+
+
+def 英語質問表示(text: str) -> bool:
+    """基礎・強化抽出と残差判定で同じ質問焦点を使う。内容を解析できたかとは別。"""
+    return 英語質問境界解析(text).質問表示
 
 
 def _端点(text: str) -> str:
@@ -162,14 +343,9 @@ def _反転(match: re.Match[str] | None, raw: str) -> bool:
 
 
 def _質問本体と条件scope(text: str) -> tuple[str, tuple[str, ...]]:
-    """最終質問の先頭に明示された局所条件だけを質問本体から分離する。"""
-    raw = _端点(text)
-    match = _先頭条件付き質問.fullmatch(raw)
-    if match is None:
-        return raw, ()
-    condition = _正規化(match.group("c")).strip(" ,;:")
-    question = _正規化(match.group("q"))
-    return question, ((condition,) if condition else ())
+    """共有境界で確認した質問本体と局所条件を返す。"""
+    boundary = 英語質問境界解析(text)
+    return boundary.本体, boundary.条件scope
 
 
 def _質問関係(text: str) -> 英日関係質問 | None:
@@ -277,10 +453,11 @@ def _検索語(text: str) -> tuple[str, ...]:
 
 
 def 英日意味フレーム抽出(text: str) -> 英日意味フレーム:
-    focus = _質問焦点(text)
+    boundary = 英語質問境界解析(text)
+    focus = boundary.焦点
     controls = _制御(focus)
-    question_body, condition_scopes = _質問本体と条件scope(focus)
-    question = _質問関係(question_body)
+    question_body, condition_scopes = boundary.本体, boundary.条件scope
+    question = _質問関係(question_body) if boundary.質問表示 and boundary.境界状態 != "括弧境界未確定" else None
     if question is not None:
         question = replace(question, 修飾=_関係質問修飾(controls, condition_scopes))
 
@@ -293,4 +470,4 @@ def 英日意味フレーム抽出(text: str) -> 英日意味フレーム:
     return 英日意味フレーム(tuple(canonical), _検索語(focus), controls, question)
 
 
-__all__ = ["英日意味制御", "英日関係質問", "英日意味フレーム", "英日意味フレーム抽出"]
+__all__ = ["英日意味制御", "英日関係質問", "英日意味フレーム", "英日意味フレーム抽出", "英語質問表示", "英語質問境界", "英語質問境界解析"]

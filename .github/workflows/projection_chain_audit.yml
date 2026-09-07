@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "src/minidora/言語基底_英日意味.py"
       - "src/minidora/言語基底_英日意味強化.py"
       - "src/minidora/hds_language_semantic_bridge.py"
       - "src/minidora/hds_language_relations.py"
@@ -14,6 +15,9 @@ on:
       - "src/minidora/能力作用則.py"
       - "src/minidora/模型.py"
       - "tools/audit_projection_chain.py"
+      - "tests/test_projection_audit_boundary.py"
+      - "tests/test_projection_chain_fidelity_v1.py"
+      - "tests/test_hds_residual_evidence.py"
       - ".github/workflows/projection_chain_audit.yml"
 
 permissions:
@@ -30,7 +34,7 @@ jobs:
           python-version: "3.12"
       - name: パッケージ導入
         run: python -m pip install -e .
-      - name: GPQA意味射影監査
+      - name: 意味被覆・人工射影契約監査
         run: python tools/audit_projection_chain.py
       - name: 監査成果を保存
         uses: actions/upload-artifact@v4

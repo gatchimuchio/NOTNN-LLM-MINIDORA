@@ -5,6 +5,8 @@ import re
 import unicodedata
 
 from .言語基底_英日意味 import (
+    英語質問境界,
+    英語質問境界解析,
     英日意味制御,
     英日関係質問,
     英日意味フレーム,
@@ -61,7 +63,6 @@ _末尾補助語 = re.compile(
     r"\s+(?:do|does|did|is|are|was|were|be|been|being|can|could|may|might|must|should|would|will|has|have|had)\s*$",
     re.I,
 )
-_疑問語 = re.compile(r"\b(?:which|what|who|where|when|why|how)\b", re.I)
 _受動 = re.compile(
     r"^(?P<s>.+?)\s+(?:is|are|was|were|be|been|being|has\s+been|have\s+been|had\s+been)\s+"
     r"(?P<v>[A-Za-z][A-Za-z-]*(?:\s+(?:to|in|on|with|against|from|of|for))?)\s+by\s+(?P<o>.+)$", re.I,
@@ -79,15 +80,6 @@ def _端点(text: object) -> str:
 def _開放主語(text: object) -> str:
     """open述語探索が主語側へ吸収した補助語だけを除く。世界知識は足さない。"""
     return _末尾補助語.sub("", _端点(text)).strip()
-
-
-def _焦点(text: str) -> str:
-    raw = _正規化(text)
-    parts = [p.strip() for p in _文分割.split(raw) if p.strip()]
-    for part in reversed(parts):
-        if "?" in part or "？" in part:
-            return part
-    return parts[-1] if parts else raw
 
 
 def _動詞基本形(surface: str) -> str:
@@ -225,8 +217,13 @@ def _generic_relation_question(raw: str, conditions: tuple[str, ...]) -> 英日�
     return 英日関係質問(kind, "始点", requested, known, predicate, _反転(body), False, _修飾(body, conditions))
 
 
-def _fallback_question(focus: str) -> 英日関係質問 | None:
-    body, conditions = _条件分離(focus)
+def _fallback_question(focus: str, boundary: 英語質問境界 | None = None) -> 英日関係質問 | None:
+    boundary = boundary if boundary is not None else 英語質問境界解析(focus)
+    if not boundary.質問表示:
+        return None
+    body, conditions = boundary.本体, boundary.条件scope
+    if boundary.境界状態 == "括弧境界未確定":
+        return 英日関係質問("問い適合", "始点", "選択肢", body, "match", _反転(body), False, _修飾(body))
     proposition = _命題選択.fullmatch(body)
     if proposition:
         topic = _端点(proposition.group("topic") or "候補命題")
@@ -258,7 +255,7 @@ def _fallback_question(focus: str) -> 英日関係質問 | None:
         token for token in _語.findall(body)
         if token.casefold() not in _機能語 and token.casefold() not in _補助語
     ]
-    if ("?" in focus or "？" in focus or _疑問語.search(body)) and content_tokens:
+    if content_tokens:
         return 英日関係質問(
             "問い適合", "始点", "選択肢", body, "match", _反転(body), False, _修飾(body, conditions),
         )
@@ -266,9 +263,10 @@ def _fallback_question(focus: str) -> 英日関係質問 | None:
 
 
 def 英日意味フレーム抽出(text: str) -> 英日意味フレーム:
-    focus = _焦点(text)
-    proposition = _命題選択.fullmatch(_端点(_条件分離(focus)[0]))
-    fallback = _fallback_question(focus)
+    boundary = 英語質問境界解析(text)
+    focus = boundary.焦点
+    proposition = _命題選択.fullmatch(boundary.本体)
+    fallback = _fallback_question(focus, boundary)
     if proposition is not None and fallback is not None:
         base = _旧抽出(text)
         canonical = tuple((*base.正本意味, f"関係:{fallback.種別}", f"述語:{fallback.検索述語}", f"不足位置:{fallback.未知位置}"))
@@ -276,7 +274,7 @@ def 英日意味フレーム抽出(text: str) -> 英日意味フレーム:
 
     base = _旧抽出(text)
     if base.関係質問 is not None:
-        _, conditions = _条件分離(focus)
+        conditions = boundary.条件scope
         modifiers = tuple(dict.fromkeys((*base.関係質問.修飾, *_修飾(focus, conditions))))
         return replace(base, 関係質問=replace(base.関係質問, 修飾=modifiers))
     if fallback is None:

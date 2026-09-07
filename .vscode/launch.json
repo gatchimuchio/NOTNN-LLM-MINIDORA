@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "MINIDORA: CLI",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "minidora",
+      "python": "${workspaceFolder}/.venv-win/Scripts/python.exe",
+      "args": ["2+3"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": { "PYTHONUTF8": "1" }
+    }
+  ]
+}

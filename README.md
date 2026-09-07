@@ -5,6 +5,8 @@
 
 [English translation](README.en.md) / [製品版デモ](製品版/README.md) / [設計正本](設計/README.md) / [評価・実測](評価/README.md)
 
+Windowsで開発する場合は [Windowsネイティブ開発環境](docs/Windows開発環境.md) を参照してください。
+
 ## まず結論 — MINIDORAは何をしたのか
 
 MINIDORAの成立順序は、一般に想像されやすい順序と逆です。

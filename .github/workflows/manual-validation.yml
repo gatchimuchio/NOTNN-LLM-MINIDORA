@@ -1,0 +1,49 @@
+name: MINIDORA 手動検証
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
+      PYTHONHASHSEED: "0"
+      PYTHONPATH: ${{ github.workspace }}/src
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: 一時領域でパッケージ導入
+        run: |
+          export PYTHONPYCACHEPREFIX="$RUNNER_TEMP/minidora-pycache"
+          echo "PYTHONPYCACHEPREFIX=$PYTHONPYCACHEPREFIX" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/minidora-install"
+          cp -a pyproject.toml README.md LICENSE* src "$RUNNER_TEMP/minidora-install/"
+          python -m pip install --no-deps "$RUNNER_TEMP/minidora-install"
+      - name: ソースと検証コードを読み取り専用化
+        run: chmod -R a-w src tests tools
+      - name: リポジトリ整合性監査
+        run: python tools/repository_consistency_check.py
+      - name: 日本語基底監査
+        run: python tools/日本語基底監査.py
+      - name: 構文確認
+        run: python -m compileall -q src tests tools
+      - name: 単体試験
+        run: python -m unittest discover -s tests -v
+      - name: v0.4規模測定 legacy regression
+        run: python tools/規模測定.py
+      - name: module CLI smoke test
+        run: python -m minidora "2+3"
+      - name: console script smoke test
+        run: minidora "2+3"
+      - name: 追跡ファイルの変更がないことを確認
+        if: always()
+        run: git diff --exit-code HEAD --

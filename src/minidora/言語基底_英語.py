@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Iterator
+from dataclasses import dataclass, field
 import re
 import unicodedata
 
@@ -10,6 +11,19 @@ class 英語関係構文:
     種別: str
     正規表現: re.Pattern[str]
     反転: bool = False
+    述語必要条件: re.Pattern[str] | None = field(default=None, kw_only=True, compare=False, repr=False)
+
+
+def 英語関係一致(構文: 英語関係構文, 本文: str) -> Iterator[re.Match[str]]:
+    """同じ述語式が不在の標準構文だけを省略し、既存の全文探索を保持する。
+
+    必要条件を持たない独自構文は従来どおり探索する。条件が一致しても、
+    その位置から探索を始めず、完全式の全matchを元の順序で返す。
+    """
+    必要条件 = getattr(構文, "述語必要条件", None)
+    if 必要条件 is not None and 必要条件.search(本文) is None:
+        return iter(())
+    return 構文.正規表現.finditer(本文)
 
 
 # 世界知識ではなく、英語という言語体系の基底知識だけを保持する。
@@ -140,50 +154,56 @@ _OBJECT = r"(?P<o>[^?!.;,\n]{1,120})"
 _AUX = r"(?:is|are|was|were|be|been|being|has\s+been|have\s+been|had\s+been)"
 
 
-def _active(forms: str) -> re.Pattern[str]:
-    return re.compile(rf"{_SUBJECT}\s+(?P<v>{forms})\s+{_OBJECT}", re.I)
+def _構文生成(種別: str, 述語式: str, *, 反転: bool = False) -> 英語関係構文:
+    # 標準述語式は外側groupを参照しない。同じ式・flagsの不一致は完全式の不一致を含意する。
+    完全式 = re.compile(rf"{_SUBJECT}\s+(?P<v>{述語式})\s+{_OBJECT}", re.I)
+    return 英語関係構文(
+        種別, 完全式, 反転,
+        述語必要条件=re.compile(述語式, 完全式.flags),
+    )
 
 
-def _passive(forms: str) -> re.Pattern[str]:
-    return re.compile(rf"{_SUBJECT}\s+(?P<v>{_AUX}\s+(?:{forms})\s+by)\s+{_OBJECT}", re.I)
+def _受動構文(種別: str, 語形式: str) -> 英語関係構文:
+    return _構文生成(種別, rf"{_AUX}\s+(?:{語形式})\s+by", 反転=True)
 
 
 # 高確度の明示構文だけを扱う。名詞共起や近接だけから関係を推定しない。
 英語明示関係構文 = (
-    英語関係構文("因果", _active(r"cause|causes|caused|causing|lead\s+to|leads\s+to|led\s+to|leading\s+to|result\s+in|results\s+in|resulted\s+in|resulting\s+in")),
-    英語関係構文("因果", _passive(r"caused"), True),
-    英語関係構文("増加", _active(r"increase|increases|increased|increasing|raise|raises|raised|raising|enhance|enhances|enhanced|enhancing")),
-    英語関係構文("増加", _passive(r"increased|raised|enhanced"), True),
-    英語関係構文("減少", _active(r"decrease|decreases|decreased|decreasing|reduce|reduces|reduced|reducing|lower|lowers|lowered|lowering")),
-    英語関係構文("減少", _passive(r"decreased|reduced|lowered"), True),
-    英語関係構文("阻害", _active(r"inhibit|inhibits|inhibited|inhibiting|suppress|suppresses|suppressed|suppressing|block|blocks|blocked|blocking")),
-    英語関係構文("阻害", _passive(r"inhibited|suppressed|blocked"), True),
-    英語関係構文("活性化", _active(r"activate|activates|activated|activating|stimulate|stimulates|stimulated|stimulating")),
-    英語関係構文("活性化", _passive(r"activated|stimulated"), True),
-    英語関係構文("生成", _active(r"produce|produces|produced|producing|generate|generates|generated|generating")),
-    英語関係構文("生成", _passive(r"produced|generated"), True),
-    英語関係構文("要求", _active(r"require|requires|required|requiring|need|needs|needed|needing|depend\s+on|depends\s+on|depended\s+on|depending\s+on")),
-    英語関係構文("要求", _passive(r"required|needed"), True),
-    英語関係構文("包含", _active(r"contain|contains|contained|containing|include|includes|included|including|comprise|comprises|comprised|comprising")),
-    英語関係構文("使用", _active(r"use|uses|used|using|utilize|utilizes|utilized|utilizing|employ|employs|employed|employing")),
-    英語関係構文("使用", _passive(r"used|utilized|employed"), True),
-    英語関係構文("防止", _active(r"prevent|prevents|prevented|preventing|protect\s+against|protects\s+against|protected\s+against|protecting\s+against|protect\s+from|protects\s+from|protected\s+from|protecting\s+from")),
-    英語関係構文("防止", _passive(r"prevented|protected"), True),
-    英語関係構文("相関", _active(r"associate\s+with|associates\s+with|associated\s+with|associating\s+with|correlate\s+with|correlates\s+with|correlated\s+with|correlating\s+with|relate\s+to|relates\s+to|related\s+to|relating\s+to")),
-    英語関係構文("結合", _active(r"bind\s+to|binds\s+to|binding\s+to")),
-    英語関係構文("結合", re.compile(rf"{_SUBJECT}\s+(?P<v>is\s+bound\s+to|are\s+bound\s+to|was\s+bound\s+to|were\s+bound\s+to)\s+{_OBJECT}", re.I)),
-    英語関係構文("相互作用", _active(r"interact\s+with|interacts\s+with|interacted\s+with|interacting\s+with")),
-    英語関係構文("構成", _active(r"consist\s+of|consists\s+of|consisted\s+of|consisting\s+of")),
-    英語関係構文("構成", re.compile(rf"{_SUBJECT}\s+(?P<v>is\s+composed\s+of|are\s+composed\s+of|was\s+composed\s+of|were\s+composed\s+of)\s+{_OBJECT}", re.I)),
-    英語関係構文("所属", _active(r"belong\s+to|belongs\s+to|belonged\s+to|belonging\s+to")),
-    英語関係構文("位置", re.compile(rf"{_SUBJECT}\s+(?P<v>is\s+located\s+in|are\s+located\s+in|was\s+located\s+in|were\s+located\s+in)\s+{_OBJECT}", re.I)),
-    英語関係構文("由来", _active(r"derive\s+from|derives\s+from|derived\s+from|deriving\s+from")),
-    英語関係構文("由来", re.compile(rf"{_SUBJECT}\s+(?P<v>is\s+derived\s+from|are\s+derived\s+from|was\s+derived\s+from|were\s+derived\s+from)\s+{_OBJECT}", re.I)),
+    _構文生成("因果", r"cause|causes|caused|causing|lead\s+to|leads\s+to|led\s+to|leading\s+to|result\s+in|results\s+in|resulted\s+in|resulting\s+in"),
+    _受動構文("因果", r"caused"),
+    _構文生成("増加", r"increase|increases|increased|increasing|raise|raises|raised|raising|enhance|enhances|enhanced|enhancing"),
+    _受動構文("増加", r"increased|raised|enhanced"),
+    _構文生成("減少", r"decrease|decreases|decreased|decreasing|reduce|reduces|reduced|reducing|lower|lowers|lowered|lowering"),
+    _受動構文("減少", r"decreased|reduced|lowered"),
+    _構文生成("阻害", r"inhibit|inhibits|inhibited|inhibiting|suppress|suppresses|suppressed|suppressing|block|blocks|blocked|blocking"),
+    _受動構文("阻害", r"inhibited|suppressed|blocked"),
+    _構文生成("活性化", r"activate|activates|activated|activating|stimulate|stimulates|stimulated|stimulating"),
+    _受動構文("活性化", r"activated|stimulated"),
+    _構文生成("生成", r"produce|produces|produced|producing|generate|generates|generated|generating"),
+    _受動構文("生成", r"produced|generated"),
+    _構文生成("要求", r"require|requires|required|requiring|need|needs|needed|needing|depend\s+on|depends\s+on|depended\s+on|depending\s+on"),
+    _受動構文("要求", r"required|needed"),
+    _構文生成("包含", r"contain|contains|contained|containing|include|includes|included|including|comprise|comprises|comprised|comprising"),
+    _構文生成("使用", r"use|uses|used|using|utilize|utilizes|utilized|utilizing|employ|employs|employed|employing"),
+    _受動構文("使用", r"used|utilized|employed"),
+    _構文生成("防止", r"prevent|prevents|prevented|preventing|protect\s+against|protects\s+against|protected\s+against|protecting\s+against|protect\s+from|protects\s+from|protected\s+from|protecting\s+from"),
+    _受動構文("防止", r"prevented|protected"),
+    _構文生成("相関", r"associate\s+with|associates\s+with|associated\s+with|associating\s+with|correlate\s+with|correlates\s+with|correlated\s+with|correlating\s+with|relate\s+to|relates\s+to|related\s+to|relating\s+to"),
+    _構文生成("結合", r"bind\s+to|binds\s+to|binding\s+to"),
+    _構文生成("結合", r"is\s+bound\s+to|are\s+bound\s+to|was\s+bound\s+to|were\s+bound\s+to"),
+    _構文生成("相互作用", r"interact\s+with|interacts\s+with|interacted\s+with|interacting\s+with"),
+    _構文生成("構成", r"consist\s+of|consists\s+of|consisted\s+of|consisting\s+of"),
+    _構文生成("構成", r"is\s+composed\s+of|are\s+composed\s+of|was\s+composed\s+of|were\s+composed\s+of"),
+    _構文生成("所属", r"belong\s+to|belongs\s+to|belonged\s+to|belonging\s+to"),
+    _構文生成("位置", r"is\s+located\s+in|are\s+located\s+in|was\s+located\s+in|were\s+located\s+in"),
+    _構文生成("由来", r"derive\s+from|derives\s+from|derived\s+from|deriving\s+from"),
+    _構文生成("由来", r"is\s+derived\s+from|are\s+derived\s+from|was\s+derived\s+from|were\s+derived\s+from"),
 )
 
 
 __all__ = [
     "英語関係構文",
+    "英語関係一致",
     "英語基本形",
     "英語関係概念",
     "英語関係族",
