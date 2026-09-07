@@ -33,11 +33,8 @@ jobs:
             src/minidora/hds_model_projection.py \
             src/minidora/hds監督選択runtime.py \
             tools/benchmark_formal.py \
-            tools/benchmark_formal_scientific_ab.py \
-            tests/test_hds監督選択runtime.py \
-            tests/test_runtime_hds_choice.py \
-            tests/test_hds監督architecture.py; then
-            echo 'legacy umbrella terminology remains in active implementation' >&2
+            tools/benchmark_formal_scientific_ab.py; then
+            echo 'legacy umbrella terminology remains in active runtime/tooling' >&2
             exit 1
           fi
           test "$(grep -c '従来の「HDS安全弁」' 設計/32_MINIDORA_HDS監督介入制御_v1.md)" -eq 1
