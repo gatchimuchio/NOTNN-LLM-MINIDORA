@@ -46,7 +46,7 @@ class CoreActivePathLockV1Test(unittest.TestCase):
 
         self.assertEqual(reached_forbidden, set(), f"active runtime reached experimental modules: {sorted(reached_forbidden)}")
 
-    def test_runtime_choice_path_is_formal_core_plus_hds_safety_valve(self) -> None:
+    def test_runtime_choice_path_is_formal_core_plus_hds_supervisory_intervention(self) -> None:
         text = Path(runtime.__file__).read_text(encoding="utf-8")
         self.assertIn("HDS選択推論実行", text)
         self.assertIn("HDS監督選択実行", text)
