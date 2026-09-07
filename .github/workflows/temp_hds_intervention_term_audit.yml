@@ -19,12 +19,12 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          grep -RInE --exclude-dir=.git --exclude='*.json' --exclude='*.zip' \
-            '安全弁|safety valve|SAFETY_VALVE|HDS_FEEDBACK_SAFETY_VALVE' . \
+          grep -RInEi --exclude-dir=.git --exclude='*.json' --exclude='*.zip' \
+            '安全弁|safety[ _-]?valve|HDS_FEEDBACK_SAFETY_VALVE' . \
             | tee hds_intervention_terms.txt || true
           echo "COUNT=$(wc -l < hds_intervention_terms.txt)"
       - uses: actions/upload-artifact@v4
         with:
-          name: hds-intervention-term-audit
+          name: hds-intervention-term-audit-broad
           path: hds_intervention_terms.txt
           if-no-files-found: error
