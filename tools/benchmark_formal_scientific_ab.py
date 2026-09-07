@@ -3,7 +3,7 @@ from __future__ import annotations
 """現行正式GPQA経路に既存科学専門能力だけを重ねるcontrolled A/B入口。
 
 baseline:
-    現行 ``tools/benchmark_formal.py`` の正式MINIDORA + HDS安全弁。
+    現行 ``tools/benchmark_formal.py`` の正式MINIDORA + HDS監督介入層。
 
 current:
     baselineと同じ質問IR・同じ取得参照に対して、リポジトリ既存の
@@ -160,7 +160,7 @@ def _科学solver統計(details):
 def _科学専門能力_result_payload(*args, **kwargs):
     payload = _original_result_payload(*args, **kwargs)
     protocol = payload.setdefault("protocol", {})
-    protocol["runtime"] = "current formal MINIDORA + HDS safety valve; repo-native scientific capability controlled A/B"
+    protocol["runtime"] = "current formal MINIDORA + HDS supervisory intervention layer; repo-native scientific capability controlled A/B"
     protocol["candidate_resolution"] = (
         "baseline=current formal MINIDORA. specialist_on=existing scientific capability may close only a uniquely and absolutely supported candidate; otherwise exact baseline result is returned"
     )
@@ -170,7 +170,7 @@ def _科学専門能力_result_payload(*args, **kwargs):
     if protocol.get("controlled_ab"):
         protocol["controlled_ab_definition"] = (
             "same question IR + exact same initial retrieved references. "
-            "baseline=current formal MINIDORA with HDS safety valve. "
+            "baseline=current formal MINIDORA with HDS supervisory intervention layer. "
             "specialist_on=repo-native scientific capability first; if it cannot uniquely and absolutely support one candidate, return exact baseline selection object."
         )
 

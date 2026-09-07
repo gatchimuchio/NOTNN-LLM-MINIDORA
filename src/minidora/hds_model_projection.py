@@ -232,7 +232,7 @@ def HDSMINIDORA模型評価(
     """HDS Compiler成果をMINIDORA能力核へ渡し、通常MINIDORA自身で候補差を閉じる。
 
     ``判断主体`` は旧API互換の受取口として残すがactive pathでは使用しない。
-    HDSの実体はこの能力評価内部には置かず、外側のフィードバック安全弁だけに置く。
+    HDSの実体はこの能力評価内部には置かず、外側のHDS監督介入層だけに置く。
     """
     core = 模型核 or 標準能力模型核()
     target = _対象言語体系(question_ir)

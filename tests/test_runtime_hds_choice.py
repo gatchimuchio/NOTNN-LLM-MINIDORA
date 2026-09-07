@@ -120,7 +120,7 @@ class RuntimeHDSChoice試験(unittest.TestCase):
         self.assertEqual(result.状態["HDS候補コンパイル数"], 2)
         self.assertEqual(result.状態["HDS_Dataコンパイル数"], 1)
         self.assertNotIn("EXISTING_MINIDORA_CAPABILITY_RESOLVER", result.採否.理由)
-        self.assertNotIn("HDS_FEEDBACK_SAFETY_VALVE", result.採否.理由)
+        self.assertNotIn("HDS_SUPERVISORY_INTERVENTION", result.採否.理由)
         self.assertNotIn("HDS_SUPERVISORY_INTERVENTIONS:0", result.採否.理由)
         self.assertIn("engine", compiler.calls)
         self.assertIn("stone", compiler.calls)
@@ -138,7 +138,7 @@ class RuntimeHDSChoice試験(unittest.TestCase):
 
         self.assertEqual(result.採否.状態, 実行状態.合格, result.採否.理由)
         self.assertEqual(result.値, "engine")
-        self.assertNotIn("HDS_FEEDBACK_SAFETY_VALVE", result.採否.理由)
+        self.assertNotIn("HDS_SUPERVISORY_INTERVENTION", result.採否.理由)
         self.assertNotIn("HDS_EVIDENCE_INSUFFICIENT", result.採否.理由)
 
     def test_choiceのHDSコンパイル失敗は生文字列fallbackせずSUSPEND(self) -> None:

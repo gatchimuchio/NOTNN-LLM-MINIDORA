@@ -60,7 +60,7 @@ def _residuals(
 ) -> frozenset[残差種別]:
     """通常MINIDORAの観測結果から、HDSへ渡す異常種別だけを抽出する。
 
-    APPROVE済みの通常推論は安全弁の対象外とし、診断文字列を理由に再解釈しない。
+    APPROVE済みの通常推論はHDS介入の対象外とし、診断文字列を理由に再解釈しない。
     """
     if _approved(result):
         return frozenset()
@@ -104,7 +104,7 @@ class HDS監督選択結果:
 
 
 class _Session:
-    """通常MINIDORAを単一主体として保持するHDS安全弁セッション。"""
+    """通常MINIDORAを単一主体として保持するHDS監督介入セッション。"""
 
     def __init__(
         self,
@@ -335,13 +335,13 @@ class _Session:
         records: tuple[HDS介入記録, ...],
         stop_reasons: tuple[str, ...],
     ) -> HDS選択実行結果:
-        # 安全弁が動かなかった場合、通常MINIDORA結果を1bitも再解釈しない。
+        # HDS介入がなかった場合、通常MINIDORA結果を1bitも再解釈しない。
         if not records:
             return self.initial
 
         reasons = [
             *self.current.理由,
-            "HDS_FEEDBACK_SAFETY_VALVE",
+            "HDS_SUPERVISORY_INTERVENTION",
             f"HDS_SUPERVISORY_INTERVENTIONS:{len(records)}",
         ]
         reasons.extend("HDS_INTERVENTION_ACTION:" + row.作用.value for row in records)
@@ -366,7 +366,7 @@ def HDS監督選択実行(
     初期選択: HDS選択実行結果 | None = None,
     評価実行: Callable[[tuple[参照記録, ...]], HDS選択実行結果] | None = None,
 ) -> HDS監督選択結果:
-    """HDSをMINIDORAフィードバックループの安全弁として実行する。
+    """HDSをMINIDORAフィードバックループの監督介入層として実行する。
 
     通常MINIDORAが閉包した場合は完全透過する。HDSは未閉包・競合・観測不足などの
     異常時だけ既存作用を起動し、作用後は必ず通常MINIDORAへ制御を戻す。

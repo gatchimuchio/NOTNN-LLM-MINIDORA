@@ -41,7 +41,9 @@ class HDS監督ArchitectureTest(unittest.TestCase):
     def test_通常MINIDORA閉包は完全透過と明記される(self):
         text = inspect.getsource(supervised.HDS監督選択実行)
         self.assertIn("完全透過", text)
-        self.assertIn("安全弁", text)
+        self.assertIn("監督介入", text)
+        self.assertNotIn("安全弁", text)
+        self.assertNotIn("HDS_FEEDBACK_SAFETY_VALVE", inspect.getsource(supervised))
 
 
 if __name__ == "__main__":
