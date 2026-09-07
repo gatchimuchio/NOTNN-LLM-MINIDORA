@@ -23,7 +23,15 @@ jobs:
       - name: パッケージ導入
         run: python -m pip install -e .
       - name: HDS監督介入用語を適用
-        run: python tools/temp_apply_hds_intervention_terminology.py
+        run: |
+          python tools/temp_apply_hds_intervention_terminology.py
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('設計/32_MINIDORA_HDS監督介入制御_v1.md')
+          lines=p.read_text(encoding='utf-8').splitlines()
+          lines[2]=lines[2].rstrip()
+          p.write_text('\n'.join(lines)+'\n', encoding='utf-8')
+          PY
       - name: 現行実装から旧総称を排除
         shell: bash
         run: |
