@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-"""HDS安全弁を使うリポジトリ標準GPQAベンチ入口。
+"""HDS監督介入を使うリポジトリ標準GPQAベンチ入口。
 
 controlled A/Bでは同じ質問IR・同じ初期R・同じ通常MINIDORA初期結果を共有する。
-baselineはHDS非介入の通常MINIDORA、currentはその結果が未閉包の時だけHDS安全弁を作動させる。
+baselineはHDS非介入の通常MINIDORA、currentはその結果が未閉包の時だけHDS介入を実行する。
 """
 
 from collections import Counter
@@ -46,7 +46,7 @@ def _通常MINIDORA推論(
     コンパイル,
     基礎能力核,
 ) -> HDS選択実行結果:
-    """HDS安全弁を含まない通常MINIDORA選択をそのまま実行する。"""
+    """HDS介入を含まない通常MINIDORA選択をそのまま実行する。"""
     return _通常MINIDORA選択推論(
         question_ir,
         tuple(references),
@@ -143,8 +143,9 @@ def _介入統計(details):
 def _監督_result_payload(*args, **kwargs):
     payload = _original_result_payload(*args, **kwargs)
     protocol = payload.setdefault("protocol", {})
-    protocol["runtime"] = "minimal generic MINIDORA formal core + HDS safety valve on anomaly only; specialist modules excluded"
-    protocol["hds_role"] = "通常MINIDORAを俯瞰監視し、未閉包・競合・観測不足等の異常時だけ既存作用を起動。正常推論は完全透過"
+    protocol["runtime"] = "minimal generic MINIDORA formal core + HDS supervisory intervention layer; specialist modules excluded"
+    protocol["hds_role"] = "通常MINIDORAを俯瞰監督し、未閉包・競合・観測不足等がある場合だけHDS介入として既存作用を起動。非介入時は完全透過"
+    protocol["hds_intervention_definition"] = "HDS監督は観測層、HDS介入はRUN_EXISTING_ACTIONによる外部作用起動。停止要求・非介入は監督判断であり介入件数に含めない"
     protocol["initial_reference_route"] = "HDS投入前と同じ標準HDS参照検索。追加RはHDS介入時だけ"
     protocol["current_additional_reference"] = "HDSが観測不足等を検出した場合だけ追加Rを許可"
     protocol["candidate_resolution"] = "formal MINIDORA generic model core only; no specialist solver, no supervisory resolver, no HDS winner selection"

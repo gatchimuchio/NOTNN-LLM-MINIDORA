@@ -1,12 +1,21 @@
 # MINIDORA HDS監督介入制御 v1
 
-状態: 現行正本  
+状態: 現行正本（2026-09-07 HDS監督介入用語統合改訂）
 基底言語: 日本語  
 対象: MINIDORA選択問題の既存能力運用
 
 ## 1. 目的
 
-HDSをMINIDORAのフィードバックループに対する**安全弁**として配置する。
+HDSをMINIDORAのフィードバックループに対する**監督介入層**として配置する。
+
+用語を次のように固定する。
+
+- **HDS監督** — 通常MINIDORAの状態を外側から観測し、介入要否を判定する層。監督そのものは出力を書き換えない。
+- **HDS介入** — 監督判断により `RUN_EXISTING_ACTION` を発行し、既存作用を実際に起動すること。`REFERENCE`、`EXISTING_COMPUTE_EXECUTOR` 等はこの下位種別である。
+- **HDS非介入** — `NO_INTERVENTION`。通常MINIDORAの結果を完全透過する。
+- **HDS停止判断** — `REQUEST_STOP`。監督判断であり、既存作用を起動しないためHDS介入件数には含めない。
+
+従来の「HDS安全弁」は、HDS監督介入層全体を指す総称としては廃止する。誤閉包防止や停止判断などの安全性はHDS監督介入層が持つ性質の一部であり、追加Reference取得・既存計算実行・再評価を含むHDS介入全体と同一視しない。
 
 通常MINIDORAの推論系は作り直さない。通常推論が自力で閉包した場合、HDSは介入せず、その結果を完全透過する。未閉包・競合・観測不足・状態停滞などの異常が観測された場合だけ、HDSが既存作用の起動を指示する。
 
@@ -171,7 +180,7 @@ APPROVE / HOLD / REJECT
 HDS用resolverで再統合
 ```
 
-どちらも安全弁ではなく、通常系の置換になる。
+どちらもHDS監督介入ではなく、通常系の置換になる。
 
 ## 11. 不変条件
 
@@ -197,7 +206,7 @@ HDS用resolverで再統合
 - `src/minidora/hds参照拡張.py`
 - `src/minidora/runtime.py`
 
-`src/minidora/hds既存能力resolver.py` は履歴・互換資産として保持できるが、HDS安全弁active pathからは外す。
+`src/minidora/hds既存能力resolver.py` は履歴・互換資産として保持できるが、HDS監督介入active pathからは外す。
 
 ## 13. 検証
 

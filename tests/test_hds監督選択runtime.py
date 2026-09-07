@@ -116,7 +116,7 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
         self.assertTrue(mock_normal.call_args.kwargs["正式模型評価"])
         self.assertEqual(out.参照[-1].値, 2)
         self.assertEqual(out.参照[-1].供給器, "MINIDORA計算実行器")
-        self.assertIn("HDS_FEEDBACK_SAFETY_VALVE", out.選択.理由)
+        self.assertIn("HDS_SUPERVISORY_INTERVENTION", out.選択.理由)
 
     @patch("minidora.hds監督選択runtime.HDS追加参照検索")
     @patch("minidora.hds監督選択runtime.HDS選択推論実行")
