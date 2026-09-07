@@ -1,0 +1,58 @@
+name: TEMP HDS intervention final validation
+
+on:
+  push:
+    branches:
+      - sandbox/hds-intervention-rename-20260907
+    paths:
+      - '.github/workflows/temp_hds_intervention_final_validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.11', '3.12', '3.13', '3.14']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: HDS監督介入用語監査
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInEi \
+            --exclude='temp_apply_hds_intervention_terminology.py' \
+            --exclude-dir='__pycache__' \
+            '安全弁|safety[ _-]?valve|HDS_FEEDBACK_SAFETY_VALVE' \
+            src/minidora tools; then
+            echo 'legacy HDS umbrella terminology remains in active source/tooling' >&2
+            exit 1
+          fi
+          if grep -RInEi '^\s*def .*safety[ _-]?valve' tests; then
+            echo 'legacy HDS umbrella terminology remains in active test identifiers' >&2
+            exit 1
+          fi
+          test "$(grep -c '従来の「HDS安全弁」' 設計/32_MINIDORA_HDS監督介入制御_v1.md)" -eq 1
+      - name: リポジトリ整合性監査
+        run: python tools/repository_consistency_check.py
+      - name: 日本語基底監査
+        run: python tools/日本語基底監査.py
+      - name: 構文確認
+        run: python -m compileall -q src tests tools
+      - name: 単体試験
+        run: python -m unittest discover -s tests -v
+      - name: v0.4規模測定 legacy regression
+        run: python tools/規模測定.py
+      - name: module CLI smoke test
+        run: python -m minidora "2+3"
+      - name: console script smoke test
+        run: minidora "2+3"
