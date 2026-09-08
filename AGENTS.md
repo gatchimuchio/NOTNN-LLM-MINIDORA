@@ -174,3 +174,43 @@ python -m minidora "2+3"
 ```
 
 CIはUbuntu / Windows × Python 3.11–3.14を確認する。
+
+## 12. GPQA正本Benchmark運用
+
+GPQA Diamondの現行性能評価は [`評価/BENCHMARK_CONTRACT_v2.md`](評価/BENCHMARK_CONTRACT_v2.md) を正本とする。
+
+2026-09-09以後、**GPQA正本では固定参照Dataを禁止する。**
+
+禁止対象:
+
+- C2等の固定参照コーパス
+- 保存済み検索結果・参照結果
+- 問題別Reference/Data bundle
+- Replay fixture
+- 過去runの参照Data再投入
+- goldを使って選別・整形した参照Data
+
+過去の固定Replay資産は履歴として削除しないが、現行GPQA性能、将来GPQA正本、正本性能比較の入力へ再利用しない。
+
+GPQA正本入口は次だけとする。
+
+```bash
+python tools/benchmark_strict.py gpqa-e2e --out gpqa_e2e.json
+```
+
+この入口は次を固定する。
+
+```text
+GPQA Diamond 198/198
+CSV SHA256 = 41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305
+choice seed = 0
+OpenAlex = disabled
+Wikipedia = en
+reference = LIVE_ONLY
+controlled A/B = required
+fixed reference Data = forbidden
+```
+
+`benchmark.py` / `benchmark_formal.py` の部分実行・任意条件は診断用途であり、直接の出力を正本性能値として引用しない。
+
+現行GPQA正本セーブポイントは `MINIDORA30 / 30/198`。詳細は `CURRENT_CANONICAL.md` と `docs/SAVEPOINT_2026-09-09_MINIDORA30.md` を参照する。

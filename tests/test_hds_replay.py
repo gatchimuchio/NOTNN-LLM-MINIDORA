@@ -30,6 +30,37 @@ def _ir(text: str, coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ..
     )
 
 
+def _choice_row(*, case_id: str) -> dict:
+    question = _ir(
+        "What does Alpha use?",
+        (
+            HDS座標("alpha", "対象.実体", "Alpha", 原文範囲=(10, 15)),
+            HDS座標("choice:A", "目的.候補", "engine"),
+            HDS座標("choice:B", "目的.候補", "stone"),
+        ),
+    )
+    choices = {
+        "A": _ir("engine", (HDS座標("a", "対象.実体", "engine", 原文範囲=(0, 6)),)),
+        "B": _ir("stone", (HDS座標("b", "対象.実体", "stone", 原文範囲=(0, 5)),)),
+    }
+    data = _ir(
+        "Alpha uses engine.",
+        (
+            HDS座標("alpha", "対象.実体", "Alpha", 原文範囲=(0, 5)),
+            HDS座標("engine", "対象.実体", "engine", 原文範囲=(11, 17)),
+        ),
+        (HDS関係("use", ("alpha",), ("engine",), "作用"),),
+    )
+    return {
+        "schema": "minidora.hds-choice-replay.v1",
+        "id": case_id,
+        "question_ir": HDSIR辞書化(question),
+        "choices_ir": {label: HDSIR辞書化(ir) for label, ir in choices.items()},
+        "data": [{"provenance": ["fixture", "doc:1"], "ir": HDSIR辞書化(data)}],
+        "gold": "A",
+    }
+
+
 class HDSReplay試験(unittest.TestCase):
     def test_HDSIRをJSON形へ往復できる(self) -> None:
         original = _ir(
@@ -48,34 +79,7 @@ class HDSReplay試験(unittest.TestCase):
         self.assertIsNone(restored.手順)
 
     def test_固定HDS_IRだけでchoice_benchmarkを再実行できる(self) -> None:
-        question = _ir(
-            "What does Alpha use?",
-            (
-                HDS座標("alpha", "対象.実体", "Alpha", 原文範囲=(10, 15)),
-                HDS座標("choice:A", "目的.候補", "engine"),
-                HDS座標("choice:B", "目的.候補", "stone"),
-            ),
-        )
-        choices = {
-            "A": _ir("engine", (HDS座標("a", "対象.実体", "engine", 原文範囲=(0, 6)),)),
-            "B": _ir("stone", (HDS座標("b", "対象.実体", "stone", 原文範囲=(0, 5)),)),
-        }
-        data = _ir(
-            "Alpha uses engine.",
-            (
-                HDS座標("alpha", "対象.実体", "Alpha", 原文範囲=(0, 5)),
-                HDS座標("engine", "対象.実体", "engine", 原文範囲=(11, 17)),
-            ),
-            (HDS関係("use", ("alpha",), ("engine",), "作用"),),
-        )
-        row = {
-            "schema": "minidora.hds-choice-replay.v1",
-            "id": "fixture:1",
-            "question_ir": HDSIR辞書化(question),
-            "choices_ir": {label: HDSIR辞書化(ir) for label, ir in choices.items()},
-            "data": [{"provenance": ["fixture", "doc:1"], "ir": HDSIR辞書化(data)}],
-            "gold": "A",
-        }
+        row = _choice_row(case_id="fixture:1")
 
         with tempfile.TemporaryDirectory() as tmp:
             input_path = Path(tmp) / "fixture.jsonl"
@@ -95,6 +99,22 @@ class HDSReplay試験(unittest.TestCase):
         self.assertEqual(result["answered"], 1)
         self.assertEqual(result["suspended"], 0)
         self.assertEqual(result["details"][0]["predicted"], "A")
+
+    def test_GPQA識別子の固定Replayは汎用runnerでも拒否する(self) -> None:
+        row = _choice_row(case_id="gpqa:000")
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path = Path(tmp) / "gpqa.jsonl"
+            input_path.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+            completed = subprocess.run(
+                [sys.executable, str(ROOT / "tools" / "hds_choice_replay_benchmark.py"), str(input_path)],
+                cwd=ROOT,
+                text=True,
+                encoding="utf-8",
+                capture_output=True,
+                check=False,
+            )
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("GPQA_FIXED_REFERENCE_FORBIDDEN", completed.stderr)
 
 
 if __name__ == "__main__":

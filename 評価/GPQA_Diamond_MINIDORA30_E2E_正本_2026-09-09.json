@@ -1,0 +1,66 @@
+{
+  "schema": "minidora.gpqa.canonical-savepoint.v1",
+  "canonical_name": "MINIDORA30",
+  "date_jst": "2026-09-09",
+  "benchmark_id": "gpqa-diamond-e2e-live-v2",
+  "evaluation_class": "GENERIC_E2E_CANONICAL",
+  "task": "GPQA Diamond",
+  "canonical": true,
+  "protocol": {
+    "full_total": 198,
+    "selected_indices": "0..197",
+    "dataset_csv_sha256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+    "choice_shuffle_seed": 0,
+    "openalex_enabled": false,
+    "wikipedia_languages": [
+      "en"
+    ],
+    "retrieval_mode": "LIVE_ONLY",
+    "controlled_ab": true,
+    "fixed_reference_data_allowed": false
+  },
+  "result": {
+    "current": {
+      "correct": 30,
+      "total": 198,
+      "accuracy_percent": 15.151515151515152,
+      "answered": 130,
+      "answer_rate_percent": 65.65656565656566,
+      "suspended": 68
+    },
+    "controlled_baseline": {
+      "correct": 27,
+      "total": 198,
+      "accuracy_percent": 13.636363636363637,
+      "answered": 109,
+      "answer_rate_percent": 55.05050505050505,
+      "suspended": 89
+    },
+    "controlled_delta": {
+      "correct_delta": 3,
+      "accuracy_points": 1.5151515151515151,
+      "changed_answers": 21,
+      "improved_cases": 3,
+      "regressed_cases": 0,
+      "net_improved_cases": 3
+    }
+  },
+  "provenance": {
+    "workflow_run_id": 34281226412,
+    "workflow_name": "MINIDORA GPQA full 198 diff",
+    "benchmark_head_commit": "63603f39d62bd77ae40732f6c51701aaab9fe468",
+    "measured_implementation_parent_commit": "a3473fbdacc5e0e2ac1927faa08c60717ace0544",
+    "local_interpretation_feature_commit": "b70344677c3a761af3e3bfac57b1fe92980b6f0e",
+    "aggregate_artifact_id": 10078256754,
+    "aggregate_artifact_sha256": "0c7ef2b4a474bf5cd6ee55d5ca170480292186babbc7d559afb268c347ede83c",
+    "workflow_conclusion": "success"
+  },
+  "adoption": {
+    "canonical_score": "30/198",
+    "canonical_accuracy_percent": 15.151515151515152,
+    "fixed_reference_gpqa_forbidden_after_this_savepoint": true,
+    "historical_fixed_replay_scores_are_history_only": true,
+    "cross_run_code_only_causality_claim_allowed": false,
+    "cross_run_snapshot_score_chronology_allowed": true
+  }
+}

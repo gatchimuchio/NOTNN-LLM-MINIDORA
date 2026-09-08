@@ -2,6 +2,49 @@
 
 `評価/` はMINIDORAの適合・性能・回帰・完成判定の実測記録を保持する。
 
+## 現行正本 — MINIDORA30 / 2026-09-09
+
+現行GPQA Diamond性能正本は次とする。
+
+```text
+MINIDORA30
+GPQA-E2E-LIVE
+30 / 198
+15.151515151515152%
+```
+
+実測由来:
+
+- GitHub Actions run `34281226412`
+- benchmark head `63603f39d62bd77ae40732f6c51701aaab9fe468`
+- measured implementation parent `a3473fbdacc5e0e2ac1927faa08c60717ace0544`
+- aggregate artifact `10078256754`
+- dataset CSV SHA256 `41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305`
+
+| 条件 | 正答 | 全体正答率 | 回答数 | 回答率 |
+|---|---:|---:|---:|---:|
+| 現行MINIDORA | **30 / 198** | **15.15%** | 130 | 65.66% |
+| 同run controlled baseline | 27 / 198 | 13.64% | 109 | 55.05% |
+
+```text
+正答差       = +3
+正答率差     = +1.52 points
+changed      = 21
+改善case     = 3
+退行case     = 0
+```
+
+正本:
+
+- [`GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md`](GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md)
+- [`GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json`](GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json)
+- [`BENCHMARK_CONTRACT_v2.md`](BENCHMARK_CONTRACT_v2.md)
+- [`../docs/SAVEPOINT_2026-09-09_MINIDORA30.md`](../docs/SAVEPOINT_2026-09-09_MINIDORA30.md)
+
+2026-09-09以後、**GPQA正本性能評価では固定参照Dataを禁止する。** C2、保存済み検索結果、固定Reference/Data bundle、Replay fixture、過去run参照の再投入は現行性能・将来正本・GPQA性能比較の入力へ使わない。
+
+GPQA正本は198/198全数・seed 0・OpenAlex disabled・Wikipedia en・LIVE_ONLY・controlled A/Bで実行する。
+
 ## 主要成立証拠 — モジュール拡張可能性
 
 2026-09-02、MINIDORAの**モジュール拡張可能性を実測で確認した**。
@@ -68,24 +111,24 @@ U2 ⊂ U1
 
 > **MINIDORAの能力上限が成立済みCoreの初期性能へ固定されず、外部Capability集合の増設によって後から押し上げられることが、実装と実測で示された。**
 
-これが今回の主要成果である。
+これがこの履歴系列の主要成果である。
 
-正本:
+正本履歴:
 
-- [`MINIDORA_モジュール拡張成立実証_2026-09-02.md`](MINIDORA_モジュール拡張成立実証_2026-09-02.md) — モジュール拡張可能性、反復的能力増設、固定有限ベンチ100%到達経路の成立結論と根拠。
-- [`GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.md`](GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.md) — 詳細測定条件、solver発火、実行証拠。
-- [`GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.summary.json`](GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.summary.json) — 固定サマリ。
+- [`MINIDORA_モジュール拡張成立実証_2026-09-02.md`](MINIDORA_モジュール拡張成立実証_2026-09-02.md)
+- [`GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.md`](GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.md)
+- [`GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.summary.json`](GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.summary.json)
 
-この成立証拠以後、`Module` は将来構想ではなく**実装・実測済みの能力拡張・性能向上経路**として扱う。
+このReplay実証は履歴証拠として保持するが、2026-09-09以後のGPQA現行性能測定へ固定参照Dataを再利用しない。
 
-## 現行セーブポイント — 2026-09-01
+## 旧セーブポイント — 2026-09-01
 
-現行能力観測の正本:
+旧能力観測:
 
-- [`GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md`](GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md) — 専門solverをactive pathから除外した最小汎用coreのGPQA Diamond全198問controlled A/B。
-- [`MINIDORA_v0_5_厳密LM受入_2026-08-28.md`](MINIDORA_v0_5_厳密LM受入_2026-08-28.md) — 非ニューラル厳密言語模型核と実行系二核分離の受入。
+- [`GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md`](GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md)
+- [`MINIDORA_v0_5_厳密LM受入_2026-08-28.md`](MINIDORA_v0_5_厳密LM受入_2026-08-28.md)
 
-現行GPQA:
+当時のGPQA:
 
 | 条件 | 正答 | 全体正答率 | 回答数 | 回答率 |
 |---|---:|---:|---:|---:|
@@ -102,17 +145,7 @@ U2 ⊂ U1
 retrieval空振り = 0
 ```
 
-この値は**汎用coreの現在地**として保持する。benchmark専用機能を追加して得点を上げることを、MINIDORA本体の汎用能力改善とは扱わない。
-
-ここで区別する。
-
-```text
-Core単体性能を測る系列
-!=
-Module接続による拡張可能性を実証する系列
-```
-
-前者では専門solverを外す。後者では、既存Moduleを接続して能力増加がModule由来であることをcontrolled A/Bで確認する。
+この値は当時の汎用core現在地として履歴保持する。現行正本はMINIDORA30である。
 
 ## 現行区別
 
@@ -153,13 +186,15 @@ GPQAは推論・知識能力評価として保持し、言語模型成立判定�
 | 2026-08-28 状態差起動current | 16 / 198 | 機構発火PASS・能力退行 |
 | 2026-08-28 同run controlled baseline | 22 / 198 | 同一取得資料対照 |
 | 2026-09-01 最小汎用core baseline | 19 / 198 | HDS非介入対照 |
-| 2026-09-01 最小汎用core + HDS | 23 / 198 | 現行savepoint |
-| 2026-09-02 Module OFF replay | 8 / 198 | モジュール拡張実証対照 |
-| 2026-09-02 Module ON replay | **63 / 198** | **モジュール拡張成立証拠** |
+| 2026-09-01 最小汎用core + HDS | 23 / 198 | 旧savepoint |
+| 2026-09-02 Module OFF replay | 8 / 198 | 履歴モジュール拡張実証対照 |
+| 2026-09-02 Module ON replay | 63 / 198 | 履歴モジュール拡張成立証拠 |
+| 2026-09-08 Core37 C2 replay | 37 / 198 | 履歴固定Replay。現行性能ではない |
+| 2026-09-09 MINIDORA30 E2E LIVE | **30 / 198** | **現行正本** |
 
 専門領域solver接続版の高得点は、現行汎用coreの比較系列へ混ぜない。
 
-ただし、**その差分自体は「Core外Moduleを接続して能力を追加できる」という別の成立事実を示すため、主要証拠として保持する。**
+過去Replay差分自体は当時の構造実証として保持する。ただし今後のGPQA性能測定では固定参照Dataを禁止する。
 
 ## v0.4履歴
 
@@ -182,6 +217,8 @@ v0.3 PROTOTYPE COMPLETE
 != v0.5能力状態差循環受入
 != 2026-09-01最小汎用core savepoint
 != 2026-09-02モジュール拡張成立実証
+!= 2026-09-08 Core37 Replay履歴
+!= 2026-09-09 MINIDORA30現行正本
 != 推論能力
 != Large
 != 現代LLM呼称適合
