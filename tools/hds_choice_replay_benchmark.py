@@ -19,6 +19,9 @@ from minidora.k3_hds_native import HDSIRネイティブAdapter  # noqa: E402
 
 
 SCHEMA = "minidora.hds-choice-replay.v1"
+GPQA_FIXED_REFERENCE_FORBIDDEN = (
+    "GPQA_FIXED_REFERENCE_FORBIDDEN: 2026-09-09以後、GPQA固定参照Replayは実行できません。"
+)
 
 
 def _load(path: Path) -> list[dict[str, Any]]:
@@ -29,6 +32,8 @@ def _load(path: Path) -> list[dict[str, Any]]:
         row = json.loads(line)
         if row.get("schema") not in {None, SCHEMA}:
             raise ValueError(f"line {line_no}: unsupported schema {row.get('schema')!r}")
+        if str(row.get("id", "")).lower().startswith("gpqa:"):
+            raise ValueError(GPQA_FIXED_REFERENCE_FORBIDDEN)
         rows.append(row)
     return rows
 
@@ -168,7 +173,7 @@ def run(path: Path, *, effort: str | None = None) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="固定済みHDS-IRだけでMINIDORA choice reasoningを再評価する。"
+        description="固定済みHDS-IRだけでMINIDORA choice reasoningを再評価する。GPQA識別子は方針により拒否する。"
     )
     parser.add_argument("input", type=Path, help="minidora.hds-choice-replay.v1 JSONL")
     parser.add_argument("--out", type=Path, help="結果JSON保存先")
