@@ -20,9 +20,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: パッチ適用可能性確認
-        run: git apply --check .sandbox/local_interpretation_decision_v2.patch
+        run: git apply --check --recount .sandbox/local_interpretation_decision_v2.patch
       - name: パッチ適用
-        run: git apply .sandbox/local_interpretation_decision_v2.patch
+        run: git apply --recount .sandbox/local_interpretation_decision_v2.patch
       - name: 一時ファイル除去
         run: |
           rm .sandbox/local_interpretation_decision_v2.patch
