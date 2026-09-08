@@ -115,7 +115,10 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         文脈: HDS文脈 | None = None,
     ) -> tuple[HDSIR, 言語計画]:
         normalized = self._正規化(str(入力))
-        plan = self._計算計画器.計画(normalized)
+        context_focus = (
+            getattr(文脈, "現在焦点", None) if 文脈 is not None else 前回結果
+        )
+        plan = self._計算計画器.計画(normalized, 文脈参照=context_focus)
         base = self._意味基礎.コンパイル(
             入力,
             前回結果=前回結果,

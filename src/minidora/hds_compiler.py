@@ -445,7 +445,7 @@ class 公開HDSコンパイラ:
             )
         )
 
-        plan = self._legacy.計画(normalized)
+        plan = self._legacy.計画(normalized, 文脈参照=context_focus)
         return HDSIR(
             原文=raw,
             正規化文=normalized,
