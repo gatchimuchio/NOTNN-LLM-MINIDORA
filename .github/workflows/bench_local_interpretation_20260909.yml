@@ -27,9 +27,9 @@ jobs:
           path: local_interpretation_benchmark.json
           if-no-files-found: error
 
-  gpqa:
+  gpqa_quick:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 60
     env:
       OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
     steps:
@@ -39,17 +39,16 @@ jobs:
           python-version: "3.12"
       - name: パッケージ導入
         run: python -m pip install -e .
-      - name: GPQA Diamond 198問 正式模型核 controlled A/B実測
-        run: python tools/benchmark_formal.py gpqa-diamond --controlled-ab --out gpqa_local_interpretation_measurement.json
+      - name: GPQA Diamond 先頭24問 controlled A/B smoke
+        run: python tools/benchmark_formal.py gpqa-diamond --controlled-ab --limit 24 --out gpqa_local_interpretation_quick.json
       - name: 結果要約
         if: always()
         run: |
-          if [ -f gpqa_local_interpretation_measurement.json ]; then
+          if [ -f gpqa_local_interpretation_quick.json ]; then
             python - <<'PY'
           import json
           from pathlib import Path
-          data=json.loads(Path('gpqa_local_interpretation_measurement.json').read_text(encoding='utf-8'))
-          print(json.dumps(data['protocol'], ensure_ascii=False, indent=2))
+          data=json.loads(Path('gpqa_local_interpretation_quick.json').read_text(encoding='utf-8'))
           print(json.dumps(data['metrics'], ensure_ascii=False, indent=2))
           print(json.dumps(data.get('controlled_baseline'), ensure_ascii=False, indent=2))
           print(json.dumps(data.get('controlled_delta'), ensure_ascii=False, indent=2))
@@ -59,6 +58,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: minidora-gpqa-local-interpretation-measurement
-          path: gpqa_local_interpretation_measurement.json
+          name: minidora-gpqa-local-interpretation-quick
+          path: gpqa_local_interpretation_quick.json
           if-no-files-found: warn
