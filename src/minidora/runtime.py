@@ -27,6 +27,7 @@ from .言語確率法則 import (
     最小厳密言語模型,
 )
 from .計算実行器 import 計算実行器
+from .局所解釈 import 局所解釈キャッシュ, 局所解釈スナップショット
 
 
 _標準HDS監督 = object()
@@ -93,6 +94,7 @@ class ミニドラ:
 
     既定経路は厳密言語模型・能力模型・汎用計算器・外部Data/R・HDS監督介入層だけで成立する。
     旧主体主幹、Trinity記憶、K3 helperは明示接続または明示API呼出時だけ利用する。
+    局所解釈キャッシュは同一Runtime内の意思決定起点だけを保持し、永続主体を担わない。
     候補得点を確率へ読み替えて厳密言語模型を偽装しない。
     """
 
@@ -121,12 +123,7 @@ class ミニドラ:
         self.Trinity文脈 = Trinity文脈_
         self._K3能力核 = K3能力核_
         self._互換主体状態 = _LLM互換主体状態()
-        self._HDS版 = 0
-        self._HDS現在焦点: Any = None
-        self._HDS直前結果: Any = None
-        self._HDS直前IR: HDSIR | None = None
-        self._HDS未解残差: tuple[tuple[str, str], ...] = ()
-        self._HDS履歴状態: list[HDSIR] = []
+        self._局所解釈キャッシュ = 局所解釈キャッシュ()
         self.言語模型核 = 言語模型核_ or 最小厳密言語模型()
         self.能力模型核 = 模型核_ or 標準能力模型核()
         self.模型核 = self.能力模型核
@@ -137,31 +134,46 @@ class ミニドラ:
         return self.主体主幹.現在 if self.主体主幹 is not None else self._互換主体状態
 
     @property
+    def 局所解釈状態(self) -> 局所解釈スナップショット:
+        return self._局所解釈キャッシュ.現在
+
+    def 局所解釈を初期化(self) -> None:
+        """Runtime/スレッド等の局所境界を明示的に切る。永続記憶の削除APIではない。"""
+        self._局所解釈キャッシュ.初期化()
+
+    @property
     def HDS履歴(self) -> tuple[HDSIR, ...]:
         if self.Trinity文脈 is not None:
             return self.Trinity文脈.記憶主体.IR履歴
-        return tuple(self._HDS履歴状態)
+        return tuple(self.局所解釈状態.IR履歴)
 
     @property
     def HDS文脈(self) -> HDS文脈:
         if self.Trinity文脈 is not None:
             return self.Trinity文脈.判断主体.文脈()
+        current = self.局所解釈状態
         refs: list[str] = []
-        if self._HDS現在焦点 is not None:
+        if current.現在焦点 is not None:
             refs.append("working:current_focus")
-        if self._HDS直前結果 is not None:
+        if current.直前結果 is not None:
             refs.append("working:last_result")
-        if self._HDS直前IR is not None:
+        if current.直前IR is not None:
             refs.append("working:last_ir")
-        if self._HDS未解残差:
+        if current.未解残差:
             refs.append("working:unresolved")
+        if current.直前入力 is not None:
+            refs.append("working:last_input")
+        if current.直前採否 is not None:
+            refs.append("working:last_decision")
         return HDS文脈(
-            記憶版=self._HDS版,
-            現在焦点=self._HDS現在焦点,
-            直前結果=self._HDS直前結果,
-            直前IR=self._HDS直前IR,
-            未解残差=self._HDS未解残差,
+            記憶版=current.版,
+            現在焦点=current.現在焦点,
+            直前結果=current.直前結果,
+            直前IR=current.直前IR,
+            未解残差=current.未解残差,
             記憶引用=tuple(refs),
+            直前入力=current.直前入力,
+            直前採否=current.直前採否,
         )
 
     @property
@@ -200,25 +212,11 @@ class ミニドラ:
             kwargs["文脈"] = context
         return compile_fn(問合せ, **kwargs)
 
-    def _帰還(self, result: 結果) -> 結果:
-        if self.Trinity文脈 is not None:
-            if result.HDS_IR is not None:
-                self.Trinity文脈.帰還(result.採否, result.値, result.HDS_IR)
-            return result
-        if result.HDS_IR is not None:
-            self._HDS直前IR = result.HDS_IR
-            self._HDS履歴状態.append(result.HDS_IR)
-            self._HDS版 += 1
-        if result.採否.状態 == 実行状態.合格 and result.値 is not None:
-            self._HDS直前結果 = result.値
-            self._HDS現在焦点 = result.値
-            self._HDS未解残差 = ()
-            self._HDS版 += 2
-        elif result.採否.状態 == 実行状態.保留 and result.HDS_IR is not None:
-            residuals = tuple((item.種別, item.理由) for item in result.HDS_IR.残差)
-            if residuals:
-                self._HDS未解残差 = residuals
-                self._HDS版 += 1
+    def _帰還(self, result: 結果, 問合せ: str) -> 結果:
+        """turn完了後にだけ局所解釈を更新し、次turnの起点を確定する。"""
+        self._局所解釈キャッシュ.更新(問合せ, result.採否.状態, result.値, result.HDS_IR)
+        if self.Trinity文脈 is not None and result.HDS_IR is not None:
+            self.Trinity文脈.帰還(result.採否, result.値, result.HDS_IR)
         return result
 
     def _主体状態辞書(self) -> dict[str, Any]:
@@ -256,10 +254,12 @@ class ミニドラ:
 
     def _HDS未閉包(self, 要求_: 要求, ir: HDSIR, 理由: tuple[str, ...]) -> 結果:
         subject = self._非主体結果("HDS-IRが実行閉包していないため主体更新未実行") if self.主体主幹 is None else self.主体主幹.非適用結果("HDS-IRが実行閉包していないため主体更新未実行")
+        state = dict(要求_.初期状態)
+        state["局所解釈起点"] = self.局所解釈状態.辞書化()
         return self._帰還(結果(
-            None, dict(要求_.初期状態), (), (), 採否結果(実行状態.保留, 理由),
+            None, state, (), (), 採否結果(実行状態.保留, 理由),
             self.主体状態, subject, tuple(getattr(self.主体主幹, "履歴", ())), "HDS_IR", ir,
-        ))
+        ), 要求_.問合せ)
 
     def _HDS選択結果(
         self,
@@ -283,6 +283,7 @@ class ミニドラ:
         state: dict[str, Any] = dict(要求_.初期状態)
         state.update({
             "結果": value, "参照": 参照, "主体状態": self._主体状態辞書(), "HDS文脈": self.HDS文脈,
+            "局所解釈起点": self.局所解釈状態.辞書化(),
             "HDS候補ラベル": 選択.回答ラベル,
             "HDS候補コンパイル数": 選択.候補コンパイル数,
             "HDS_Dataコンパイル数": 選択.Dataコンパイル数,
@@ -311,7 +312,7 @@ class ミニドラ:
         return self._帰還(結果(
             value, state, 参照, history, decision, self.主体状態, subject,
             tuple(getattr(self.主体主幹, "履歴", ())), "HDS_CHOICE_NATIVE", ir,
-        ))
+        ), 要求_.問合せ)
 
     def 実行(self, 要求_: 要求) -> 結果:
         自動計画 = 要求_.手順 is None
@@ -320,12 +321,15 @@ class ミニドラ:
         initial_from_plan: dict[str, Any] = {}
         reference_from_plan = False
         手順_: 手順 | None = 要求_.手順
+        起点 = self.局所解釈状態
 
         if 自動計画 and self.HDSコンパイラ is not None:
             try:
                 hds_ir = self.コンパイル(要求_.問合せ)
             except (ValueError, TypeError) as exc:
-                return 結果(None, dict(要求_.初期状態), (), (), 採否結果(実行状態.失敗, ("HDS Compiler実行失敗", str(exc))), self.主体状態, self._非主体結果("HDS Compiler実行失敗"), (), "HDS_IR", None)
+                state = dict(要求_.初期状態)
+                state["局所解釈起点"] = 起点.辞書化()
+                return self._帰還(結果(None, state, (), (), 採否結果(実行状態.失敗, ("HDS Compiler実行失敗", str(exc))), self.主体状態, self._非主体結果("HDS Compiler実行失敗"), (), "HDS_IR", None), 要求_.問合せ)
 
             if HDS選択問題(hds_ir):
                 references: tuple[参照記録, ...] = ()
@@ -376,13 +380,16 @@ class ミニドラ:
         if reference_required and not references:
             decision = 採否(根拠数=0)
             subject = self._非主体結果("参照不足のため主体更新未実行") if self.主体主幹 is None else self.主体主幹.非適用結果("参照不足のため主体更新未実行")
-            result = 結果(None, dict(要求_.初期状態), (), (), decision, self.主体状態, subject, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, hds_ir)
-            return self._帰還(result) if hds_ir is not None else result
+            state = dict(要求_.初期状態)
+            state["局所解釈起点"] = 起点.辞書化()
+            result = 結果(None, state, (), (), decision, self.主体状態, subject, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, hds_ir)
+            return self._帰還(result, 要求_.問合せ)
 
         initial = dict(要求_.初期状態)
         initial.update(initial_from_plan)
         initial["参照"] = references
         initial["主体状態"] = self._主体状態辞書()
+        initial["局所解釈起点"] = 起点.辞書化()
         if hds_ir is not None:
             initial["HDS文脈"] = self.HDS文脈
         try:
@@ -392,7 +399,7 @@ class ミニドラ:
                 raise
             subject = self._非主体結果("自動計画の実行失敗") if self.主体主幹 is None else self.主体主幹.非適用結果("自動計画の実行失敗")
             result = 結果(None, initial, (), (), 採否結果(実行状態.失敗, ("自動計画実行失敗", str(exc))), self.主体状態, subject, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, hds_ir)
-            return self._帰還(result) if hds_ir is not None else result
+            return self._帰還(result, 要求_.問合せ)
 
         value = context.状態.get("結果")
         evidence_count = (len(references) if value is not None else 0) if reference_required else (1 if value is not None else 0)
@@ -403,7 +410,7 @@ class ミニドラ:
             value = None
             state["結果"] = None
         result = 結果(value, state, references, tuple(context.履歴), decision, self.主体状態, subject, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, hds_ir)
-        return self._帰還(result) if hds_ir is not None else result
+        return self._帰還(result, 要求_.問合せ)
 
     def 応答(self, 問合せ: str) -> str:
         result = self.実行(要求(問合せ))

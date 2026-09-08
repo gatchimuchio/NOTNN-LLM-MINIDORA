@@ -9,7 +9,7 @@ from .hds_ir import HDSIR
 
 @dataclass(frozen=True, slots=True)
 class HDS文脈:
-    """Trinityの記憶主体Mから判断主体JがCompilerへ引用する現在文脈。"""
+    """Runtime局所作業状態またはTrinity MからCompilerへ引用する現在文脈。"""
 
     記憶版: int = 0
     現在焦点: Any = None
@@ -17,6 +17,8 @@ class HDS文脈:
     直前IR: HDSIR | None = None
     未解残差: tuple[tuple[str, str], ...] = ()
     記憶引用: tuple[str, ...] = ()
+    直前入力: str | None = None
+    直前採否: str | None = None
 
 
 class HDSコンパイラProtocol(Protocol):
