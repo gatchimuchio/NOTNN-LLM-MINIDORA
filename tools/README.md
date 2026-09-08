@@ -8,23 +8,73 @@ Runtime本体は `src/minidora/` であり、`tools/` のスクリプトをMINID
 
 | Tool | 役割 | 追加依存 |
 |---|---|---|
-| `benchmark.py` | リポジトリ標準ベンチランナー。GPQA Diamondの部分実行・途中保存・再開・K3参照比較 | なし |
-| `gpqa_measure_current.py` | GPQA現行測定の低水準実装。標準実行入口は `benchmark.py` | なし |
+| `benchmark_strict.py` | **正本Benchmark入口**。汎用E2E / 固定Replayを別IDで実行し、直接比較可否を機械判定する | なし |
+| `benchmark_contract.py` | Benchmark Contract v1。評価種別・入力境界・fingerprint・主張可能範囲を生成する | なし |
+| `benchmark.py` | 低水準GPQA runner。単独出力を正本性能値として引用しない | なし |
+| `gpqa_measure_current.py` | GPQA現行測定の低水準実装 | なし |
 | `repository_consistency_check.py` | v0.4模型核、上流LLM成立規定、version、Legacy境界、主要文書リンクの整合性監査 | なし |
 | `k3_hf_identity_inventory.py` | K3 Hugging Face固定revisionのファイル同一性inventory | `huggingface_hub` |
 | `k3_public_artifact_inventory.py` | K3固定revisionの公開artifact inventory | `huggingface_hub` |
 
-## リポジトリ標準ベンチ
+## Benchmark Contract v1
 
-GitHub Actionsを実行装置の正本にしない。ベンチはclone済みリポジトリから直接実行でき、Actionsは同じコマンドを自動実行するだけとする。
+評価の正本は [`../評価/BENCHMARK_CONTRACT_v1.md`](../評価/BENCHMARK_CONTRACT_v1.md) とする。
 
-利用可能なベンチ一覧:
+同じ `GPQA Diamond 198問` でも、実際の入力境界が異なる結果を同一性能値として扱わない。
 
-```bash
-python tools/benchmark.py --list
+```text
+GPQA-E2E-LIVE
+= 問題 + 選択肢 + 実行時LIVE参照取得
+= 汎用E2Eスナップショット
+
+GPQA-FIXED-REPLAY
+= 問題 + 選択肢 + 固定参照/Data bundle
+= 実装差分・回帰差分
 ```
 
-GPQA Diamond 198問を全実測:
+FIXED-REPLAY得点を汎用E2E性能へ読み替えない。LIVE別run間の得点差をコード変更だけの因果差へ読み替えない。
+
+## 正本ベンチ入口
+
+GPQA Diamondの汎用E2Eスナップショット:
+
+```bash
+python tools/benchmark_strict.py gpqa-e2e --out gpqa_e2e.json
+```
+
+固定Replayによる実装差分:
+
+```bash
+python tools/benchmark_strict.py gpqa-fixed-replay replay.jsonl --out gpqa_replay.json
+```
+
+二つの結果が直接比較可能か確認:
+
+```bash
+python tools/benchmark_strict.py compare before.json after.json
+```
+
+`compare` が拒否した二結果を正本の直接差分として主張しない。
+
+結果JSONの `benchmark_contract` には最低限次が入る。
+
+- `benchmark_id`
+- `evaluation_class`
+- `input_boundary`
+- `retrieval_mode`
+- `condition_fingerprint_sha256`
+- `input_snapshot_sha256`
+- `cross_run_code_delta_direct`
+- `claim_scope`
+- `forbidden_claims`
+
+## 低水準GPQA runner
+
+`benchmark.py` / `benchmark_formal.py` は部分実行・診断・内部実装用として残す。
+
+これらを直接実行して得たJSONは、Benchmark Contract v1を付与していない限り**正本性能値として採用しない**。
+
+GPQA Diamond 198問の低水準実測:
 
 ```bash
 python tools/benchmark.py gpqa-diamond --out gpqa_current_measurement.json
@@ -49,16 +99,6 @@ python tools/benchmark.py gpqa-diamond --start-index 50 --limit 25 --out gpqa_05
 ```
 
 ベンチデータは既定で `.cache/minidora-bench/` に保存する。`--refresh-dataset` を明示した場合だけ再取得する。
-
-結果JSONは各問題の診断に加えて、最低限次を保持する。
-
-- `correct / wrong / answered / suspended`
-- `answer_rate_percent / answered_accuracy_percent`
-- `retrieval_empty / retrieval_empty_rate_percent`
-- provider別取得数
-- `NO_GUESS` 等の理由集計
-- Data compile / K evidence集計
-- Kimi K3の同一GPQA Diamond公式参照値と出典
 
 部分実行値はK3の198問スコアと直接比較しない。198/198完走時だけ比較差・比率を結果へ確定する。
 
