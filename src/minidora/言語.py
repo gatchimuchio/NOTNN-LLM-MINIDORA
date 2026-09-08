@@ -35,10 +35,14 @@ class 自然言語器:
         ast.LtE: "以下",
     }
 
-    def 計画(self, 問合せ: str) -> 言語計画:
+    def 計画(self, 問合せ: str, *, 文脈参照: Any = None) -> 言語計画:
         normalized = unicodedata.normalize("NFKC", 問合せ).strip()
         if not normalized:
             return self._参照計画("空入力")
+
+        contextual = self._文脈計画(normalized, 文脈参照)
+        if contextual is not None:
+            return contextual
 
         phrase = self._日本語算術(normalized)
         if phrase is not None:
@@ -72,6 +76,110 @@ class 自然言語器:
             return 言語計画(proc, initial, False, "計数")
 
         return self._参照計画("外部参照")
+
+    def _文脈計画(self, text: str, 文脈参照: Any) -> 言語計画 | None:
+        """局所解釈で確定した参照先をDataとして束縛し、Pは状態住所だけを参照する。"""
+        if 文脈参照 is None:
+            return None
+
+        ref = r"(?:それ|これ|あれ|その結果|この結果|あの結果)"
+        number = r"-?\d+(?:\.\d+)?"
+        contextual_number = self._文脈数値(文脈参照)
+
+        if contextual_number is not None:
+            patterns = (
+                (
+                    rf"{ref}\s*(?:と|に)\s*(?P<右辺>{number})\s*を?\s*(?:足して|加えて|足す)",
+                    作用.加算,
+                    "文脈加算",
+                ),
+                (
+                    rf"{ref}\s*から\s*(?P<右辺>{number})\s*を?\s*(?:引いて|引く)",
+                    作用.減算,
+                    "文脈減算",
+                ),
+                (
+                    rf"{ref}\s*(?:に|を)\s*(?P<右辺>{number})\s*を?\s*(?:掛けて|かけて|掛ける|かける|乗じて)",
+                    作用.乗算,
+                    "文脈乗算",
+                ),
+                (
+                    rf"{ref}\s*を\s*(?P<右辺>{number})\s*で\s*(?:割って|割る|除して)",
+                    作用.除算,
+                    "文脈除算",
+                ),
+            )
+            for pattern, op, name in patterns:
+                match = re.search(pattern, text)
+                if not match:
+                    continue
+                initial = {
+                    "文脈0": contextual_number,
+                    "入力0": self._数値(match.group("右辺")),
+                }
+                proc = 手順(
+                    name,
+                    (
+                        命令(
+                            name,
+                            op,
+                            引数=("$文脈0", "$入力0"),
+                            更新先="結果",
+                            根拠=("局所解釈起点", "自然言語入力"),
+                        ),
+                    ),
+                    由来="自然言語器:局所解釈",
+                )
+                return 言語計画(proc, initial, False, "算術")
+
+        count = re.search(
+            rf"{ref}(?:の)?文字数(?:を)?(?:数えて|教えて|は)",
+            text,
+        )
+        if count:
+            proc = 手順(
+                "文脈文字数計数",
+                (
+                    命令(
+                        "文脈文字数",
+                        作用.計数,
+                        引数=("$文脈0",),
+                        更新先="結果",
+                        根拠=("局所解釈起点", "自然言語入力"),
+                    ),
+                ),
+                由来="自然言語器:局所解釈",
+            )
+            return 言語計画(proc, {"文脈0": 文脈参照}, False, "計数")
+
+        if re.fullmatch(
+            rf"{ref}(?:を)?(?:教えて|表示して|見せて|は)?[?？。!！]*",
+            text,
+        ):
+            proc = 手順(
+                "文脈参照",
+                (
+                    命令(
+                        "文脈参照取得",
+                        作用.取得,
+                        対象="文脈0",
+                        更新先="結果",
+                        根拠=("局所解釈起点", "自然言語入力"),
+                    ),
+                ),
+                由来="自然言語器:局所解釈",
+            )
+            return 言語計画(proc, {"文脈0": 文脈参照}, False, "文脈参照")
+        return None
+
+    def _文脈数値(self, value: Any) -> int | float | None:
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, (int, float)):
+            return value
+        if isinstance(value, str) and re.fullmatch(r"-?\d+(?:\.\d+)?", value.strip()):
+            return self._数値(value.strip())
+        return None
 
     def _参照計画(self, reason: str) -> 言語計画:
         proc = 手順(

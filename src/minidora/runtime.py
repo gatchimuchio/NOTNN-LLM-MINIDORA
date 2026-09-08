@@ -361,7 +361,10 @@ class ミニドラ:
             reference_from_plan = hds_ir.参照必須
             plan_name = hds_ir.種別 or "HDS_IR"
         elif 自動計画:
-            plan = self.自然言語器.計画(要求_.問合せ)
+            plan = self.自然言語器.計画(
+                要求_.問合せ,
+                文脈参照=起点.現在焦点,
+            )
             手順_ = plan.手順
             initial_from_plan = dict(plan.初期状態)
             reference_from_plan = plan.参照必須
