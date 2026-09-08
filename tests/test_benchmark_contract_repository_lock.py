@@ -65,6 +65,22 @@ class BenchmarkContractRepositoryLockTest(unittest.TestCase):
         )
         self.assertEqual(payload["provenance"]["workflow_run_id"], 34281226412)
 
+    def test_gpqa_fixed_replay_execution_paths_are_retired(self) -> None:
+        for path in (
+            "tools/gpqa_replay_capture.py",
+            "tools/gpqa_scientific_specialist_replay.py",
+        ):
+            text = (ROOT / path).read_text(encoding="utf-8")
+            self.assertIn("GPQA_FIXED_REFERENCE_FORBIDDEN", text)
+            self.assertNotIn("HDSChoiceReplay収録(", text)
+            self.assertNotIn("科学専門能力を通常MINIDORAへ接続(", text)
+
+        workflow = (ROOT / ".github/workflows/gpqa_scientific_specialist_replay.yml").read_text(encoding="utf-8")
+        self.assertIn("RETIRED", workflow)
+        self.assertIn("GPQA_FIXED_REFERENCE_FORBIDDEN", workflow)
+        self.assertNotIn("python tools/gpqa_scientific_specialist_replay.py", workflow)
+        self.assertNotIn("actions/upload-artifact", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
