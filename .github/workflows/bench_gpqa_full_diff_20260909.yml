@@ -1,0 +1,131 @@
+name: MINIDORA GPQA full 198 diff
+
+on:
+  push:
+    branches: [bench/gpqa-full-diff-20260909]
+
+permissions:
+  contents: read
+
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - { id: '000_024', start: 0,   limit: 25 }
+          - { id: '025_049', start: 25,  limit: 25 }
+          - { id: '050_074', start: 50,  limit: 25 }
+          - { id: '075_099', start: 75,  limit: 25 }
+          - { id: '100_124', start: 100, limit: 25 }
+          - { id: '125_149', start: 125, limit: 25 }
+          - { id: '150_174', start: 150, limit: 25 }
+          - { id: '175_197', start: 175, limit: 23 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: GPQA shard ${{ matrix.id }} controlled A/B
+        run: >-
+          python tools/benchmark_formal.py gpqa-diamond
+          --controlled-ab --no-openalex
+          --start-index ${{ matrix.start }} --limit ${{ matrix.limit }}
+          --out gpqa_${{ matrix.id }}.json
+      - name: shard結果保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpqa-shard-${{ matrix.id }}
+          path: gpqa_${{ matrix.id }}.json
+          if-no-files-found: error
+
+  aggregate:
+    needs: shard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gpqa-shard-*
+          path: shards
+          merge-multiple: true
+      - name: 198問集計と差分
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          files = sorted(Path('shards').glob('gpqa_*.json'))
+          rows=[]
+          protocols=[]
+          for p in files:
+              data=json.loads(p.read_text(encoding='utf-8'))
+              protocols.append(data['protocol'])
+              rows.extend(data['details'])
+          rows=sorted(rows, key=lambda r:int(r['index']))
+          assert len(rows)==198, len(rows)
+          assert [int(r['index']) for r in rows]==list(range(198))
+
+          current_correct=sum(bool(r.get('correct')) for r in rows)
+          current_answered=sum(r.get('status')=='APPROVE' and r.get('predicted') is not None for r in rows)
+          baseline_correct=sum(bool(r.get('baseline_correct')) for r in rows)
+          baseline_answered=sum(bool(r.get('baseline_answered')) for r in rows)
+          changed=sum(r.get('predicted') != r.get('baseline_predicted') for r in rows)
+          improved=sum(bool(r.get('correct')) and not bool(r.get('baseline_correct')) for r in rows)
+          regressed=sum(not bool(r.get('correct')) and bool(r.get('baseline_correct')) for r in rows)
+
+          summary={
+              'schema':'minidora.gpqa.full198.aggregate.v1',
+              'total':198,
+              'dataset_csv_sha256':protocols[0]['dataset_csv_sha256'],
+              'current':{
+                  'correct':current_correct,
+                  'accuracy_percent':100*current_correct/198,
+                  'answered':current_answered,
+                  'answer_rate_percent':100*current_answered/198,
+                  'suspended':198-current_answered,
+              },
+              'controlled_baseline':{
+                  'correct':baseline_correct,
+                  'accuracy_percent':100*baseline_correct/198,
+                  'answered':baseline_answered,
+                  'answer_rate_percent':100*baseline_answered/198,
+                  'suspended':198-baseline_answered,
+              },
+              'controlled_delta':{
+                  'correct_delta':current_correct-baseline_correct,
+                  'accuracy_points':100*(current_correct-baseline_correct)/198,
+                  'changed_answers':changed,
+                  'improved_cases':improved,
+                  'regressed_cases':regressed,
+                  'net_improved_cases':improved-regressed,
+              },
+              'reference_comparisons':{
+                  'core37_fixed_c2':{
+                      'correct':37,
+                      'accuracy_percent':100*37/198,
+                      'directly_comparable':False,
+                      'reason':'固定C2 replayと今回のlive retrievalは参照条件が異なる',
+                  },
+                  'live_full_2026_09_01':{
+                      'correct':24,
+                      'accuracy_percent':100*24/198,
+                      'directly_comparable':False,
+                      'reason':'実行日時・実装commit・live retrievalが異なる',
+                  },
+              },
+              'details':rows,
+          }
+          Path('gpqa_full198_summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps({k:v for k,v in summary.items() if k!='details'},ensure_ascii=False,indent=2))
+          PY
+      - name: 集計結果保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpqa-full198-summary
+          path: gpqa_full198_summary.json
+          if-no-files-found: error
