@@ -10,6 +10,7 @@ from .要求解釈 import 要求解釈結果
 from .能力合成 import 能力合成器, 合成結果
 from .製品版.能力契約 import 能力文脈
 from .製品版.型 import 能力結果
+from .文脈照応 import 会話参照スナップショット
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,11 +28,21 @@ class 要求実行結果:
 
 def 要求計画を実行(解釈: 要求解釈結果, 合成器: 能力合成器, *,
                    文脈: 能力文脈 | None = None,
-                   停止要求: Callable[[], bool] | None = None) -> 要求実行結果:
+                   停止要求: Callable[[], bool] | None = None,
+                   文脈起点: 会話参照スナップショット | None = None) -> 要求実行結果:
     if not isinstance(解釈, 要求解釈結果) or not 解釈.整合確認():
         return 要求実行結果("失敗", (), ("要求解釈の整合違反",), "")
     if not 解釈.成立:
         return 要求実行結果(解釈.状態, (), tuple(r.理由 for r in 解釈.残差), 解釈.ハッシュ)
+    if 解釈.文脈識別子 is not None:
+        if (not isinstance(文脈起点, 会話参照スナップショット) or not 文脈起点.整合確認()
+                or 文脈起点.識別子 != 解釈.文脈識別子):
+            return 要求実行結果("失敗", (), ("要求計画の文脈起点が不一致",), 解釈.ハッシュ)
+        if 文脈 is not None and (not isinstance(文脈, 能力文脈)
+                              or 文脈.セッションID != 文脈起点.セッションID):
+            return 要求実行結果("失敗", (), ("実行セッションが文脈と不一致",), 解釈.ハッシュ)
+        if 文脈 is None:
+            文脈 = 能力文脈(解釈.HDS保持.原文, 文脈起点.セッションID)
     固定 = deepcopy(解釈)
     結果 = 合成器.実行(固定.計画, 固定.初期Data, 文脈=文脈, 停止要求=停止要求)
     if not 結果.成立:

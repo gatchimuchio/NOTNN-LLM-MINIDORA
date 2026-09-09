@@ -19,8 +19,9 @@ import unicodedata
 from .hds_ir import HDSIR, HDS座標, HDS関係, HDS残差, HDS意味作用, HDS実行核, 値状態
 from .能力合成 import 合成工程, 合成計画, 素材参照, _結果辞書, _参照結合
 from .製品版.型 import 能力結果, 参照資料
+from .文脈照応 import 会話参照スナップショット, 照応束縛, 過去対象表層
 
-要求解釈版 = "MINIDORA-要求解釈-v0.1"
+要求解釈版 = "MINIDORA-要求解釈-v0.2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +56,8 @@ class 要求解釈結果:
     残差: tuple[要求残差, ...]
     局所解消: tuple[str, ...] = ()
     ハッシュ: str = ""
+    文脈識別子: str | None = None
+    文脈束縛: tuple[照応束縛, ...] = ()
 
     @property
     def 成立(self) -> bool:
@@ -99,8 +102,8 @@ def _指紋(値: object) -> str:
 
 # 能力名の出現ではなく、対象・引数・述語・接続詞を持つ限定文法で読む。
 _空白 = r"[^\S\r\n]*"
-_対象 = r'(?P<対象>資料「(?P<資料名>[^「」\r\n]{1,128})」|元の本文|元の資料|本文|提供文|その結果|それ)'
-_接頭 = rf"(?:(?:まず|次に|続けて|最後に|その後|それから){_空白}[、,]?{_空白})?"
+_対象 = rf'(?P<対象>資料「(?P<資料名>[^「」\r\n]{{1,128}})」|元の本文|元の資料|本文|提供文|その結果|それ|{過去対象表層})'
+_接頭 = rf"(?:(?:まず|次に|続けて|最後に|その後|それから){_空白}[、,]?{_空白})??"
 _終止 = r"(?:してください|して下さい|してくれ|して|する|せよ|し)"
 _命令 = re.compile(
     _接頭 + rf"(?:{_対象}{_空白}(?:から|を){_空白})?(?:"
@@ -142,17 +145,26 @@ class 要求計画器:
                 raise ValueError("上限は正の整数")
         self._上限 = (最大要求数, 最大入力文字数, 最大資料バイト数)
 
-    def コンパイル(self, 意味IR: HDSIR, 資料: Mapping[str, 能力結果]) -> 要求解釈結果:
+    def コンパイル(self, 意味IR: HDSIR, 資料: Mapping[str, 能力結果], *,
+                   文脈: 会話参照スナップショット | None = None) -> 要求解釈結果:
         要求: list[要求工程] = []
         保持 = None
         原文 = ""
+        起点 = None
+        束縛: list[照応束縛] = []
 
         def 終了(状態: str, 計画=None, Data=None, 残差=(), 解消=()):
             結果 = 要求解釈結果(状態, 保持, tuple(要求), 計画,
-                                deepcopy(Data or {}), tuple(残差), tuple(解消))
+                                deepcopy(Data or {}), tuple(残差), tuple(解消),
+                                文脈識別子=起点.識別子 if 起点 is not None else None,
+                                文脈束縛=tuple(束縛))
             return replace(結果, ハッシュ=_指紋(replace(結果, ハッシュ="")))
 
         try:
+            if 文脈 is not None:
+                if not isinstance(文脈, 会話参照スナップショット) or not 文脈.整合確認():
+                    raise ValueError("文脈スナップショットの整合違反")
+                起点 = deepcopy(文脈)
             if not isinstance(意味IR, HDSIR) or type(意味IR.原文) is not str:
                 raise ValueError("HDSIRと原文が必要")
             原文 = 意味IR.原文
@@ -167,6 +179,10 @@ class 要求計画器:
                     raise ValueError("HDS構造型不正")
             if len(_符号(意味IR)) > self._上限[2]:
                 raise ValueError("HDS記録サイズ上限")
+            if len({r.関係ID for r in 意味IR.関係}) != len(意味IR.関係):
+                raise ValueError("HDS関係ID重複")
+            if len({r.残差ID for r in 意味IR.残差}) != len(意味IR.残差):
+                raise ValueError("HDS残差ID重複")
             保持 = deepcopy(意味IR)
             座標 = 保持.座標辞書()
             if len(座標) != len(保持.座標):
@@ -217,7 +233,20 @@ class 要求計画器:
                     raise _未解(位置, 終点, "要求が連用形で未完", "終止形か後続操作を指定する")
                 対象 = 一致.group("対象")
                 対象範囲 = 一致.span("対象") if 対象 else None
-                if 対象 in ("その結果", "それ"):
+                if ((対象 == "それ" and not 要求 and 起点 is not None)
+                        or (対象 is not None and re.fullmatch(過去対象表層, 対象))):
+                    if 起点 is None:
+                        raise _未解(*一致.span("対象"), "会話文脈がない", "同じセッションの文脈を渡す")
+                    try:
+                        接続, 値 = 起点.解決(対象, 一致.span("対象"), 新規資料あり=bool(素材))
+                    except ValueError as exc:
+                        raise _未解(*一致.span("対象"), str(exc), "参照する応答・出力番号を明示する") from exc
+                    束縛.append(接続)
+                    Data[接続.Dataキー] = 値
+                    入力, 解決 = 素材参照("入力", 接続.Dataキー), "会話成果への明示照応"
+                    if 最初の素材 is None:
+                        最初の素材 = 入力
+                elif 対象 in ("その結果", "それ"):
                     if not 要求:
                         raise _未解(*一致.span("対象"), "前工程の結果がない", "対象資料を指定する")
                     入力 = 素材参照("工程", 要求[-1].識別子)
@@ -269,7 +298,7 @@ class 要求計画器:
                 Data[f"指示:{ID}"] = 能力結果(True, 原文[位置:終点])
                 Data[f"設定:{ID}"] = 能力結果(True, "", データ=dict(設定))
                 位置 = 次
-            解消 = self._HDS照合(保持, tuple(要求))
+            解消 = self._HDS照合(保持, tuple(要求), 起点, tuple(束縛))
             工程 = tuple(合成工程(t.識別子, (t.能力,), f"指示:{t.識別子}",
                                     (t.素材,), f"設定:{t.識別子}") for t in 要求)
             消費 = {t.素材.識別子 for t in 要求 if t.素材.領域 == "工程"}
@@ -289,7 +318,9 @@ class 要求計画器:
                 else f"入力契約違反:{type(exc).__name__}", "入力契約を修正する"),))
 
     @staticmethod
-    def _HDS照合(IR: HDSIR, 要求: tuple[要求工程, ...]) -> tuple[str, ...]:
+    def _HDS照合(IR: HDSIR, 要求: tuple[要求工程, ...],
+                 文脈: 会話参照スナップショット | None = None,
+                 束縛: tuple[照応束縛, ...] = ()) -> tuple[str, ...]:
         def 保留(理由):
             raise _未解(0, len(IR.原文), 理由, "上流の該当構造を確認・解消する")
 
@@ -298,7 +329,8 @@ class 要求計画器:
         許容座標 = {"source_text", "language.normalized", "文脈.言語", "制御.選択意図",
                     "値.数量", "属性.単位", "対象.主題語", "目的.検索焦点",
                     "文脈.参照先", "文脈.指示語"}
-        指示範囲 = [t.対象範囲 for t in 要求 if t.対象解決 == "前工程への明示照応"]
+        指示範囲 = ([t.対象範囲 for t in 要求 if t.対象解決 == "前工程への明示照応"]
+                    + [b.原文範囲 for b in 束縛])
         def 局所照応(語):
             if 語 not in ("その", "それ"):
                 return False
@@ -306,7 +338,26 @@ class 要求計画器:
             return bool(出現) and all(any(a <= m.start() and m.end() <= b for a, b in 指示範囲) for m in 出現)
 
         座標 = IR.座標辞書()
+        解消座標, 解消関係 = set(), set()
+        for r in IR.関係:
+            if r.種別 != "共参照":
+                continue
+            if (文脈 is None or not 文脈.整合確認()
+                    or IR.文脈引用 != (文脈.識別子,) or r.条件
+                    or r.値状態 != 値状態.推定 or len(r.始点) != 1 or len(r.終点) != 1):
+                保留(f"文脈根拠不一致:{r.関係ID}")
+            指示 = 座標.get(r.始点[0])
+            焦点 = 座標.get(r.終点[0])
+            if (指示 is None or 焦点 is None or 指示.種別 != "文脈.指示語"
+                    or 焦点.種別 != "文脈.参照先" or 焦点.内容 != 文脈.識別子
+                    or 指示.値状態 != 値状態.推定 or 焦点.値状態 != 値状態.推定
+                    or not 局所照応(指示.内容)):
+                保留(f"未解文脈照応:{r.関係ID}")
+            解消座標.update((*r.始点, *r.終点))
+            解消関係.add(r.関係ID)
         for c in IR.座標:
+            if c.座標ID in 解消座標:
+                continue
             if c.種別 not in 許容座標:
                 保留(f"未処理HDS座標:{c.座標ID}:{c.種別}")
             if c.値状態 != 値状態.確定:
@@ -315,11 +366,13 @@ class 要求計画器:
             if c.種別 == "制御.選択意図" and c.内容 != "通常":
                 保留(f"未処理HDS選択意図:{c.内容}")
         for r in IR.関係:
+            if r.関係ID in 解消関係:
+                continue
             if r.種別 != "数量単位" or r.値状態 != 値状態.確定:
                 保留(f"未処理HDS関係:{r.関係ID}")
             if r.条件 or not all(k in 座標 for k in (*r.始点, *r.終点)):
                 保留(f"未処理HDS関係条件:{r.関係ID}")
-        解消 = []
+        解消 = [f"関係:{ID}" for ID in sorted(解消関係)]
         for r in IR.残差:
             if r.種別 == "未解共参照" and not r.影響座標 and 局所照応(r.原文):
                 解消.append(r.残差ID)
