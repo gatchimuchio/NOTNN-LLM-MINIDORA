@@ -1,0 +1,116 @@
+name: MINIDORA sandbox GPQA module LIVE A-B
+
+on:
+  push:
+    branches:
+      - sandbox/gpqa-module-live-20260909
+
+permissions:
+  contents: read
+
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - { id: '000_024', start: 0,   limit: 25 }
+          - { id: '025_049', start: 25,  limit: 25 }
+          - { id: '050_074', start: 50,  limit: 25 }
+          - { id: '075_099', start: 75,  limit: 25 }
+          - { id: '100_124', start: 100, limit: 25 }
+          - { id: '125_149', start: 125, limit: 25 }
+          - { id: '150_174', start: 150, limit: 25 }
+          - { id: '175_197', start: 175, limit: 23 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: 科学Module回帰
+        run: python -m unittest discover -s tests -p 'test_科学専門能力*.py' -v
+      - name: GPQA LIVE module A-B shard
+        run: >-
+          python tools/benchmark_formal_scientific_ab.py gpqa-diamond
+          --controlled-ab --no-openalex
+          --start-index ${{ matrix.start }} --limit ${{ matrix.limit }}
+          --out gpqa_module_${{ matrix.id }}.json
+      - name: shard保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpqa-module-shard-${{ matrix.id }}
+          path: gpqa_module_${{ matrix.id }}.json
+          if-no-files-found: error
+
+  aggregate:
+    needs: shard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gpqa-module-shard-*
+          path: shards
+          merge-multiple: true
+      - name: 198問集計
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          files=sorted(Path('shards').glob('gpqa_module_*.json'))
+          rows=[]
+          protocols=[]
+          for p in files:
+              d=json.loads(p.read_text(encoding='utf-8'))
+              protocols.append(d['protocol'])
+              rows.extend(d['details'])
+          rows=sorted(rows,key=lambda r:int(r['index']))
+          assert len(rows)==198, len(rows)
+          assert [int(r['index']) for r in rows]==list(range(198))
+          baseline_correct=sum(bool(r.get('baseline_correct')) for r in rows)
+          module_correct=sum(bool(r.get('correct')) for r in rows)
+          baseline_answered=sum(bool(r.get('baseline_answered')) for r in rows)
+          module_answered=sum(r.get('status')=='APPROVE' and r.get('predicted') is not None for r in rows)
+          improved=[r for r in rows if bool(r.get('correct')) and not bool(r.get('baseline_correct'))]
+          regressed=[r for r in rows if not bool(r.get('correct')) and bool(r.get('baseline_correct'))]
+          changed=[r for r in rows if r.get('predicted') != r.get('baseline_predicted')]
+          fired=[]
+          solvers=Counter()
+          for r in rows:
+              solver=None
+              for reason in r.get('reasons',[]):
+                  text=str(reason)
+                  if text.startswith('SCIENTIFIC_CAPABILITY_SOLVER:'):
+                      solver=text.split(':',1)[1]
+                      break
+              if solver:
+                  fired.append(r)
+                  solvers[solver]+=1
+          summary={
+              'schema':'minidora.gpqa.module-live-ab.v1',
+              'evaluation':'LIVE_ONLY same-run controlled A/B; fixed reference data forbidden',
+              'total':198,
+              'dataset_csv_sha256':protocols[0]['dataset_csv_sha256'],
+              'module_off':{'correct':baseline_correct,'accuracy_percent':100*baseline_correct/198,'answered':baseline_answered,'suspended':198-baseline_answered},
+              'module_on':{'correct':module_correct,'accuracy_percent':100*module_correct/198,'answered':module_answered,'suspended':198-module_answered},
+              'delta':{'correct':module_correct-baseline_correct,'accuracy_points':100*(module_correct-baseline_correct)/198,'improved':len(improved),'regressed':len(regressed),'net':len(improved)-len(regressed),'changed':len(changed),'fired':len(fired)},
+              'solver_counts':dict(sorted(solvers.items())),
+              'improved_indices':[int(r['index']) for r in improved],
+              'regressed_indices':[int(r['index']) for r in regressed],
+              'fired_indices':[int(r['index']) for r in fired],
+              'details':rows,
+          }
+          Path('gpqa_module_live_summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps({k:v for k,v in summary.items() if k!='details'},ensure_ascii=False,indent=2))
+          PY
+      - name: 集計保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpqa-module-live-summary
+          path: gpqa_module_live_summary.json
+          if-no-files-found: error
