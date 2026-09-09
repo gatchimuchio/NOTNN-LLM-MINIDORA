@@ -150,6 +150,8 @@ reference = LIVE_ONLY
 fixed reference Data = forbidden
 ```
 
+詳細契約: [Benchmark Contract v2](評価/BENCHMARK_CONTRACT_v2.md)
+
 Module効果は同一runでModule OFF / ONへ同一取得資料を共有したcontrolled A/B差を直接差分として扱う。
 
 異なる日時のLIVE run得点差は時系列スナップショットであり、コード変更だけの純粋因果差とは扱わない。
