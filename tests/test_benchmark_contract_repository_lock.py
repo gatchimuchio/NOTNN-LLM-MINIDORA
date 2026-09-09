@@ -16,17 +16,23 @@ class BenchmarkContractRepositoryLockTest(unittest.TestCase):
             "評価/BENCHMARK_CONTRACT_v2.md",
             "評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md",
             "評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json",
+            "評価/GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.md",
+            "評価/GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.json",
             "docs/SAVEPOINT_2026-09-09_MINIDORA30.md",
+            "docs/SAVEPOINT_2026-09-09_MINIDORA80.md",
             "CURRENT_CANONICAL.md",
         )
         for path in required:
             self.assertTrue((ROOT / path).is_file(), path)
 
-    def test_canonical_is_minidora30_live_only(self) -> None:
+    def test_canonical_separates_minidora30_core_and_minidora80_system_live_only(self) -> None:
         text = (ROOT / "CURRENT_CANONICAL.md").read_text(encoding="utf-8")
-        self.assertIn("Canonical baseline: MINIDORA30", text)
+        self.assertIn("Core canonical baseline: MINIDORA30", text)
+        self.assertIn("System capability canonical: MINIDORA80", text)
         self.assertIn("30 / 198 (15.15%)", text)
-        self.assertIn("GPQA-E2E-LIVE only", text)
+        self.assertIn("80 / 198", text)
+        self.assertIn("GPQA canonical benchmark: LIVE_ONLY", text)
+        self.assertIn("GPQA fixed reference Data: FORBIDDEN", text)
         self.assertIn("固定参照Dataを禁止", text)
         self.assertIn("BENCHMARK_CONTRACT_v2.md", text)
 
@@ -64,6 +70,27 @@ class BenchmarkContractRepositoryLockTest(unittest.TestCase):
             "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
         )
         self.assertEqual(payload["provenance"]["workflow_run_id"], 34281226412)
+
+    def test_minidora80_manifest_is_machine_locked(self) -> None:
+        path = ROOT / "評価/GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(payload["canonical_name"], "MINIDORA80")
+        self.assertFalse(payload["fixed_reference_data_allowed"])
+        self.assertEqual(payload["module_off"]["correct"], 29)
+        self.assertEqual(payload["module_off"]["total"], 198)
+        self.assertEqual(payload["module_on"]["correct"], 80)
+        self.assertEqual(payload["module_on"]["total"], 198)
+        self.assertEqual(payload["delta"]["correct"], 51)
+        self.assertEqual(payload["delta"]["improved"], 51)
+        self.assertEqual(payload["delta"]["regressed"], 0)
+        self.assertEqual(payload["delta"]["fired"], 55)
+        self.assertEqual(payload["delta"]["fired_correct"], 55)
+        self.assertEqual(payload["execution_evidence"]["workflow_run_id"], 34301888230)
+        self.assertEqual(payload["execution_evidence"]["aggregate_artifact_id"], 10085678050)
+        self.assertEqual(
+            payload["dataset_csv_sha256"],
+            "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+        )
 
     def test_gpqa_fixed_replay_execution_paths_are_retired(self) -> None:
         for path in (

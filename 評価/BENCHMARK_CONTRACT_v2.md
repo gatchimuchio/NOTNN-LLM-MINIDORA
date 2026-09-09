@@ -136,7 +136,38 @@ GPQA-E2E-LIVE
 
 詳細は `GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md` を参照する。
 
-## 8. 過去Replayの扱い
+## 8. Module込みシステム正本 — MINIDORA80
+
+Core正本MINIDORA30とは別に、Module込みシステム能力正本を保持してよい。
+
+現行Module込み正本:
+
+```text
+MINIDORA80
+GPQA-E2E-LIVE + SCIENTIFIC-CAPABILITY-MODULE
+80 / 198
+40.4040404040404%
+```
+
+成立条件:
+
+```text
+198 / 198 全数
+choice seed = 0
+OpenAlex = disabled
+Wikipedia = en
+reference = LIVE_ONLY
+fixed reference Data = forbidden
+Module OFF / ON = same-run controlled A/B
+```
+
+Module効果の直接差分は同一runのOFF/ON差だけへ帰属する。MINIDORA80成立runでは `29/198 → 80/198`、正答純増+51、改善51、退行0、Module発火55、発火55件全正答を観測した。
+
+GPQA原論文の最強GPT-4ベースライン39%とMINIDORA80 40.40%は、**GPQAスコア帯として同じ約40%帯**と表現できる。ただしsubset・実行条件が完全同一ではないため、厳密同条件勝敗や総合能力同等は主張しない。
+
+比較根拠: https://arxiv.org/abs/2311.12022
+
+## 9. 過去Replayの扱い
 
 Core37のC2 37/198、科学専門Module replay 63/198等の過去固定Replayは、**当時の実験・履歴証拠として削除しない**。
 

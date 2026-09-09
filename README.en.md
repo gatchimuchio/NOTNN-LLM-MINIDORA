@@ -6,6 +6,32 @@
 
 > This file is an English translation for international access. The Japanese documents are the normative source of meaning and design.
 
+
+## Current GPQA canon — Core 30 / System with Modules 80
+
+Since 2026-09-09, canonical GPQA performance runs forbid frozen reference data and use newly retrieved `LIVE_ONLY` references.
+
+| Layer | Canon | GPQA Diamond | Meaning |
+|---|---|---:|---|
+| Core / HDS | **MINIDORA30** | **30 / 198 (15.15%)** | current general E2E Core savepoint |
+| Core + scientific Capability Modules | **MINIDORA80** | **80 / 198 (40.40%)** | current system-capability savepoint |
+
+In the same-run LIVE controlled A/B that established MINIDORA80:
+
+```text
+Module OFF = 29 / 198 (14.65%)
+Module ON  = 80 / 198 (40.40%)
+net correct gain = +51
+Module activations = 55
+correct Module activations = 55
+improvements = 51
+regressions = 0
+```
+
+> **On the limited axis of GPQA score, MINIDORA + scientific Capability Modules reached the same roughly-40% score range as the strongest GPT-4-based baseline reported by the original GPQA paper (39%).**
+
+MINIDORA80 is numerically above 39%, but the original GPT-4 result and this GPQA Diamond LIVE E2E run do not use identical subsets or execution conditions. This is therefore a **same-score-band statement, not a claim of overall GPT-4 capability equivalence**.
+
 ## Canonical upstream repositories
 
 - [**Cognitive Engineering Foundations**](https://github.com/gatchimuchio/cognitive-engineering-foundations) — top-level cognitive-engineering, language-base, and HDS canon.
@@ -62,7 +88,7 @@ GET  /health
 
 Every capability Module follows a common contract: **name / version / priority / applicability decision / execution**. New capabilities can be registered without retraining the established Core.
 
-The prior GPQA Diamond controlled replay measured a Module OFF → ON change from **8/198 to 63/198**, with 55 Module activations, 55 improvements, and 0 regressions. This is **not claimed as Core-only performance**; it is evidence that external capability Modules can create measurable system-level capability gains.
+The current LIVE GPQA Diamond same-run controlled A/B measured Module OFF **29/198 (14.65%)** → Module ON **80/198 (40.40%)**, with 55 Module activations, 55 correct activations, 51 net improvements, and 0 regressions. The earlier 8/198 → 63/198 frozen replay remains historical evidence only. This is **not claimed as Core-only performance**; it is evidence that external capability Modules can create measurable system-level capability gains without retraining the established Core.
 
 The Product Prototype adds `tools/製品能力Module実証.py` so the same OFF/ON structure can also be measured on everyday, non-benchmark-specific tasks. Formal values should be taken from execution on the actual current MINIDORA Core.
 
@@ -86,13 +112,13 @@ Audit events are chained with SHA-256. This provides tamper detection, not immut
 
 ## Performance target
 
-A **GPT-4-class general chat experience** is a development target, not a current equivalence claim. Progress should be measured through real-use capabilities such as conversation continuity, summarization, knowledge reference, comparison, reasoning, calculation, transformation, search, and coding as Modules are added.
+A **GPT-4-class general chat experience** remains a development target. MINIDORA80 has reached the same roughly-40% GPQA score band as the original GPT-4-based baseline, but this is not a general capability equivalence claim. Progress should be measured through real-use capabilities such as conversation continuity, summarization, knowledge reference, comparison, reasoning, calculation, transformation, search, and coding as Modules are added.
 
-Current Core GPQA observation with specialist solvers excluded from the active path:
+Current canonical GPQA savepoints:
 
 ```text
-Formal MINIDORA general Core / HDS off = 19 / 198  (9.60%)
-Minimal general Core + HDS supervision = 23 / 198 (11.62%)
+MINIDORA30 Core E2E LIVE              = 30 / 198 (15.15%)
+MINIDORA80 Core + scientific Modules  = 80 / 198 (40.40%)
 ```
 
 The v0.5 **Large** classification remains subject to **re-audit**; older scale judgments are not automatically inherited.
@@ -114,7 +140,8 @@ strict language-model conformance
 != system performance with Modules
 != Product Prototype maturity
 != Large classification
-!= GPT-4-class performance achieved
+GPQA same score band as GPT-4 baseline
+!= overall GPT-4 capability equivalence
 ```
 
 ## License
