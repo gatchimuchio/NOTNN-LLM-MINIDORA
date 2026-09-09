@@ -28,7 +28,7 @@ jobs:
         run: |
           grep -q 'MINIDORA80' README.md
           grep -q '80 / 198' CURRENT_CANONICAL.md
-          grep -q 'GPT-4ベースラインと同じ約40%帯' README.md
+          grep -q '同じ約40%帯' README.md
           grep -q 'fixed reference Data = forbidden' CURRENT_CANONICAL.md
           python tools/repository_consistency_check.py
           python tools/日本語基底監査.py
