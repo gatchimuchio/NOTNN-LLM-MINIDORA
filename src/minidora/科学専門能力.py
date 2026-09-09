@@ -9,6 +9,7 @@ from . import 科学専門能力_場と形式 as _場と形式
 from . import 科学専門能力_追加 as _追加
 from . import 科学専門能力_構造 as _構造
 from . import 科学専門能力_行列 as _行列
+from . import 科学専門能力_電磁基礎 as _電磁基礎
 from . import 科学専門能力_拡張_v2 as _拡張v2
 from .科学専門能力_共通 import 科学専門能力結果, 問合せ正規化, 候補支持成立
 
@@ -49,6 +50,7 @@ def 科学専門能力解決(question: str, choices: Sequence[str]):
         _追加.解決,
         _構造.解決,
         _行列.解決,
+        _電磁基礎.解決,
         _拡張v2.解決,
         _相対論的媒質光速,
     ):
