@@ -45,6 +45,53 @@ changed      = 21
 
 GPQA正本は198/198全数・seed 0・OpenAlex disabled・Wikipedia en・LIVE_ONLY・controlled A/Bで実行する。
 
+## 現行Module込みシステム正本 — MINIDORA80 / 2026-09-09
+
+現行Module込みGPQA Diamondシステム能力正本は **MINIDORA80** とする。Core正本MINIDORA30は置換せず、評価層を分離して併存させる。
+
+```text
+MINIDORA80
+GPQA-E2E-LIVE + SCIENTIFIC-CAPABILITY-MODULE
+80 / 198
+40.4040404040404%
+```
+
+同一run controlled A/B:
+
+| 条件 | 正答 | 正答率 | 回答数 | SUSPEND |
+|---|---:|---:|---:|---:|
+| Module OFF | 29 / 198 | 14.65% | 123 | 75 |
+| Module ON | **80 / 198** | **40.40%** | 148 | 50 |
+
+```text
+正答純増   = +51
+正答率差   = +25.76 points
+Module発火 = 55
+発火正答   = 55 / 55
+改善       = 51
+退行       = 0
+changed    = 51
+```
+
+実測は固定参照Dataを使わず、198/198全数、seed 0、OpenAlex disabled、Wikipedia en、LIVE_ONLYで実行した。
+
+実行証拠:
+
+- GitHub Actions run `34301888230`
+- benchmark head `562f6c915eff4a1da863153b3f8be63e888139ca`
+- measured implementation content `55463b40df987fc77b36bd4ce69cc6858dcf43bc`
+- aggregate artifact `10085678050`
+- artifact SHA256 `819633bd8a102e4687fcdf23e82e75ca076481eed9eb77d6f00af108ce08aebc`
+- dataset CSV SHA256 `41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305`
+
+GPQA原論文の最強GPT-4ベースラインは39%である。MINIDORA80の40.40%は、**GPQAスコアという限定軸ではGPT-4ベースラインと同じ約40%帯**に位置する。評価subset・実行条件が完全同一ではないため、GPT-4との総合能力同等とは扱わない。
+
+正本:
+
+- [`GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.md`](GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.md)
+- [`GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.json`](GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.json)
+- [`../docs/SAVEPOINT_2026-09-09_MINIDORA80.md`](../docs/SAVEPOINT_2026-09-09_MINIDORA80.md)
+
 ## 主要成立証拠 — モジュール拡張可能性
 
 2026-09-02、MINIDORAの**モジュール拡張可能性を実測で確認した**。
@@ -190,7 +237,9 @@ GPQAは推論・知識能力評価として保持し、言語模型成立判定�
 | 2026-09-02 Module OFF replay | 8 / 198 | 履歴モジュール拡張実証対照 |
 | 2026-09-02 Module ON replay | 63 / 198 | 履歴モジュール拡張成立証拠 |
 | 2026-09-08 Core37 C2 replay | 37 / 198 | 履歴固定Replay。現行性能ではない |
-| 2026-09-09 MINIDORA30 E2E LIVE | **30 / 198** | **現行正本** |
+| 2026-09-09 MINIDORA30 E2E LIVE | **30 / 198** | **現行Core正本** |
+| 2026-09-09 Module OFF E2E LIVE | 29 / 198 | MINIDORA80同run対照 |
+| 2026-09-09 MINIDORA80 Module ON E2E LIVE | **80 / 198** | **現行Module込みシステム正本** |
 
 専門領域solver接続版の高得点は、現行汎用coreの比較系列へ混ぜない。
 
@@ -218,7 +267,8 @@ v0.3 PROTOTYPE COMPLETE
 != 2026-09-01最小汎用core savepoint
 != 2026-09-02モジュール拡張成立実証
 != 2026-09-08 Core37 Replay履歴
-!= 2026-09-09 MINIDORA30現行正本
+!= 2026-09-09 MINIDORA30 Core正本
+!= 2026-09-09 MINIDORA80 Module込みシステム正本
 != 推論能力
 != Large
 != 現代LLM呼称適合
