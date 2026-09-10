@@ -1,0 +1,37 @@
+name: MINIDORA ブラウザ実行CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      MINIDORA_BROWSER_DOM_TEST: '1'
+      MINIDORA_BROWSER_NAV_TEST: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: 本体と任意ブラウザ依存の導入
+        run: python -m pip install -e . -r requirements-browser.txt
+      - name: Linuxのブラウザ導入
+        if: runner.os == 'Linux'
+        run: python -m playwright install --with-deps chromium
+      - name: Windowsのブラウザ導入
+        if: runner.os == 'Windows'
+        run: python -m playwright install chromium
+      - name: 実Chromiumの描画・ページ移動・遮断・HDS接続
+        run: python -m unittest discover -s tests -p "test_ブラウザ*.py" -v
+      - name: ローカル描画デモ
+        run: python tools/ブラウザ閲覧デモ.py --描画試験 --値 731
