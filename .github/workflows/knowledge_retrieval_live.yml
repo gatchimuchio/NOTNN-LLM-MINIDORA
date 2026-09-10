@@ -1,0 +1,40 @@
+name: 知識取得 公開HTTPS接続確認
+
+on:
+  pull_request:
+    paths:
+      - 'src/minidora/公開本文取得.py'
+      - 'src/minidora/知識取得*.py'
+      - 'tools/知識取得デモ.py'
+      - '.github/workflows/knowledge_retrieval_live.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-https:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: 公開HTTPSを通常TLS検証で取得
+        shell: bash
+        run: |
+          python tools/知識取得デモ.py --検索語 "Python JSON documentation" --必要語 JSON --url "https://docs.python.org/3/library/json.html" --外部読取許可 > /tmp/minidora-live.json
+          python - <<'PY'
+          import json
+          data = json.load(open('/tmp/minidora-live.json', encoding='utf-8'))
+          assert data['成立'] is True
+          assert data['取得方式'] == '指定URL'
+          assert data['記録']['本文取得数'] >= 1
+          assert data['記録']['不足語'] == []
+          for source in data['記録']['資料']:
+              print(json.dumps({k: source[k] for k in ('要求URL', '最終URL', '取得時刻', '転送バイト数', '転送SHA256', '本文SHA256')}, ensure_ascii=False))
+          print('公開HTTPS本文取得: PASS。SearXNGの実検索や回答の意味的妥当性を検証したものではない。')
+          PY
