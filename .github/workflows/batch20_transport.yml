@@ -1,0 +1,36 @@
+name: Batch20 Transport
+
+on:
+  push:
+    branches:
+      - transport/batch20-20260912
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verified-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 検証済み差分を完成ブランチへ適用
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .batch20/chunk00 .batch20/chunk01 .batch20/chunk02_0 .batch20/chunk02_1 .batch20/chunk03 > /tmp/b20.patch.gz
+          echo '97f3062c9f988d12779e839591db61ab6bd22b899ea1b442a93c0e5bfb70c9a2  /tmp/b20.patch.gz' | sha256sum -c -
+          gzip -dc /tmp/b20.patch.gz > /tmp/b20.patch
+          echo '5f38f8e5518656eff1c5600b983dcbed540f910719e7f51a6115d864fbe40802  /tmp/b20.patch' | sha256sum -c -
+          git fetch origin main sandbox/proposition-batch20-20260912
+          test "$(git rev-parse origin/main)" = 'bd414efcebd98936b5eca3acd84f63f770de2c69'
+          git checkout -B sandbox/proposition-batch20-20260912 origin/main
+          git apply --check /tmp/b20.patch
+          git apply /tmp/b20.patch
+          git add -A
+          test "$(git write-tree)" = 'ce419bb70ee34b3724b258e7d1f97605c3e34886'
+          git config user.name 'がっちむち♂'
+          git config user.email 'ohira.teppei@gmail.com'
+          git commit -m 'feat: 命題候補・導出説明を統合（第20バッチ）'
+          git push origin HEAD:refs/heads/sandbox/proposition-batch20-20260912
