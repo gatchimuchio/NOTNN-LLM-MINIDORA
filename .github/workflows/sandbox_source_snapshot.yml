@@ -1,0 +1,30 @@
+name: サンドボックス固定ソース取得
+on:
+  push:
+    branches: [sandbox/capability-planner-20260911]
+    paths: [.github/workflows/sandbox_source_snapshot.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fedc9e5a9cf7035ac07b219bab592bec24b98ad9
+          persist-credentials: false
+      - name: 追跡済みソースの固定出力
+        run: |
+          mkdir -p /tmp/minidora-source
+          git rev-parse HEAD > /tmp/minidora-source/commit.txt
+          git ls-tree -r HEAD > /tmp/minidora-source/tree.txt
+          git archive --format=zip HEAD -o /tmp/minidora-source/source.zip
+          cd /tmp/minidora-source
+          sha256sum source.zip > source.zip.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-fixed-source-fedc9e5
+          path: /tmp/minidora-source/
+          retention-days: 1
+          if-no-files-found: error
