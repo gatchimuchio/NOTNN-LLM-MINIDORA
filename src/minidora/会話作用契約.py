@@ -2,6 +2,7 @@
 from __future__ import annotations
 from .役割計画 import 役割作用
 from .会話意味 import 意味目的
+from .実行回復 import 回復規則
 
 
 def 会話作用群():
@@ -26,7 +27,8 @@ def 会話作用群():
         役割作用('直下数量選択','表数量解釈','数量',
             lambda p:(role('文書','構造文書',source(p)),),
             lambda p:quantity_settings(p,'直下'),table,費用=1,
-            不成立条件=('対象行曖昧','単位未確定','未解釈注記','構造未到達')),
+            不成立条件=('対象行曖昧','単位未確定','未解釈注記','構造未到達'),
+            回復=(回復規則('構造未到達'),)),
         役割作用('入れ子数量選択','表数量解釈','数量',
             lambda p:(role('文書','構造文書',source(p)),),
             lambda p:quantity_settings(p,'入れ子'),lambda p:p['形式']=='JSON',費用=2,
@@ -42,7 +44,8 @@ def 会話作用群():
             lambda p:{'対象':p['主題'],'属性':p['属性'],'単位':p['単位']},lambda p:True,
             不成立条件=('記載不足','記載矛盾','未知の条件')),
         役割作用('取得成立採用','取得報告採用','取得資料',
-            lambda p:(role('報告','取得報告',p),),lambda p:{},lambda p:True),
+            lambda p:(role('報告','取得報告',p),),lambda p:{},lambda p:True,
+            回復=(回復規則('取得不足','入力役割','報告',('主題取得',)),)),
         役割作用('主題取得','会話取得報告','取得報告',lambda p:(),
             lambda p:search_settings(p,False),lambda p:True,費用=2,外部読取=True),
         役割作用('焦点取得','会話取得報告','取得報告',lambda p:(),

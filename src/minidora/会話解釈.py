@@ -7,7 +7,7 @@ from dataclasses import replace
 import re
 from .会話意味 import 会話要求, 比較対象
 from .会話語彙 import 比較述語,取得述語,詳細表現,簡潔表現,外部禁止表現,数式質問
-from .HDS目的射影 import _節
+from .会話句 import 句を分割 as _節
 
 
 def _名前(text):
@@ -37,6 +37,16 @@ def 会話を解釈(原文: str, 資料名: tuple[str,...]=()) -> 会話要求:
         return 会話要求(原文,'初期化').固定複製()
     if text in ('こんにちは','こんばんは','ありがとう','できることを教えて'):
         return 会話要求(原文,'会話',補助={'発話':text}).固定複製()
+    from .集合会話解釈 import 集合会話を解釈
+    collection=集合会話を解釈(原文,資料名)
+    if collection is not None: return collection
+    presentation=text.rstrip('。？?')
+    presentation=re.sub(r'^(?:それ|その結果)(?:を|の)', '', presentation)
+    presentation_options={'表にして':{'形式':'表'},'表で説明して':{'形式':'表'},
+                          '文章で説明して':{'形式':'文章'},'計算過程も説明して':{'手順':True},
+                          '手順も説明して':{'手順':True}}
+    if presentation in presentation_options:
+        return 会話要求(原文,'再表現',補助=presentation_options[presentation],対応=(('成果再表現',0,len(原文)),)).固定複製()
     raw_clauses=[原文[a:b].strip().rstrip('？?！!').strip() for a,b in _節(原文)]
     clauses=[c for c in raw_clauses if c]
     detailed=False; forbid=False; task=[]
@@ -57,7 +67,7 @@ def 会話を解釈(原文: str, 資料名: tuple[str,...]=()) -> 会話要求:
             if t in ('それを'+word,'その結果を'+word):
                 return 会話要求(原文,'再表現',詳細=word in 詳細表現,対応=(('成果参照',原文.find('それ') if 'それ' in 原文 else 原文.find('その結果'),原文.find(word)),)).固定複製()
         # 確認への返答・訂正は、未解決目的又は直前目的の同じスロットへだけ帰す。
-        fix=re.fullmatch(r'(訂正[：:]?)?(?:比較する)?(単位|属性|左の年|右の年)は(.+?)(?:です|にして)?',t)
+        fix=re.fullmatch(r'(訂正[：:]?)?(?:比較する)?(単位|属性|左の年|右の年|年)は(.+?)(?:です|にして)?',t)
         if fix:
             correction,key,value=fix.groups()
             return 会話要求(原文,'訂正' if correction else '確認返答',補助={'欄':key,'値':_名前(value)},対応=(('スロット指定',0,len(原文)),)).固定複製()
@@ -147,7 +157,7 @@ def HDS会話を照合(ir, request: 会話要求, *, 文脈解消=False):
             raise ValueError('未解消HDS残差:'+r.種別)
         occurrences=tuple(re.finditer(re.escape(r.原文),request.原文)) if r.原文 else ()
         spans=request.補助.get('資料参照解消',())
-        material_bound=(request.行為=='比較' and occurrences and spans and
+        material_bound=(request.行為 in ('比較','集合') and occurrences and spans and
             all(any(a<=m.start() and m.end()<=b for a,b in spans) for m in occurrences))
         # 実際に二資料/一資料へ束縛した範囲だけを解消する。未知残差は免除しない。
         if not material_bound and not (文脈解消 and request.行為 in ('再表現','確認返答','訂正')):
