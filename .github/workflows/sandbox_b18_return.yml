@@ -1,0 +1,94 @@
+name: MINIDORA 第18バッチ差分還元
+on:
+  push:
+    branches: [sandbox/conversation-compose-20260911]
+    paths: [.github/workflows/sandbox_b18_return.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.repository == 'gatchimuchio/NOTNN-LLM-MINIDORA' && github.ref == 'refs/heads/sandbox/conversation-compose-20260911'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: sandbox/conversation-compose-20260911
+      - name: 輸送・差分・全tree照合と通常push
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path, PurePosixPath
+          import base64, hashlib, json, lzma, os, subprocess
+          base = '7eb3eeefe07fcbb033d232d27b9e14f553a02b3f'
+          branch = 'sandbox/conversation-compose-20260911'
+          workflow = '.github/workflows/sandbox_b18_return.yml'
+          def git(*args):
+              return subprocess.check_output(['git', *args]).decode().strip()
+          def blob(raw):
+              return hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+          assert git('branch', '--show-current') == branch
+          assert git('ls-remote', 'origin', 'refs/heads/main').split()[0] == base, 'main changed'
+          subprocess.run(['git', 'merge-base', '--is-ancestor', base, 'HEAD'], check=True)
+          transient = {workflow, *('.sandbox-b18/part%d.txt' % i for i in range(3))}
+          changed = set(subprocess.check_output(['git', 'diff', '--name-only', '-z', base, 'HEAD']).decode().strip('\0').split('\0'))
+          assert changed == transient, changed
+          parts = [Path('.sandbox-b18/part%d.txt' % i).read_bytes() for i in range(3)]
+          # 輸送時の一箇所の転記違いを、観測済みblobだけに限定して補正する。
+          # ソース変更ではなく、以降の全payload・ファイル・tree照合を必須とする。
+          if blob(parts[2]) == '5dd38d5bf5fcf2be73da15f4a12ba3acda520289':
+              parts[2] = parts[2].replace(b'ORhox1TGgGob', b'ORhox1TG3oGob')
+          expected = ['e71b8dc654d54b1e88023c1c03785119cc6a3d6f', '78af9fdec28f01f8f1d7aa3d69f45be6299c1ebd', 'd5ba53e238489721a18737aac03e52164df64c08']
+          assert [blob(p) for p in parts] == expected
+          raw = lzma.decompress(base64.b64decode(b''.join(parts), validate=True), memlimit=268435456)
+          digest = hashlib.sha256(raw).hexdigest()
+          assert digest == '5daeb8d185967917892fcc9c12f31e4e5ce68b04e5453a32b378f49afa8bdaae'
+          data = json.loads(raw)
+          assert data['base'] == base
+          assert git('rev-parse', base + '^{tree}') == data['base_tree'] == '78b4152f2ed0028004d478991655ab92ba2a6d3d'
+          assert len(data['files']) == 20
+          paths = set()
+          for row in data['files']:
+              name = row['path']
+              p = PurePosixPath(name)
+              assert not p.is_absolute() and '..' not in p.parts and p.parts[0] in ('src', 'tests', 'tools', 'docs', '設計', '評価')
+              assert name not in paths and row['mode'] == '100644'
+              paths.add(name)
+              destination = Path(name)
+              if row['before'] is None:
+                  assert not destination.exists(), name
+                  text = row['text']
+              else:
+                  original = destination.read_bytes()
+                  assert blob(original) == row['before'], name
+                  text = original.decode('utf-8')
+                  end = len(text)
+                  for a, b, replacement in reversed(row['edits']):
+                      assert 0 <= a <= b <= end
+                      text = text[:a] + replacement + text[b:]
+                      end = a
+              content = text.encode('utf-8')
+              assert blob(content) == row['blob'], name
+              assert hashlib.sha256(content).hexdigest() == row['sha256'], name
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_bytes(content)
+              destination.chmod(0o644)
+              print('VERIFIED', name, row['blob'], row['sha256'])
+          for name in transient:
+              Path(name).unlink()
+          Path('.sandbox-b18').rmdir()
+          subprocess.run(['git', 'add', '-A'], check=True)
+          subprocess.run(['git', 'diff', '--cached', '--check'], check=True)
+          tree = git('write-tree')
+          assert tree == data['target_tree'] == 'caa29ccf65ce67bc82b3f0de0fdf5dcd3e98fe4c', tree
+          subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'], check=True)
+          subprocess.run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], check=True)
+          subprocess.run(['git', 'commit', '-m', 'feat: 会話合成・確認・再計画・回答意味を接続（第18バッチ）'], check=True)
+          commit = git('rev-parse', 'HEAD')
+          subprocess.run(['git', 'push', 'origin', 'HEAD:refs/heads/' + branch], check=True)
+          summary = '第18バッチ還元: 20 files verified\ncommit=' + commit + '\ntree=' + tree + '\npayload_sha256=' + digest + '\nmain was not pushed.\n'
+          print(summary)
+          Path(os.environ['GITHUB_STEP_SUMMARY']).write_text(summary)
+          PY
