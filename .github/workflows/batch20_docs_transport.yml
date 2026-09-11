@@ -1,0 +1,33 @@
+name: Batch20 Docs Transport
+
+on:
+  push:
+    branches:
+      - transport/batch20-docs-20260912
+
+permissions:
+  contents: write
+
+jobs:
+  apply-doc-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 検証済み文書差分を適用
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '7881b5f514a049ef15ce88681803f9c5ff0144e3a4eb03eddb751864ec7d2bf0  .batch20-docs.patch' | sha256sum -c -
+          git fetch origin main docs/batch20-audit-finalize-v2-20260912
+          test "$(git rev-parse origin/main)" = '98613a235b37d65c7802f7510d0aa21915112de8'
+          git checkout -B docs/batch20-audit-finalize-v2-20260912 origin/main
+          git apply --check .batch20-docs.patch
+          git apply .batch20-docs.patch
+          git add -A
+          test "$(git write-tree)" = 'eb3dd13b542eb099dc861bea8bb9fef622ff3031'
+          git config user.name 'がっちむち♂'
+          git config user.email 'ohira.teppei@gmail.com'
+          git commit -m 'docs: 第20バッチのCI・main還元結果を確定'
+          git push origin HEAD:refs/heads/docs/batch20-audit-finalize-v2-20260912
