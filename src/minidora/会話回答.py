@@ -1,0 +1,105 @@
+"""採用候補の意味・根拠・留保を保持して文章化する。未知の説明を追加しない。"""
+from __future__ import annotations
+from copy import deepcopy
+from fractions import Fraction
+from .証拠統合 import _単位,_数表記
+from dataclasses import asdict, dataclass
+from .能力合成 import _結果辞書, _参照結合
+from .応答構成 import 能力結果を復元
+from .会話意味 import 意味指紋
+from .会話数量 import 数量記録整合,比較記録整合,会話処理不成立
+from .製品版.型 import 能力結果
+
+会話回答版='MINIDORA-会話回答-v0.1'
+
+@dataclass(frozen=True, slots=True)
+class 回答命題:
+    種別: str
+    本文: str
+    根拠: tuple[str,...]
+    条件: tuple[str,...] = ()
+
+@dataclass(frozen=True, slots=True)
+class 回答意味IR:
+    命題: tuple[回答命題,...]
+    留保: tuple[str,...]
+    由来: tuple[str,...]
+
+
+def _呼称(q):
+    label='資料「'+q['資料']+'」'
+    if q.get('時点') is not None: label+='（'+q['時点']+'）'
+    return label
+
+
+def 回答を構成(values: tuple[能力結果,...], *, 詳細=False, 最大文字数=100000):
+    if type(values) is not tuple or not 1<=len(values)<=16 or type(詳細) is not bool:
+        raise ValueError('回答の入力・表示設定不正')
+    if type(最大文字数) is not int or not 1<=最大文字数<=100000:
+        raise ValueError('回答文字数上限不正')
+    propositions=[]; caveats=[]; origins=[]
+    for i,value in enumerate(values):
+        _結果辞書(value)
+        if not value.成立: raise ValueError('不成立結果を文章化しない')
+        if value.データ.get('版')==会話回答版:
+            raise ValueError('回答IRは原成果へ戻してから再構成する')
+        kind=value.データ.get('種別');ref=f'成果:{i}'
+        if kind=='数量比較':
+            if not 比較記録整合(value): raise ValueError('比較結果の再構成不一致')
+            data=value.データ;a=data['左']['データ'];b=data['右']['データ']
+            unit=data['表示単位']; direction=data['方向']
+            av=_数表記(Fraction(a['値'])/Fraction(_単位[unit][1]))
+            bv=_数表記(Fraction(b['値'])/Fraction(_単位[unit][1]))
+            first=f'{a["属性"]}の記載値は、{_呼称(a)}が{av}{unit}、{_呼称(b)}が{bv}{unit}です。'
+            second=('両者は同じ値です。' if direction=='同値' else
+                    f'{_呼称(b)}の方が大きく、差（右－左）は{data["表示差"]}{unit}です。' if direction=='右大' else
+                    f'{_呼称(b)}の方が小さく、差（右－左）は{data["表示差"]}{unit}です。')
+            conditions=tuple('条件：'+x for x in (a.get('条件'),) if x)
+            if a.get('時点')!=b.get('時点'): conditions+=('指定された二時点間の比較です。',)
+            propositions.append(回答命題('比較',first+second,(ref,),conditions))
+            caveats.append(data['限界'])
+            if a['条件'] is None: caveats.append('条件未記載同士の記載比較であり、現実の条件が同一とは認定していません。')
+            for x in (a,b):
+                origins.append(_呼称(x)+'：'+x.get('位置','')+'、原文「'+x['原文片']+'」')
+                if x['単位由来']=='依頼の宣言': caveats.append('資料に単位の記載がない値には、依頼で指定された単位を適用しています。')
+        elif kind=='数量':
+            if not 数量記録整合(value): raise ValueError('数量結果の再構成不一致')
+            q=value.データ
+            conditions=tuple(f'{k}：{q[k]}' for k in ('条件','時点') if q.get(k) is not None)
+            propositions.append(回答命題('記載',f'{q["資料"]}の{q["属性"]}は、参照資料では{q["表示値"]}{q["表示単位"]}と記載されています。',(ref,),conditions))
+            origins.append(q.get('位置','')+'、原文「'+q['原文片']+'」')
+            caveats.append('資料の記載内容であり、世界の事実性や最新性を認定したものではありません。')
+        else:
+            # 任意能力への説明を捏造しない。本文を保持する処理結果引用に限定。
+            propositions.append(回答命題('処理結果','処理結果：\n'+value.本文,(ref,)))
+            if value.保留理由: raise ValueError('成功結果に保留理由が混在')
+        origins.extend(r.題名+('：'+r.URL if r.URL else '') for r in value.参照)
+    meaning=回答意味IR(tuple(propositions),tuple(dict.fromkeys(caveats)),tuple(dict.fromkeys(origins)))
+    parts=[]
+    for p in meaning.命題:
+        parts.append(p.本文)
+        parts.extend(p.条件)  # 短い表示でも条件・留保を消さない。
+    parts.extend(meaning.留保)
+    if 詳細:
+        parts.append('根拠・由来：\n'+'\n'.join(meaning.由来 or ('既存能力の実行結果。外部資料の参照なし。',)))
+    body='\n'.join(parts)
+    if len(body)>最大文字数: raise ValueError('必須内容を切断せず回答を保留する')
+    data={'版':会話回答版,'意味':asdict(meaning),'元結果':[_結果辞書(v) for v in values],
+          '詳細':詳細,'最大文字数':最大文字数,'本文':body}
+    data['記録SHA256']=意味指紋(data)
+    return 能力結果(True,body,根拠=tuple(f'成果:{i}' for i in range(len(values))),
+                     参照=_参照結合(r for v in values for r in v.参照),データ=data)
+
+
+def 回答記録整合(value):
+    try:
+        d=value.データ
+        rebuilt=回答を構成(tuple(能力結果を復元(v) for v in d['元結果']),詳細=d['詳細'],最大文字数=d['最大文字数'])
+        return value.成立 and rebuilt.データ==d and rebuilt.本文==value.本文
+    except (KeyError,ValueError,TypeError,AttributeError,RecursionError):
+        return False
+
+
+def 回答を再表現(value, *, 詳細=False):
+    if not 回答記録整合(value): raise ValueError('前回回答の原成果再構成不一致')
+    return 回答を構成(tuple(能力結果を復元(v) for v in value.データ['元結果']),詳細=詳細)
