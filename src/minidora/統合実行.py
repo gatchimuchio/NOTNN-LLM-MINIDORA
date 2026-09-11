@@ -80,7 +80,7 @@ class 統合応答:
 class 統合セッション:
     """文書・数学・コード等の成功成果を同じ会話焦点と長文脈へ採用する。"""
     def __init__(self, セッションID: str, *, 外部読取許可=False, 再利用=True,
-                 取得器=None, 閲覧器=None, 最大応答数=64, 最大回答文字数=100000):
+                 取得器=None, 閲覧器=None, 最大応答数=64, 最大回答文字数=100000, 追加能力=()):
         if type(外部読取許可) is not bool:
             raise ValueError("外部許可はbool")
         if type(最大応答数) is not int or not 1 <= 最大応答数 <= 256:
@@ -91,6 +91,11 @@ class 統合セッション:
         self._再利用 = 純粋結果庫(有効=再利用)
         self._能力 = 統合能力群(self._庫, self._再利用, 外部読取許可=外部読取許可,
                                取得器=取得器, 閲覧器=閲覧器)
+        # 追加は信頼された開発時登録だけ。自然文・資料から登録しない。
+        from .能力合成 import 登録能力
+        if type(追加能力) is not tuple or any(type(r) is not 登録能力 for r in 追加能力):
+            raise ValueError("追加能力の登録型不正")
+        self._能力 = (*self._能力, *追加能力)
         self._許可 = 外部読取許可
         self._実行器 = 能力合成器(self._能力)
         self._上限 = (最大応答数, 最大回答文字数)

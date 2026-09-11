@@ -1,5 +1,5 @@
 from __future__ import annotations
-import argparse, os
+import argparse, os, sys
 from .製品チャット import 製品ミニドラ
 from .監査 import 監査台帳
 from .api import serve
@@ -12,6 +12,10 @@ def _core():
         return None
 
 def main() -> int:
+    # 明示選択時のみ新しい会話系を使用。既存製品API・既定経路は不変。
+    if sys.argv[1:2] == ["--汎用"]:
+        from minidora.汎用チャットCLI import main as 汎用入口
+        return 汎用入口(sys.argv[2:])
     p = argparse.ArgumentParser()
     p.add_argument("--serve", action="store_true")
     p.add_argument("--session", default="cli")
