@@ -9,7 +9,7 @@ from .会話意味 import 意味指紋
 from .製品版.型 import 能力結果
 from .知識取得接続 import 知識取得Module
 
-会話能力版='MINIDORA-会話能力-v0.2'
+会話能力版='MINIDORA-会話能力-v0.3'
 
 
 def _入力(context):

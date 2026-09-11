@@ -15,7 +15,7 @@ from .知識 import 知識参照Module本体, Wikipedia知識供給器
 from .検索 import Web検索Module本体, SearXNG検索供給器
 from .組込モジュール import ニュース能力,要約能力,変換能力,抽出能力,計算能力,基本会話能力,Web検索能力,知識参照能力,Core能力
 
-製品チャット版="MINIDORA-PRODUCT-CHAT-v3"
+製品チャット版="MINIDORA-PRODUCT-CHAT-v4"
 
 class 製品ミニドラ:
     def __init__(self,*,基礎ミニドラ:Any=None,ニュース供給器=None,知識供給器=None,検索供給器=None,監査台帳_:監査台帳|None=None,状態庫:会話状態庫|None=None,追加Module:tuple=(),汎用会話:bool=False,汎用外部読取許可:bool=False,汎用取得器=None) -> None:
@@ -32,7 +32,7 @@ class 製品ミニドラ:
     def 能力一覧(self)->tuple[str,...]:
         if self._汎用有効:
             return ("目的からの数式・文書・コード構造処理", "二資料・指定二時点の数値比較", "最大8対象の数量集合・選別・合計・平均・表・計算手順",
-                    "不足条件の確認と明示訂正", "根拠と条件を保持する回答", "回復契約に基づく限定再計画",
+                    "資料命題の条件・否定・量化推論と意味候補確認", "不足条件の確認と明示訂正", "根拠と条件を保持する回答", "回復契約に基づく限定再計画",
                     *( ("公開資料の数値記載取得（明示許可済み）",) if self._汎用許可 else () ), "完全経路監査")
         return tuple(m.名前 for m in self.能力レジストリ.一覧())+("完全経路監査",)
     def Module登録(self,module)->None: self.能力レジストリ.登録(module)

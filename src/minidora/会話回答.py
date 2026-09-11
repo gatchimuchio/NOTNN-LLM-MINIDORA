@@ -4,13 +4,13 @@ from copy import deepcopy
 from fractions import Fraction
 from .証拠統合 import _単位,_数表記
 from dataclasses import asdict, dataclass
-from .能力合成 import _結果辞書, _参照結合
+from .能力合成 import _結果辞書, _参照結合, _符号化
 from .応答構成 import 能力結果を復元
 from .会話意味 import 意味指紋
 from .会話数量 import 数量記録整合,比較記録整合,会話処理不成立
 from .製品版.型 import 能力結果
 
-会話回答版='MINIDORA-会話回答-v0.2'
+会話回答版='MINIDORA-会話回答-v0.3'
 
 @dataclass(frozen=True, slots=True)
 class 回答命題:
@@ -45,7 +45,13 @@ def 回答を構成(values: tuple[能力結果,...], *, 詳細=False, 最大文�
         if value.データ.get('版')==会話回答版:
             raise ValueError('回答IRは原成果へ戻してから再構成する')
         kind=value.データ.get('種別');ref=f'成果:{i}'
-        if kind=='数量集合':
+        if kind=='命題判定':
+            from .命題回答 import 命題の表現
+            units, extra_caveats, extra_origins = 命題の表現(value, 形式=形式, 手順=手順 or 詳細)
+            for k, text, dependencies, conditions in units:
+                propositions.append(回答命題(k, text, tuple(ref+'/'+x for x in dependencies), conditions))
+            caveats.extend(extra_caveats); origins.extend(extra_origins)
+        elif kind=='数量集合':
             from .数量集合 import 集合の表現
             units,extra_caveats,extra_origins=集合の表現(value,形式=形式,手順=手順)
             for k,text,dependencies,conditions in units:
@@ -107,7 +113,7 @@ def 回答記録整合(value):
         d=value.データ
         rebuilt=回答を構成(tuple(能力結果を復元(v) for v in d['元結果']),詳細=d['詳細'],最大文字数=d['最大文字数'],形式=d.get('形式','文章'),手順=d.get('手順',False))
         available={r.識別子:r for r in _参照結合(value.参照)}
-        return value.成立 and rebuilt.データ==d and rebuilt.本文==value.本文 and rebuilt.根拠==value.根拠 and rebuilt.保留理由==value.保留理由 and all(available.get(r.識別子)==r for r in rebuilt.参照)
+        return value.成立 and _符号化(rebuilt.データ)==_符号化(d) and rebuilt.本文==value.本文 and rebuilt.根拠==value.根拠 and rebuilt.保留理由==value.保留理由 and all(available.get(r.識別子)==r for r in rebuilt.参照)
     except (KeyError,ValueError,TypeError,AttributeError,RecursionError):
         return False
 

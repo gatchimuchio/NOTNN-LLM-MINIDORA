@@ -37,6 +37,9 @@ def 会話を解釈(原文: str, 資料名: tuple[str,...]=()) -> 会話要求:
         return 会話要求(原文,'初期化').固定複製()
     if text in ('こんにちは','こんばんは','ありがとう','できることを教えて'):
         return 会話要求(原文,'会話',補助={'発話':text}).固定複製()
+    from .命題会話解釈 import 命題会話を解釈
+    proposition = 命題会話を解釈(原文, 資料名)
+    if proposition is not None: return proposition
     from .集合会話解釈 import 集合会話を解釈
     collection=集合会話を解釈(原文,資料名)
     if collection is not None: return collection
