@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass, field
 from hashlib import sha256
 from .能力合成 import _符号化
 
-会話意味版 = 'MINIDORA-会話意味-v0.1'
+会話意味版 = 'MINIDORA-会話意味-v0.2'
 
 
 def 意味指紋(value) -> str:
@@ -34,9 +34,9 @@ class 会話要求:
     def 固定複製(self):
         if type(self.原文) is not str or not 0 < len(self.原文) <= 8192:
             raise ValueError('会話原文の型・上限')
-        if self.行為 not in ('比較', '取得', '既存目的', '再表現', '訂正', '確認返答', '登録', '更新', '初期化', '会話'):
+        if self.行為 not in ('比較', '集合', '取得', '既存目的', '再表現', '訂正', '確認返答', '登録', '更新', '初期化', '会話'):
             raise ValueError('未対応の会話行為')
-        if type(self.対象) is not tuple or len(self.対象) > 2:
+        if type(self.対象) is not tuple or len(self.対象) > 8:
             raise ValueError('対象役割の数・型')
         for t in self.対象:
             if type(t) is not 比較対象 or type(t.資料) is not str or not 0 < len(t.資料) <= 128:

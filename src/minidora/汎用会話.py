@@ -11,6 +11,7 @@ from .会話意味 import 会話要求,比較対象,意味目的,意味指紋
 from .会話解釈 import 会話を解釈,HDS会話を照合
 from .会話作用契約 import 会話作用群
 from .会話能力接続 import 会話能力群
+from .集合会話接続 import 数量集合Module, 集合作用群
 from .会話実行監督 import 会話実行監督
 from .会話回答 import 会話回答版,回答記録整合
 from .役割計画 import 役割計画器
@@ -25,7 +26,7 @@ from .製品版.型 import 能力結果,参照資料
 from .知識取得 import 知識取得器
 from .製品版.検索 import SearXNG検索供給器
 
-汎用会話版='MINIDORA-汎用会話-v0.1'
+汎用会話版='MINIDORA-汎用会話-v0.2'
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,12 +48,12 @@ class 汎用会話セッション:
         if type(外部読取許可) is not bool or type(最大発話) is not int or not 1<=最大発話<=512:
             raise ValueError('会話許可・発話上限不正')
         backend=取得器 if 取得器 is not None else 知識取得器(SearXNG検索供給器())
-        added=会話能力群(backend,外部許可=外部読取許可)
+        added=(*会話能力群(backend,外部許可=外部読取許可),数量集合Module().登録())
         self.統合=統合セッション(セッションID,外部読取許可=外部読取許可,取得器=backend,追加能力=added)
         extra={r.Module.名前 for r in added}
         base=tuple(r for r in self.統合.能力一覧() if r['名前'] not in extra)
         self._旧計画=目的計画器(能力意味カタログ(base))
-        self._計画=役割計画器(会話作用群(),self.統合.能力一覧())
+        self._計画=役割計画器((*会話作用群(),*集合作用群()),self.統合.能力一覧())
         self._監督=会話実行監督(self._計画,self.統合)
         self._許可=外部読取許可; self._上限=最大発話
         self._資料={};self._発話=();self._保留=None;self._最後目的=None
@@ -113,6 +114,20 @@ class 汎用会話セッション:
         return 意味目的('比較回答',{'左':values[0],'右':values[1],
                     '時点差':request.時点差,'詳細':request.詳細})
 
+    def _集合目的(self, request, materials):
+        targets=[]
+        for target in request.対象:
+            if request.補助.get('供給')=='取得':
+                targets.append({'主題':target.資料,'属性':request.属性,'単位':request.単位})
+                continue
+            if target.資料 not in materials: raise ValueError('資料がない:'+target.資料)
+            targets.append({'資料':target.資料,'形式':self._形式(materials[target.資料]),
+                            '属性':request.属性,'単位':request.単位,'行条件':dict(target.行条件)})
+        aux=request.補助
+        return 意味目的('集合回答',{'対象':targets,'供給':aux.get('供給','資料'),'操作':list(aux['操作']),
+                        '時点差':request.時点差,'詳細':request.詳細,'形式':aux['形式'],
+                        '手順':aux['手順'],'選別':aux['選別'],'除外資料':list(aux['除外資料'])})
+
     def _元成果(self):
         if self._最後結果 is None: return ()
         if self._最後起点!=self.統合.起点(): self._最後有効=False
@@ -145,12 +160,15 @@ class 汎用会話セッション:
 
     def _改訂(self, request):
         target=self._保留 or self._最後目的
-        if target is None or target.行為 not in ('比較','取得'):
+        if target is None or target.行為 not in ('比較','集合','取得'):
             raise ValueError('対応する確認待ち又は訂正対象の目的がない')
         key,value=request.補助['欄'],request.補助['値']
         kw={}
         if key=='単位': kw['単位']=value
         elif key=='属性': kw['属性']=value
+        elif key=='年' and target.行為 in ('比較','集合') and target.補助.get('供給')!='取得':
+            if not re.fullmatch('[0-9]{4}',value): raise ValueError('年は4桁')
+            kw={'対象':tuple(replace(t,行条件=tuple({**dict(t.行条件),'年':value}.items())) for t in target.対象),'時点差':False}
         elif key in ('左の年','右の年') and target.行為=='比較':
             if not re.fullmatch('[0-9]{4}',value): raise ValueError('年は4桁')
             i=0 if key=='左の年' else 1
@@ -193,7 +211,7 @@ class 汎用会話セッション:
                 phrase=request.補助['発話']
                 body={'こんにちは':'こんにちは。','こんばんは':'こんばんは。','ありがとう':'どういたしまして。',
                     '外部禁止':'この発話では外部検索を実行しません。',
-                    'できることを教えて':'数式の計算・微積分、JSON/CSVの数値比較、資料の変換、数値記載の取得、確認への返答と訂正に対応しています。自由作文・一般的な原因推定は未対応です。'}[phrase]
+                    'できることを教えて':'数式の計算・微積分、JSON/CSVの数値比較・最大8対象の一覧/合計/平均/最大/最小、資料の変換、数値記載の取得、確認への返答と訂正に対応しています。自由作文・一般的な原因推定は未対応です。'}[phrase]
                 return self._返す(原文,汎用会話応答('合格',body,追跡=trace))
             if request.行為 in ('訂正','確認返答'):
                 request=self._改訂(request);trace['目的改訂']=asdict(request)
@@ -202,7 +220,7 @@ class 汎用会話セッション:
                 self._元成果()
                 if self._最後結果 is None: raise ValueError('再表現する成果がない')
                 data={'a':self._最後結果,'i':能力結果(True,'前回成果を意味保持して再表現'),
-                      'c':能力結果(True,'',データ={'詳細':request.詳細})}
+                      'c':能力結果(True,'',データ={'詳細':request.詳細,**request.補助})}
                 plan=合成計画((合成工程('再表現',('会話再表現',),'i',(素材参照('入力','a'),),'c'),),('再表現',))
                 packed=self.統合.準備(plan,data,依頼文=原文)
                 if packed.起点!=start: raise ValueError('再表現中に会話状態が変わった')
@@ -212,6 +230,16 @@ class 汎用会話セッション:
             else:
                 if request.行為=='比較':
                     goal=self._比較目的(request,materials)
+                elif request.行為=='集合':
+                    if request.補助.get('供給')=='取得' and (request.外部禁止 or not (外部読取許可 and self._許可)):
+                        self._保留=request
+                        return self._返す(原文,汎用会話応答('確認待ち','複数主題の外部取得には明示した外部読取許可が必要です。','権限不足',trace))
+                    if request.補助.get('供給')=='取得':
+                        from .証拠統合 import _単位
+                        if request.単位 not in _単位:
+                            self._保留=request
+                            return self._返す(原文,汎用会話応答('確認待ち','取得する数量の対応単位を指定してください。例：単位はVです。','入力不足',trace))
+                    goal=self._集合目的(request,materials)
                 elif request.行為=='取得':
                     if request.外部禁止 or not (外部読取許可 and self._許可):
                         self._保留=request
@@ -228,6 +256,7 @@ class 汎用会話セッション:
                     if signature and signature.種別 in ('入力不足','意味未確定'):
                         self._保留=request
                         prompt=('比較する単位を指定してください。例：単位は円です。' if signature.種別=='入力不足' else
+                                '対象の行又は時点が一意に定まりません。共通年なら「年は2025です」と指定してください。' if request.行為=='集合' else
                                 '対象の行又は時点が一意に定まりません。例：左の年は2025です。右の年は2026です。')
                         return self._返す(原文,汎用会話応答('確認待ち',prompt,signature.理由,trace))
             if not result.成立:
@@ -237,7 +266,7 @@ class 汎用会話セッション:
             self._最後結果=deepcopy(output);self._最後有効=True;self._最後起点=result.更新後
             if request.行為!='再表現':
                 self._最後目的=request;self._保留=None
-                used={t.資料 for t in request.対象} if request.行為=='比較' else set(self._資料) if request.行為=='既存目的' else set()
+                used=set() if request.行為=='集合' and request.補助.get('供給')=='取得' else {t.資料 for t in request.対象} if request.行為 in ('比較','集合') else set(self._資料) if request.行為=='既存目的' else set()
                 self._最後依存={k:意味指紋(_結果辞書(self._資料[k])) for k in used}
             trace['採用起点']=asdict(result.更新後)
             return self._返す(原文,汎用会話応答('合格',output.本文,追跡=trace,結果=output))

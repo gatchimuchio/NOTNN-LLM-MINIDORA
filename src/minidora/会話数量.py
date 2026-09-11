@@ -226,8 +226,10 @@ def 数量を比較(left: 能力結果, right: 能力結果, settings: dict) -> 
 
 def 比較記録整合(value):
     try:
+        _結果辞書(value)
         data=value.データ
         rebuilt=数量を比較(能力結果を復元(data['左']),能力結果を復元(data['右']),data['設定'])
-        return value.成立 and rebuilt.データ==data and rebuilt.本文==value.本文
+        available={r.識別子:r for r in _参照結合(value.参照)}
+        return value.成立 and rebuilt.データ==data and rebuilt.本文==value.本文 and rebuilt.根拠==value.根拠 and rebuilt.保留理由==value.保留理由 and all(available.get(r.識別子)==r for r in rebuilt.参照)
     except (ValueError,KeyError,TypeError,AttributeError,RecursionError):
         return False

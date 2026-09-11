@@ -6,8 +6,9 @@ from typing import Callable
 from .会話意味 import 意味目的, 意味指紋
 from .能力合成 import 合成工程, 合成計画, 素材参照
 from .製品版.型 import 能力結果
+from .実行回復 import 回復規則
 
-役割計画版 = 'MINIDORA-役割計画-v0.1'
+役割計画版 = 'MINIDORA-役割計画-v0.2'
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +23,7 @@ class 役割作用:
     外部読取: bool = False
     不成立条件: tuple[str, ...] = ()
     保持事項: tuple[str, ...] = ('対象', '単位', '条件', '由来')
+    回復: tuple[回復規則, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +35,7 @@ class 役割計画結果:
     費用: int
     展開数: int
     外部作用: tuple[str, ...]
+    入力役割: tuple[tuple[str, tuple[tuple[str, 素材参照], ...]], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,7 +66,14 @@ class 役割計画器:
                 raise ValueError('作用費用は正の有界整数')
             if type(r.外部読取) is not bool or actual[r.能力]['外部読取'] != r.外部読取:
                 raise ValueError('外部作用の契約不一致')
+            if type(r.回復) is not tuple or any(type(x) is not 回復規則 for x in r.回復):
+                raise ValueError('回復規則の型不正')
+            if len({x.失敗種別 for x in r.回復}) != len(r.回復):
+                raise ValueError('同じ失敗への回復規則が重複')
+            for recovery in r.回復: recovery.検証()
             seen.add(r.識別子)
+        if any(a not in seen for r in 作用 for recovery in r.回復 for a in recovery.対象作用):
+            raise ValueError('回復先の作用が未登録')
         self.作用, self._上限 = 作用, (最大深さ, 最大展開数)
         self.登録印 = 意味指紋(list(登録一覧))
 
@@ -72,6 +82,9 @@ class 役割計画器:
             raise ValueError('計画要求型不正')
         if type(禁止) is not tuple or len(禁止)>64 or any(type(x) is not tuple or len(x)!=2 for x in 禁止):
             raise ValueError('禁止は目的鍵と作用IDの対')
+        for pair in 禁止:
+            if any(type(x) is not str or not x for x in pair) or pair[1] not in {r.識別子 for r in self.作用}:
+                raise ValueError('禁止対象の型又は作用が不正')
         root=deepcopy(目的); root.鍵()
         banned=set(禁止); expanded=0; memo={}
         def solve(goal, stack):
@@ -109,7 +122,7 @@ class 役割計画器:
             if len(best)!=1: raise ValueError('同順位の意味経路が複数ある')
             memo[key]=next(iter(best.values())); return memo[key]
         chosen=solve(root,())
-        data={}; steps=[]; trace=[]; external=[]; refs={}
+        data={}; steps=[]; trace=[]; external=[]; refs={}; roles_record=[]
         def emit(path):
             signature=path.署名()
             if signature in refs: return refs[signature]
@@ -127,13 +140,14 @@ class 役割計画器:
                 data[config]=能力結果(True,'',データ=settings)
                 steps.append(合成工程(sid,(path.作用.能力,),inst,tuple(r for _,r in children),config))
                 trace.append((sid,path.目的.鍵(),path.作用.識別子))
+                roles_record.append((sid,children))
                 if path.作用.外部読取: external.append(sid)
                 out=素材参照('工程',sid)
             refs[signature]=out; return out
         final=emit(chosen)
         if final.領域!='工程': raise ValueError('素材を実行成果として採用しない')
         return 役割計画結果(合成計画(tuple(steps),(final.識別子,)),data,tuple(trace),
-                               root.鍵(),chosen.費用,expanded,tuple(external))
+                               root.鍵(),chosen.費用,expanded,tuple(external),tuple(roles_record))
 
 
 class _経路なし(ValueError):

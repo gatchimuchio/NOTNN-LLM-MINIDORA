@@ -9,7 +9,7 @@ from .会話意味 import 意味指紋
 from .製品版.型 import 能力結果
 from .知識取得接続 import 知識取得Module
 
-会話能力版='MINIDORA-会話能力-v0.1'
+会話能力版='MINIDORA-会話能力-v0.2'
 
 
 def _入力(context):
@@ -35,14 +35,14 @@ class 会話能力Module:
                 if len(values)!=2: raise ValueError('左右二役割が必要')
                 return 数量を比較(*values,settings)
             if self.名前=='会話回答構成':
-                if set(settings)!={'詳細'}: raise ValueError('回答設定不正')
-                return 回答を構成(values,詳細=settings['詳細'])
+                if '詳細' not in settings or set(settings)-{'詳細','形式','手順'}: raise ValueError('回答設定不正')
+                return 回答を構成(values,**settings)
             if len(values)!=1: raise ValueError('単一の入力役割が必要')
             if self.名前=='表数量解釈': return 表数量を読む(values[0],settings)
             if self.名前=='数値記載解釈': return 記載数量を読む(values[0],settings)
             if self.名前=='会話再表現':
-                if set(settings)!={'詳細'}: raise ValueError('再表現設定不正')
-                return 回答を再表現(values[0],詳細=settings['詳細'])
+                if '詳細' not in settings or set(settings)-{'詳細','形式','手順'}: raise ValueError('再表現設定不正')
+                return 回答を再表現(values[0],**settings)
             if self.名前=='取得報告採用':
                 if settings: raise ValueError('取得採用設定は不要')
                 report=values[0].データ;raw=deepcopy(report);seal=raw.pop('記録SHA256')
