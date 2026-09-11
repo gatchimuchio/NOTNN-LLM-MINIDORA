@@ -107,6 +107,15 @@ class 統合セッション:
     def _能力版(self):
         return tuple((r.Module.名前, r.Module.版, r.外部読取) for r in self._能力)
 
+    def 採用履歴スナップショット(self):
+        """追加の解釈器が、同じ起点の採用済み成果だけを参照する。"""
+        if not self._ロック.acquire(blocking=False):
+            raise ValueError("処理中の統合セッション")
+        try:
+            return self.起点(), deepcopy(self._履歴)
+        finally:
+            self._ロック.release()
+
     def 再利用統計(self):
         return self._再利用.統計()
 
