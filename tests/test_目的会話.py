@@ -3,6 +3,7 @@ from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -199,6 +200,17 @@ class 目的CLI試験(unittest.TestCase):
     def test_過大行の後半を実行しない(self):
         r=self.run_cli(input='あ'*8193+'\n「2+3」を計算して\n')
         self.assertEqual(r.returncode,2);self.assertNotIn('5',r.stdout)
+    def test_標準入力の既定文字コードに依存しない(self):
+        with patch.dict(os.environ, {'PYTHONIOENCODING': 'cp1252'}):
+            r=self.run_cli(input='「2+3」を計算して\nそれから数字を抽出して\n/終了\n')
+        self.assertEqual(r.returncode,0,r.stderr);self.assertEqual(r.stdout.splitlines(),['5','5'])
+    def test_不正UTF8は追跡例外なく終了(self):
+        root=Path(__file__).resolve().parents[1]
+        r=subprocess.run([sys.executable,str(root/'tools/目的チャット.py')],
+            input=b'\xff\n',capture_output=True,timeout=20,cwd=root)
+        self.assertEqual(r.returncode,2)
+        self.assertIn('UTF-8',r.stderr.decode('utf-8'))
+        self.assertNotIn('Traceback',r.stderr.decode('utf-8'))
     def test_明示ファイルの読取(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/'source.json';p.write_text('{"n":75}',encoding='utf-8')

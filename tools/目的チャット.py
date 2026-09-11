@@ -10,7 +10,7 @@ from minidora.製品版.型 import 能力結果
 
 
 def main():
-    for stream in (sys.stdout, sys.stderr):
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
         if hasattr(stream, 'reconfigure'): stream.reconfigure(encoding='utf-8', errors='strict')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('依頼', nargs='?')
@@ -45,7 +45,11 @@ def main():
     if options.依頼 is not None: return respond(options.依頼)
     if sys.stdin.isatty(): print('日本語の依頼を入力。/終了 で終了、/初期化 で履歴を消去します。')
     while True:
-        line = sys.stdin.readline(8194)
+        try:
+            line = sys.stdin.readline(8194)
+        except UnicodeError:
+            print('標準入力はUTF-8で指定してください。後続を実行せず終了します。', file=sys.stderr)
+            return 2
         if not line: return 0
         if len(line.rstrip('\r\n')) > 8192:
             print('入力上限超過。後半を別の依頼として実行せず終了します。', file=sys.stderr)
