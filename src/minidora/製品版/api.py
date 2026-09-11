@@ -13,7 +13,8 @@ def _json(handler: BaseHTTPRequestHandler, status: int, body: dict):
     handler.send_header("Content-Type","application/json; charset=utf-8")
     handler.send_header("Content-Length",str(len(raw)))
     handler.send_header("Cache-Control","no-store")
-    handler.send_header("Access-Control-Allow-Origin", os.getenv("MINIDORA_CORS_ORIGIN","*"))
+    if not getattr(handler.server, "同一生成元限定", False):
+        handler.send_header("Access-Control-Allow-Origin", os.getenv("MINIDORA_CORS_ORIGIN","*"))
     handler.end_headers(); handler.wfile.write(raw)
 
 class APIHandler(BaseHTTPRequestHandler):
@@ -27,9 +28,23 @@ class APIHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         if os.getenv("MINIDORA_HTTP_LOG","1") != "0": super().log_message(fmt,*args)
 
+    def _入口許可(self):
+        """明示汎用モードのローカル入口だけを制限する。利用者認証ではない。"""
+        if not getattr(self.server, "同一生成元限定", False): return True
+        port = self.server.server_address[1]
+        allowed = {f"127.0.0.1:{port}", f"localhost:{port}"}
+        host = self.headers.get("Host", "")
+        origin = self.headers.get("Origin")
+        if host not in allowed or (origin is not None and origin not in {"http://" + h for h in allowed}):
+            _json(self, 403, {"error": "local_origin_required"})
+            return False
+        return True
+
     def do_OPTIONS(self):
+        if not self._入口許可(): return
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", os.getenv("MINIDORA_CORS_ORIGIN","*"))
+        if not getattr(self.server, "同一生成元限定", False):
+            self.send_header("Access-Control-Allow-Origin", os.getenv("MINIDORA_CORS_ORIGIN","*"))
         self.send_header("Access-Control-Allow-Headers","Content-Type")
         self.send_header("Access-Control-Allow-Methods","GET,POST,OPTIONS")
         self.end_headers()
@@ -48,6 +63,7 @@ class APIHandler(BaseHTTPRequestHandler):
         self.send_response(200); self.send_header("Content-Type",mime); self.send_header("Content-Length",str(len(raw))); self.send_header("Cache-Control","no-cache"); self.end_headers(); self.wfile.write(raw)
 
     def do_GET(self):
+        if not self._入口許可(): return
         path = urlparse(self.path).path
         if path == "/" or path.startswith("/static/"): return self._static(path)
         if path == "/health": return _json(self,200,{"ok":True,"service":"MINIDORA Product","api_version":API版})
@@ -60,6 +76,7 @@ class APIHandler(BaseHTTPRequestHandler):
         return _json(self,404,{"error":"not_found"})
 
     def do_POST(self):
+        if not self._入口許可(): return
         if urlparse(self.path).path != "/api/chat": return _json(self,404,{"error":"not_found"})
         try: length = int(self.headers.get("Content-Length","0"))
         except ValueError: return _json(self,400,{"error":"invalid_content_length"})
@@ -71,7 +88,9 @@ class APIHandler(BaseHTTPRequestHandler):
         response = self.app.応答(message, セッションID=session)
         return _json(self,200,response.辞書化())
 
-def serve(app: 製品ミニドラ, host: str = "0.0.0.0", port: int | None = None):
+def serve(app: 製品ミニドラ, host: str = "0.0.0.0", port: int | None = None, *, 同一生成元限定=False):
+    if type(同一生成元限定) is not bool: raise ValueError("生成元制限はbool")
     p = int(port or os.getenv("PORT","8080"))
     server = ThreadingHTTPServer((host,p), APIHandler); server.app = app  # type: ignore[attr-defined]
+    server.同一生成元限定 = 同一生成元限定
     server.serve_forever()
