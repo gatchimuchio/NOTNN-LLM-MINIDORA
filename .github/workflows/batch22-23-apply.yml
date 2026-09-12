@@ -1,0 +1,81 @@
+name: 第22・23バッチ累積差分適用
+
+on:
+  push:
+    branches:
+      - batch22-23-audit-return
+    paths:
+      - '.github/workflows/batch22-23-apply.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 累積差分を復元して照合
+        shell: bash
+        run: |
+          cat \
+            .batch22_23/patch.part01 \
+            .batch22_23/patch.part02 \
+            .batch22_23/patch.part03a \
+            .batch22_23/patch.part03b \
+            .batch22_23/patch.part04a \
+            .batch22_23/patch.part04b \
+            .batch22_23/patch.part05 \
+            | base64 -d | gzip -d > /tmp/batch22_23.patch
+          python - <<'PY'
+          from hashlib import sha256
+          p = open('/tmp/batch22_23.patch', 'rb').read()
+          assert len(p) == 240348, len(p)
+          assert sha256(p).hexdigest() == '04d6f52ce76387145875f313fe892c2d95dd023c6bf12013727d378ad1532a5e'
+          print('patch bytes/hash: PASS')
+          PY
+
+      - name: 累積差分を適用して構造検査
+        shell: bash
+        run: |
+          git apply --check /tmp/batch22_23.patch
+          git apply /tmp/batch22_23.patch
+          git diff --check
+          python - <<'PY'
+          import subprocess
+          rows = []
+          for line in subprocess.check_output(['git','diff','--numstat'], text=True).splitlines():
+              a, d, path = line.split('\t', 2)
+              rows.append((int(a), int(d), path))
+          assert len(rows) == 38, len(rows)
+          assert sum(a for a,_,_ in rows) == 3565, sum(a for a,_,_ in rows)
+          assert sum(d for _,d,_ in rows) == 90, sum(d for _,d,_ in rows)
+          print('diff files/add/del: PASS')
+          PY
+          python -m compileall -q src tests tools
+
+      - name: 第22・23バッチ追加試験
+        shell: bash
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m unittest \
+            tests.test_監査改善 \
+            tests.test_分離入力評価 \
+            tests.test_改善会話 \
+            tests.test_改善統合境界 \
+            tests.test_改善CLI \
+            -v
+
+      - name: 実装差分だけをコミット
+        shell: bash
+        run: |
+          rm -rf .batch22_23 .github/workflows/batch22-23-apply.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: 第22・23バッチの監査改善と会話統合'
+          git push origin HEAD:batch22-23-audit-return
