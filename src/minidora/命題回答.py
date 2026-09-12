@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from .命題能力接続 import 命題判定整合
+from .導出談話 import 導出説明節
 from .命題構造 import 命題を復元
 from .命題解釈 import 命題を表現
 
@@ -10,7 +11,11 @@ def 命題の表現(value, *, 形式='文章', 手順=False):
     if 形式 not in ('文章', '表') or type(手順) is not bool:
         raise ValueError('命題の説明形式不正')
     if not 命題判定整合(value): raise ValueError('命題判定の再構成不一致')
-    d = value.データ; r = d['判定結果']; status = r['判定']
+    return 導出の表現(value.データ, 形式=形式, 手順=手順)
+
+
+def 導出の表現(d, *, 形式='文章', 手順=False):
+    r = d['判定結果']; status = r['判定']
     expression = 命題を表現(命題を復元(r['問い']))
     conclusions = {
         '支持': '提供記載と実装された導出規則から支持されます。',
@@ -46,10 +51,11 @@ def 命題の表現(value, *, 形式='文章', 手順=False):
                 safe = text.replace('|', '\\|').replace('\n', ' ')
                 lines.append(f'| {numbers[pid]} | {p["作用"]} | {safe} | {parents} |')
             else:
-                lines.append(f'{numbers[pid]}. {p["作用"]}：{text}（依存：{parents}）')
+                clause = 導出説明節(numbers[pid], p['作用'], text, tuple(numbers[x] for x in p['親']))
+                lines.append(f'{numbers[pid]}. {p["作用"]}：{clause.本文}（依存：{parents}）')
         if not order: lines.append('問いに到達する支持・反証の導出経路はありません。')
         units.append(('導出手順', '\n'.join(lines), roots, ()))
     limits = [r['解釈境界'], '時点・様相の異なる記載を自動的に同一視していません。']
-    if any(p['作用'] == '問いの仮定' for p in nodes.values()):
+    if any(p['作用'] in ('問いの仮定', '場合の仮定') for p in nodes.values()):
         limits.append('導出中の仮定は条件付きの検討だけに使い、事実として保存していません。')
     return tuple(units), tuple(limits), tuple(dict.fromkeys(origins))

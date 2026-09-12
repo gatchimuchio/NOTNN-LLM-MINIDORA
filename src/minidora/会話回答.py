@@ -10,7 +10,7 @@ from .会話意味 import 意味指紋
 from .会話数量 import 数量記録整合,比較記録整合,会話処理不成立
 from .製品版.型 import 能力結果
 
-会話回答版='MINIDORA-会話回答-v0.3'
+会話回答版='MINIDORA-会話回答-v0.4'
 
 @dataclass(frozen=True, slots=True)
 class 回答命題:
@@ -45,7 +45,13 @@ def 回答を構成(values: tuple[能力結果,...], *, 詳細=False, 最大文�
         if value.データ.get('版')==会話回答版:
             raise ValueError('回答IRは原成果へ戻してから再構成する')
         kind=value.データ.get('種別');ref=f'成果:{i}'
-        if kind=='命題判定':
+        if kind in ('文脈命題判定', '取得命題判定'):
+            from .文脈命題回答 import 文脈の表現
+            units, extra_caveats, extra_origins = 文脈の表現(value, 形式=形式, 手順=手順 or 詳細)
+            for k, text, dependencies, conditions in units:
+                propositions.append(回答命題(k, text, tuple(ref+'/'+x for x in dependencies), conditions))
+            caveats.extend(extra_caveats); origins.extend(extra_origins)
+        elif kind=='命題判定':
             from .命題回答 import 命題の表現
             units, extra_caveats, extra_origins = 命題の表現(value, 形式=形式, 手順=手順 or 詳細)
             for k, text, dependencies, conditions in units:
