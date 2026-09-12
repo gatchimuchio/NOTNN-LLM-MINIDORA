@@ -13,6 +13,8 @@ from .会話作用契約 import 会話作用群
 from .会話能力接続 import 会話能力群
 from .集合会話接続 import 数量集合Module, 集合作用群
 from .命題能力接続 import 命題能力群, 命題作用群
+from .文脈命題接続 import 文脈命題能力群, 文脈命題作用群, 文脈資料群
+from .文脈命題 import 文脈判定
 from .命題会話解釈 import HDS命題を照合
 from .命題解釈 import 命題を読む
 from .会話実行監督 import 会話実行監督
@@ -29,7 +31,7 @@ from .製品版.型 import 能力結果,参照資料
 from .知識取得 import 知識取得器
 from .製品版.検索 import SearXNG検索供給器
 
-汎用会話版='MINIDORA-汎用会話-v0.3'
+汎用会話版='MINIDORA-汎用会話-v0.4'
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,12 +53,12 @@ class 汎用会話セッション:
         if type(外部読取許可) is not bool or type(最大発話) is not int or not 1<=最大発話<=512:
             raise ValueError('会話許可・発話上限不正')
         backend=取得器 if 取得器 is not None else 知識取得器(SearXNG検索供給器())
-        added=(*会話能力群(backend,外部許可=外部読取許可),数量集合Module().登録(),*命題能力群())
+        added=(*会話能力群(backend,外部許可=外部読取許可),数量集合Module().登録(),*命題能力群(),*文脈命題能力群())
         self.統合=統合セッション(セッションID,外部読取許可=外部読取許可,取得器=backend,追加能力=added)
         extra={r.Module.名前 for r in added}
         base=tuple(r for r in self.統合.能力一覧() if r['名前'] not in extra)
         self._旧計画=目的計画器(能力意味カタログ(base))
-        self._計画=役割計画器((*会話作用群(),*集合作用群(),*命題作用群()),self.統合.能力一覧())
+        self._計画=役割計画器((*会話作用群(),*集合作用群(),*命題作用群(),*文脈命題作用群()),self.統合.能力一覧())
         self._監督=会話実行監督(self._計画,self.統合)
         self._許可=外部読取許可; self._上限=最大発話
         self._資料={};self._発話=();self._保留=None;self._最後目的=None
@@ -208,7 +210,7 @@ class 汎用会話セッション:
             ir=公開HDSコンパイラ().コンパイル(原文)
             trace['HDS原文']=ir.原文
             trace['HDS保持']=asdict(ir)
-            if request.行為 in ('命題照合','命題選択','命題訂正'):
+            if request.行為 in ('命題照合','命題選択','命題訂正','資料命題選択','命題取得'):
                 trace['HDS局所解消']=HDS命題を照合(ir,request)
             elif request.行為!='既存目的':
                 trace['HDS局所解消']=HDS会話を照合(ir,request,文脈解消=self._最後結果 is not None or self._保留 is not None)
@@ -216,24 +218,31 @@ class 汎用会話セッション:
                 phrase=request.補助['発話']
                 body={'こんにちは':'こんにちは。','こんばんは':'こんばんは。','ありがとう':'どういたしまして。',
                     '外部禁止':'この発話では外部検索を実行しません。',
-                    'できることを教えて':'数式の計算・微積分、JSON/CSVの数値比較・最大8対象の一覧/合計/平均/最大/最小、資料の変換、数値記載の取得、確認への返答と訂正に対応しています。資料からの命題導出・支持/反証/矛盾/未確定の区別・意味候補の確認にも対応しています。自由作文・一般的な原因推定は未対応です。'}[phrase]
+                    'できることを教えて':'数式の計算・微積分、JSON/CSVの数値比較・最大8対象の一覧/合計/平均/最大/最小、資料の変換、数値記載の取得、確認への返答と訂正に対応しています。資料からの命題導出・支持/反証/矛盾/未確定の区別・発言や信念の帰属・局所照応・資料解釈の確認・明示許可時の公開本文による命題検討にも対応しています。自由作文・一般的な原因推定は未対応です。'}[phrase]
                 return self._返す(原文,汎用会話応答('合格',body,追跡=trace))
-            if request.行為=='命題選択':
+            if request.行為 in ('命題選択','資料命題選択'):
                 pending=self._保留
-                if pending is None or pending.行為!='命題照合' or '保留資料版' not in pending.補助:
+                if pending is None or pending.行為 not in ('命題照合','命題取得') or '保留資料版' not in pending.補助:
                     raise ValueError('選択待ちの命題解釈がない')
                 current={t.資料:意味指紋(_結果辞書(self._資料[t.資料])) for t in pending.対象}
                 if current!=pending.補助['保留資料版']:
                     raise ValueError('確認中に資料が更新されたため、元の問いを再指定する')
-                request=replace(pending,原文=原文,補助={**pending.補助,'候補':request.補助['番号']},対応=())
+                selection_key='資料候補' if request.行為=='資料命題選択' else '候補'
+                if selection_key=='資料候補' and not pending.補助.get('文脈'):
+                    raise ValueError('資料解釈の選択待ちではない')
+                request=replace(pending,原文=原文,補助={**pending.補助,selection_key:request.補助['番号']},対応=())
             elif request.行為=='命題訂正':
                 prior=self._保留 or self._最後目的
-                if prior is None or prior.行為!='命題照合':
+                if prior is None or prior.行為 not in ('命題照合','命題取得'):
                     raise ValueError('訂正する命題の問いがない')
-                aux={k:v for k,v in prior.補助.items() if k!='保留資料版'}
+                aux={k:v for k,v in prior.補助.items() if k not in ('保留資料版','資料候補','文脈')}
                 aux.update({'問い':request.補助['問い'],'候補':0,'命題範囲':request.補助['命題範囲']})
+                if prior.行為=='命題取得':
+                    from .命題会話解釈 import 命題会話を解釈
+                    repl=命題会話を解釈('公開資料から「'+request.補助['問い']+'」を検討して',())
+                    aux['取得要求']=repl.補助['取得要求']
                 request=replace(prior,原文=原文,補助=aux,対応=())
-            if request.行為=='命題照合':
+            if request.行為 in ('命題照合','命題取得'):
                 candidates=命題を読む(request.補助['問い'])
                 trace['命題解釈候補']=[asdict(c) for c in candidates]
                 index=request.補助['候補']
@@ -247,6 +256,24 @@ class 汎用会話セッション:
                 if type(index) is not int or not 1<=index<=len(candidates):
                     raise ValueError('命題の解釈番号が範囲外')
                 request=replace(request,補助={**request.補助,'候補':index})
+            if request.行為=='命題照合':
+                names=tuple(t.資料 for t in request.対象)
+                material_map=self._素材()
+                docs=文脈資料群(tuple(material_map[n] for n in names),names)
+                if any(d['文脈拡張'] for d in docs):
+                    choice=request.補助.get('資料候補',0)
+                    preview=文脈判定(docs,request.補助['問い'],request.補助['候補'],choice)
+                    trace['資料解釈検討']=preview
+                    request=replace(request,補助={**request.補助,'文脈':True,'資料候補':choice})
+                    if not choice and preview['判定']=='解釈依存':
+                        versions={n:意味指紋(_結果辞書(self._資料[n])) for n in names}
+                        self._保留=replace(request,補助={**request.補助,'保留資料版':versions})
+                        lines=['資料の読みで結論が異なります。資料解釈を指定してください。']
+                        for case in preview['場合別']:
+                            reading=' / '.join(x['記載']+'：'+x['読み'] for x in case['選択'])
+                            lines.append(str(case['場合'])+'. '+reading+' → '+case['判定結果']['判定'])
+                        lines.append('例：資料解釈は1です')
+                        return self._返す(原文,汎用会話応答('確認待ち','\n'.join(lines),'資料意味候補未確定',trace))
             if request.行為 in ('訂正','確認返答'):
                 request=self._改訂(request);trace['目的改訂']=asdict(request)
             materials=self._素材();trace['会話意味']=asdict(request)
@@ -262,10 +289,18 @@ class 汎用会話セッション:
             elif request.行為=='既存目的':
                 result,detail=self._旧実行(request,materials,ir,停止要求,start);trace.update(detail)
             else:
-                if request.行為=='命題照合':
-                    goal=意味目的('命題回答',{'資料':[t.資料 for t in request.対象],
+                if request.行為=='命題取得':
+                    if request.外部禁止 or not (外部読取許可 and self._許可):
+                        self._保留=request
+                        return self._返す(原文,汎用会話応答('確認待ち','公開本文の命題検討には明示した外部読取許可が必要です。','権限不足',trace))
+                    goal=意味目的('取得命題回答',{k:request.補助[k] for k in ('問い','候補','取得要求','形式','手順')}|{'詳細':request.詳細})
+                elif request.行為=='命題照合':
+                    contextual=request.補助.get('文脈',False)
+                    goal=意味目的('文脈命題回答' if contextual else '命題回答',
+                        {'資料':[t.資料 for t in request.対象],
                         '問い':request.補助['問い'],'候補':request.補助['候補'],
-                        '詳細':request.詳細,'形式':request.補助['形式'],'手順':request.補助['手順']})
+                        '詳細':request.詳細,'形式':request.補助['形式'],'手順':request.補助['手順'],
+                        **({'資料候補':request.補助['資料候補']} if contextual else {})})
                 elif request.行為=='比較':
                     goal=self._比較目的(request,materials)
                 elif request.行為=='集合':
@@ -291,7 +326,7 @@ class 汎用会話セッション:
                 trace['試行']=list(supervised.試行)
                 if not result.成立:
                     signature=supervised.失敗[-1] if supervised.失敗 else None
-                    if request.行為!='命題照合' and signature and signature.種別 in ('入力不足','意味未確定'):
+                    if request.行為 not in ('命題照合','命題取得') and signature and signature.種別 in ('入力不足','意味未確定'):
                         self._保留=request
                         prompt=('比較する単位を指定してください。例：単位は円です。' if signature.種別=='入力不足' else
                                 '対象の行又は時点が一意に定まりません。共通年なら「年は2025です」と指定してください。' if request.行為=='集合' else

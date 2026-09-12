@@ -30,10 +30,11 @@ class 推論上限:
 
 def 整形式(e: 命題式) -> 命題式:
     """否定の作用域を保つ。含意の反証には前件と明示反例の両方を要求する。"""
+    if e.種別 == '帰属': return e
     if e.種別 != '否定':
         return 結合(e.種別, *(整形式(c) for c in e.子), 変数=e.変数) if e.子 else e
     c = e.子[0]
-    if c.種別 == '原子': return e
+    if c.種別 in ('原子', '帰属'): return e
     if c.種別 == '否定': return 整形式(c.子[0])
     if c.種別 in ('連言', '選言'):
         return 結合('選言' if c.種別 == '連言' else '連言', *(整形式(反対(x)) for x in c.子))
@@ -45,7 +46,7 @@ def 整形式(e: 命題式) -> 命題式:
 
 
 def _平坦(e):
-    return e.種別 in ('原子', '否定') or e.種別 in ('連言', '選言') and all(_平坦(c) for c in e.子)
+    return e.種別 in ('原子', '否定', '帰属') or e.種別 in ('連言', '選言') and all(_平坦(c) for c in e.子)
 
 
 class 命題推論器:
@@ -159,7 +160,7 @@ class 命題推論器:
                 if p: add(consequent, self._証(consequent, '条件適用', (pid, p)))
         return facts
 
-    def _証明(self, e, domain, assumptions=(), depth=0):
+    def _証明(self, e, domain, assumptions=(), depth=0, 分岐済=frozenset()):
         self._刻み()
         if depth > self.上限.仮定深さ:
             raise ValueError('問いの量化・仮定深さ上限')
@@ -167,38 +168,55 @@ class 命題推論器:
         direct = self._支持(e, facts)
         if direct: return direct
         if e.種別 == '連言':
-            parents = tuple(self._証明(c, domain, assumptions, depth + 1) for c in e.子)
+            parents = tuple(self._証明(c, domain, assumptions, depth + 1, 分岐済) for c in e.子)
             if all(parents): return self._証(e, '連言構成', parents)
         elif e.種別 == '選言':
             for c in e.子:
-                p = self._証明(c, domain, assumptions, depth + 1)
+                p = self._証明(c, domain, assumptions, depth + 1, 分岐済)
                 if p: return self._証(e, '選言導入', (p,))
         elif e.種別 == '含意':
             left, right = e.子
             if not _平坦(left): raise ValueError('仮定導入の前件は量化のない命題')
             scope = 意味指紋({'問い': e.辞書(), '親仮定': [p for _, p in assumptions]})
             pid = self._証(left, '問いの仮定', scope=scope)
-            p = self._証明(right, domain, (*assumptions, (left, pid)), depth + 1)
+            p = self._証明(right, domain, (*assumptions, (left, pid)), depth + 1, 分岐済)
             if p: return self._証(e, '仮定を閉じた条件導出', (pid, p), scope=scope)
         elif e.種別 == '全称':
             fresh = 命題項('任意:' + str(depth) + ':' + e.鍵()[:16], '任意個体')
             body = 置換(e.子[0], {e.変数: fresh})
-            p = self._証明(body, domain | {fresh}, assumptions, depth + 1)
+            p = self._証明(body, domain | {fresh}, assumptions, depth + 1, 分岐済)
             # 全称否定（¬A∨¬B）は「Aならば¬B」等の十分な導出がある場合に限り証明する。
             # 不在による否定ではなく、残した仮定に対する明示反証を要求する。
             if not p and body.種別 == '選言' and all(c.種別 == '否定' for c in body.子):
                 for i, c in enumerate(body.子):
                     others = [反対(x) for j, x in enumerate(body.子) if i != j]
                     left = others[0] if len(others) == 1 else 結合('連言', *others)
-                    p = self._証明(結合('含意', left, c), domain | {fresh}, assumptions, depth + 1)
+                    p = self._証明(結合('含意', left, c), domain | {fresh}, assumptions, depth + 1, 分岐済)
                     if p: break
             if p: return self._証(e, '任意個体からの全称導出', (p,))
         elif e.種別 == '存在':
             for t in sorted(domain, key=lambda t: (t.種別, t.名前)):
                 if t.種別 == '任意個体': continue
                 body = 置換(e.子[0], {e.変数: t})
-                p = self._証明(body, domain, assumptions, depth + 1)
+                p = self._証明(body, domain, assumptions, depth + 1, 分岐済)
                 if p: return self._証(e, '存在証拠', (p,))
+        # 選言の各場合で同じ問いが導けた場合だけ結論へ接続する。
+        # 矛盾する場合も除外せず、仮定を他の分岐や次の問いへ漏らさない。
+        for disjunction, source in tuple(facts.values()):
+            if disjunction.種別 != '選言' or disjunction.鍵() in 分岐済: continue
+            visited = 分岐済 | {disjunction.鍵()}
+            if len(visited) > 8: raise ValueError('選言場合分けの上限')
+            parents = [source]; complete = True
+            for i, child in enumerate(disjunction.子):
+                scope = 意味指紋({'選言': source, '場合': i, '問い': e.辞書(),
+                                  '仮定': [p for _, p in assumptions]})
+                hypothesis = self._証(child, '場合の仮定', scope=scope)
+                proof = self._証明(e, domain, (*assumptions, (child, hypothesis)), depth + 1, visited)
+                if not proof:
+                    complete = False; break
+                parents.extend((hypothesis, proof))
+            if complete:
+                return self._証(e, '全場合を閉じた選言除去', tuple(parents))
         return None
 
     def 判定(self, 問い: 命題式):

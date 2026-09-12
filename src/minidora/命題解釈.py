@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import itertools
 import re
+from .命題句 import 最上位位置, 構成句を分ける, 引用を切り出す
 from .命題構造 import 命題項, 命題式, 命題候補, 命題記載, 原子, 結合, 反対, 文脈を付す
 
 _名前 = re.compile(r'[^\s「」（）()、。，,；;：:！？!?]{1,80}\Z')
@@ -36,22 +37,8 @@ def _外側(text):
 
 
 def _接続位置(text):
-    stack = []; out = []; i = 0
-    while i < len(text):
-        c = text[i]
-        if c in '(（':
-            stack.append(c)
-        elif c in ')）':
-            if not stack or (stack.pop(), c) not in (('(', ')'), ('（', '）')):
-                raise ValueError('命題の括弧が不整合')
-        if not stack:
-            for word, kind in (('ならば', '含意'), ('かつ', '連言'), ('または', '選言')):
-                if text.startswith(word, i):
-                    out.append((i, word, kind)); i += len(word) - 1; break
-        i += 1
-    if stack:
-        raise ValueError('命題の括弧が閉じていない')
-    return out
+    kinds = {'ならば': '含意', 'かつ': '連言', 'または': '選言'}
+    return [(i, word, kinds[word]) for i, word in 最上位位置(text, tuple(kinds))]
 
 
 def 命題を読む(text: str, *, 最大候補=8) -> tuple[命題候補, ...]:
@@ -97,6 +84,29 @@ def 命題を読む(text: str, *, 最大候補=8) -> tuple[命題候補, ...]:
                 raise ValueError('量化変数の二重束縛')
             kind = '全称' if word == 'すべての' else '存在'
             return tuple(結合(kind, e, 変数=var) for e in parse(body, variables | {var}, depth + 1))
+        # 外側の発言・信念と引用内容を別の命題として保持する。
+        for i, marker in (() if _接続位置(s) else 最上位位置(s, ('は', 'によると'))):
+            start = i + len(marker)
+            if start >= len(s) or s[start] not in ('「', '『'): continue
+            body, end = 引用を切り出す(s, start)
+            suffix = s[end:]
+            kinds = {'と述べている': '発言', 'と述べた': '過去発言',
+                     'と考えている': '信念', 'と信じている': '信念',
+                     'と考えていた': '過去信念', 'と信じていた': '過去信念'}
+            kind = '伝聞' if marker == 'によると' and not suffix else kinds.get(suffix) if marker == 'は' else None
+            if kind is None: continue
+            speaker = _名(s[:i])
+            if speaker in ('彼', '彼女', '同者', 'それ', 'これ', 'あれ', '私', 'わたし'):
+                raise ValueError('帰属主体の指示先を文脈で確定する')
+            # 引用内の変数は外側の量化から隔離する。
+            fragments = [body[a:b] for a, b in 構成句を分ける(body)]
+            if not 1 <= len(fragments) <= 8: raise ValueError('直接引用の記載数上限')
+            alternatives = [parse(fragment, frozenset(), depth + 1) for fragment in fragments]
+            contents = unique(parts[0] if len(parts) == 1 else 結合('連言', *parts)
+                              for parts in itertools.product(*alternatives))
+            return unique(命題式('帰属', kind,
+                (命題項(speaker, '変数' if speaker in variables else '定数'),), (e,))
+                for e in contents)
         operators = _接続位置(s)
         implications = [r for r in operators if r[2] == '含意']
         if implications:
@@ -142,7 +152,7 @@ def 命題を読む(text: str, *, 最大候補=8) -> tuple[命題候補, ...]:
         if copula:
             subject, predicate, end = copula.groups()
             subject, predicate = _名(subject), _名(predicate)
-            if subject in ('それ', 'これ', 'あれ'):
+            if subject in ('それ', 'これ', 'あれ', '彼', '彼女', '同者', '私', 'わたし'):
                 raise ValueError('命題の指示対象を明示する')
             atom = 原子(predicate, 命題項(subject, '変数' if subject in variables else '定数'))
             return (反対(atom) if end in ('ではない', 'ではありません') else atom,)
@@ -174,6 +184,13 @@ def 命題を表現(e: 命題式) -> str:
         if e.時点 != '未指定': body = f'時点「{e.時点}」では（{body}）'
         if e.様相 != '記載': body = ('可能性として' if e.様相 == '可能' else '義務として') + f'（{body}）'
         return body
+    if e.種別 == '帰属':
+        speaker = term(e.項[0]); content = 命題を表現(e.子[0])
+        suffix = {'発言': 'と述べている', '過去発言': 'と述べた',
+                  '信念': 'と考えている', '過去信念': 'と考えていた'}
+        body = (speaker + 'によると「' + content + '」' if e.述語 == '伝聞'
+                else speaker + 'は「' + content + '」' + suffix[e.述語])
+        return body if e.時点 == '未指定' else f'時点「{e.時点}」では（{body}）'
     if e.種別 == '否定': return '否定（' + 命題を表現(e.子[0]) + '）'
     if e.種別 in ('全称', '存在'):
         body = e.子[0]
@@ -198,21 +215,13 @@ def 命題資料を読む(text: str, name: str) -> tuple[命題記載, ...]:
         raise ValueError('命題資料の型・サイズ')
     if type(name) is not str or not 0 < len(name) <= 128 or any(ord(c) < 32 for c in name):
         raise ValueError('命題資料名の型・上限')
-    rows = []; start = 0; stack = []
-    for i, char in enumerate(text + '\n'):
-        if char in '(（': stack.append(char)
-        elif char in ')）':
-            if not stack or (stack.pop(), char) not in (('(', ')'), ('（', '）')):
-                raise ValueError('資料の括弧不整合')
-        if not stack and char in '。\n；;':
-            fragment = text[start:i]
-            if fragment.strip():
-                candidates = 命題を読む(fragment)
-                if len(candidates) != 1:
-                    raise ValueError('資料「' + name + '」の意味が複数。括弧・明示否定で原資料を確定する:' + fragment)
-                rows.append(命題記載(name + ':' + str(len(rows)), candidates[0].式, name, fragment, (start, i)))
-                if len(rows) > 128: raise ValueError('資料の命題数上限')
-            start = i + 1
-    if stack: raise ValueError('資料の括弧が閉じていない')
+    rows = []
+    for start, end in 構成句を分ける(text):
+        fragment = text[start:end]
+        candidates = 命題を読む(fragment)
+        if len(candidates) != 1:
+            raise ValueError('資料「' + name + '」の意味が複数。括弧・明示否定で原資料を確定する:' + fragment)
+        rows.append(命題記載(name + ':' + str(len(rows)), candidates[0].式, name, fragment, (start, end)))
+        if len(rows) > 128: raise ValueError('資料の命題数上限')
     if not rows: raise ValueError('資料に命題がない')
     return tuple(rows)

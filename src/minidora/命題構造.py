@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, replace
 from .会話意味 import 意味指紋
 
-命題版 = 'MINIDORA-命題-v0.1'
+命題版 = 'MINIDORA-命題-v0.2'
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +43,19 @@ class 命題式:
             raise ValueError('命題時点不正')
         if self.様相 not in ('記載', '可能', '義務'):
             raise ValueError('命題様相不正')
+        if self.種別 == '帰属':
+            if (self.述語 not in ('発言', '過去発言', '信念', '過去信念', '伝聞')
+                    or len(self.項) != 1 or len(self.子) != 1 or self.変数
+                    or type(self.項[0]) is not 命題項 or type(self.子[0]) is not 命題式
+                    or self.様相 != '記載'):
+                raise ValueError('発言・信念・伝聞の帰属構造不正')
+            self.項[0].__post_init__()
+            if self.項[0].種別 == '変数' and self.項[0].名前 not in 束縛 and not 自由変数:
+                raise ValueError('帰属主体の自由変数')
+            # 引用内容は独立した作用域。外側の変数や仮定を捕捉しない。
+            count = 1 + self.子[0].検査(深さ + 1)
+            if count > 256: raise ValueError('命題式の節点上限')
+            return count
         if self.種別 == '原子':
             if (type(self.述語) is not str or not 0 < len(self.述語) <= 80
                     or any(ord(c) < 32 for c in self.述語)
@@ -103,7 +116,7 @@ def 反対(式: 命題式) -> 命題式:
 
 
 def 置換(式: 命題式, 束縛: dict[str, 命題項]) -> 命題式:
-    if 式.種別 == '原子':
+    if 式.種別 in ('原子', '帰属'):
         return replace(式, 項=tuple(束縛.get(t.名前, t) if t.種別 == '変数' else t for t in 式.項))
     # 内側で束縛する変数には外側の置換を適用しない。
     local = {k: v for k, v in 束縛.items() if k != 式.変数}
@@ -111,7 +124,9 @@ def 置換(式: 命題式, 束縛: dict[str, 命題項]) -> 命題式:
 
 
 def 文脈を付す(式: 命題式, *, 時点=None, 様相=None) -> 命題式:
-    if 式.種別 == '原子':
+    if 式.種別 in ('原子', '帰属'):
+        if 式.種別 == '帰属' and 様相 is not None:
+            raise ValueError('帰属全体への様相付与は未対応')
         if 時点 is not None and 式.時点 not in ('未指定', 時点):
             raise ValueError('異なる時点の入れ子は上書きしない')
         if 様相 is not None and 式.様相 != '記載':
@@ -122,8 +137,9 @@ def 文脈を付す(式: 命題式, *, 時点=None, 様相=None) -> 命題式:
 
 
 def 原子群(式: 命題式):
-    if 式.種別 == '原子':
+    if 式.種別 in ('原子', '帰属'):
         yield 式
+        return
     for c in 式.子:
         yield from 原子群(c)
 
