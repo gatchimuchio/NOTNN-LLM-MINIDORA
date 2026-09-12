@@ -10,13 +10,13 @@ from hashlib import sha256
 from threading import Lock
 from time import perf_counter_ns
 
-from .統合能力 import 純粋結果庫, 統合能力群
+from .純粋結果庫 import 純粋結果庫
 from .能力合成 import 能力合成器, 合成計画, 合成工程, 素材参照, 合成結果, _結果辞書, _符号化
 from .長文脈管理 import 長文脈庫, 長文脈起点, 文脈登録
 from .製品版.型 import 能力結果
 from .製品版.能力契約 import 能力文脈
 
-統合実行版 = "MINIDORA-統合実行-v0.1"
+統合実行版 = "MINIDORA-統合実行-v0.2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,12 +36,13 @@ class 統合計画:
     依頼文: str
     能力版: tuple[tuple[str, str, bool], ...]
     ハッシュ: str = ""
+    依存記録: tuple[str, ...] = ()
 
 
 def _計画印(plan):
     return sha256(_符号化({"起点": asdict(plan.起点), "計画": asdict(plan.計画),
         "Data": {k: _結果辞書(v) for k, v in plan.Data.items()}, "出力": plan.出力ID,
-        "依頼": plan.依頼文, "能力": plan.能力版})).hexdigest()
+        "依頼": plan.依頼文, "能力": plan.能力版, "依存記録": plan.依存記録})).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +56,7 @@ class 統合応答:
     実行: 合成結果 | None
     計測: dict
     解釈: object = None
+    採用記録ID: tuple[str, ...] = ()
 
     @property
     def 成立(self):
@@ -74,13 +76,13 @@ class 統合応答:
                 "起点": asdict(self.起点), "更新後": asdict(self.更新後),
                 "実行ハッシュ": self.実行.ルートハッシュ if self.実行 else "",
                 "実行能力": [r.能力 for r in self.実行.履歴] if self.実行 else [],
-                "計測": deepcopy(self.計測), "解釈情報": info}
+                "計測": deepcopy(self.計測), "解釈情報": info, "採用記録ID": list(self.採用記録ID)}
 
 
 class 統合セッション:
     """文書・数学・コード等の成功成果を同じ会話焦点と長文脈へ採用する。"""
     def __init__(self, セッションID: str, *, 外部読取許可=False, 再利用=True,
-                 取得器=None, 閲覧器=None, 最大応答数=64, 最大回答文字数=100000, 追加能力=()):
+                 取得器=None, 閲覧器=None, 最大応答数=64, 最大回答文字数=100000, 追加能力=(), 基底能力=None):
         if type(外部読取許可) is not bool:
             raise ValueError("外部許可はbool")
         if type(最大応答数) is not int or not 1 <= 最大応答数 <= 256:
@@ -89,8 +91,15 @@ class 統合セッション:
             raise ValueError("回答文字数上限不正")
         self._庫 = 長文脈庫(セッションID)
         self._再利用 = 純粋結果庫(有効=再利用)
-        self._能力 = 統合能力群(self._庫, self._再利用, 外部読取許可=外部読取許可,
-                               取得器=取得器, 閲覧器=閲覧器)
+        if 基底能力 is None:
+            # 既定の全能力構成は変更しない。読取専用の検証では登録済み部分群を明示できる。
+            from .統合能力 import 統合能力群
+            self._能力 = 統合能力群(self._庫, self._再利用, 外部読取許可=外部読取許可,
+                                   取得器=取得器, 閲覧器=閲覧器)
+        else:
+            if type(基底能力) is not tuple:
+                raise ValueError("基底能力は明示した登録契約のtuple又はNone")
+            self._能力 = 基底能力
         # 追加契約も既存の登録検査・版照合・外部許可・採用境界を通す。
         if type(追加能力) is not tuple:
             raise ValueError("追加能力は登録済み契約のtuple")
@@ -116,7 +125,26 @@ class 統合セッション:
         if not self._ロック.acquire(blocking=False):
             raise ValueError("処理中の統合セッション")
         try:
-            return self.起点(), deepcopy(self._履歴)
+            return self.起点(), self._現行採用履歴()
+        finally:
+            self._ロック.release()
+
+    def _現行採用履歴(self):
+        # 歴史記録は削除しない。失効した出力を次の依頼の現行根拠へ再昇格させない。
+        active = []
+        for turn, row in enumerate(self._履歴, 1):
+            values = tuple(value for i, value in enumerate(row["出力"])
+                           if self._庫.原記録(f"応答:{turn}:出力:{i}")["現行"])
+            if values:
+                active.append({**deepcopy(row), "出力": deepcopy(values)})
+        return tuple(active)
+
+    def 記録を失効(self, 起点, 識別子: tuple[str, ...], *, 理由: str):
+        """明示訂正による記録失効。庫の原子的更新後にのみ現行焦点から除外する。"""
+        if not self._ロック.acquire(blocking=False):
+            raise ValueError("処理中の統合セッション")
+        try:
+            return self._庫.更新(起点, 失効ID=識別子, 理由=理由)
         finally:
             self._ロック.release()
 
@@ -145,7 +173,8 @@ class 統合セッション:
             self._ロック.release()
 
     def 準備(self, 計画: 合成計画, Data: dict[str, 能力結果], *,
-             依頼文="明示された能力計画を実行", 条件: tuple[受入条件, ...] = ()) -> 統合計画:
+             依頼文="明示された能力計画を実行", 条件: tuple[受入条件, ...] = (),
+             依存記録: tuple[str, ...] = ()) -> 統合計画:
         if not self._ロック.acquire(blocking=False):
             raise ValueError("処理中の統合セッション")
         try:
@@ -155,6 +184,11 @@ class 統合セッション:
                 raise ValueError("依頼文不正")
             if type(計画.工程) is not tuple or type(計画.出力工程) is not tuple:
                 raise ValueError("計画の列型不正")
+            if (type(依存記録) is not tuple or len(依存記録) > 64
+                    or any(type(k) is not str for k in 依存記録)
+                    or len(set(依存記録)) != len(依存記録)
+                    or any(not self._庫.原記録(k)["現行"] for k in 依存記録)):
+                raise ValueError("依存記録は現行の一意な原記録IDに限定する")
             data = deepcopy(Data)
             for key, value in data.items():
                 if type(key) is not str or key.startswith("統合:"):
@@ -182,7 +216,7 @@ class 統合セッション:
             plan = 合成計画(tuple(steps), (*計画.出力工程, *gates))
             # 実行しない構造検査。要求時の外部許可は別途実行時にも必要。
             self._実行器._準備(plan, data, True)
-            packed = 統合計画(self.起点(), plan, data, 計画.出力工程, 依頼文, self._能力版())
+            packed = 統合計画(self.起点(), plan, data, 計画.出力工程, 依頼文, self._能力版(), 依存記録=依存記録)
             if len(_符号化({k: _結果辞書(v) for k, v in data.items()})) > 2000000:
                 raise ValueError("統合入力サイズ上限")
             return replace(packed, ハッシュ=_計画印(packed))
@@ -202,10 +236,11 @@ class 統合セッション:
     def _応答値(self, state, start, result=None, outputs=(), reason="", metrics=None, interpretation=None):
         body = (outputs[0][1].本文 if len(outputs) == 1 else
                 "\n\n".join(f"［{key}］\n{value.本文}" for key, value in outputs)) if state == "合格" else ""
+        ids = tuple(f"応答:{len(self._履歴)}:出力:{i}" for i in range(len(outputs))) if state == "合格" else ()
         return 統合応答(state, body, deepcopy(outputs), reason, start, self.起点(),
-                        result, deepcopy(metrics or {}), interpretation)
+                        result, deepcopy(metrics or {}), interpretation, ids)
 
-    def _確定(self, start, request, source, outputs, result, stop):
+    def _確定(self, start, request, source, outputs, result, stop, 依存記録=()):
         self._停止(stop)
         if start != self.起点() or len(self._履歴) >= self._上限[0]:
             raise ValueError("状態変更または応答数上限")
@@ -219,7 +254,7 @@ class 統合セッション:
         turn = len(self._履歴)+1
         data_rows = tuple(文脈登録(f"応答:{turn}:資料:{i}", v) for i, v in enumerate(source.values()))
         # 全提供資料への保守的な依存。意味的に必要な資料を推定したことにはしない。
-        dependencies = tuple(r.識別子 for r in data_rows)
+        dependencies = (*依存記録, *(r.識別子 for r in data_rows))
         out_rows = tuple(文脈登録(f"応答:{turn}:出力:{i}", value, "成果", dependencies)
                          for i, (_, value) in enumerate(outputs))
         new = {"依頼": request, "出力": deepcopy(outputs), "実行ハッシュ": result.ルートハッシュ}
@@ -267,7 +302,7 @@ class 統合セッション:
                                       metrics=self._計測(before, begun))
             values = dict(result.出力)
             outputs = tuple((key, values[key]) for key in fixed.出力ID)
-            self._確定(start, fixed.依頼文, fixed.Data, outputs, result, 停止要求)
+            self._確定(start, fixed.依頼文, fixed.Data, outputs, result, 停止要求, fixed.依存記録)
             return self._応答値("合格", start, result, outputs, metrics=self._計測(before, begun))
         except Exception as exc:
             state = "中止" if isinstance(exc, InterruptedError) else "失敗"
@@ -299,7 +334,7 @@ class 統合セッション:
             from .統合依頼 import 依頼を準備
             from .要求解釈実行 import 要求計画を実行
             interpretation, snapshot, detail = 依頼を準備(
-                依頼, 資料, 入力言語, start.セッションID, deepcopy(self._履歴), self._上限[0])
+                依頼, 資料, 入力言語, start.セッションID, self._現行採用履歴(), self._上限[0])
             self._停止(停止要求)
             if interpretation is None or not interpretation.成立:
                 return self._応答値("保留", start, reason="依頼の未対応・未解釈部分を保持", interpretation=detail,

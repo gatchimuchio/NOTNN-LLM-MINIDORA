@@ -14,7 +14,7 @@ import unicodedata
 from uuid import uuid4
 
 from .能力合成 import _結果辞書, _参照結合
-from .応答構成 import 能力結果を復元
+from .能力結果復元 import 能力結果を復元
 from .製品版.型 import 能力結果
 
 長文脈版 = "MINIDORA-長文脈-v0.1"

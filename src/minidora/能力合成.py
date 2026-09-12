@@ -141,6 +141,8 @@ def _結果辞書(結果: 能力結果) -> dict:
         raise ValueError("能力結果型不正")
     if not isinstance(結果.本文, str) or not isinstance(結果.保留理由, str):
         raise ValueError("能力結果本文型不正")
+    if 結果.成立 and 結果.保留理由:
+        raise ValueError("成立した能力結果に保留理由を併存させない")
     if type(結果.根拠) is not tuple or not all(isinstance(s, str) for s in 結果.根拠):
         raise ValueError("能力結果根拠型不正")
     if type(結果.参照) is not tuple or type(結果.データ) is not dict:
