@@ -1,0 +1,37 @@
+name: Batch21 Transport
+
+on:
+  push:
+    branches:
+      - transport/batch21-20260912
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verified-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 検証済み差分を完成ブランチへ適用
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .batch21-transport/c01.txt .batch21-transport/c02.txt .batch21-transport/c03.txt .batch21-transport/c04.txt .batch21-transport/c05.txt .batch21-transport/c06.txt .batch21-transport/c07.txt > /tmp/b21.b64
+          base64 -d /tmp/b21.b64 > /tmp/b21.patch.gz
+          echo '43f83c8b5da855aab51286a7fa8bb559bea1f7668e5b2ed32712da24979df086  /tmp/b21.patch.gz' | sha256sum -c -
+          gzip -dc /tmp/b21.patch.gz > /tmp/b21.patch
+          echo '6a03b1586176e9c8f3987497a4ee1fbb6e4db5dd047cfedfbb96304e041e61cf  /tmp/b21.patch' | sha256sum -c -
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = '1126a833587663beed69e7db604b7d5ad4ad1264'
+          git checkout -B sandbox/context-proposition-batch21-20260912 origin/main
+          git apply --check /tmp/b21.patch
+          git apply /tmp/b21.patch
+          git add -A
+          test "$(git write-tree)" = '65e032a330c2143b764ddf0a2950661ea69aec2f'
+          git config user.name 'がっちむち♂'
+          git config user.email 'ohira.teppei@gmail.com'
+          git commit -m 'feat: 帰属文脈・取得命題を統合（第21バッチ）'
+          git push origin HEAD:refs/heads/sandbox/context-proposition-batch21-20260912
