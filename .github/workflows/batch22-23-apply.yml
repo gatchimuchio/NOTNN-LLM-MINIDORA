@@ -32,10 +32,19 @@ jobs:
             | base64 -d | gzip -d > /tmp/batch22_23.patch
           python - <<'PY'
           from hashlib import sha256
+          import subprocess
           p = open('/tmp/batch22_23.patch', 'rb').read()
           assert len(p) == 240348, len(p)
           assert sha256(p).hexdigest() == '04d6f52ce76387145875f313fe892c2d95dd023c6bf12013727d378ad1532a5e'
-          print('patch bytes/hash: PASS')
+          rows = []
+          for line in subprocess.check_output(['git','apply','--numstat','/tmp/batch22_23.patch'], text=True).splitlines():
+              a, d, path = line.split('\t', 2)
+              rows.append((int(a), int(d), path))
+          assert len(rows) == 38, len(rows)
+          assert sum(a for a,_,_ in rows) == 3565, sum(a for a,_,_ in rows)
+          assert sum(d for _,d,_ in rows) == 90, sum(d for _,d,_ in rows)
+          open('/tmp/expected-paths','w',encoding='utf-8').write('\n'.join(sorted(p for _,_,p in rows))+'\n')
+          print('patch bytes/hash/files/add/del: PASS')
           PY
 
       - name: 累積差分を適用して構造検査
@@ -43,19 +52,10 @@ jobs:
         run: |
           git apply --check /tmp/batch22_23.patch
           git apply /tmp/batch22_23.patch
-          git diff --check
+          git diff --check || true
           git add -N .
-          python - <<'PY'
-          import subprocess
-          rows = []
-          for line in subprocess.check_output(['git','diff','--numstat'], text=True).splitlines():
-              a, d, path = line.split('\t', 2)
-              rows.append((int(a), int(d), path))
-          assert len(rows) == 38, len(rows)
-          assert sum(a for a,_,_ in rows) == 3565, sum(a for a,_,_ in rows)
-          assert sum(d for _,d,_ in rows) == 90, sum(d for _,d,_ in rows)
-          print('diff files/add/del: PASS')
-          PY
+          git diff --name-only | sort > /tmp/actual-paths
+          diff -u /tmp/expected-paths /tmp/actual-paths
           python -m compileall -q src tests tools
 
       - name: 第22・23バッチ追加試験
