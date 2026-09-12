@@ -44,6 +44,7 @@ jobs:
           git apply --check /tmp/batch22_23.patch
           git apply /tmp/batch22_23.patch
           git diff --check
+          git add -N .
           python - <<'PY'
           import subprocess
           rows = []
