@@ -31,7 +31,7 @@ from .製品版.型 import 能力結果,参照資料
 from .知識取得 import 知識取得器
 from .製品版.検索 import SearXNG検索供給器
 
-汎用会話版='MINIDORA-汎用会話-v0.4'
+汎用会話版='MINIDORA-汎用会話-v0.5'
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,12 +49,20 @@ class 汎用会話応答:
 
 
 class 汎用会話セッション:
-    def __init__(self, セッションID, *, 取得器=None, 外部読取許可=False, 最大発話=128):
+    def __init__(self, セッションID, *, 取得器=None, 外部読取許可=False, 最大発話=128, 監査改善=False):
         if type(外部読取許可) is not bool or type(最大発話) is not int or not 1<=最大発話<=512:
             raise ValueError('会話許可・発話上限不正')
+        if type(監査改善) is not bool: raise ValueError('監査改善接続はbool')
+        self._監査改善=None; self._監査改善焦点=False
         backend=取得器 if 取得器 is not None else 知識取得器(SearXNG検索供給器())
         added=(*会話能力群(backend,外部許可=外部読取許可),数量集合Module().登録(),*命題能力群(),*文脈命題能力群())
+        if 監査改善:
+            from .監査改善計画 import 改善統合能力群
+            added=(*added,*改善統合能力群())
         self.統合=統合セッション(セッションID,外部読取許可=外部読取許可,取得器=backend,追加能力=added)
+        if 監査改善:
+            from .監査改善会話 import 監査改善会話セッション
+            self._監査改善=監査改善会話セッション(セッションID,統合=self.統合,最大発話=min(最大発話,128))
         extra={r.Module.名前 for r in added}
         base=tuple(r for r in self.統合.能力一覧() if r['名前'] not in extra)
         self._旧計画=目的計画器(能力意味カタログ(base))
@@ -70,7 +78,8 @@ class 汎用会話セッション:
         try:
             return {'発話':deepcopy(self._発話),'保留目的':asdict(self._保留) if self._保留 else None,
                     '最後の成果有効':self._最後有効,'資料版':{k:意味指紋(_結果辞書(v)) for k,v in self._資料.items()},
-                    '採用起点':asdict(self.統合.起点())}
+                    '採用起点':asdict(self.統合.起点()),
+                    **({'監査改善':self._監査改善.状態()} if self._監査改善 is not None else {})}
         finally: self._ロック.release()
 
     def _資料入力(self, materials, *, 更新=True):
@@ -80,6 +89,8 @@ class 汎用会話セッション:
         for name,value in materials.items():
             if type(name) is not str or not 0<len(name)<=128 or any(ord(c)<32 for c in name):
                 raise ValueError('資料名不正')
+            if self._監査改善 is not None and name in self._監査改善.状態()['資料版']:
+                raise ValueError('監査改善資料と通常資料の名前衝突。資料名を分ける')
             _結果辞書(value)
             if not value.成立: raise ValueError('資料の入力が不成立')
             if name in candidate and not 更新: raise ValueError('既存資料の変更には更新を明示する')
@@ -194,6 +205,22 @@ class 汎用会話セッション:
             if type(原文) is not str or not 原文.strip() or len(原文)>8192:
                 raise ValueError('会話原文の型・上限')
             start=self.統合.起点()
+            if self._監査改善 is not None and self._監査改善.対応する(原文,継続許可=self._監査改善焦点):
+                # 通常資料と追加資料を暗黙に混合・置換しない。
+                if 資料 is not None: raise ValueError('追加能力の資料は種類付き登録で明示する')
+                from .監査改善会話解釈 import 改善発話を解釈
+                command=改善発話を解釈(原文)
+                if command.get('資料') in self._資料:
+                    raise ValueError('通常資料と監査改善資料の名前衝突。資料名を分ける')
+                ir=公開HDSコンパイラ().コンパイル(原文)
+                if ir.原文!=原文: raise ValueError('HDS原文と追加会話の原文が不一致')
+                trace['HDS原文']=ir.原文;trace['HDS保持']=asdict(ir)
+                trace['HDS照合範囲']='原文保持。意味解釈は有限会話契約による。一般HDS意味照合の完了ではない'
+                result=self._監査改善.応答(原文,停止要求=停止要求)
+                trace['監査改善']=result.追跡 or {}
+                self._監査改善焦点=True
+                return self._返す(原文,汎用会話応答(result.状態,result.本文,result.理由,trace,result.結果))
+            self._監査改善焦点=False
             if 資料 is not None: trace['更新資料']=self._資料入力(資料)
             request=会話を解釈(原文,tuple(self._資料))
             if request.行為 in ('登録','更新'):
@@ -206,6 +233,10 @@ class 汎用会話セッション:
             if request.行為=='初期化':
                 self.統合.初期化();self._資料={};self._発話=();self._保留=None
                 self._最後目的=None;self._最後結果=None;self._最後依存={};self._最後有効=True;self._最後起点=None
+                if self._監査改善 is not None:
+                    from .監査改善会話 import 監査改善会話セッション
+                    self._監査改善=監査改善会話セッション(self.統合.起点().セッションID,統合=self.統合,最大発話=min(self._上限,128))
+                self._監査改善焦点=False
                 return 汎用会話応答('合格','会話と資料を初期化しました。',追跡=trace)
             ir=公開HDSコンパイラ().コンパイル(原文)
             trace['HDS原文']=ir.原文
@@ -219,6 +250,8 @@ class 汎用会話セッション:
                 body={'こんにちは':'こんにちは。','こんばんは':'こんばんは。','ありがとう':'どういたしまして。',
                     '外部禁止':'この発話では外部検索を実行しません。',
                     'できることを教えて':'数式の計算・微積分、JSON/CSVの数値比較・最大8対象の一覧/合計/平均/最大/最小、資料の変換、数値記載の取得、確認への返答と訂正に対応しています。資料からの命題導出・支持/反証/矛盾/未確定の区別・発言や信念の帰属・局所照応・資料解釈の確認・明示許可時の公開本文による命題検討にも対応しています。自由作文・一般的な原因推定は未対応です。'}[phrase]
+                if phrase=='できることを教えて' and self._監査改善 is not None:
+                    body+='追加の種類付き資料では、有限仮説検討・明示ブールモデルの介入比較・有界照応に対応します。一般原因認定や自由作文ではありません。'
                 return self._返す(原文,汎用会話応答('合格',body,追跡=trace))
             if request.行為 in ('命題選択','資料命題選択'):
                 pending=self._保留

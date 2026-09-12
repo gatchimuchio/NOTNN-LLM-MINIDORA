@@ -5,7 +5,8 @@ from dataclasses import asdict
 import re
 from .命題句 import 構成句を分ける, 引用を切り出す, 最上位位置
 from .命題構造 import 命題記載, 命題を復元, 原子群
-from .命題解釈 import 命題を読む, 命題を表現
+from .命題解釈 import 命題を読む, 命題を表現, _外側
+from .命題語彙 import 接続語
 from .命題推論 import 命題推論器, 推論上限
 
 文脈命題版 = 'MINIDORA-文脈命題-v0.1'
@@ -19,12 +20,22 @@ def _主題群(式, 射影文):
     if not names: return ()
     phrases = {name + 'は': name for name in names}
     phrases.update({name + 'によると': name for name in names})
+    phrases.update({name + 'が': name for name in names})
     return tuple(dict.fromkeys(phrases[word] for _, word in 最上位位置(射影文, tuple(phrases))))
 
 
 def _引用内一人称(本文, 深さ=0):
     if 深さ > 8: raise ValueError('帰属照応の深さ上限')
-    clauses = list(構成句を分ける(本文, ('かつ', 'または', 'ならば', '。', '\n')))
+    trimmed = 本文.strip()
+    leading = len(本文) - len(本文.lstrip())
+    if trimmed.startswith(('(', '（')) and _外側(trimmed) is not None:
+        changed, trace = _引用内一人称(trimmed[1:-1], 深さ + 1)
+        return 本文[:leading + 1] + changed + 本文[leading + len(trimmed) - 1:], trace
+    wrapper = re.fullmatch(r'(否定|[0-9]{4}年では|時点「[^「」]+」では)([（(].*[）)])', trimmed, re.S)
+    if wrapper and _外側(wrapper[2]) is not None:
+        changed, trace = _引用内一人称(wrapper[2], 深さ + 1)
+        return 本文[:leading] + wrapper[1] + changed + 本文[leading + len(trimmed):], trace
+    clauses = list(構成句を分ける(本文, (*接続語, '。', '\n')))
     if len(clauses) > 1:
         result = []; cursor = 0; traces = []
         for a, b in clauses:
@@ -32,7 +43,7 @@ def _引用内一人称(本文, 深さ=0):
             result.extend((本文[cursor:a], changed)); cursor = b; traces.extend(local)
         result.append(本文[cursor:])
         return ''.join(result), traces
-    for i, marker in 最上位位置(本文, ('は',)):
+    for i, marker in 最上位位置(本文, ('は', 'が')):
         start = i + len(marker)
         if start >= len(本文) or 本文[start] not in ('「', '『'): continue
         content, end = 引用を切り出す(本文, start)
@@ -40,7 +51,7 @@ def _引用内一人称(本文, 深さ=0):
         if not speaker or speaker in (*_指示語, '私', 'わたし'): continue
         # 一人称を解消する範囲は直接の引用内のみ。入れ子引用では話者を切り替える。
         pieces = []; cursor = 0; changes = []
-        for a, b in 構成句を分ける(content, ('かつ', 'または', 'ならば', '。', '\n')):
+        for a, b in 構成句を分ける(content, (*接続語, '。', '\n')):
             fragment = content[a:b]
             inner, trace = _引用内一人称(fragment, 深さ + 1)
             if not trace:
@@ -57,21 +68,33 @@ def _引用内一人称(本文, 深さ=0):
     return 本文, []
 
 
-def 文脈資料を読む(本文: str, 資料名: str):
+def 文脈資料を読む(本文: str, 資料名: str, *, 照応距離: int = 1):
     if type(本文) is not str or not 本文.strip() or len(本文) > 32000:
         raise ValueError('文脈資料の型・サイズ')
     if type(資料名) is not str or not 0 < len(資料名) <= 128 or any(ord(c) < 32 for c in 資料名):
         raise ValueError('文脈資料名不正')
+    if type(照応距離) is not int or not 1 <= 照応距離 <= 16:
+        raise ValueError('照応距離は1〜16の整数')
     rows = []; previous = (); extended = False
     for start, end in 構成句を分ける(本文):
         original = 本文[start:end]; forms = [(original, [])]
         hit = re.match(r'\s*(彼女|彼|同者|それ)は', original)
         if hit:
+            prior_index = len(rows) - 1
+            # 無主題の記載だけをまたぐ明示的な有界規約。一般の指示意図は保証しない。
+            if not previous and 照応距離 > 1:
+                for j in range(len(rows) - 2, max(-1, len(rows) - 照応距離 - 1), -1):
+                    topics = tuple(dict.fromkeys(name for prior in rows[j]['候補']
+                        for name in _主題群(命題を復元(prior['式']), prior['射影文'])))
+                    if topics:
+                        previous, prior_index = topics, j
+                        break
             if not previous: raise ValueError('指示先がない資料内照応:' + hit[1])
             forms = [(original[:hit.start(1)] + name + original[hit.end(1):],
                       [{'種別': '資料内照応', '原文': hit[1], '束縛先': name,
-                        '理由': '直前記載の明示主題（局所照応規約）', '参照記載': len(rows) - 1,
-                        '参照候補': [i + 1 for i, prior in enumerate(rows[-1]['候補'])
+                        '理由': ('直前記載の明示主題（局所照応規約）' if prior_index == len(rows) - 1
+                                 else '無主題記載をまたぐ有界照応規約。指示意図は未保証'), '参照記載': prior_index,
+                        '参照候補': [i + 1 for i, prior in enumerate(rows[prior_index]['候補'])
                             if name in _主題群(命題を復元(prior['式']), prior['射影文'])]}]) for name in previous]
         options = {}
         for form, resolutions in forms:

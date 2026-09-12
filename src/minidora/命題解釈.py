@@ -8,10 +8,11 @@ from __future__ import annotations
 import itertools
 import re
 from .命題句 import 最上位位置, 構成句を分ける, 引用を切り出す
+from .命題語彙 import 帰属語尾, 接続語, 指示語, 肯定語尾, 否定語尾
 from .命題構造 import 命題項, 命題式, 命題候補, 命題記載, 原子, 結合, 反対, 文脈を付す
 
 _名前 = re.compile(r'[^\s「」（）()、。，,；;：:！？!?]{1,80}\Z')
-_予約語 = ('ならば', 'かつ', 'または', 'である', 'ではない', 'について', '可能性', 'わけでは', 'ただし')
+_予約語 = ('ならば', 'かつ', 'または', 'である', 'ではない', 'について', '可能性', 'わけでは', 'ただし', 'および', '又は', 'あるいは', 'じゃない', 'じゃありません', 'でない')
 
 
 def _名(text):
@@ -37,7 +38,7 @@ def _外側(text):
 
 
 def _接続位置(text):
-    kinds = {'ならば': '含意', 'かつ': '連言', 'または': '選言'}
+    kinds = 接続語
     return [(i, word, kinds[word]) for i, word in 最上位位置(text, tuple(kinds))]
 
 
@@ -85,15 +86,13 @@ def 命題を読む(text: str, *, 最大候補=8) -> tuple[命題候補, ...]:
             kind = '全称' if word == 'すべての' else '存在'
             return tuple(結合(kind, e, 変数=var) for e in parse(body, variables | {var}, depth + 1))
         # 外側の発言・信念と引用内容を別の命題として保持する。
-        for i, marker in (() if _接続位置(s) else 最上位位置(s, ('は', 'によると'))):
+        for i, marker in (() if _接続位置(s) else 最上位位置(s, ('は', 'が', 'によると'))):
             start = i + len(marker)
             if start >= len(s) or s[start] not in ('「', '『'): continue
             body, end = 引用を切り出す(s, start)
             suffix = s[end:]
-            kinds = {'と述べている': '発言', 'と述べた': '過去発言',
-                     'と考えている': '信念', 'と信じている': '信念',
-                     'と考えていた': '過去信念', 'と信じていた': '過去信念'}
-            kind = '伝聞' if marker == 'によると' and not suffix else kinds.get(suffix) if marker == 'は' else None
+            kinds = 帰属語尾
+            kind = '伝聞' if marker == 'によると' and not suffix else kinds.get(suffix) if marker in ('は', 'が') else None
             if kind is None: continue
             speaker = _名(s[:i])
             if speaker in ('彼', '彼女', '同者', 'それ', 'これ', 'あれ', '私', 'わたし'):
@@ -134,32 +133,35 @@ def 命題を読む(text: str, *, 最大候補=8) -> tuple[命題候補, ...]:
                         if len(values) > 32:
                             raise ValueError('係り受け候補上限')
             return unique(values)
-        categorical = re.fullmatch(r'(すべての|一部の)(.+?)は(.+?)(である|です|ではない|ではありません)', s)
+        endings = '|'.join(re.escape(v) for v in sorted((*肯定語尾, *否定語尾), key=len, reverse=True))
+        categorical = re.fullmatch(r'(すべての|一部の)(.+?)は(.+?)(' + endings + ')', s)
         if categorical:
             quantifier, subject, predicate, end = categorical.groups()
             subject, predicate = _名(subject), _名(predicate)
             var = '_対象' + str(depth)
             t = 命題項(var, '変数')
             left, right = 原子(subject, t), 原子(predicate, t)
-            negative = end in ('ではない', 'ではありません')
+            negative = end in 否定語尾
             if quantifier == '一部の':
                 return (結合('存在', 結合('連言', left, 反対(right) if negative else right), 変数=var),)
             universal = 結合('全称', 結合('含意', left, right), 変数=var)
             if negative:
                 return (結合('全称', 結合('含意', left, 反対(right)), 変数=var), 反対(universal))
             return (universal,)
-        copula = re.fullmatch(r'(.+?)は(.+?)(である|です|ではない|ではありません)', s)
+        copula = re.fullmatch(r'(.+?)は(.+?)(' + endings + ')', s)
         if copula:
             subject, predicate, end = copula.groups()
             subject, predicate = _名(subject), _名(predicate)
             if subject in ('それ', 'これ', 'あれ', '彼', '彼女', '同者', '私', 'わたし'):
                 raise ValueError('命題の指示対象を明示する')
             atom = 原子(predicate, 命題項(subject, '変数' if subject in variables else '定数'))
-            return (反対(atom) if end in ('ではない', 'ではありません') else atom,)
+            return (反対(atom) if end in 否定語尾 else atom,)
         functional = re.fullmatch(r'([^()（）]+)[(（]([^()（）]*)[)）]', s)
         if functional:
             predicate = _名(functional[1]); args = functional[2]
             names = [] if not args.strip() else [_名(v) for v in re.split('[,、]', args)]
+            if any(v in 指示語 and v not in variables for v in names):
+                raise ValueError('関数形の指示対象を文脈で確定する')
             if len(names) > 4:
                 raise ValueError('述語の項数上限')
             return (原子(predicate, *(命題項(v, '変数' if v in variables else '定数') for v in names)),)

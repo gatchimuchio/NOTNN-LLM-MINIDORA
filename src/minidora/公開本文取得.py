@@ -65,6 +65,7 @@ def _公開アドレス(host: str) -> str:
 
 class _本文抽出(HTMLParser):
     _除外 = {"head", "script", "style", "noscript", "template", "svg", "canvas", "table"}
+    _非文字 = {"img", "iframe", "object", "embed", "audio", "video"}
     _区切 = {"p", "div", "section", "article", "main", "h1", "h2", "h3", "h4", "li", "ul", "ol", "pre", "blockquote", "br", "hr"}
     _空要素 = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 
@@ -77,6 +78,10 @@ class _本文抽出(HTMLParser):
         self._題名内 = False
 
     def handle_starttag(self, tag, attrs):
+        if tag in self._非文字:
+            # 明示した空alt画像以外を、意味的に無関係とは決め付けない。
+            if tag != "img" or dict(attrs).get("alt") != "":
+                self.除外.add(tag)
         if tag == "title":
             self._題名内 = True
         if tag in self._除外:
@@ -155,6 +160,8 @@ def 本文を復号(要求URL: str, 経路: tuple[str, ...], headers: dict[str, 
         parser.close()
         text = parser.本文()
         title = " ".join("".join(parser.題名).split())
+        if parser.抑止:
+            parser.除外.add("未閉鎖除外域")
         excluded = tuple(sorted(parser.除外))
     else:
         text = text.replace("\r\n", "\n").replace("\r", "\n").strip()

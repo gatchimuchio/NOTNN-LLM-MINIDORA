@@ -12,6 +12,7 @@ from .製品版.型 import 能力結果
 from .会話能力接続 import _入力
 from .会話意味 import 意味目的, 意味指紋
 from .役割計画 import 役割作用
+from .取得意味境界 import 取得本文の意味境界を検査
 
 
 def 文脈資料群(values, names):
@@ -83,6 +84,7 @@ def 取得本文を資料化(value):
         raw = {f.name: ref.本文 if f.name == '本文' else meta[f.name] for f in fields(取得本文)}
         for column in ('経路', '除外要素'): raw[column] = tuple(raw[column])
         doc = 取得本文(**raw); _本文検証(doc, doc.要求URL)
+        取得本文の意味境界を検査(doc)
         identity = 'web:' + sha256((doc.最終URL + '\n' + doc.本文SHA256).encode()).hexdigest()[:24]
         if (ref.URL != doc.最終URL or key != identity or ref.出典 != '公開HTTPS本文'
                 or ref.公開時刻 is not None or meta['公開時刻'] is not None):
