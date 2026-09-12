@@ -1,0 +1,36 @@
+name: Batch21 Docs Transport
+
+on:
+  push:
+    branches:
+      - transport/batch21-docs-20260912
+
+permissions:
+  contents: write
+
+jobs:
+  apply-doc-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 検証済み文書差分を適用
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .batch21-docs.patch.gz /tmp/b21-docs.patch.gz
+          echo '66d9d270e0259e11e5ca5cd14c724e81104b7554caf1d152b0c58bdb3d307ad5  /tmp/b21-docs.patch.gz' | sha256sum -c -
+          gzip -dc /tmp/b21-docs.patch.gz > /tmp/b21-docs.patch
+          echo 'fb2c1de918fb7b4b6ac8e2603203e7d696a90515f02428203677e849f1707d9f  /tmp/b21-docs.patch' | sha256sum -c -
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = '55a15c201fbfab2ebc48f6beb718450c6c7851cb'
+          git checkout -B docs/batch21-audit-finalize-20260912 origin/main
+          git apply --check /tmp/b21-docs.patch
+          git apply /tmp/b21-docs.patch
+          git add -A
+          test "$(git write-tree)" = '944fd2a2d34f6ad2cca87ed8534eeb3ae26adef9'
+          git config user.name 'がっちむち♂'
+          git config user.email 'ohira.teppei@gmail.com'
+          git commit -m 'docs: 第21バッチのCI・main還元結果を確定'
+          git push origin HEAD:refs/heads/docs/batch21-audit-finalize-20260912
