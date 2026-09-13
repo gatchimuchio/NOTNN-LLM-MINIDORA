@@ -1,0 +1,35 @@
+name: 第26バッチ再開監査修正の同一性検査
+on:
+  push:
+    branches: ['transport/batch26-audit-fix-20260914']
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 固定差分と完成treeを照合
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --quiet f54ecd3d62dd59ef609dcab8e458c1244a195c2c -- . ':(exclude).github/workflows/batch26_audit_fix.yml'
+          python - <<'PY'
+          import base64,gzip,hashlib,subprocess
+          text='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'
+          packed=base64.b64decode(text,validate=True)
+          assert hashlib.sha256(packed).hexdigest()=='9f153b341e2c220449f3ad5a3c7e6c02c1846fecc2022d58567ecc68491fe00d'
+          patch=gzip.decompress(packed)
+          assert hashlib.sha256(patch).hexdigest()=='5f6ba80193fc5bc459cebd01dc492863227ceda84cceedf9bb535602ef41202b'
+          subprocess.run(['git','apply','--check','-'],input=patch,check=True)
+          subprocess.run(['git','apply','--index','-'],input=patch,check=True)
+          PY
+          git rm .github/workflows/batch26_audit_fix.yml
+          test "$(git write-tree)" = c0dd4511040fd2d78803cc2a461751c03ac123ad
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: 原記載を使わない導出と未導出の説明を区別'
+          git push origin HEAD:transport/batch26-audit-fix-20260914
