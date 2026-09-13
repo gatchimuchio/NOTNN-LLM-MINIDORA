@@ -1,0 +1,31 @@
+name: 第25バッチ固定基点の読取スナップショット
+on:
+  push:
+    branches: [transport/batch25-source-20260913]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4820c3e2663bd6ff6fa73fc39642a36d805d3f76
+          persist-credentials: false
+      - name: 固定基点の完全スナップショット
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 4820c3e2663bd6ff6fa73fc39642a36d805d3f76
+          test "$(git rev-parse HEAD^{tree})" = cfc48bf03388296db240d751a8b1b48e66e082d4
+          mkdir -p /tmp/minidora-base
+          git archive --format=zip HEAD > /tmp/minidora-base/main.zip
+          git ls-tree -r -z HEAD > /tmp/minidora-base/tree.bin
+          git rev-parse HEAD HEAD^{tree} > /tmp/minidora-base/refs.txt
+          sha256sum /tmp/minidora-base/main.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-batch25-base
+          path: /tmp/minidora-base/
+          retention-days: 3
+          if-no-files-found: error
