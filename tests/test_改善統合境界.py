@@ -173,7 +173,8 @@ class 統合採用試験(unittest.TestCase):
         self.assertFalse(r.成立)
 
     def test_基底の未取得機能を暗黙偽装しない(self):
-        self.assertEqual(len(self.s.能力一覧()),5)
+        self.assertEqual({r['名前'] for r in self.s.能力一覧()},
+            {'拡張命題検討', '有限仮説検討', '有限介入比較', '資料読解', '監査改善回答', '監査改善回答照合'})
         with self.assertRaises(ValueError):統合セッション('x',基底能力=[])
         with self.assertRaises(ValueError):統合セッション('x',基底能力=改善統合能力群(),追加能力=改善統合能力群())
 

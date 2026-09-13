@@ -15,7 +15,7 @@ from .知識 import 知識参照Module本体, Wikipedia知識供給器
 from .検索 import Web検索Module本体, SearXNG検索供給器
 from .組込モジュール import ニュース能力,要約能力,変換能力,抽出能力,計算能力,基本会話能力,Web検索能力,知識参照能力,Core能力
 
-製品チャット版="MINIDORA-PRODUCT-CHAT-v6"
+製品チャット版="MINIDORA-PRODUCT-CHAT-v7"
 
 class 製品ミニドラ:
     def __init__(self,*,基礎ミニドラ:Any=None,ニュース供給器=None,知識供給器=None,検索供給器=None,監査台帳_:監査台帳|None=None,状態庫:会話状態庫|None=None,追加Module:tuple=(),汎用会話:bool=False,汎用外部読取許可:bool=False,汎用取得器=None,監査改善:bool=True) -> None:
@@ -33,7 +33,7 @@ class 製品ミニドラ:
         self.能力レジストリ=能力レジストリ((*builtin,*追加Module))
 
     def 能力一覧(self)->tuple[str,...]:
-        improved=(("明示資料の命題・仮説・介入検討と訂正・失効",) if self._改善有効 else ())
+        improved=(("明示資料の命題・仮説・介入検討、原文範囲付き読解と訂正・失効",) if self._改善有効 else ())
         if self._汎用有効:
             return ("目的からの数式・文書・コード構造処理", "二資料・指定二時点の数値比較", "最大8対象の数量集合・選別・合計・平均・表・計算手順",
                     "資料命題の条件・否定・量化推論と意味候補確認", "発言・信念の帰属、資料内照応、資料解釈の場合別判定", "不足条件の確認と明示訂正", "根拠と条件を保持する回答", "回復契約に基づく限定再計画",
@@ -95,7 +95,7 @@ class 製品ミニドラ:
             if text in ('/初期化','会話を初期化して'):
                 return True
             return session.監査改善に対応する(text,継続許可=st.直前経路=='汎用会話')
-        return text.startswith(('命題資料','仮説資料','介入資料','監査改善の'))
+        return text.startswith(('命題資料','仮説資料','介入資料','本文資料','監査改善の'))
 
     def _汎用応答_locked(self,text,st):
         from ..汎用会話 import 汎用会話セッション,汎用会話応答,汎用会話版

@@ -10,8 +10,8 @@ from .能力合成 import _符号化
 from .命題句 import 引用を切り出す, 最上位位置
 from .命題解釈 import 命題を読む
 
-改善会話解釈版 = 'MINIDORA-監査改善会話解釈-v0.2'
-種類名 = ('命題', '仮説', '介入')
+改善会話解釈版 = 'MINIDORA-監査改善会話解釈-v0.3'
+種類名 = ('命題', '仮説', '介入', '本文')
 
 
 def JSONを厳格に読む(text: str, *, 最大バイト数=2_000_000):
@@ -95,7 +95,7 @@ def 資料を構造化(kind: str, name: str, body: str):
     名前を確認(name)
     if type(body) is not str or not body.strip() or len(body.encode('utf-8')) > 100_000:
         raise ValueError('資料本文の型・上限')
-    if kind == '命題':
+    if kind in ('命題', '本文'):
         return {'本文': body}, []
     if body.lstrip().startswith('{'):
         data = JSONを厳格に読む(body, 最大バイト数=100_000)
