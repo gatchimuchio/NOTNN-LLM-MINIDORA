@@ -10,7 +10,7 @@ from .能力合成 import _符号化
 from .命題句 import 引用を切り出す, 最上位位置
 from .命題解釈 import 命題を読む
 
-改善会話解釈版 = 'MINIDORA-監査改善会話解釈-v0.1'
+改善会話解釈版 = 'MINIDORA-監査改善会話解釈-v0.2'
 種類名 = ('命題', '仮説', '介入')
 
 
@@ -183,8 +183,27 @@ def 改善発話を解釈(text: str) -> dict:
             body = suffix[m.end():]
             data, spans = 資料を構造化(kind, name, body)
             return out(m[1], 種類=kind, 資料=name, 本文=body, データ=data, 原文対応=spans)
+    from .依頼表現 import 検討依頼を読む, 再説明依頼を読む
+    expanded = 検討依頼を読む(original) or 再説明依頼を読む(original)
+    if expanded is not None:
+        if '資料' in expanded:
+            名前を確認(expanded['資料'])
+        return expanded
     if text.endswith('。'):
         text = text[:-1]
+    if text.startswith('述語別名を'):
+        value, end = 引用を切り出す(text, len('述語別名を'))
+        if text[end:] not in ('にして', 'に訂正して', 'に訂正してください'):
+            raise ValueError('述語別名訂正の未知語尾')
+        definitions = []
+        for fragment in (() if value == 'なし' else 命題列(value)):
+            match = re.fullmatch(r'([^/＝=]+)/([0-4])[=＝]([^/＝=]+)', fragment)
+            if match is None:
+                raise ValueError('述語別名は「表記/引数数=正規名」で指定する')
+            definitions.append({'表記': match[1], '正規名': match[3], '引数数': int(match[2]), '出典': original.strip()})
+        from .明示語彙 import 述語別名を検査
+        述語別名を検査(definitions)
+        return out('訂正', 変更={'述語別名': definitions})
     if text.startswith(('資料「', '資料『')):
         name, end = 引用を切り出す(text, 2)
         名前を確認(name)

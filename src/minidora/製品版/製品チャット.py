@@ -15,12 +15,15 @@ from .知識 import 知識参照Module本体, Wikipedia知識供給器
 from .検索 import Web検索Module本体, SearXNG検索供給器
 from .組込モジュール import ニュース能力,要約能力,変換能力,抽出能力,計算能力,基本会話能力,Web検索能力,知識参照能力,Core能力
 
-製品チャット版="MINIDORA-PRODUCT-CHAT-v5"
+製品チャット版="MINIDORA-PRODUCT-CHAT-v6"
 
 class 製品ミニドラ:
-    def __init__(self,*,基礎ミニドラ:Any=None,ニュース供給器=None,知識供給器=None,検索供給器=None,監査台帳_:監査台帳|None=None,状態庫:会話状態庫|None=None,追加Module:tuple=(),汎用会話:bool=False,汎用外部読取許可:bool=False,汎用取得器=None) -> None:
+    def __init__(self,*,基礎ミニドラ:Any=None,ニュース供給器=None,知識供給器=None,検索供給器=None,監査台帳_:監査台帳|None=None,状態庫:会話状態庫|None=None,追加Module:tuple=(),汎用会話:bool=False,汎用外部読取許可:bool=False,汎用取得器=None,監査改善:bool=True) -> None:
         if type(汎用会話) is not bool or type(汎用外部読取許可) is not bool:
             raise ValueError("汎用会話と外部許可はbool")
+        if type(監査改善) is not bool:
+            raise ValueError("監査改善はbool")
+        self._改善有効=監査改善
         from threading import Lock
         self._汎用有効=汎用会話; self._汎用許可=汎用外部読取許可
         self._汎用取得器=汎用取得器; self._汎用セッション={}; self._汎用ロック=Lock()
@@ -30,11 +33,12 @@ class 製品ミニドラ:
         self.能力レジストリ=能力レジストリ((*builtin,*追加Module))
 
     def 能力一覧(self)->tuple[str,...]:
+        improved=(("明示資料の命題・仮説・介入検討と訂正・失効",) if self._改善有効 else ())
         if self._汎用有効:
             return ("目的からの数式・文書・コード構造処理", "二資料・指定二時点の数値比較", "最大8対象の数量集合・選別・合計・平均・表・計算手順",
                     "資料命題の条件・否定・量化推論と意味候補確認", "発言・信念の帰属、資料内照応、資料解釈の場合別判定", "不足条件の確認と明示訂正", "根拠と条件を保持する回答", "回復契約に基づく限定再計画",
-                    *( ("公開資料の数値記載取得・取得全文の命題検討（明示許可済み）",) if self._汎用許可 else () ), "完全経路監査")
-        return tuple(m.名前 for m in self.能力レジストリ.一覧())+("完全経路監査",)
+                    *( ("公開資料の数値記載取得・取得全文の命題検討（明示許可済み）",) if self._汎用許可 else () ), *improved, "完全経路監査")
+        return tuple(m.名前 for m in self.能力レジストリ.一覧())+improved+("完全経路監査",)
     def Module登録(self,module)->None: self.能力レジストリ.登録(module)
     def Module解除(self,name:str)->None: self.能力レジストリ.解除(name)
 
@@ -55,7 +59,7 @@ class 製品ミニドラ:
             return self._応答_locked(str(入力文 or "").strip(), st)
 
     def _応答_locked(self,text,st)->製品応答:
-        if self._汎用有効:
+        if self._汎用有効 or self._改善対象(text,st):
             return self._汎用応答_locked(text,st)
         audit=self.監査台帳.開始(text,st.セッションID,st.直前監査ハッシュ)
         audit.記録("入力受理","製品チャット",製品チャット版,{"入力":text,"session":st.セッションID},{"履歴件数":len(st.履歴),"直前経路":st.直前経路})
@@ -81,13 +85,25 @@ class 製品ミニドラ:
         record=audit.確定(body,status); st.直前追跡ID=record.追跡ID; st.直前監査ハッシュ=record.ルートハッシュ
         return 製品応答(st.セッションID,body,status,route,record.追跡ID,record.ルートハッシュ,result.参照,(route,),{"capability_candidates":candidates})
 
+    def _改善対象(self,text,st):
+        """既存Module経路を残し、明示された資料操作と同じ会話の継続だけを接続する。"""
+        if not self._改善有効:
+            return False
+        with self._汎用ロック:
+            session=self._汎用セッション.get(st.セッションID)
+        if session is not None:
+            if text in ('/初期化','会話を初期化して'):
+                return True
+            return session.監査改善に対応する(text,継続許可=st.直前経路=='汎用会話')
+        return text.startswith(('命題資料','仮説資料','介入資料','監査改善の'))
+
     def _汎用応答_locked(self,text,st):
         from ..汎用会話 import 汎用会話セッション,汎用会話応答,汎用会話版
         from ..要求解釈 import _正規値
         with self._汎用ロック:
             session=self._汎用セッション.get(st.セッションID)
             if session is None and len(self._汎用セッション)<64:
-                session=汎用会話セッション(st.セッションID,取得器=self._汎用取得器,外部読取許可=self._汎用許可)
+                session=汎用会話セッション(st.セッションID,取得器=self._汎用取得器,外部読取許可=self._汎用許可,監査改善=self._改善有効)
                 self._汎用セッション[st.セッションID]=session
         result=(session.応答(text,外部読取許可=self._汎用許可) if session is not None else
                 汎用会話応答("保留","汎用会話のセッション数上限です。"))
