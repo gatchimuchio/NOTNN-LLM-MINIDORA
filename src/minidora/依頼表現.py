@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from .命題句 import 引用を切り出す, 最上位位置
 
-依頼表現版 = 'MINIDORA-依頼表現-v0.1'
+依頼表現版 = 'MINIDORA-依頼表現-v0.2'
 _依頼末尾 = r'して(?:ください|くれる|くれますか|もらえる|もらえますか|いただけますか)?'
 
 
@@ -61,6 +61,12 @@ def 検討依頼を読む(text: str):
     name, end = 引用を切り出す(value, 2)
     suffix = value[end:]
     kind, changes, display = None, {}, None
+    # 読解は全文真偽判定とは別の目的。未解釈を無視した判定へ自動転換しない。
+    read_display = _末尾を読む(suffix, r'を(?:要約|読解)')
+    if read_display is not None:
+        return {'行為': '検討', '原文': text, '種類': '読解', '資料': name,
+                '変更': {}, '詳細': False, **read_display,
+                '解釈根拠': {'版': 依頼表現版, '構文': '範囲明示の資料読解', '全文一致': True}}
     for connector in ('に基づいて', 'に基づき', 'をもとに', 'から'):
         if not suffix.startswith(connector):
             continue
@@ -68,6 +74,11 @@ def 検討依頼を読む(text: str):
         if rest.startswith(('「', '『')):
             question, qend = 引用を切り出す(rest, 0)
             display = _末尾を読む(rest[qend:], r'を(?:判定|判断)')
+            reading = _末尾を読む(rest[qend:], r'の根拠を説明')
+            if reading is not None:
+                return {'行為': '検討', '原文': text, '種類': '読解', '資料': name,
+                        '変更': {'問い': question}, **reading,
+                        '解釈根拠': {'版': 依頼表現版, '構文': '問いの根拠読解', '全文一致': True}}
         else:
             found = re.fullmatch(r'(.+?)と言え(?:る|ますか)', rest)
             if not found:

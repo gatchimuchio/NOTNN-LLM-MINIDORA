@@ -1,6 +1,6 @@
 """追加能力の状態付き会話。既存の役割計画・統合採用・原記録失効を使う。
 
-単独時は取得済みの5能力だけを明示登録する。既存の全能力構成へ接続するときは
+単独時は改善統合能力群だけを明示登録する。既存の全能力構成へ接続するときは
 同じ統合セッションを渡す。別Core、疑似HDS、外部通信の代役を作らない。
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ from .監査改善接続 import 拡張命題を検討, 改善回答を検査, �
 from .監査改善計画 import 改善統合能力群, 改善目的を計画, 報告版, 改善計画版
 from .監査改善会話解釈 import 改善発話を解釈, JSONを厳格に読む, 改善会話解釈版
 
-改善会話版 = 'MINIDORA-監査改善会話-v0.2'
+改善会話版 = 'MINIDORA-監査改善会話-v0.3'
 契約版 = {'会話': 改善会話版, '解釈': 改善会話解釈版, '計画': 改善計画版,
           '回答': 改善回答版, **報告版}
 
@@ -99,7 +99,7 @@ class 監査改善会話セッション:
         if type(text) is not str or type(継続許可) is not bool:
             return False
         value = text.strip()
-        if value.startswith(('命題資料', '仮説資料', '介入資料', '監査改善の')):
+        if value.startswith(('命題資料', '仮説資料', '介入資料', '本文資料', '監査改善の')):
             return True
         if value.startswith(('資料「', '資料『')):
             from .命題句 import 引用を切り出す
@@ -150,14 +150,15 @@ class 監査改善会話セッション:
 
     def _要求(self, task):
         source, kind = self._資料[task['資料']], task['種類']
-        if source['種類'] != kind:
+        if not (source['種類'] in ('命題', '本文') if kind == '読解' else source['種類'] == kind):
             raise ValueError('目的と資料種類の不一致')
         permitted = {'命題': {'問い', '問い候補', '資料候補', '照応距離', '述語別名'},
-                     '仮説': {'観測', '仮説候補'}, '介入': {'介入'}}[kind]
+                     '仮説': {'観測', '仮説候補'}, '介入': {'介入'},
+                     '読解': {'問い', '述語別名'}}[kind]
         if not set(task['変更']) <= permitted:
             raise ValueError('この目的に適用できない訂正欄')
         request = ({'資料': [{'名前': task['資料'], '本文': source['本文']}]}
-                   if kind == '命題' else deepcopy(source['データ']))
+                   if kind in ('命題', '読解') else deepcopy(source['データ']))
         request.update(deepcopy(task['変更']))
         return request
 
@@ -165,8 +166,8 @@ class 監査改善会話セッション:
         if task['資料'] not in self._資料:
             return self._確認(task, '資料不足', f'資料「{task["資料"]}」の登録が必要です。登録後に「続けて」と指定してください。')
         request = self._要求(task)
-        key = {'命題': '問い', '仮説': '観測', '介入': '介入'}[task['種類']]
-        if key not in request:
+        key = {'命題': '問い', '仮説': '観測', '介入': '介入', '読解': None}[task['種類']]
+        if key is not None and key not in request:
             return self._確認(task, '入力不足:' + key, key + 'を明示してください。例：' +
                 {'問い': '問いを「P」にして', '観測': '観測を「Wet」にして', '介入': '介入を「B=偽」にして'}[key])
         if task['種類'] == '命題' and previous is None:
