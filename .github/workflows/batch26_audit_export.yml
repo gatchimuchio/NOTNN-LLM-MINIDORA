@@ -1,0 +1,30 @@
+name: 第26バッチ固定原本書出し
+on:
+  push:
+    branches: ['transport/batch26-audit-export-20260914']
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 固定commitの原本と差分を保存
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/b26-export"
+          git archive --format=zip --output="$RUNNER_TEMP/b26-export/minidora-source.zip" f54ecd3d62dd59ef609dcab8e458c1244a195c2c
+          git -c core.quotePath=false diff --binary 5532413539fb25453fef6043ad1a0bf854fb2132 f54ecd3d62dd59ef609dcab8e458c1244a195c2c > "$RUNNER_TEMP/b26-export/batch26.patch"
+          git ls-tree -r -z f54ecd3d62dd59ef609dcab8e458c1244a195c2c > "$RUNNER_TEMP/b26-export/tree.z"
+          cd "$RUNNER_TEMP/b26-export"
+          sha256sum minidora-source.zip batch26.patch tree.z > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-b26-fixed-source
+          path: ${{ runner.temp }}/b26-export/*
+          retention-days: 7
+          if-no-files-found: error
