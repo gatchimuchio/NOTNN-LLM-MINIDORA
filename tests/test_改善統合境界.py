@@ -211,14 +211,17 @@ class 長文脈と復元試験(unittest.TestCase):
         c.保存('b',original());self.assertIsNone(c.取得('a'))
         self.assertEqual(c.統計()['件数'],1);c.消去();self.assertEqual(c.統計()['件数'],0)
 
-    def test_標準接続は明示有効化で既定経路を変えない(self):
-        # 構文検査のみ。未取得の通常HDS/製品依存を偽実装して動的合格にはしない。
+    def test_第25標準接続は既定有効化と明示無効化を区別する(self):
+        # 第25バッチで既定接続へ変更。HDS・共有統合器と明示無効化は維持する。
         source=(Path(__file__).parents[1]/'src/minidora/汎用会話.py').read_text(encoding='utf-8')
         tree=ast.parse(source)
         cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='汎用会話セッション')
         init=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='__init__')
         argmap={a.arg:v for a,v in zip(init.args.kwonlyargs,init.args.kw_defaults)}
-        self.assertIs(argmap['監査改善'].value,False)
+        self.assertIs(argmap['監査改善'].value,True)
+        from minidora.汎用会話 import 汎用会話セッション
+        self.assertIsNotNone(汎用会話セッション('既定')._監査改善)
+        self.assertIsNone(汎用会話セッション('無効',監査改善=False)._監査改善)
         self.assertIn('統合=self.統合',source);self.assertIn('公開HDSコンパイラ().コンパイル(原文)',source)
         self.assertIn('継続許可=self._監査改善焦点',source)
 

@@ -37,6 +37,10 @@ def 会話を解釈(原文: str, 資料名: tuple[str,...]=()) -> 会話要求:
         return 会話要求(原文,'初期化').固定複製()
     if text in ('こんにちは','こんばんは','ありがとう','できることを教えて'):
         return 会話要求(原文,'会話',補助={'発話':text}).固定複製()
+    from .依頼表現 import 説明指定を読む
+    presentation_value = 説明指定を読む(text.rstrip('。？?'))
+    if presentation_value is not None and set(presentation_value) == {'詳細'}:
+        return 会話要求(原文, '再表現', 詳細=presentation_value['詳細']).固定複製()
     from .命題会話解釈 import 命題会話を解釈
     proposition = 命題会話を解釈(原文, 資料名)
     if proposition is not None: return proposition

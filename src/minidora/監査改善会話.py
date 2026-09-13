@@ -110,7 +110,7 @@ class 監査改善会話セッション:
                 return False
         return 継続許可 and bool(self._保留 or self._目的) and value.startswith(
             ('観測を', '候補を', '介入を', '問いを', '問い候補', '資料候補', '照応距離を',
-             '続けて', 'もう一度', '短く説明して', '詳しく説明して'))
+             '続けて', 'もう一度', '短く', '詳しく', '簡潔に', '詳細に', 'もう少し'))
 
     def _登録(self, command):
         name, kind, action = command['資料'], command['種類'], command['行為']
@@ -232,7 +232,8 @@ class 監査改善会話セッション:
         if action == '検討':
             task = {k: deepcopy(command[k]) for k in ('種類', '資料', '変更')}
             task['起点発話'] = original
-            return self._実行(task, original, stop)
+            if '詳細' in command: task['詳細'] = command['詳細']
+            return self._実行(task, original, stop, detail=task.get('詳細', True))
         if action == '再表現':
             if self._保留:
                 raise ValueError('未解決の目的があります。確認を完了又は明示取消してから再説明する')
@@ -279,7 +280,7 @@ class 監査改善会話セッション:
                 target['変更'].pop('問い候補', None)
         else:
             raise ValueError('未対応の会話行為')
-        return self._実行(target, original, stop)
+        return self._実行(target, original, stop, detail=target.get('詳細', True))
 
     def 応答(self, 原文, *, 停止要求=None):
         if not self._ロック.acquire(blocking=False):

@@ -5,6 +5,7 @@ import re
 from .会話句 import 句を分割
 from .会話意味 import 会話要求, 比較対象
 from .命題解釈 import 命題を読む
+from .依頼表現 import 依頼節を読む, 命題依頼を読む, 説明指定を統合
 
 
 _資料列 = r'資料「[^「」\n]+」(?:と資料「[^「」\n]+」)*'
@@ -25,20 +26,15 @@ def 命題会話を解釈(original, material_names):
         return 会話要求(original, '命題訂正', 補助={'問い': query, '命題範囲': (pos + 1, end - 1)}).固定複製()
     if text in ('根拠を説明して', 'その根拠を説明して', 'なぜそう言える', 'なぜそう言えるの'):
         return 会話要求(original, '再表現', 詳細=True, 補助={'手順': True}).固定複製()
-    if not text.startswith(('資料「', 'この資料から', '全資料から', '公開資料から')):
+    if not text.startswith(('資料「', 'この資料から', '全資料から', '公開資料から', 'この資料に基づいて', '全資料に基づいて', '公開資料に基づいて')):
         return None
-    clauses = [(a, b, original[a:b].strip()) for a, b in
-               構成句を分ける(original, ('。', '？', '?', '！', '!', '\n', '；'))]
-    if not clauses: return None
-    _, _, first = clauses[0]
-    separators = list(最上位位置(first, ('から',)))
+    clauses = 依頼節を読む(original)
+    first_start, _, first = clauses[0]
+    separators = list(最上位位置(first, ('から', 'に基づいて')))
     if len(separators) != 1: return None
-    split = separators[0][0]; source = first[:split]
-    pos = split + len('から')
-    if pos >= len(first) or first[pos] != '「': return None
-    query, end = 引用を切り出す(first, pos)
-    if first[end:] not in ('は言える', 'と言える', 'は正しい', 'を検証して', 'を判定して', 'を検討して'):
-        raise ValueError('命題検討の未解釈末尾')
+    split, connector = separators[0]; source = first[:split].strip()
+    pos = split + len(connector)
+    query, query_start, query_end = 命題依頼を読む(first[pos:])
     external = source == '公開資料'
     names = ()
     if not external:
@@ -52,15 +48,13 @@ def 命題会話を解釈(original, material_names):
         if not 1 <= len(names) <= 8 or len(set(names)) != len(names):
             raise ValueError('命題検討の資料は重複のない1〜8件')
         if any(n not in material_names for n in names): raise ValueError('命題検討の資料が未登録')
-    detailed = False; steps = False; format_ = '文章'
-    for _, _, clause in clauses[1:]:
-        if clause in ('詳しく', '詳しく説明して'): detailed = True; steps = True
-        elif clause in ('根拠を説明して', '手順も説明して'): steps = True
-        elif clause in ('表で', '表で説明して'): format_ = '表'
-        else: raise ValueError('未解釈の命題検討条件:' + clause)
+    options = 説明指定を統合(clauses[1:])
+    detailed = options.get('詳細', False)
+    steps = options.get('手順', detailed)
+    format_ = options.get('形式', '文章')
     candidates = 命題を読む(query)
     aux = {'問い': query, '候補': 0, '形式': format_, '手順': steps,
-           '命題範囲': (original.index('から「') + 3, original.index('から「') + 3 + len(query)),
+           '命題範囲': (first_start + pos + query_start, first_start + pos + query_end),
            '資料参照解消': ((original.index('この'), original.index('この')+2),) if source=='この資料' else ()}
     if external:
         terms = []
@@ -101,6 +95,12 @@ def HDS命題を照合(ir, request):
             _, end = 引用を切り出す(request.原文, i)
             spans.append((i, end)); i = end
         else: i += 1
+    query_span = request.補助.get('命題範囲')
+    if query_span is not None:
+        a, b = query_span
+        if not 0 <= a < b <= len(request.原文) or request.原文[a:b] != request.補助.get('問い'):
+            raise ValueError('命題と原文範囲の不一致')
+        spans.append((a, b))
     spans = tuple(spans)
     mapped = []
     for c in ir.座標:

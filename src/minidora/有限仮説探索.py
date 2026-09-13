@@ -1,4 +1,4 @@
-"""明示した規則と候補集合から、観測を説明する極小仮説集合を求める。
+"""明示規則と、明示又は規則前提から構成した候補で極小仮説集合を求める。
 
 仮説は世界事実ではない。因果の方向・常識・尤度を自動補完しない。
 有限の基底命題と明示否定、連言前件を持つ前向き規則を対象とする。
@@ -13,7 +13,7 @@ from .会話意味 import 意味指紋
 from .命題解釈 import 命題を読む, 命題を表現
 from .命題構造 import 命題式, 反対
 
-仮説探索版 = 'MINIDORA-有限仮説探索-v0.1'
+仮説探索版 = 'MINIDORA-有限仮説探索-v0.2'
 
 
 def _文字(value: object, 名前: str, 最大: int = 256) -> str:
@@ -64,10 +64,19 @@ def 仮説を検討(要求: dict) -> dict:
     最大仮説数 = _整数(要求.get('最大仮説数', 3), '最大仮説数', 0, 6)
     最大試行数 = _整数(要求.get('最大試行数', 2048), '最大試行数', 1, 4096)
     最大操作数 = _整数(要求.get('最大操作数', 100000), '最大操作数', 1, 1000000)
+    操作数 = 0
+
+    def 刻む() -> None:
+        nonlocal 操作数
+        操作数 += 1
+        if 操作数 > 最大操作数:
+            raise ValueError('仮説探索の操作予算超過。途中結果を採用しない')
+
     表現: dict[str, 命題式] = {}
     反転: dict[str, str] = {}
 
     def 登録(text: str) -> str:
+        刻む()
         e = _リテラル(text)
         key, other = e.鍵(), 反対(e).鍵()
         表現[key] = e
@@ -96,7 +105,32 @@ def 仮説を検討(要求: dict) -> dict:
             raise ValueError('規則前件の重複')
         規則.append((name, left, 登録(row['後件']), _文字(row['出典'], '規則出典')))
     観測 = tuple(登録(text) for text in _列(要求['観測'], '観測', 32, 1))
-    仮説 = tuple(登録(text) for text in _列(要求['仮説候補'], '仮説候補', 16))
+    # 観測から規則を逆参照するが、規則の向きを反転した事実にはしない。
+    関連 = set(観測)
+    while True:
+        追加 = set()
+        for _, left, right, _ in 規則:
+            刻む()
+            if right in 関連:
+                追加.update(left)
+        if 追加 <= 関連:
+            break
+        関連.update(追加)
+    生成由来 = {}
+    if 要求['仮説候補'] == '規則から生成':
+        提供集合 = {key for _, key, _ in 事実}
+        for name, left, right, source in sorted(規則):
+            刻む()
+            if right in 関連:
+                for key in left:
+                    刻む()
+                    if key not in set(観測) | 提供集合:
+                        生成由来.setdefault(key, []).append({'規則': name, '出典': source})
+        if len(生成由来) > 16:
+            raise ValueError('規則から生成した仮説候補の数が上限。途中候補へ切り詰めない')
+        仮説 = tuple(sorted(生成由来))
+    else:
+        仮説 = tuple(登録(text) for text in _列(要求['仮説候補'], '仮説候補', 16))
     for values in (観測, 仮説):
         if len(set(values)) != len(values):
             raise ValueError('観測又は仮説候補の重複')
@@ -106,19 +140,9 @@ def 仮説を検討(要求: dict) -> dict:
         raise ValueError('観測をそのまま仮説として自己説明しない')
     上限数 = min(最大仮説数, len(仮説))
     全組合せ数 = sum(comb(len(仮説), n) for n in range(上限数 + 1))
-    if 全組合せ数 > 最大試行数:
-        raise ValueError('指定仮説範囲の探索予算不足。部分候補を採用しない')
     事実.sort()
     規則.sort()
     仮説 = tuple(sorted(仮説))
-    操作数 = 0
-
-    def 刻む() -> None:
-        nonlocal 操作数
-        操作数 += 1
-        if 操作数 > 最大操作数:
-            raise ValueError('仮説探索の操作予算超過。途中結果を採用しない')
-
     def 閉包(候補: tuple[str, ...]):
         nodes, facts = {}, {}
 
@@ -149,28 +173,44 @@ def 仮説を検討(要求: dict) -> dict:
 
     背景, _, 衝突 = 閉包(())
     極小集合: list[frozenset[str]] = []
+    不整合集合: list[frozenset[str]] = []
+    解閉包 = []
     解 = []
-    件数 = {'評価': 0, '極小性による省略': 0, '不整合': 0, '説明不足': 0}
+    件数 = {'評価': 0, '極小性による省略': 0, '不整合': 0, '説明不足': 0, '関連外による省略': 0, '不整合による省略': 0}
     背景不整合 = bool(衝突 or any(反転[k] in 背景 for k in 観測))
     if not 背景不整合:
         for n in range(上限数 + 1):
             for combo in combinations(仮説, n):
+                刻む()  # 列挙と枝刈りも操作予算へ算入する。
                 current = frozenset(combo)
+                # 正の前向き規則＋明示否定は単調。観測の前提閉包外の仮説は
+                # 観測導出に寄与せず、不整合の解消にも使えない。
+                if not current <= 関連:
+                    件数['関連外による省略'] += 1
+                    continue
                 if any(prior <= current for prior in 極小集合):
                     件数['極小性による省略'] += 1
                     continue
+                if any(prior <= current for prior in 不整合集合):
+                    件数['不整合による省略'] += 1
+                    continue
+                if 件数['評価'] >= 最大試行数:
+                    raise ValueError('仮説探索の実評価予算不足。途中候補を採用しない')
                 件数['評価'] += 1
                 closure, graph, conflicts = 閉包(combo)
                 if conflicts or any(反転[k] in closure for k in 観測):
                     件数['不整合'] += 1
+                    不整合集合.append(current)
                     continue
                 if not all(k in closure for k in 観測):
                     件数['説明不足'] += 1
                     continue
                 極小集合.append(current)
+                解閉包.append(frozenset(closure))
                 keep = set()
                 pending = [closure[k] for k in 観測]
                 while pending:
+                    刻む()
                     pid = pending.pop()
                     if pid in keep:
                         continue
@@ -179,11 +219,30 @@ def 仮説を検討(要求: dict) -> dict:
                 解.append({'仮説': [命題を表現(表現[k]) for k in combo],
                            '観測の根拠': {命題を表現(表現[k]): closure[k] for k in 観測},
                            '導出': {k: graph[k] for k in sorted(keep)}})
+    # 確認可能性や現実の尤度は仮定しない。「未導出」を「偽」にしない。
+    確認候補 = []
+    for key in sorted(関連 - set(観測)):
+        刻む()
+        if len(解閉包) < 2 or key not in 表現:
+            continue
+        予測 = []
+        for closure in 解閉包:
+            刻む()
+            予測.append('支持' if key in closure else '反証' if 反転[key] in closure else '未導出')
+        if len(set(予測)) > 1:
+            確認候補.append({'命題': 命題を表現(表現[key]),
+                              '候補別導出': [{'候補': i + 1, '判定': 値} for i, 値 in enumerate(予測)],
+                              '留保': 'この命題を確認できるかは未確認。未導出は偽を意味しない。'})
     status = ('背景不整合' if 背景不整合 else '説明候補あり' if 解 else '指定範囲に説明なし')
     report = {'版': 仮説探索版, '状態': status, '要求': 要求, '候補': 解,
               '探索範囲': {'候補命題数': len(仮説), '最大仮説数': 上限数,
-                           '対象組合せ数': 全組合せ数},
+                           '対象組合せ数': 全組合せ数,
+                           '試行予算の対象': '枝刈り後の閉包評価。列挙は操作予算にも算入',
+                           '関連候補数': len(set(仮説) & 関連)},
               '探索完了': not 背景不整合, '件数': 件数, '操作数': 操作数,
+              '候補生成': {'方法': '規則前提の逆参照' if 生成由来 or 要求['仮説候補'] == '規則から生成' else '明示候補',
+                           '由来': {命題を表現(表現[k]): v for k, v in sorted(生成由来.items())}},
+              '追加確認候補': 確認候補,
               '事実認定': False,
               '限界': '提供規則と指定候補・最大仮説数の下での包含極小説明。因果の真実性・候補の網羅性・尤度は未認定。'}
     report['記録SHA256'] = 意味指紋(report)

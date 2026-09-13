@@ -133,6 +133,16 @@ def 命題を読む(text: str, *, 最大候補=8) -> tuple[命題候補, ...]:
                         if len(values) > 32:
                             raise ValueError('係り受け候補上限')
             return unique(values)
+        # 述語の外延同値を、明示資料内の双方向規則として利用する。
+        # 語を全置換しない。個体同一性・一般語義・世界事実は補完しない。
+        同値 = re.fullmatch(r'述語[「『]([^「」『』]+)[」』]と[「『]([^「」『』]+)[」』]は同値(?:である|です)', s)
+        if 同値:
+            左名, 右名 = _名(同値[1]), _名(同値[2])
+            変数 = '_同値対象' + str(depth)
+            項 = 命題項(変数, '変数')
+            左, 右 = 原子(左名, 項), 原子(右名, 項)
+            return (結合('連言', 結合('全称', 結合('含意', 左, 右), 変数=変数),
+                         結合('全称', 結合('含意', 右, 左), 変数=変数)),)
         endings = '|'.join(re.escape(v) for v in sorted((*肯定語尾, *否定語尾), key=len, reverse=True))
         categorical = re.fullmatch(r'(すべての|一部の)(.+?)は(.+?)(' + endings + ')', s)
         if categorical:

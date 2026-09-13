@@ -31,7 +31,7 @@ from .製品版.型 import 能力結果,参照資料
 from .知識取得 import 知識取得器
 from .製品版.検索 import SearXNG検索供給器
 
-汎用会話版='MINIDORA-汎用会話-v0.5'
+汎用会話版='MINIDORA-汎用会話-v0.6'
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +49,7 @@ class 汎用会話応答:
 
 
 class 汎用会話セッション:
-    def __init__(self, セッションID, *, 取得器=None, 外部読取許可=False, 最大発話=128, 監査改善=False):
+    def __init__(self, セッションID, *, 取得器=None, 外部読取許可=False, 最大発話=128, 監査改善=True):
         if type(外部読取許可) is not bool or type(最大発話) is not int or not 1<=最大発話<=512:
             raise ValueError('会話許可・発話上限不正')
         if type(監査改善) is not bool: raise ValueError('監査改善接続はbool')
@@ -213,9 +213,10 @@ class 汎用会話セッション:
                 if command.get('資料') in self._資料:
                     raise ValueError('通常資料と監査改善資料の名前衝突。資料名を分ける')
                 ir=公開HDSコンパイラ().コンパイル(原文)
-                if ir.原文!=原文: raise ValueError('HDS原文と追加会話の原文が不一致')
+                from .改善HDS照合 import HDS改善会話を照合
+                trace['HDS局所照合']=HDS改善会話を照合(ir,command)
                 trace['HDS原文']=ir.原文;trace['HDS保持']=asdict(ir)
-                trace['HDS照合範囲']='原文保持。意味解釈は有限会話契約による。一般HDS意味照合の完了ではない'
+                trace['HDS照合範囲']='有限行為・対象・値・表示指定の全消費、実HDS再構成、条件・残差のData作用域照合'
                 result=self._監査改善.応答(原文,停止要求=停止要求)
                 trace['監査改善']=result.追跡 or {}
                 self._監査改善焦点=True
