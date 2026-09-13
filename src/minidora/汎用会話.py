@@ -73,6 +73,13 @@ class 汎用会話セッション:
         self._最後結果=None;self._最後依存={};self._最後有効=True;self._最後起点=None
         self._ロック=Lock()
 
+    def 監査改善に対応する(self, 原文, *, 継続許可=True):
+        """製品入口の読取専用振分。別話題の省略依頼を以前の成果へ結び付けない。"""
+        if type(継続許可) is not bool:
+            return False
+        return self._監査改善 is not None and self._監査改善.対応する(
+            原文, 継続許可=継続許可 and self._監査改善焦点)
+
     def 状態(self):
         if not self._ロック.acquire(blocking=False): raise ValueError('会話の処理中')
         try:
