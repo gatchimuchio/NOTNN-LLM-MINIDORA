@@ -1,0 +1,65 @@
+name: 第25バッチ還元同一性検査
+on:
+  push:
+    branches: ['transport/batch25-20260914']
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 原本と完成差分を照合
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --quiet 4820c3e2663bd6ff6fa73fc39642a36d805d3f76 -- . ':(exclude).return/b25/**' ':(exclude).github/workflows/batch25_return.yml'
+          python - <<'PY'
+          import base64, gzip, hashlib, json, pathlib, subprocess, zlib
+          root=pathlib.Path('.')
+          text=''.join(p.read_text().strip() for p in sorted(root.glob('.return/b25/*.b64')))
+          # 搬送文字列の既知の誤記のみ訂正し、固定SHA256に一致しなければ必ず停止する。
+          repairs=[('dsVcyYw','dsVwyYw'),('ozWXSWa','ozWXSCa'),('LKliS7A','LKli7A'),('xWndJJdr','xWndJdr'),('ONbdhw7','ONbdgw7'),('C6aj1u5rYsb','C6aj1u5Ysb')]
+          for wrong,right in repairs:
+              assert text.count(wrong)<=1
+              text=text.replace(wrong,right)
+          checks='733b6046 9fe8f469 21b2232c e4640e78 b8d30b3b d152d026 e10325f3 fd3b0622 ba88503b e6647716 4ca71512 b2908944 1bc000b0 696c877f 206f36cd bf60c7e4 abe246b8 5d9f502e 28b7af07 7989b162 9c022c6e 187b0158 940a9130 ed0ac681 932ae8b4 8cb8cd45 312e982f 4082c214 422adefe 6d6682a9 9e320fd1 f720c681 e9f31688 efd98069 d7d5b28f 3d4d2544 0c1dfd16 4b2e7b84 624c7f36 3abf2953 7466f76e a3cc3dc3 f875fbf4 c6b226e6 fcc74c0a 7f971c5a 570c3dde d8febd1f 86b381c7 a7464bed a1f1ecda 570db095 eeddb488 57ef37d0 78633af6 e1f928e5 2e2e71d1 61837137 e8936c3b b6c2baba ae372d59 9602bad0 a11057fb 24022342 65ecb0ae 21fb9690 00f656ed e616c3cd c572cb87 2f0b360b 126a3f88 ceeb4d38 e42ea70c a0d597ff e1c0ef40 023c1368 04a57ae9 b4861d64 a66d3083 7295e4d2 f003e43b dbf98d6a 32dad39d 5ce967d0 656877c0 3940eca3 bed85cdc 2f48210c ac2e0dfc 50b93cdf 6d4a7808 88cef33b ad02bc75 5d1b3fd9 0571e239 74c0d187 39f0a2af fedf6631 bc324cff c62d9976 e055c7ac 5867118f 9408df51 5aeb9d6c bb91ef34 8e36f1e9 94891ef8 256fc027 cefafbef ba600baa dc72e0ef 99ae655c d7a9947f 2e1e453f 8a49339a 83d2c9d2 8a155766 12dbc10a 59ac1a59 cbc987c9 020d7dba 3f0f65b9 ea292441 f9161b0e 17c30165 69358a7c b0a8d862 b5dd7f2d dfbc21b8 1ee8e0f6 51d72ea7 cf7e032c b5b4d3ed 8681eb5a f3822976 87a72922 4b91290f 9cc628ab 91e09c99 47340a87 f0625508 3b58f771 290d35bf c9d24df8 95eb6eb1 34d453d6 f123d991 a1841d48 dcae52d5 226cbcd3 1ad7789b bec4b70c 5aca3312 6fedcc60 c26d5f35 758e9f92 4c3758f9 4476bd46 175ca41a a16f6928 beee3476 43db227b 8804d815 dec1caa0 1b2d7169 580677bd 7eeb7e46 ab0fa3c6 465edd2e 92ed6c65 6932d6fb fc050dcf d6ef8915 cc0e6442 d425994b 13c313af 88633fb0 2e62bcec 7db724ad c0a4e3f7 14d432ce 43cf4250 001dca68 4d6924e6 6faa371d 0af956b6 7e741a9f 29d94f80 88c5ccb2 2bf0a9a3 caea3d79 97bb799a a5b24cca 6e293a92 12195a51 93f85e64 aec688ed 00419c81 8e8d1a13 806b94cf 3fb8a0cd 1db6a74a 35ff1679 9ce07b86 9b37087c 9741ff6c 44561ff4 184f7179 f73a4602 542a57e1 09029e7c 8cc6ecbc 779eb53a 90c6e67b b16cee46 765faad9 a5fcc171 08487841 44c25f5e b4de715a 0a27b355 491d35b1 489fd7fe 62c60ab5 72a2bfc7 4ee1cfe0 2b82baea 990f14fe 69921b1d e24555a3 bc870ab6 e0a2dc73 2256319d 0f792349 de5f427d 93864953 7f1e0bbe 5b6928f1 7c860f39 24c75ad0 c24060e2 e0fd5081 b2b86f7a 04ffd7fc deef9ea9 faf851ff b5a861ba 1dfec11a 595d4bac 0530359c 4b41bf7d d96d2859 d4df642b 42f12f6e fdabaf6b 8e2974e8 c12b5f93 cbb8bd2c feb307c7 29b0dac1 3a9c687a 4adb5e6d 23239a6e 520afce2 421a72fb 194e5839 31e1dd52 0fc72958 7c02d76b'.split()
+          bad=[]
+          for i,expected in enumerate(checks):
+              block=text[i*128:(i+1)*128]
+              if f'{zlib.crc32(block.encode()):08x}'!=expected:bad.append((i,block))
+          print('搬送文字数',len(text),'不一致ブロック',bad[:5], '総数',len(bad))
+          packed=base64.b64decode(text,validate=True)
+          assert hashlib.sha256(packed).hexdigest()=='1d6956b8aef1814997e484f9ab272d203266c6a878f1e996b915ecbba1a0abd3','搬送SHA256不一致'
+          packet=json.loads(gzip.decompress(packed))
+          manifest=packet['manifest'];patch=packet['patch'].encode()
+          assert manifest['base']=='4820c3e2663bd6ff6fa73fc39642a36d805d3f76'
+          assert hashlib.sha256(patch).hexdigest()==manifest['patch_sha256']=='77e18bcc468608c2a131c776b46d3109336b37ce30e1974f793c5936ba5fcbfb'
+          def blob(data):return hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()
+          for row in manifest['files']:
+              p=pathlib.Path(row['path'])
+              assert not p.is_absolute() and '..' not in p.parts and p.parts[0] in ('docs','src','tests')
+              actual=blob(p.read_bytes()) if p.exists() else None
+              assert actual==row['before_blob'],(str(p),'基点不一致',actual)
+          subprocess.run(['git','apply','--check','-'],input=patch,check=True)
+          subprocess.run(['git','apply','-'],input=patch,check=True)
+          for row in manifest['files']:
+              data=pathlib.Path(row['path']).read_bytes()
+              assert blob(data)==row['after_blob'] and hashlib.sha256(data).hexdigest()==row['after_sha256'],row['path']
+          pathlib.Path('/tmp/b25_paths.json').write_text(json.dumps(sorted(r['path'] for r in manifest['files'])))
+          print('基点・完成ファイル照合 PASS',len(manifest['files']))
+          PY
+          rm -rf .return/b25 .github/workflows/batch25_return.yml
+          git add -A
+          python - <<'PY'
+          import json,pathlib,subprocess
+          paths=subprocess.check_output(['git','diff','--cached','--name-only','-z','4820c3e2663bd6ff6fa73fc39642a36d805d3f76']).decode().strip('\0').split('\0')
+          assert sorted(paths)==json.loads(pathlib.Path('/tmp/b25_paths.json').read_text()),paths
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: 第25バッチの意味入口と製品接続を還元'
+          git push origin HEAD:transport/batch25-20260914
