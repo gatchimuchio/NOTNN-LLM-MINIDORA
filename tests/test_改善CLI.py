@@ -22,7 +22,7 @@ def encode(*commands):return ''.join(json.dumps({'入力':s},ensure_ascii=False)
 def run(text='',*args,seed=None):
     env={**os.environ,'PYTHONIOENCODING':'utf-8'}
     if seed is not None:env['PYTHONHASHSEED']=str(seed)
-    return subprocess.run([sys.executable,str(CLI),*map(str,args)],input=text,encoding='utf-8',capture_output=True,timeout=30,env=env)
+    return subprocess.run([sys.executable,str(CLI),*map(str,args)],input=text,encoding='utf-8',errors='strict',capture_output=True,timeout=30,env=env)
 
 
 class CLI試験(unittest.TestCase):
@@ -44,23 +44,23 @@ class CLI試験(unittest.TestCase):
 
     def test_既存保存ファイルを無断上書きしない(self):
         with tempfile.TemporaryDirectory() as d:
-            p=Path(d)/'state';p.write_text('保持')
+            p=Path(d)/'state';p.write_text('保持',encoding='utf-8')
             r=run(encode(REGISTER),'--保存',p)
-            self.assertEqual(r.returncode,2);self.assertEqual(p.read_text(),'保持')
+            self.assertEqual(r.returncode,2);self.assertEqual(p.read_text(encoding='utf-8'),'保持')
 
     def test_明示上書きで状態を更新する(self):
         with tempfile.TemporaryDirectory() as d:
-            p=Path(d)/'state';p.write_text('旧値')
+            p=Path(d)/'state';p.write_text('旧値',encoding='utf-8')
             r=run(encode(REGISTER),'--保存',p,'--上書き')
             self.assertEqual(r.returncode,0,r.stderr)
-            restored=監査改善会話セッション.復元(p.read_text())
+            restored=監査改善会話セッション.復元(p.read_text(encoding='utf-8'))
             self.assertIn('天候',restored.状態()['資料版'])
 
     def test_入力ファイルを出力で切り詰めない(self):
         with tempfile.TemporaryDirectory() as d:
-            p=Path(d)/'input.jsonl';text=encode(REGISTER);p.write_text(text)
+            p=Path(d)/'input.jsonl';text=encode(REGISTER);p.write_text(text,encoding='utf-8')
             r=run('','--入力',p,'--出力',p,'--上書き')
-            self.assertEqual(r.returncode,2);self.assertEqual(p.read_text(),text)
+            self.assertEqual(r.returncode,2);self.assertEqual(p.read_text(encoding='utf-8'),text)
 
     def test_不正な通信入力は会話へ渡さない(self):
         p=run('{"入力":"A","入力":"B"}\n'+encode(REGISTER,QUERY))
@@ -82,7 +82,7 @@ class CLI試験(unittest.TestCase):
 
     def test_破損状態を読み飛ばして新規開始しない(self):
         with tempfile.TemporaryDirectory() as d:
-            p=Path(d)/'state';p.write_text('{"状態":"破損"}')
+            p=Path(d)/'state';p.write_text('{"状態":"破損"}',encoding='utf-8')
             r=run(encode(REGISTER),'--復元',p)
             self.assertEqual(r.returncode,2);self.assertEqual(r.stdout,'')
 

@@ -14,7 +14,10 @@ from minidora.監査改善接続 import 改善計画を実行
 root=Path(__file__).resolve().parents[1]
 
 
+from minidora.標準入出力 import 標準入出力をUTF8にする
+
 def main():
+    標準入出力をUTF8にする()
     if len(sys.argv)==2 and sys.argv[1]=='--子実行':
         rows,_=ケースを読む(root/'評価/第22バッチ_開発ケース.jsonl')
         result=[asdict(改善計画を実行(r['種類'],r['要求'],詳細=False)) for r in rows]
