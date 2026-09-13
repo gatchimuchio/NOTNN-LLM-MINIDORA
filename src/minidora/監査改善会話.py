@@ -17,7 +17,7 @@ from .監査改善接続 import 拡張命題を検討, 改善回答を検査, �
 from .監査改善計画 import 改善統合能力群, 改善目的を計画, 報告版, 改善計画版
 from .監査改善会話解釈 import 改善発話を解釈, JSONを厳格に読む, 改善会話解釈版
 
-改善会話版 = 'MINIDORA-監査改善会話-v0.1'
+改善会話版 = 'MINIDORA-監査改善会話-v0.2'
 契約版 = {'会話': 改善会話版, '解釈': 改善会話解釈版, '計画': 改善計画版,
           '回答': 改善回答版, **報告版}
 
@@ -108,9 +108,16 @@ class 監査改善会話セッション:
                 return name in self._資料
             except ValueError:
                 return False
+        if 継続許可 and bool(self._保留 or self._目的):
+            from .依頼表現 import 再説明依頼を読む
+            try:
+                if 再説明依頼を読む(text) is not None:
+                    return True
+            except ValueError:
+                return False
         return 継続許可 and bool(self._保留 or self._目的) and value.startswith(
             ('観測を', '候補を', '介入を', '問いを', '問い候補', '資料候補', '照応距離を',
-             '続けて', 'もう一度', '短く説明して', '詳しく説明して'))
+             '述語別名を', '続けて', 'もう一度', '短く説明して', '詳しく説明して'))
 
     def _登録(self, command):
         name, kind, action = command['資料'], command['種類'], command['行為']
@@ -145,7 +152,7 @@ class 監査改善会話セッション:
         source, kind = self._資料[task['資料']], task['種類']
         if source['種類'] != kind:
             raise ValueError('目的と資料種類の不一致')
-        permitted = {'命題': {'問い', '問い候補', '資料候補', '照応距離'},
+        permitted = {'命題': {'問い', '問い候補', '資料候補', '照応距離', '述語別名'},
                      '仮説': {'観測', '仮説候補'}, '介入': {'介入'}}[kind]
         if not set(task['変更']) <= permitted:
             raise ValueError('この目的に適用できない訂正欄')
@@ -232,7 +239,9 @@ class 監査改善会話セッション:
         if action == '検討':
             task = {k: deepcopy(command[k]) for k in ('種類', '資料', '変更')}
             task['起点発話'] = original
-            return self._実行(task, original, stop)
+            if '詳細' in command:
+                task['詳細'] = command['詳細']
+            return self._実行(task, original, stop, detail=task.get('詳細', True))
         if action == '再表現':
             if self._保留:
                 raise ValueError('未解決の目的があります。確認を完了又は明示取消してから再説明する')
@@ -241,6 +250,8 @@ class 監査改善会話セッション:
             row = self._成果[-1]
             if not self._有効(row):
                 raise ValueError('元成果が失効しています。「もう一度」で再検討してください')
+            if command.get('相対指定') and row['詳細'] == command['詳細']:
+                raise ValueError('現在の表示段階からの追加変更は未対応です。短い説明と詳しい説明を切り替えられます')
             return self._実行(row['目的'], original, stop, detail=command['詳細'], previous=row)
         target = deepcopy(self._保留['目的'] if self._保留 else self._目的)
         if target is None:
@@ -258,7 +269,7 @@ class 監査改善会話セッション:
             target['変更'][command['欄']] = command['番号']
         elif action == '訂正':
             target['変更'].update(command['変更'])
-            if set(command['変更']) & {'問い', '照応距離'}:
+            if set(command['変更']) & {'問い', '照応距離', '述語別名'}:
                 target['変更'].pop('資料候補', None)
                 if '問い' in command['変更']:
                     target['変更'].pop('問い候補', None)
@@ -279,7 +290,7 @@ class 監査改善会話セッション:
                 target['変更'].pop('問い候補', None)
         else:
             raise ValueError('未対応の会話行為')
-        return self._実行(target, original, stop)
+        return self._実行(target, original, stop, detail=target.get('詳細', True))
 
     def 応答(self, 原文, *, 停止要求=None):
         if not self._ロック.acquire(blocking=False):
@@ -294,6 +305,9 @@ class 監査改善会話セッション:
                 command = 改善発話を解釈(原文)
                 self.統合._停止(停止要求)
                 result = self._処理(command, 停止要求)
+                if '解釈根拠' in command:
+                    from dataclasses import replace
+                    result = replace(result, 追跡={**(result.追跡 or {}), '依頼解釈': command['解釈根拠'], '原依頼': 原文})
             except (ValueError, TypeError, KeyError, AttributeError, RecursionError) as exc:
                 result = 改善会話応答('保留', '処理を確定しません。' + str(exc), '入力・意味・状態不成立')
             if result.状態 != '中止':

@@ -13,7 +13,7 @@ from .会話意味 import 意味指紋
 from .命題解釈 import 命題を読む, 命題を表現
 from .命題構造 import 命題式, 反対
 
-仮説探索版 = 'MINIDORA-有限仮説探索-v0.1'
+仮説探索版 = 'MINIDORA-有限仮説探索-v0.2'
 
 
 def _文字(value: object, 名前: str, 最大: int = 256) -> str:
@@ -106,8 +106,6 @@ def 仮説を検討(要求: dict) -> dict:
         raise ValueError('観測をそのまま仮説として自己説明しない')
     上限数 = min(最大仮説数, len(仮説))
     全組合せ数 = sum(comb(len(仮説), n) for n in range(上限数 + 1))
-    if 全組合せ数 > 最大試行数:
-        raise ValueError('指定仮説範囲の探索予算不足。部分候補を採用しない')
     事実.sort()
     規則.sort()
     仮説 = tuple(sorted(仮説))
@@ -148,17 +146,36 @@ def 仮説を検討(要求: dict) -> dict:
         return facts, nodes, conflicts
 
     背景, _, 衝突 = 閉包(())
+    # 前向き・単調な規則だけなので、観測の祖先でない候補は極小説明に不要。
+    # 規則・背景事実は削らない。無関係な出力に生じる矛盾も閉包で検出する。
+    関連 = set(観測)
+    changed = True
+    while changed:
+        changed = False
+        for _, left, right, _ in 規則:
+            刻む()
+            if right in 関連:
+                old = len(関連)
+                関連.update(left)
+                changed |= len(関連) != old
+    関連仮説 = tuple(k for k in 仮説 if k in 関連)
+    関連上限 = min(上限数, len(関連仮説))
+    関連組合せ数 = sum(comb(len(関連仮説), n) for n in range(関連上限 + 1))
     極小集合: list[frozenset[str]] = []
     解 = []
-    件数 = {'評価': 0, '極小性による省略': 0, '不整合': 0, '説明不足': 0}
+    件数 = {'評価': 0, '極小性による省略': 0, '不整合': 0, '説明不足': 0,
+            '関連外による省略': 全組合せ数 - 関連組合せ数}
     背景不整合 = bool(衝突 or any(反転[k] in 背景 for k in 観測))
     if not 背景不整合:
-        for n in range(上限数 + 1):
-            for combo in combinations(仮説, n):
+        for n in range(関連上限 + 1):
+            for combo in combinations(関連仮説, n):
+                刻む()
                 current = frozenset(combo)
                 if any(prior <= current for prior in 極小集合):
                     件数['極小性による省略'] += 1
                     continue
+                if 件数['評価'] >= 最大試行数:
+                    raise ValueError('指定仮説範囲の探索予算不足。部分候補を採用しない')
                 件数['評価'] += 1
                 closure, graph, conflicts = 閉包(combo)
                 if conflicts or any(反転[k] in closure for k in 観測):
@@ -182,7 +199,7 @@ def 仮説を検討(要求: dict) -> dict:
     status = ('背景不整合' if 背景不整合 else '説明候補あり' if 解 else '指定範囲に説明なし')
     report = {'版': 仮説探索版, '状態': status, '要求': 要求, '候補': 解,
               '探索範囲': {'候補命題数': len(仮説), '最大仮説数': 上限数,
-                           '対象組合せ数': 全組合せ数},
+                           '対象組合せ数': 全組合せ数, '関連候補命題数': len(関連仮説)},
               '探索完了': not 背景不整合, '件数': 件数, '操作数': 操作数,
               '事実認定': False,
               '限界': '提供規則と指定候補・最大仮説数の下での包含極小説明。因果の真実性・候補の網羅性・尤度は未認定。'}

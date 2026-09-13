@@ -1,7 +1,7 @@
 """資料の読みと照応を保持する。異なる読みの証拠を一つの世界へ混ぜない。"""
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import re
 from .命題句 import 構成句を分ける, 引用を切り出す, 最上位位置
 from .命題構造 import 命題記載, 命題を復元, 原子群
@@ -153,7 +153,9 @@ def 解釈場合を構成(資料群: tuple[dict, ...], *, 最大場合=16):
     return tuple(cases)
 
 
-def 文脈判定(資料群, 問い, 問い候補=1, 資料候補=0):
+def 文脈判定(資料群, 問い, 問い候補=1, 資料候補=0, *, 述語別名=()):
+    from .明示語彙 import 述語別名を検査, 命題の述語を対応付ける
+    mapping = 述語別名を検査(述語別名)
     candidates = 命題を読む(問い)
     if type(問い候補) is not int or not 1 <= 問い候補 <= len(candidates):
         raise ValueError('問いの候補番号不正')
@@ -164,13 +166,22 @@ def 文脈判定(資料群, 問い, 問い候補=1, 資料候補=0):
     for number, case in enumerate(cases, 1):
         if 資料候補 and 資料候補 != number: continue
         if remaining <= 0: raise ValueError('資料候補全体の推論予算超過')
-        engine = 命題推論器(case['記載'], 上限=推論上限(操作数=min(50000, remaining)))
-        result = engine.判定(candidates[問い候補 - 1].式)
+        records, traces = [], []
+        for record in case['記載']:
+            expression, local = 命題の述語を対応付ける(record.式, mapping)
+            records.append(replace(record, 式=expression))
+            traces.extend({'記載': record.識別子, **row} for row in local)
+        question, local = 命題の述語を対応付ける(candidates[問い候補 - 1].式, mapping)
+        traces.extend({'記載': '問い', **row} for row in local)
+        engine = 命題推論器(tuple(records), 上限=推論上限(操作数=min(50000, remaining)))
+        result = engine.判定(question)
         remaining -= result['操作数']
         reports.append({'場合': number, '選択': case['選択'], '照応解消': case['照応解消'],
-                        '記載': [asdict(r) for r in case['記載']], '判定結果': result})
+                        '記載': [asdict(r) for r in records], '判定結果': result,
+                        **({'語彙対応': traces} if 述語別名 else {})})
     statuses = {r['判定結果']['判定'] for r in reports}
     return {'問い': 問い, '問い候補': 問い候補, '資料候補': 資料候補, '場合総数': len(cases),
             '解釈状態': '利用者選択' if 資料候補 else '一意' if len(cases) == 1 else '読み未確定',
             '判定': next(iter(statuses)) if len(statuses) == 1 else '解釈依存',
-            '場合別': reports, '操作数': 100000 - remaining}
+            '場合別': reports, '操作数': 100000 - remaining,
+            **({'別名定義': [dict(row) for row in 述語別名]} if 述語別名 else {})}
