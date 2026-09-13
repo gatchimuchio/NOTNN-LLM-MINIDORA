@@ -213,7 +213,7 @@ class 長文脈と復元試験(unittest.TestCase):
 
     def test_標準接続は明示有効化で既定経路を変えない(self):
         # 構文検査のみ。未取得の通常HDS/製品依存を偽実装して動的合格にはしない。
-        source=(Path(__file__).parents[1]/'src/minidora/汎用会話.py').read_text()
+        source=(Path(__file__).parents[1]/'src/minidora/汎用会話.py').read_text(encoding='utf-8')
         tree=ast.parse(source)
         cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='汎用会話セッション')
         init=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='__init__')

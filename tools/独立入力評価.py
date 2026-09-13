@@ -133,7 +133,10 @@ def ソース指紋():
     return {'ファイルSHA256':hashes,'一覧SHA256':sha256(encoded).hexdigest()}
 
 
+from minidora.標準入出力 import 標準入出力をUTF8にする
+
 def main():
+    標準入出力をUTF8にする()
     parser=argparse.ArgumentParser(description='独立したJSONL入力を評価する。外部性・盲検性の認証は行わない。')
     parser.add_argument('--入力',type=Path,required=True)
     parser.add_argument('--出力',type=Path,required=True)

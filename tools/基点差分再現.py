@@ -54,6 +54,12 @@ def 観測():
 
 
 def main():
+    # 比較対象はPYTHONPATHで選ばれる。後発の補助Moduleを先行importして
+    # 基点ソースに変更版を混ぜないため、この起動境界だけ標準ライブラリで設定する。
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        configure = getattr(stream, 'reconfigure', None)
+        if callable(configure):
+            configure(encoding='utf-8', errors='strict')
     parser=argparse.ArgumentParser()
     parser.add_argument('--参照ソース',type=Path)
     parser.add_argument('--変更ソース',type=Path)

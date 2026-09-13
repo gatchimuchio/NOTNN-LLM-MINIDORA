@@ -7,7 +7,10 @@ from 独立入力評価 import JSON読取
 from minidora.監査改善接続 import 改善計画を実行
 
 
+from minidora.標準入出力 import 標準入出力をUTF8にする
+
 def main():
+    標準入出力をUTF8にする()
     parser=argparse.ArgumentParser(description='明示IRから既存能力合成器で検討→回答を実行する')
     parser.add_argument('--種類',choices=('命題','仮説','介入'),required=True)
     parser.add_argument('--入力',type=Path,required=True)
