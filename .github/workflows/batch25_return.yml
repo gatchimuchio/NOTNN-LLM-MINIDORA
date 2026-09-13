@@ -1,0 +1,76 @@
+name: 第25バッチ固定差分還元
+on:
+  push:
+    branches: [transport/batch25-return-20260913]
+permissions:
+  contents: write
+jobs:
+  return:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 固定差分と完成treeを照合して専用枝へ還元
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, hashlib, json, lzma, os, pathlib, subprocess, tempfile, urllib.request
+          repository = 'gatchimuchio/NOTNN-LLM-MINIDORA'
+          base = '4820c3e2663bd6ff6fa73fc39642a36d805d3f76'
+          expected_tree = '7888e968018e130c592a7a9a9146c5d40da6d4e8'
+          branch = 'work/batch25-meaning-entry-20260913'
+          blobs = [
+              'ef6853377bc7d9b152d1f09e106ba62b1981488b',
+              '9a87088e1740f65163d3bdcf00452c45d206993d',
+              'd1a83e9df3549d414a7da4869a12d04182126814',
+              '55216c61cee06ab7bf2a0aabe2f67a7054acf8ce',
+              'af27952153eef39973eba80864347d7dd9895ea0',
+              'c4efcccdb919dfdb373999082fdad6acf0d9cabe',
+              'a9df9ddda1d999c1e85c590c235ed1096d130ce8',
+              '6f7673febf45303ca4259601affe3b9654339ac3',
+              'f15edd9f48bca45a2cf02f700a6238085b438454',
+              '0f37ad78a374096d8bd65ddfeaefcfbdc8e90771',
+              'd65f1a08dda1072976f790fddad0f3387f32e8e8',
+              'bc12fcb9485c40f571d89602037e0c3ed25e378b',
+          ]
+          compressed = b''
+          for sha in blobs:
+              request = urllib.request.Request(
+                  f'https://api.github.com/repos/{repository}/git/blobs/{sha}',
+                  headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                           'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  value = json.load(response)
+              assert value['sha'] == sha and value['encoding'] == 'base64'
+              raw = base64.b64decode(''.join(value['content'].split()), validate=True)
+              assert hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest() == sha
+              compressed += raw
+          assert len(compressed) == 33612
+          assert hashlib.sha256(compressed).hexdigest() == 'e959f8001c0c9c220f60361f90c10b8fc074937162c85b038a568e05755841ee'
+          patch = lzma.decompress(compressed)
+          assert len(patch) == 162438
+          assert hashlib.sha256(patch).hexdigest() == '1339a143259ef29c5f922214712861b06ccdb631ec184b81ad5801d61705ee56'
+          temporary = pathlib.Path(tempfile.mkdtemp(prefix='minidora-b25-'))
+          patch_file = temporary / 'batch25.patch'
+          patch_file.write_bytes(patch)
+          work = temporary / 'work'
+          subprocess.run(['git', 'worktree', 'add', '--detach', str(work), base], check=True)
+          def git(*args):
+              return subprocess.check_output(['git', *args], cwd=work, text=True).strip()
+          assert git('rev-parse', 'HEAD^{tree}') == 'cfc48bf03388296db240d751a8b1b48e66e082d4'
+          subprocess.run(['git', 'apply', '--check', '--index', str(patch_file)], cwd=work, check=True)
+          subprocess.run(['git', 'apply', '--index', str(patch_file)], cwd=work, check=True)
+          tree = git('write-tree')
+          assert tree == expected_tree, (tree, expected_tree)
+          changed = subprocess.check_output(['git', 'diff', '--cached', '--name-only', '-z'], cwd=work).split(b'\0')[:-1]
+          assert len(changed) == 26
+          git('config', 'user.name', 'github-actions[bot]')
+          git('config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com')
+          commit = git('commit-tree', tree, '-p', base, '-m', 'feat: 第25バッチの通常入口・意味接続・有限仮説探索を改善')
+          subprocess.run(['git', 'push', 'origin', f'{commit}:refs/heads/{branch}'], cwd=work, check=True)
+          print(json.dumps({'commit': commit, 'tree': tree, 'files': len(changed), 'patch_sha256': hashlib.sha256(patch).hexdigest(), 'branch': branch}, ensure_ascii=False))
+          PY
