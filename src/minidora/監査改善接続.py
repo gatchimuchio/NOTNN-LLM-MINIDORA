@@ -17,8 +17,8 @@ from .文脈命題 import 文脈資料を読む, 文脈判定
 from .有限仮説探索 import 仮説を検討, 仮説報告を検査, 仮説探索版, _欄, _列
 from .有限因果モデル import 介入を比較, 介入報告を検査, 因果モデル版
 
-意味拡張版 = 'MINIDORA-有界文脈検討-v0.1'
-改善回答版 = 'MINIDORA-監査改善回答-v0.1'
+意味拡張版 = 'MINIDORA-有界文脈検討-v0.2'
+改善回答版 = 'MINIDORA-監査改善回答-v0.2'
 
 
 def 拡張命題を検討(要求: dict) -> dict:
@@ -27,17 +27,40 @@ def 拡張命題を検討(要求: dict) -> dict:
         raise ValueError('拡張命題要求のバイト上限')
     要求 = deepcopy(要求)
     sources = _列(要求['資料'], '資料', 8, 1)
-    docs = []
+    from dataclasses import replace
+    from .明示別名 import (別名宣言を分離, 別名対応を構成, 別名を適用, 資料候補の別名を接続, 別名版)
+    from .文脈命題 import _候補を判定
+    docs, definitions, applications, local_mappings = [], [], [], []
     for source in sources:
         _欄(source, {'名前', '本文'})
-        docs.append(文脈資料を読む(source['本文'], source['名前'], 照応距離=要求.get('照応距離', 1)))
+        body, declarations = 別名宣言を分離(source['本文'], source['名前'])
+        # 定義はその資料内だけへ適用する。他資料の発話・語義へ波及させない。
+        mapping = 別名対応を構成(declarations)
+        local_mappings.append(mapping)
+        doc = 文脈資料を読む(body, source['名前'], 照応距離=要求.get('照応距離', 1))
+        doc, trace = 資料候補の別名を接続(doc, mapping) if mapping else (doc, [])
+        docs.append(doc); definitions.extend(declarations); applications.extend({'資料': source['名前'], **r} for r in trace)
     candidates = 命題を読む(要求['問い'])
     if len(candidates) != 1 and '問い候補' not in 要求:
         raise ValueError('問いの読みが複数。問い候補を明示して確認を継続する')
-    result = 文脈判定(tuple(docs), 要求['問い'], 要求.get('問い候補', 1), 要求.get('資料候補', 0))
+    mapping = 別名対応を構成(definitions)
+    # 他資料の別名を連結して、資料内の正規名をさらに書き換えない。
+    if any(mapping[k][0] != local[k][0] for local in local_mappings for k in local):
+        raise ValueError('資料間で別名の到達先が一致しない。適用範囲を明示する')
+    normalized, query_trace = [], []
+    for index, candidate in enumerate(candidates, 1):
+        expression, trace = 別名を適用(candidate.式, mapping) if mapping else (candidate.式, [])
+        normalized.append(replace(candidate, 式=expression))
+        if trace:
+            query_trace.append({'候補': index, '適用': trace})
+    result = _候補を判定(tuple(docs), 要求['問い'], tuple(normalized),
+                         要求.get('問い候補', 1), 要求.get('資料候補', 0))
     report = {'版': 意味拡張版, '要求': 要求, '状態': result['判定'],
               '資料候補': docs, '判定結果': result, '事実認定': False,
               '限界': '提供資料の対応構文と明示した有界照応規約での判定。話者の意図、一般語義、実世界の真実性は未認定。'}
+    if definitions:
+        report['別名接続'] = {'版': 別名版, '定義': definitions, '資料適用': applications, '問い適用': query_trace}
+        report['限界'] += '別名は明示定義を条件としてのみ適用し、帰属命題内部には置換していない。'
     report['記録SHA256'] = 意味指紋(report)
     return report
 
@@ -115,6 +138,10 @@ def 改善回答を構成(報告: dict, *, 詳細: bool = True) -> dict:
             for node in 報告['介入導出']:
                 追加('由来', f"{node['変数']}：{node['作用']}。モデル出典：{node['出典']}。", (node['変数'],))
     else:
+        if '別名接続' in 報告:
+            for definition in 報告['別名接続']['定義']:
+                追加('別名条件', f"資料「{definition['資料']}」の明示定義：{definition['種別']}「{definition['別名']}」を「{definition['正規名']}」へ接続。",
+                     (definition['資料'] + ':' + str(definition['範囲'][0]),))
         result = 報告['判定結果']
         追加('資料内結論', f"提供資料内での判定は「{result['判定']}」です。資料の解釈状態は「{result['解釈状態']}」です。")
         if result['資料候補']:
@@ -173,7 +200,7 @@ def _合成素材(文脈: 能力文脈):
 
 
 class 監査改善Module:
-    版 = 'MINIDORA-監査改善接続-v0.1'
+    版 = 'MINIDORA-監査改善接続-v0.2'
     優先度 = 0
 
     def __init__(self, 名前: str):

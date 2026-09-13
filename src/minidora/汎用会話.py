@@ -31,7 +31,7 @@ from .製品版.型 import 能力結果,参照資料
 from .知識取得 import 知識取得器
 from .製品版.検索 import SearXNG検索供給器
 
-汎用会話版='MINIDORA-汎用会話-v0.5'
+汎用会話版='MINIDORA-汎用会話-v0.6'
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +72,20 @@ class 汎用会話セッション:
         self._資料={};self._発話=();self._保留=None;self._最後目的=None
         self._最後結果=None;self._最後依存={};self._最後有効=True;self._最後起点=None
         self._ロック=Lock()
+
+    def 追加会話に対応する(self, 原文):
+        if not self._ロック.acquire(blocking=False):
+            # 別経路で同じ目的を実行し直さず、既存の処理中保留へ渡す。
+            return True
+        try:
+            return self._監査改善 is not None and self._監査改善.対応する(
+                原文, 継続許可=self._監査改善焦点)
+        finally:
+            self._ロック.release()
+
+    def 追加会話の焦点を離す(self):
+        with self._ロック:
+            self._監査改善焦点=False
 
     def 状態(self):
         if not self._ロック.acquire(blocking=False): raise ValueError('会話の処理中')

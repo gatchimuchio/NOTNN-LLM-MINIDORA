@@ -10,7 +10,7 @@ from .能力合成 import _符号化
 from .命題句 import 引用を切り出す, 最上位位置
 from .命題解釈 import 命題を読む
 
-改善会話解釈版 = 'MINIDORA-監査改善会話解釈-v0.1'
+改善会話解釈版 = 'MINIDORA-監査改善会話解釈-v0.2'
 種類名 = ('命題', '仮説', '介入')
 
 
@@ -99,7 +99,7 @@ def 資料を構造化(kind: str, name: str, body: str):
         return {'本文': body}, []
     if body.lstrip().startswith('{'):
         data = JSONを厳格に読む(body, 最大バイト数=100_000)
-        allowed = ({'事実', '規則', '観測', '仮説候補', '最大仮説数', '最大試行数', '最大操作数'}
+        allowed = ({'事実', '規則', '観測', '仮説候補', '最大仮説数', '最大試行数', '最大操作数', '探索方式'}
                    if kind == '仮説' else {'外生', '方程式', '介入', '観測'})
         required = {'事実', '規則', '仮説候補'} if kind == '仮説' else {'外生', '方程式'}
         if type(data) is not dict or not required <= set(data) <= allowed:
@@ -142,6 +142,10 @@ def 資料を構造化(kind: str, name: str, body: str):
                                      '後件': 命題を表現(e.子[1]), '出典': origin})
             elif field in ('候補', '観測'):
                 data['仮説候補' if field == '候補' else field] = [] if value == 'なし' else 命題列(value)
+            elif field == '探索方式':
+                if value not in ('全列挙', '関連閉包'):
+                    raise ValueError('探索方式が未対応')
+                data[field] = value
             elif field == '最大仮説数':
                 if not re.fullmatch('[0-6]', value):
                     raise ValueError('最大仮説数は0〜6')
@@ -165,7 +169,7 @@ def 資料を構造化(kind: str, name: str, body: str):
     return data, spans
 
 
-def 改善発話を解釈(text: str) -> dict:
+def _基本発話を解釈(text: str) -> dict:
     if type(text) is not str or not text.strip() or len(text) > 8192:
         raise ValueError('会話原文の型・上限')
     original = text
@@ -198,9 +202,17 @@ def 改善発話を解釈(text: str) -> dict:
                 raise ValueError('仮説検討の未知語尾')
             return out('検討', 種類='仮説', 資料=name, 変更={'観測': 命題列(value)})
         if suffix.startswith('から'):
-            value, end2 = 引用を切り出す(suffix, len('から'))
-            if suffix[end2:] not in ('を判定して', 'を判定してください'):
-                raise ValueError('命題判定の未知語尾')
+            if suffix[len('から'):].startswith(('「', '『')):
+                value, end2 = 引用を切り出す(suffix, len('から'))
+                if suffix[end2:] not in ('を判定して', 'を判定してください', 'と言える', 'と言えるか'):
+                    raise ValueError('命題判定の未知語尾')
+            else:
+                bare = re.fullmatch(r'から(.+)と言える(?:か|の)?[？?]?', suffix)
+                if not bare:
+                    raise ValueError('引用しない問いは「資料から命題と言える？」に限定する')
+                value = bare[1].strip()
+                # 条件や引用の脱落がないことを実命題解釈器で検査する。
+                命題を読む(value)
             return out('検討', 種類='命題', 資料=name, 変更={'問い': value})
         if suffix.startswith('で'):
             value, end2 = 引用を切り出す(suffix, 1)
@@ -230,3 +242,23 @@ def 改善発話を解釈(text: str) -> dict:
         action, args = actions[text]
         return out(action, **args)
     raise ValueError('未対応の会話行為。未解釈部分を捨てず保留する')
+
+
+def 改善発話を解釈(text: str) -> dict:
+    """従来契約を優先し、不成立時だけ監査可能な外形射影を試す。"""
+    try:
+        return _基本発話を解釈(text)
+    except ValueError:
+        from .依頼表層 import 依頼外形を分離
+        surface = 依頼外形を分離(text)
+        command = _基本発話を解釈(surface['射影文'])
+        display = surface['表示']
+        if display is not None:
+            if command['行為'] not in ('検討', '再表現'):
+                raise ValueError('この行為に表示条件を付加できない')
+            command['詳細'] = display['詳細']
+            if display['相対表示']:
+                command['相対表示'] = True
+        command['原文'] = text
+        command['表層対応'] = surface
+        return command

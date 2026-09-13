@@ -13,7 +13,7 @@ from .会話意味 import 意味指紋
 from .命題解釈 import 命題を読む, 命題を表現
 from .命題構造 import 命題式, 反対
 
-仮説探索版 = 'MINIDORA-有限仮説探索-v0.1'
+仮説探索版 = 'MINIDORA-有限仮説探索-v0.2'
 
 
 def _文字(value: object, 名前: str, 最大: int = 256) -> str:
@@ -57,10 +57,13 @@ def _リテラル(text: object) -> 命題式:
 def 仮説を検討(要求: dict) -> dict:
     """指定された探索範囲を閉じてから報告する。予算超過では部分採用しない。"""
     _欄(要求, {'事実', '規則', '観測', '仮説候補'},
-        {'最大仮説数', '最大試行数', '最大操作数'})
+        {'最大仮説数', '最大試行数', '最大操作数', '探索方式'})
     if len(_符号化(要求)) > 100000:
         raise ValueError('仮説要求のバイト上限')
     要求 = deepcopy(要求)
+    方式 = 要求.get('探索方式', '関連閉包')
+    if type(方式) is not str or 方式 not in ('関連閉包', '全列挙'):
+        raise ValueError('仮説探索方式は関連閉包又は全列挙')
     最大仮説数 = _整数(要求.get('最大仮説数', 3), '最大仮説数', 0, 6)
     最大試行数 = _整数(要求.get('最大試行数', 2048), '最大試行数', 1, 4096)
     最大操作数 = _整数(要求.get('最大操作数', 100000), '最大操作数', 1, 1000000)
@@ -106,12 +109,30 @@ def 仮説を検討(要求: dict) -> dict:
         raise ValueError('観測をそのまま仮説として自己説明しない')
     上限数 = min(最大仮説数, len(仮説))
     全組合せ数 = sum(comb(len(仮説), n) for n in range(上限数 + 1))
-    if 全組合せ数 > 最大試行数:
+    # 明示否定を別リテラルとする単調な前向き規則。観測の後向き閉包に
+    # 寄与しない仮説は、包含極小説明には必要ない。整合性の検査では規則を削らない。
+    関連 = set(観測)
+    前処理操作数 = 0
+    if 方式 == '関連閉包':
+        changed = True
+        while changed:
+            changed = False
+            for _, left, right, _ in 規則:
+                前処理操作数 += 1
+                if 前処理操作数 > 最大操作数:
+                    raise ValueError('関連閉包の操作予算超過。途中結果を採用しない')
+                if right in 関連:
+                    addition = set(left) - 関連
+                    if addition:
+                        関連.update(addition); changed = True
+    探索仮説 = tuple(sorted(k for k in 仮説 if 方式 == '全列挙' or k in 関連))
+    除外仮説 = tuple(sorted(set(仮説) - set(探索仮説)))
+    実組合せ数 = sum(comb(len(探索仮説), n) for n in range(min(上限数, len(探索仮説)) + 1))
+    if 実組合せ数 > 最大試行数:
         raise ValueError('指定仮説範囲の探索予算不足。部分候補を採用しない')
     事実.sort()
     規則.sort()
-    仮説 = tuple(sorted(仮説))
-    操作数 = 0
+    操作数 = 前処理操作数
 
     def 刻む() -> None:
         nonlocal 操作数
@@ -153,8 +174,8 @@ def 仮説を検討(要求: dict) -> dict:
     件数 = {'評価': 0, '極小性による省略': 0, '不整合': 0, '説明不足': 0}
     背景不整合 = bool(衝突 or any(反転[k] in 背景 for k in 観測))
     if not 背景不整合:
-        for n in range(上限数 + 1):
-            for combo in combinations(仮説, n):
+        for n in range(min(上限数, len(探索仮説)) + 1):
+            for combo in combinations(探索仮説, n):
                 current = frozenset(combo)
                 if any(prior <= current for prior in 極小集合):
                     件数['極小性による省略'] += 1
@@ -182,7 +203,10 @@ def 仮説を検討(要求: dict) -> dict:
     status = ('背景不整合' if 背景不整合 else '説明候補あり' if 解 else '指定範囲に説明なし')
     report = {'版': 仮説探索版, '状態': status, '要求': 要求, '候補': 解,
               '探索範囲': {'候補命題数': len(仮説), '最大仮説数': 上限数,
-                           '対象組合せ数': 全組合せ数},
+                           '対象組合せ数': 全組合せ数, '検討組合せ数': 実組合せ数,
+                           '探索方式': 方式, '関連候補命題数': len(探索仮説),
+                           '関連性による省略組合せ数': 全組合せ数 - 実組合せ数,
+                           '除外候補': [命題を表現(表現[k]) for k in 除外仮説]},
               '探索完了': not 背景不整合, '件数': 件数, '操作数': 操作数,
               '事実認定': False,
               '限界': '提供規則と指定候補・最大仮説数の下での包含極小説明。因果の真実性・候補の網羅性・尤度は未認定。'}

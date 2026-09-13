@@ -286,7 +286,8 @@ class 保存復元試験(unittest.TestCase):
         with self.assertRaises(ValueError):Session.復元(self.built().保存文字列(),期待セッションID='other')
 
     def test_未対応版を自動移行しない(self):
-        text=self.built().保存文字列().replace('MINIDORA-監査改善会話-v0.1','MINIDORA-監査改善会話-v99')
+        from minidora.監査改善会話 import 改善会話版
+        text=self.built().保存文字列().replace(改善会話版,'MINIDORA-監査改善会話-v99')
         with self.assertRaises(ValueError):Session.復元(text)
 
     def test_共有統合の一部履歴を全体保存扱いしない(self):

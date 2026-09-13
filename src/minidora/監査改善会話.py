@@ -17,7 +17,7 @@ from .監査改善接続 import 拡張命題を検討, 改善回答を検査, �
 from .監査改善計画 import 改善統合能力群, 改善目的を計画, 報告版, 改善計画版
 from .監査改善会話解釈 import 改善発話を解釈, JSONを厳格に読む, 改善会話解釈版
 
-改善会話版 = 'MINIDORA-監査改善会話-v0.1'
+改善会話版 = 'MINIDORA-監査改善会話-v0.2'
 契約版 = {'会話': 改善会話版, '解釈': 改善会話解釈版, '計画': 改善計画版,
           '回答': 改善回答版, **報告版}
 
@@ -110,7 +110,7 @@ class 監査改善会話セッション:
                 return False
         return 継続許可 and bool(self._保留 or self._目的) and value.startswith(
             ('観測を', '候補を', '介入を', '問いを', '問い候補', '資料候補', '照応距離を',
-             '続けて', 'もう一度', '短く説明して', '詳しく説明して'))
+             '続けて', 'もう一度', '短く', '詳しく', '簡潔に', '詳細に', 'もう少し'))
 
     def _登録(self, command):
         name, kind, action = command['資料'], command['種類'], command['行為']
@@ -154,7 +154,9 @@ class 監査改善会話セッション:
         request.update(deepcopy(task['変更']))
         return request
 
-    def _実行(self, task, original, stop, *, detail=True, previous=None):
+    def _実行(self, task, original, stop, *, detail=None, previous=None):
+        if detail is None:
+            detail = task.get('詳細', True)
         if task['資料'] not in self._資料:
             return self._確認(task, '資料不足', f'資料「{task["資料"]}」の登録が必要です。登録後に「続けて」と指定してください。')
         request = self._要求(task)
@@ -232,6 +234,8 @@ class 監査改善会話セッション:
         if action == '検討':
             task = {k: deepcopy(command[k]) for k in ('種類', '資料', '変更')}
             task['起点発話'] = original
+            if '詳細' in command:
+                task['詳細'] = command['詳細']
             return self._実行(task, original, stop)
         if action == '再表現':
             if self._保留:
@@ -239,6 +243,8 @@ class 監査改善会話セッション:
             if not self._成果:
                 raise ValueError('再説明する採用成果がない')
             row = self._成果[-1]
+            if command.get('相対表示') and row['詳細'] == command['詳細']:
+                raise ValueError('現在の二段階表示では、これ以上の相対的な短縮・詳述は未対応です')
             if not self._有効(row):
                 raise ValueError('元成果が失効しています。「もう一度」で再検討してください')
             return self._実行(row['目的'], original, stop, detail=command['詳細'], previous=row)
@@ -294,6 +300,9 @@ class 監査改善会話セッション:
                 command = 改善発話を解釈(原文)
                 self.統合._停止(停止要求)
                 result = self._処理(command, 停止要求)
+                if '表層対応' in command:
+                    from dataclasses import replace
+                    result = replace(result, 追跡={**(result.追跡 or {}), '表層対応': command['表層対応']})
             except (ValueError, TypeError, KeyError, AttributeError, RecursionError) as exc:
                 result = 改善会話応答('保留', '処理を確定しません。' + str(exc), '入力・意味・状態不成立')
             if result.状態 != '中止':
