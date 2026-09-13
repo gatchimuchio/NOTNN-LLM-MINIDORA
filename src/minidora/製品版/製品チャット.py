@@ -15,14 +15,15 @@ from .知識 import 知識参照Module本体, Wikipedia知識供給器
 from .検索 import Web検索Module本体, SearXNG検索供給器
 from .組込モジュール import ニュース能力,要約能力,変換能力,抽出能力,計算能力,基本会話能力,Web検索能力,知識参照能力,Core能力
 
-製品チャット版="MINIDORA-PRODUCT-CHAT-v5"
+製品チャット版="MINIDORA-PRODUCT-CHAT-v6"
 
 class 製品ミニドラ:
-    def __init__(self,*,基礎ミニドラ:Any=None,ニュース供給器=None,知識供給器=None,検索供給器=None,監査台帳_:監査台帳|None=None,状態庫:会話状態庫|None=None,追加Module:tuple=(),汎用会話:bool=False,汎用外部読取許可:bool=False,汎用取得器=None) -> None:
-        if type(汎用会話) is not bool or type(汎用外部読取許可) is not bool:
-            raise ValueError("汎用会話と外部許可はbool")
+    def __init__(self,*,基礎ミニドラ:Any=None,ニュース供給器=None,知識供給器=None,検索供給器=None,監査台帳_:監査台帳|None=None,状態庫:会話状態庫|None=None,追加Module:tuple=(),汎用会話:bool|None=None,汎用外部読取許可:bool=False,汎用取得器=None) -> None:
+        if (汎用会話 is not None and type(汎用会話) is not bool) or type(汎用外部読取許可) is not bool:
+            raise ValueError("汎用会話はbool又はNone、外部許可はbool")
         from threading import Lock
-        self._汎用有効=汎用会話; self._汎用許可=汎用外部読取許可
+        self._自動入口=汎用会話 is None; self._汎用有効=汎用会話 is not False; self._汎用許可=汎用外部読取許可
+        self._汎用焦点=set()
         self._汎用取得器=汎用取得器; self._汎用セッション={}; self._汎用ロック=Lock()
         self.基礎ミニドラ=基礎ミニドラ; self.監査台帳=監査台帳_ or 監査台帳(); self.状態庫=状態庫 or 会話状態庫()
         news=ニュースModule(ニュース供給器 or RSSニュース供給器()); summary=汎用要約Module(); transform=文脈変換Module(); extract=情報抽出Module(); calc=計算Module(); basic=基本会話Module(); web=Web検索Module本体(検索供給器 or SearXNG検索供給器()); knowledge=知識参照Module本体(知識供給器 or Wikipedia知識供給器())
@@ -31,9 +32,10 @@ class 製品ミニドラ:
 
     def 能力一覧(self)->tuple[str,...]:
         if self._汎用有効:
-            return ("目的からの数式・文書・コード構造処理", "二資料・指定二時点の数値比較", "最大8対象の数量集合・選別・合計・平均・表・計算手順",
+            汎用能力=("目的からの数式・文書・コード構造処理", "二資料・指定二時点の数値比較", "最大8対象の数量集合・選別・合計・平均・表・計算手順",
                     "資料命題の条件・否定・量化推論と意味候補確認", "発言・信念の帰属、資料内照応、資料解釈の場合別判定", "不足条件の確認と明示訂正", "根拠と条件を保持する回答", "回復契約に基づく限定再計画",
-                    *( ("公開資料の数値記載取得・取得全文の命題検討（明示許可済み）",) if self._汎用許可 else () ), "完全経路監査")
+                    *( ("公開資料の数値記載取得・取得全文の命題検討（明示許可済み）",) if self._汎用許可 else () ), "有限仮説検討・明示ブールモデル介入比較", "依頼表現と表示条件の合成", "完全経路監査")
+            return tuple(dict.fromkeys((*(tuple(m.名前 for m in self.能力レジストリ.一覧()) if self._自動入口 else ()),*汎用能力)))
         return tuple(m.名前 for m in self.能力レジストリ.一覧())+("完全経路監査",)
     def Module登録(self,module)->None: self.能力レジストリ.登録(module)
     def Module解除(self,name:str)->None: self.能力レジストリ.解除(name)
@@ -55,8 +57,10 @@ class 製品ミニドラ:
             return self._応答_locked(str(入力文 or "").strip(), st)
 
     def _応答_locked(self,text,st)->製品応答:
-        if self._汎用有効:
+        if self._汎用有効 and (not self._自動入口 or self._汎用対象(text,st.セッションID)):
+            self._汎用焦点.add(st.セッションID)
             return self._汎用応答_locked(text,st)
+        self._汎用焦点.discard(st.セッションID)
         audit=self.監査台帳.開始(text,st.セッションID,st.直前監査ハッシュ)
         audit.記録("入力受理","製品チャット",製品チャット版,{"入力":text,"session":st.セッションID},{"履歴件数":len(st.履歴),"直前経路":st.直前経路})
         context=能力文脈(text,st.セッションID,st.直前応答,st.直前参照,tuple(st.履歴),{})
@@ -81,13 +85,39 @@ class 製品ミニドラ:
         record=audit.確定(body,status); st.直前追跡ID=record.追跡ID; st.直前監査ハッシュ=record.ルートハッシュ
         return 製品応答(st.セッションID,body,status,route,record.追跡ID,record.ルートハッシュ,result.参照,(route,),{"capability_candidates":candidates})
 
+    def _汎用対象(self,text,session_id):
+        """実行前に意味入口を選ぶ。不成立の後に旧Coreへ流して条件を捨てない。"""
+        import re
+        from ..会話解釈 import 会話を解釈
+        # 資料要求の破損・未登録も同じ所有入口で保留し、旧Coreへ転送しない。
+        if text.startswith(('命題資料', '仮説資料', '介入資料', '監査改善の',
+                            '資料「', '資料『', 'この資料', '全資料から', '全資料に基づいて',
+                            '公開資料から', '公開資料に基づいて')):
+            return True
+        with self._汎用ロック:
+            session=self._汎用セッション.get(session_id)
+        focused=session_id in self._汎用焦点
+        if focused and session is not None and session._監査改善 is not None:
+            if session._監査改善.対応する(text,継続許可=session._監査改善焦点):
+                return True
+        try:
+            request=会話を解釈(text)
+        except ValueError:
+            return False
+        if request.行為 in ('比較','集合','取得','命題照合','命題取得','登録','更新'):
+            return True
+        if focused and request.行為 in ('再表現','確認返答','訂正','命題訂正','命題選択','資料命題選択','初期化'):
+            return True
+        # 単純計算・ニュース・要約等の旧Moduleは既存経路を維持する。
+        return request.行為=='既存目的' and bool(re.search(r'(?:微分|積分)(?:して|した結果は)',text))
+
     def _汎用応答_locked(self,text,st):
         from ..汎用会話 import 汎用会話セッション,汎用会話応答,汎用会話版
         from ..要求解釈 import _正規値
         with self._汎用ロック:
             session=self._汎用セッション.get(st.セッションID)
             if session is None and len(self._汎用セッション)<64:
-                session=汎用会話セッション(st.セッションID,取得器=self._汎用取得器,外部読取許可=self._汎用許可)
+                session=汎用会話セッション(st.セッションID,取得器=self._汎用取得器,外部読取許可=self._汎用許可,監査改善=True)
                 self._汎用セッション[st.セッションID]=session
         result=(session.応答(text,外部読取許可=self._汎用許可) if session is not None else
                 汎用会話応答("保留","汎用会話のセッション数上限です。"))

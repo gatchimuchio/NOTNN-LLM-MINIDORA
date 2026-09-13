@@ -9,8 +9,9 @@ import unicodedata
 from .能力合成 import _符号化
 from .命題句 import 引用を切り出す, 最上位位置
 from .命題解釈 import 命題を読む
+from .依頼表現 import 依頼節を読む, 命題依頼を読む, 説明指定を読む, 説明指定を統合, 依頼語尾
 
-改善会話解釈版 = 'MINIDORA-監査改善会話解釈-v0.1'
+改善会話解釈版 = 'MINIDORA-監査改善会話解釈-v0.2'
 種類名 = ('命題', '仮説', '介入')
 
 
@@ -141,7 +142,8 @@ def 資料を構造化(kind: str, name: str, body: str):
                 data['規則'].append({'識別子': 'r' + str(number), '前件': [命題を表現(x) for x in left],
                                      '後件': 命題を表現(e.子[1]), '出典': origin})
             elif field in ('候補', '観測'):
-                data['仮説候補' if field == '候補' else field] = [] if value == 'なし' else 命題列(value)
+                data['仮説候補' if field == '候補' else field] = ('規則から生成' if field == '候補' and value == '規則から生成'
+                    else [] if value == 'なし' else 命題列(value))
             elif field == '最大仮説数':
                 if not re.fullmatch('[0-6]', value):
                     raise ValueError('最大仮説数は0〜6')
@@ -183,31 +185,35 @@ def 改善発話を解釈(text: str) -> dict:
             body = suffix[m.end():]
             data, spans = 資料を構造化(kind, name, body)
             return out(m[1], 種類=kind, 資料=name, 本文=body, データ=data, 原文対応=spans)
-    if text.endswith('。'):
-        text = text[:-1]
+    clauses = 依頼節を読む(original)
+    text = clauses[0][2]
+    options = 説明指定を統合(clauses[1:], 許可=('詳細',))
+    def request_out(**values):
+        return out('検討', **values, **options)
     if text.startswith(('資料「', '資料『')):
         name, end = 引用を切り出す(text, 2)
         名前を確認(name)
         suffix = text[end:]
         simple = {'で仮説を検討して': '仮説', 'で介入を比較して': '介入', 'で命題を判定して': '命題'}
         if suffix in simple:
-            return out('検討', 種類=simple[suffix], 資料=name, 変更={})
+            return request_out(種類=simple[suffix], 資料=name, 変更={})
         if suffix.startswith('で観測'):
             value, end2 = 引用を切り出す(suffix, len('で観測'))
             if suffix[end2:] not in ('を説明する仮説を検討して', 'を説明する仮説を検討してください'):
                 raise ValueError('仮説検討の未知語尾')
-            return out('検討', 種類='仮説', 資料=name, 変更={'観測': 命題列(value)})
-        if suffix.startswith('から'):
-            value, end2 = 引用を切り出す(suffix, len('から'))
-            if suffix[end2:] not in ('を判定して', 'を判定してください'):
-                raise ValueError('命題判定の未知語尾')
-            return out('検討', 種類='命題', 資料=name, 変更={'問い': value})
+            return request_out(種類='仮説', 資料=name, 変更={'観測': 命題列(value)})
+        connector = next((word for word in ('から', 'に基づいて') if suffix.startswith(word)), None)
+        if connector is not None:
+            value, _, _ = 命題依頼を読む(suffix[len(connector):])
+            return request_out(種類='命題', 資料=name, 変更={'問い': value})
         if suffix.startswith('で'):
             value, end2 = 引用を切り出す(suffix, 1)
             if suffix[end2:] not in ('に介入した結果を比較して', 'に介入した結果を比較してください'):
                 raise ValueError('介入比較の未知語尾')
-            return out('検討', 種類='介入', 資料=name, 変更={'介入': 真偽割当(value)})
+            return request_out(種類='介入', 資料=name, 変更={'介入': 真偽割当(value)})
         raise ValueError('資料を使う依頼の未対応構文')
+    if options:
+        raise ValueError('この会話行為に表示条件を付加しない')
     for field in ('観測', '候補', '介入', '問い'):
         prefix = field + 'を'
         if text.startswith(prefix):
@@ -223,6 +229,11 @@ def 改善発話を解釈(text: str) -> dict:
     match = re.fullmatch('照応距離を([1-9]|1[0-6])にして', text)
     if match:
         return out('訂正', 変更={'照応距離': int(match[1])})
+    presentation = 説明指定を読む(text)
+    if presentation is not None:
+        if set(presentation) != {'詳細'}:
+            raise ValueError('追加回答の表示条件は短縮又は詳細を指定する')
+        return out('再表現', **presentation)
     actions = {'監査改善の続き': ('継続', {}), '続けて': ('継続', {}), 'もう一度': ('再実行', {}),
                '短く説明して': ('再表現', {'詳細': False}), '詳しく説明して': ('再表現', {'詳細': True}),
                '監査改善の状態を表示して': ('状態', {}), '監査改善の確認を取り消して': ('取消', {})}

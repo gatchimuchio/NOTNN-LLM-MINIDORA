@@ -13,9 +13,13 @@ def _core():
 
 def main() -> int:
     import sys
+    from ..標準入出力 import 標準入出力をUTF8にする
+    標準入出力をUTF8にする()
     p = argparse.ArgumentParser()
     p.add_argument("--serve", action="store_true")
-    p.add_argument("--汎用", action="store_true", help="目的・複数資料・確認継続の会話入口を利用")
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument("--汎用", action="store_true", help="目的・複数資料・確認継続の会話入口だけを利用")
+    mode.add_argument("--従来", action="store_true", help="従来Module専用入口。省略時は単一の自動入口")
     p.add_argument("--外部読取", action="store_true", help="汎用入口で要求された公開資料取得を許可")
     p.add_argument("--session", default="cli")
     p.add_argument("message", nargs="*")
@@ -25,12 +29,12 @@ def main() -> int:
             if hasattr(stream,"reconfigure"):
                 stream.reconfigure(encoding="utf-8",errors="strict")
     audit = 監査台帳(os.getenv("MINIDORA_AUDIT_LOG") or None)
-    if a.外部読取 and not a.汎用:
-        p.error("--外部読取は--汎用と共に指定してください")
+    if a.外部読取 and a.従来:
+        p.error("--外部読取は--従来と併用できません")
     app = 製品ミニドラ(基礎ミニドラ=None if a.汎用 else _core(), 監査台帳_=audit,
-                      汎用会話=a.汎用, 汎用外部読取許可=a.外部読取)
+                      汎用会話=True if a.汎用 else False if a.従来 else None, 汎用外部読取許可=a.外部読取)
     if a.serve:
-        if a.汎用: serve(app, host="127.0.0.1", 同一生成元限定=True)
+        if not a.従来: serve(app, host="127.0.0.1", 同一生成元限定=True)
         else: serve(app)
         return 0
     if a.message:
@@ -40,7 +44,6 @@ def main() -> int:
         try: text=input("> ").strip()
         except EOFError: return 0
         except UnicodeError:
-            if not a.汎用: raise
             print("標準入力はUTF-8で指定してください。", file=sys.stderr)
             return 2
         if text.casefold() in {"exit","quit"}: return 0
