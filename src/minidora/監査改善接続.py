@@ -18,7 +18,9 @@ from .有限仮説探索 import 仮説を検討, 仮説報告を検査, 仮説�
 from .有限因果モデル import 介入を比較, 介入報告を検査, 因果モデル版
 
 意味拡張版 = 'MINIDORA-有界文脈検討-v0.2'
-改善回答版 = 'MINIDORA-監査改善回答-v0.2'
+改善回答版 = 'MINIDORA-監査改善回答-v0.3'
+from .資料読解 import 資料読解版, 資料を読解, 読解報告を検査, 読解説明節
+from .導出説明 import 導出説明を構成, 記載を使わない導出の説明
 
 
 def 拡張命題を検討(要求: dict) -> dict:
@@ -54,7 +56,7 @@ def 改善報告を検査(報告: dict) -> bool:
     if type(報告) is not dict:
         return False
     validators = {意味拡張版: 拡張命題報告を検査, 仮説探索版: 仮説報告を検査,
-                  因果モデル版: 介入報告を検査}
+                  因果モデル版: 介入報告を検査, 資料読解版: 読解報告を検査}
     version = 報告.get('版')
     if type(version) is not str or version not in validators:
         return False
@@ -115,6 +117,8 @@ def 改善回答を構成(報告: dict, *, 詳細: bool = True) -> dict:
         if 詳細:
             for node in 報告['介入導出']:
                 追加('由来', f"{node['変数']}：{node['作用']}。モデル出典：{node['出典']}。", (node['変数'],))
+    elif 報告['版'] == 資料読解版:
+        節.extend(読解説明節(報告, 詳細=詳細))
     else:
         result = 報告['判定結果']
         for definition in result.get('別名定義', ()):
@@ -130,9 +134,16 @@ def 改善回答を構成(報告: dict, *, 詳細: bool = True) -> dict:
                 追加('選択条件', f"記載{choice['記載']}の読み：{choice['読み']}。")
             for resolution in case['照応解消']:
                 追加('照応条件', f"「{resolution['原文']}」を「{resolution['束縛先']}」へ束縛：{resolution['理由']}。")
+            explanation = 導出説明を構成(case['判定結果'], case['記載'])
             if 詳細:
-                for record in case['記載']:
-                    追加('提供記載', f"{record['資料']}の記載：{record['原文']}。", (record['識別子'],))
+                追加('導出境界', explanation['境界'])
+                節.extend(explanation['節'])
+            if not explanation['使用記載']:
+                if explanation['節']:
+                    # 原記載なしの論理導出と、支持・反証そのものがない未導出は別。
+                    追加('導出範囲', 記載を使わない導出の説明)
+                elif 詳細:
+                    追加('未導出', '支持・反証の原記載根拠は得られていません。未導出は否定でも情報不在の認定でもありません。')
     追加('留保', 報告['限界'])
     out = {'版': 改善回答版, '報告': 報告, '詳細': 詳細, '節': 節,
            '本文': '\n'.join(row['本文'] for row in 節), '事実認定': False}
@@ -176,11 +187,11 @@ def _合成素材(文脈: 能力文脈):
 
 
 class 監査改善Module:
-    版 = 'MINIDORA-監査改善接続-v0.2'
+    版 = 'MINIDORA-監査改善接続-v0.3'
     優先度 = 0
 
     def __init__(self, 名前: str):
-        if 名前 not in ('拡張命題検討', '有限仮説検討', '有限介入比較', '監査改善回答'):
+        if 名前 not in ('拡張命題検討', '有限仮説検討', '有限介入比較', '資料読解', '監査改善回答'):
             raise ValueError('未登録の監査改善能力')
         self.名前 = 名前
 
@@ -198,7 +209,7 @@ class 監査改善Module:
                 if settings:
                     raise ValueError('検討能力の未知設定')
                 functions = {'拡張命題検討': 拡張命題を検討,
-                             '有限仮説検討': 仮説を検討, '有限介入比較': 介入を比較}
+                             '有限仮説検討': 仮説を検討, '有限介入比較': 介入を比較, '資料読解': 資料を読解}
                 report = functions[self.名前](data)
                 body = '検討処理：' + report['状態']
             return 能力結果(True, body, 根拠=('原データ:' + 意味指紋(data),),
@@ -212,12 +223,12 @@ class 監査改善Module:
 
 def 改善能力群():
     return tuple(監査改善Module(name).登録() for name in
-                 ('拡張命題検討', '有限仮説検討', '有限介入比較', '監査改善回答'))
+                 ('拡張命題検討', '有限仮説検討', '有限介入比較', '資料読解', '監査改善回答'))
 
 
 def 改善計画を実行(種類: str, 要求: dict, *, 詳細: bool = True):
     """明示IR用の二工程実行例。任意自然文の解釈器として扱わない。"""
-    names = {'命題': '拡張命題検討', '仮説': '有限仮説検討', '介入': '有限介入比較'}
+    names = {'命題': '拡張命題検討', '仮説': '有限仮説検討', '介入': '有限介入比較', '読解': '資料読解'}
     if type(種類) is not str or 種類 not in names or type(詳細) is not bool:
         raise ValueError('検討種類又は表示条件不正')
     plan = 合成計画((
