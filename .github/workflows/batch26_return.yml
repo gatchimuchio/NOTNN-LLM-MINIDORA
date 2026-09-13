@@ -1,0 +1,66 @@
+name: 第26バッチ還元同一性検査
+on:
+  push:
+    branches: ['transport/batch26-20260914']
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 原本と完成内容を照合して適用
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=5532413539fb25453fef6043ad1a0bf854fb2132
+          git diff --quiet "$BASE" -- . ':(exclude).return/b26/**' ':(exclude).github/workflows/batch26_return.yml'
+          python - <<'PY'
+          import base64, hashlib, json, lzma, pathlib, subprocess
+          root=pathlib.Path('.')
+          expected=['d5701ab0b8a891411b34caf982118b5b517205bc07d5d8dfc95915184af47a59','900cb32ff0cd21997996d5ffa1a2e26f095899a42e2df03f50038caa508dc69e','4a7ec04d40b3394769bdf63e64ebc403b7824824b59d4f7d1ab01d56b66ee469','174fe4c0a66aaf4883a23fd7c9b5fa3c9496b1e2e7640bddef1c9a3571cc772d','a1181332b5374e3ce9cb379a610acad9a174855d15bd7fdc0ec1dc609d12eb06']
+          chunks=sorted(root.glob('.return/b26/*.b64'))
+          assert [p.name for p in chunks]==[f'{i:02}.b64' for i in range(5)]
+          content=[]
+          for p,digest in zip(chunks,expected):
+              text=p.read_text().strip(); actual=hashlib.sha256(text.encode()).hexdigest()
+              print(p.name,len(text),actual)
+              assert actual==digest,('搬送不一致',p.name)
+              content.append(text)
+          packed=base64.b64decode(''.join(content),validate=True)
+          assert hashlib.sha256(packed).hexdigest()=='cba45d37e6badf0f86a02ffba6a106e2f8bf10da75c55c391ae05888dbfe4407'
+          packet=json.loads(lzma.decompress(packed,memlimit=134217728));manifest=packet['manifest'];patch=packet['patch'].encode()
+          assert manifest['base']=='5532413539fb25453fef6043ad1a0bf854fb2132'
+          assert hashlib.sha256(patch).hexdigest()==manifest['patch_sha256']=='81293ff2cabe805f924cbe154726c51129d8d544ae674d3c93469f8448669b91'
+          def blob(data):return hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()
+          for path,digest in manifest['read_source_blobs'].items():
+              assert path.startswith('src/') and '..' not in pathlib.Path(path).parts
+              assert blob(pathlib.Path(path).read_bytes())==digest,('参照原本不一致',path)
+          assert len(manifest['files'])==15
+          for row in manifest['files']:
+              p=pathlib.Path(row['path'])
+              assert not p.is_absolute() and '..' not in p.parts and p.parts[0] in ('docs','src','tests','tools')
+              actual=blob(p.read_bytes()) if p.exists() else None
+              assert actual==row['before_blob'],('変更基点不一致',str(p),actual)
+          subprocess.run(['git','apply','--check','-'],input=patch,check=True)
+          subprocess.run(['git','apply','-'],input=patch,check=True)
+          for row in manifest['files']:
+              data=pathlib.Path(row['path']).read_bytes()
+              assert blob(data)==row['after_blob'] and hashlib.sha256(data).hexdigest()==row['after_sha256'],('完成内容不一致',row['path'])
+          pathlib.Path('/tmp/b26_paths.json').write_text(json.dumps(sorted(r['path'] for r in manifest['files'])))
+          print('参照原本照合',len(manifest['read_source_blobs']),'変更前後照合',len(manifest['files']),'PASS')
+          PY
+          rm -rf .return/b26 .github/workflows/batch26_return.yml
+          git add -A
+          python - <<'PY'
+          import json,pathlib,subprocess
+          paths=subprocess.check_output(['git','diff','--cached','--name-only','-z','5532413539fb25453fef6043ad1a0bf854fb2132']).decode().strip('\0').split('\0')
+          assert sorted(paths)==json.loads(pathlib.Path('/tmp/b26_paths.json').read_text()),paths
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: 第26バッチの原文読解と根拠説明を還元'
+          git push origin HEAD:transport/batch26-20260914
