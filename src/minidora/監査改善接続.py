@@ -20,7 +20,7 @@ from .有限因果モデル import 介入を比較, 介入報告を検査, 因�
 意味拡張版 = 'MINIDORA-有界文脈検討-v0.2'
 改善回答版 = 'MINIDORA-監査改善回答-v0.3'
 from .資料読解 import 資料読解版, 資料を読解, 読解報告を検査, 読解説明節
-from .導出説明 import 導出説明を構成
+from .導出説明 import 導出説明を構成, 記載を使わない導出の説明
 
 
 def 拡張命題を検討(要求: dict) -> dict:
@@ -134,11 +134,15 @@ def 改善回答を構成(報告: dict, *, 詳細: bool = True) -> dict:
                 追加('選択条件', f"記載{choice['記載']}の読み：{choice['読み']}。")
             for resolution in case['照応解消']:
                 追加('照応条件', f"「{resolution['原文']}」を「{resolution['束縛先']}」へ束縛：{resolution['理由']}。")
+            explanation = 導出説明を構成(case['判定結果'], case['記載'])
             if 詳細:
-                explanation = 導出説明を構成(case['判定結果'], case['記載'])
                 追加('導出境界', explanation['境界'])
                 節.extend(explanation['節'])
-                if not explanation['使用記載']:
+            if not explanation['使用記載']:
+                if explanation['節']:
+                    # 原記載なしの論理導出と、支持・反証そのものがない未導出は別。
+                    追加('導出範囲', 記載を使わない導出の説明)
+                elif 詳細:
                     追加('未導出', '支持・反証の原記載根拠は得られていません。未導出は否定でも情報不在の認定でもありません。')
     追加('留保', 報告['限界'])
     out = {'版': 改善回答版, '報告': 報告, '詳細': 詳細, '節': 節,
