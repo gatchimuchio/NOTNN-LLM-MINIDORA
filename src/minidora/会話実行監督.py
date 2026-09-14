@@ -5,6 +5,7 @@ from copy import deepcopy
 from .能力合成 import _結果辞書
 from .実行回復 import 回復方針, 回復方針を決定, 失敗を分類
 from .会話意味 import 意味指紋
+from .要求境界契約 import 要求境界契約印
 
 会話実行監督版 = 'MINIDORA-会話実行監督-v0.2'
 
@@ -188,7 +189,7 @@ class 会話実行監督:
                 if response is None: raise
                 attempts.append({'状態':'計画保留','理由':str(exc),'目的印':goal_seal,
                                  '素材印':material_seal,'外部工程':(),'作用契約印':'','回復方針契約印':recovery_contract,'要求被覆印':'',
-                                 '回復方針':pending.動作 if pending else '初回','再開放':()})
+                                 '要求境界契約印':'','回復方針':pending.動作 if pending else '初回','再開放':()})
                 break
             if plan.目的印!=goal_seal: raise ValueError('再計画が目的を変更した')
             if (type(plan.要求被覆) is not tuple or not plan.要求被覆
@@ -211,10 +212,13 @@ class 会話実行監督:
                 fixed_coverage=self._局所再計画監査(previous_plan,plan,pending)
             packed=self.統合.準備(plan.計画,plan.Data,依頼文=原文)
             if packed.起点!=start: raise ValueError('計画準備中に起点が変わった')
+            boundary_seal=要求境界契約印(原文=原文,計画印=packed.ハッシュ,
+                要求被覆印=coverage_seal,目的印=plan.目的印,素材印=material_seal)
             response=self.統合.実行(packed,外部読取許可=外部許可,停止要求=停止要求)
             attempts.append({'計画印':packed.ハッシュ,'素材印':material_seal,'目的印':plan.目的印,'工程作用':plan.工程作用,
                 '状態':response.状態,'外部工程':plan.外部作用,'作用契約印':plan.作用契約印,
                 '回復方針契約印':recovery_contract,'要求被覆印':coverage_seal,'要求被覆数':len(plan.要求被覆),
+                '要求境界契約印':boundary_seal,
                 '回復方針':pending.動作 if pending else '初回',
                 '再開放':(pending.対象目的,pending.対象作用) if pending else (),
                 '固定被覆数':fixed_coverage,
