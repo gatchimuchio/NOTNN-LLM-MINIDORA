@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from graphlib import TopologicalSorter, CycleError
 from .能力意味カタログ import 計画作用, 能力意味カタログ
-from .汎用要求IR import 汎用要求IR
+from .汎用要求IR import 汎用要求IR, 要求被覆項
 from .能力合成 import 合成計画, 合成工程, 素材参照
 from .製品版.型 import 能力結果
 
@@ -21,6 +21,7 @@ class 目的計画結果:
     理由: str = ''
     展開数: int = 0
     カタログ印: str = ''
+    要求被覆: tuple[要求被覆項, ...] = ()
 
     @property
     def 成立(self):
@@ -38,10 +39,12 @@ class 目的計画器:
 
     def 計画する(self, 要求: 汎用要求IR, *, 禁止作用=()) -> 目的計画結果:
         count = 0
+        coverage: tuple[要求被覆項, ...] = ()
         try:
             if type(要求) is not 汎用要求IR:
                 raise ValueError('要求IRが必要')
             req = 要求.固定複製()
+            coverage = req.被覆台帳()
             if type(禁止作用) is not tuple or any(type(x) is not str for x in 禁止作用):
                 raise ValueError('禁止作用型不正')
             rules = self.カタログ.作用
@@ -51,7 +54,7 @@ class 目的計画器:
             goals = {g.識別子: g for g in req.目的}
             deps = {g.識別子: (g.対象,) if g.対象 in goals else () for g in req.目的}
             order = tuple(TopologicalSorter(deps).static_order())
-            # 未出力・未依存の目的も黙って捨てない。
+            # 固定複製でも確認済みだが、計画器自身も未出力・未依存目的を黙って捨てない。
             needed = set(req.出力目的)
             for name in reversed(order):
                 if name in needed: needed.update(deps[name])
@@ -75,7 +78,6 @@ class 目的計画器:
                         required = {k for _, k in rule.引数写像}
                         if not required <= set(args): continue
                         path = (rule, *chain)
-                        # 中間型が一致しても最終操作そのものを省略しない。
                         if source in rule.入力状態:
                             consumed = {k for r in path for _, k in r.引数写像}
                             if consumed == set(args):
@@ -97,7 +99,7 @@ class 目的計画器:
                 path = 経路(states[goal.対象], goal.成果種別, args)
                 current = refs[goal.対象]
                 trace = []
-                for index, rule in enumerate(path):
+                for rule in path:
                     sid = f'目的工程:{len(steps) + 1:04d}'
                     inst, config = '指示:' + sid, '設定:' + sid
                     data[inst] = 能力結果(True, req.原文[goal.原文範囲[0]:goal.原文範囲[1]])
@@ -111,6 +113,6 @@ class 目的計画器:
             if len(steps) > 64: raise ValueError('合成器の工程上限')
             plan = 合成計画(tuple(steps), tuple(outputs[g] for g in req.出力目的))
             return 目的計画結果('合格', plan, data, tuple(outputs.items()), tuple(traces),
-                                  展開数=count, カタログ印=self.カタログ.ハッシュ)
+                                  展開数=count, カタログ印=self.カタログ.ハッシュ, 要求被覆=coverage)
         except (ValueError, TypeError, KeyError, AttributeError, RecursionError, CycleError) as exc:
-            return 目的計画結果('保留', None, {}, (), (), str(exc), count, self.カタログ.ハッシュ)
+            return 目的計画結果('保留', None, {}, (), (), str(exc), count, self.カタログ.ハッシュ, coverage)
