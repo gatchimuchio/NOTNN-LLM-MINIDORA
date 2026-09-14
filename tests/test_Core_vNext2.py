@@ -8,6 +8,7 @@ from minidora.汎用能力核 import (
     標準汎用能力核,
 )
 from minidora.能力状態差循環 import MINIDORA能力状態差模型核
+from minidora.標準構成 import 標準ミニドラ, 標準構成版
 
 
 class Core共通ABI試験(unittest.TestCase):
@@ -17,6 +18,13 @@ class Core共通ABI試験(unittest.TestCase):
     def test_既存能力模型核のsubclassとして成立(self):
         self.assertIsInstance(self.core, MINIDORA汎用能力核)
         self.assertIsInstance(self.core, MINIDORA能力状態差模型核)
+
+    def test_標準Runtimeが同じ汎用Coreを使う(self):
+        body = 標準ミニドラ()
+        self.assertEqual(標準構成版, "MINIDORA-STANDARD-RUNTIME-v2")
+        self.assertIsInstance(body.能力模型核, MINIDORA汎用能力核)
+        self.assertIs(body.模型核, body.能力模型核)
+        self.assertIsNotNone(body.HDSコンパイラ)
 
     def test_入力内定義形成と適用を同一Coreで行う(self):
         formed = self.core.作用する(
