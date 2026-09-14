@@ -7,6 +7,7 @@ from .能力意味カタログ import 能力意味カタログ
 from .目的計画 import 目的計画器, 目的計画結果
 from .HDS目的射影 import HDSから目的要求, 目的射影結果
 from .hds_compiler import 公開HDSコンパイラ
+from .要求境界契約 import 被覆台帳印, 要求境界契約印
 
 @dataclass(frozen=True, slots=True)
 class 目的会話応答:
@@ -16,6 +17,7 @@ class 目的会話応答:
     射影: 目的射影結果 | None = None
     計画: 目的計画結果 | None = None
     実行: 統合応答 | None = None
+    要求境界契約印: str = ''
 
     @property
     def 成立(self):
@@ -26,6 +28,7 @@ class 目的会話応答:
                 'HDS原文': self.射影.HDS保持.原文 if self.射影 and self.射影.HDS保持 else None,
                 '局所解消': self.射影.局所解消 if self.射影 else (),
                 '計画経路': self.計画.作用経路 if self.計画 else (),
+                '要求境界契約印': self.要求境界契約印,
                 '実行': self.実行.辞書化() if self.実行 else None}
 
 
@@ -60,11 +63,15 @@ class 目的会話セッション:
             plan = self._計画器.計画する(projection.要求)
             if not plan.成立:
                 return 目的会話応答('保留', '', plan.理由, projection, plan)
+            coverage_seal = 被覆台帳印(plan.要求被覆)
             prepared = self.統合.準備(plan.計画, plan.Data, 依頼文=原文)
             if prepared.起点 != start:
                 return 目的会話応答('保留', '', '解釈後に会話状態が変化', projection, plan)
+            boundary_seal = 要求境界契約印(
+                原文=原文, 計画印=prepared.ハッシュ, 要求被覆印=coverage_seal)
             result = self.統合.実行(prepared, 停止要求=停止要求)
-            return 目的会話応答(result.状態, result.本文, result.理由, projection, plan, result)
+            return 目的会話応答(result.状態, result.本文, result.理由,
+                            projection, plan, result, boundary_seal)
         except (ValueError, TypeError, KeyError, AttributeError, RecursionError, InterruptedError) as exc:
             state = '中止' if isinstance(exc, InterruptedError) else '保留'
             return 目的会話応答(state, '', str(exc), projection, plan)
