@@ -9,9 +9,9 @@ from .semantic_tokens import 意味語
 from .言語構造 import 言語関係構造, _意味集合
 from .模型 import MINIDORA模型核, 成立候補, 言語状態, 模型結果
 from .模型閉包 import 模型終端を判定, 模型閉包状態
+from .汎用能力核 import 標準汎用能力核
 from .能力状態差循環 import (
     MINIDORA能力状態差模型核,
-    標準能力模型核,
     能力作用構造,
     能力作用記録,
     能力状態差記録,
@@ -230,7 +230,7 @@ def HDSMINIDORA模型評価(
     ``判断主体`` は旧API互換の受取口として残すがactive pathでは使用しない。
     HDSの実体はこの能力評価内部には置かず、外側のHDS監督介入層だけに置く。
     """
-    core = 模型核 or 標準能力模型核()
+    core = 模型核 or 標準汎用能力核()
     target = _対象言語体系(question_ir)
     question = HDS内部言語状態(question_ir, 識別子="question", 言語体系=target)
     candidate_internal = {
