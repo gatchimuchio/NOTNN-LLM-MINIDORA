@@ -11,6 +11,31 @@ from .基本会話 import 基本会話Module
 from .知識 import 知識参照Module本体
 from .検索 import Web検索Module本体
 
+
+def _要約要求を解釈(c: 能力文脈) -> tuple[str, str, int]:
+    """selectorとexecutorが同じ対象解釈を共有する。戻り値は(種別, 明示本文, 行数)。"""
+    text = c.入力文.strip()
+    rows = 3 if any(x in text for x in ("3行", "三行")) else 4
+    colon = re.search(r"(?:要約|まとめ)(?:してください|して下さい|して)?\s*[:：]\s*(.*)$", text, re.S)
+    if colon:
+        body = colon.group(1).strip()
+        return ("明示", body, rows) if body else ("明示欠落", "", rows)
+    patterns = (
+        r"(?:次の|以下の)(?:文章|本文|内容)を?(?:要約|まとめ)(?:してください|して下さい|して|しろ|せよ)?\s*[。.!！?？:：]\s*(.*)$",
+        r"(?:要約|まとめ)(?:してください|して下さい|して|しろ|せよ)\s*[。.!！?？:：]\s*(.+)$",
+    )
+    for pattern in patterns:
+        m = re.fullmatch(pattern, text, re.S)
+        if m:
+            body = m.group(1).strip()
+            return ("明示", body, rows) if body else ("明示欠落", "", rows)
+    compact = re.sub(r"\s+", "", text).casefold()
+    requested = any(x in compact for x in ("要約", "まとめて", "3行", "三行", "短くして"))
+    if requested and (c.直前応答 or c.直前参照):
+        return "継続", "", rows
+    return "非該当", "", rows
+
+
 class ニュース能力:
     名前="ニュース"; 優先度=90
     def __init__(self,body:ニュースModule): self.body=body; self.版=body.版
@@ -22,16 +47,20 @@ class 要約能力:
     名前="要約"; 優先度=85
     def __init__(self,body:汎用要約Module): self.body=body; self.版=body.版
     def 判定(self,c):
-        s=re.sub(r"\s+","",c.入力文).casefold(); return .98 if any(x in s for x in ("要約","まとめて","3行","三行","短くして")) and (c.直前応答 or "：" in c.入力文 or ":" in c.入力文) else 0
+        kind, _, _ = _要約要求を解釈(c)
+        return .98 if kind != "非該当" else 0
     def 実行(self,c):
-        m=re.search(r"(?:要約|まとめ)(?:して)?\s*[:：]\s*(.+)$",c.入力文,re.S); explicit=m.group(1).strip() if m else ""
-        n=3 if any(x in c.入力文 for x in ("3行","三行")) else 4
-        if explicit:
+        kind, explicit, n = _要約要求を解釈(c)
+        if kind == "明示":
             source=explicit; refs=()
-        elif c.直前参照:
+        elif kind == "継続" and c.直前参照:
             source="\n".join(f"{r.題名}。{r.本文}" for r in c.直前参照); refs=c.直前参照
-        else:
+        elif kind == "継続":
             source=c.直前応答; refs=()
+        elif kind == "明示欠落":
+            return 能力結果(False,"",保留理由="明示された要約対象の本文がない")
+        else:
+            return 能力結果(False,"",保留理由="要約対象を確定できない")
         return self.body.実行(source,行数=n,参照=refs)
 
 class 変換能力:
@@ -54,7 +83,7 @@ class 計算能力:
     名前="計算"; 優先度=88
     def __init__(self,body:計算Module): self.body=body; self.版=body.版
     def 判定(self,c):
-        raw=c.入力文.strip(); return .97 if re.fullmatch(r"[\d\s\+\-\*/%().^]+",raw) else (.9 if any(x in raw for x in ("計算して","いくつ")) else 0)
+        return .97 if self.body.解釈(c.入力文) else 0
     def 実行(self,c): return self.body.実行(c.入力文)
 
 class 基本会話能力:
