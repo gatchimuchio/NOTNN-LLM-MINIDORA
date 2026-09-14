@@ -6,7 +6,6 @@ from .能力合成 import _結果辞書
 from .実行回復 import 失敗を分類
 from .会話意味 import 意味指紋
 
-
 @dataclass(frozen=True, slots=True)
 class 失敗署名:
     種別: str
@@ -20,13 +19,11 @@ class 失敗署名:
     発生目的: str = ''
     回復契約: str = ''
 
-
 @dataclass(frozen=True, slots=True)
 class 監督結果:
     応答: object
     失敗: tuple[失敗署名,...]
     試行: tuple[dict,...]
-
 
 class 会話実行監督:
     def __init__(self, 計画器, 統合, *, 最大試行=12):
@@ -47,7 +44,13 @@ class 会話実行監督:
         if last.工程 not in info:
             return 失敗署名('実行環境',plan.目的印,last.工程,'',last.入力ハッシュ,
                             '実行履歴と計画の対応欠落',分類='実行環境')
-        key,action=info[last.工程]; reopen=None; policy=''
+        key,action=info[last.工程]
+        covered={x.目的鍵:x for x in plan.要求被覆 if x.解決=='作用'}
+        contract=covered.get(key)
+        if contract is None or contract.作用!=action or not contract.契約印:
+            return 失敗署名('実行環境',plan.目的印,last.工程,action,last.入力ハッシュ,
+                            '実行履歴と作用契約被覆の対応欠落',分類='実行環境',発生目的=key)
+        reopen=None; policy=''
         rule=next(r for r in self.計画器.作用 if r.識別子==action)
         for recovery in rule.回復:
             if kind!=recovery.失敗種別: continue
@@ -64,20 +67,23 @@ class 会話実行監督:
                         reopen,失敗を分類(kind),key,policy)
 
     def 実行(self, goal, materials, *, 原文, 外部許可=False, 停止要求=None, 要求起点=None):
-        # 呼出元が可変Dataを後から変更しても、目的・資料・契約を途中で差し替えない。
         fixed_goal=deepcopy(goal); fixed_materials=deepcopy(materials)
         goal_seal=fixed_goal.鍵()
         material_seal=意味指紋({k:_結果辞書(v) for k,v in fixed_materials.items()})
         rules=self.計画器.作用
+        static_contract=getattr(self.計画器,'契約印','')
+        if type(static_contract) is not str or not static_contract:
+            raise ValueError('作用契約印がない')
         start=self.統合.起点()
         if 要求起点 is not None and start!=要求起点: raise ValueError("解釈中に会話状態が変わった")
-        failures=[]; attempts=[]; banned=[]; seen=set(); response=None
+        failures=[]; attempts=[]; banned=[]; seen=set(); observed_contracts={}; response=None
         for _ in range(self.最大試行):
             self.統合._停止(停止要求)
             if start!=self.統合.起点(): raise ValueError('再計画中に採用状態が変わった')
             if 意味指紋(list(self.統合.能力一覧()))!=self.計画器.登録印:
                 raise ValueError('作用能力の版・登録が変わった')
-            if self.計画器.作用!=rules: raise ValueError('回復中に作用契約が変わった')
+            if self.計画器.作用!=rules or getattr(self.計画器,'契約印','')!=static_contract:
+                raise ValueError('回復中に作用契約が変わった')
             if (fixed_goal.鍵()!=goal_seal or
                     意味指紋({k:_結果辞書(v) for k,v in fixed_materials.items()})!=material_seal):
                 raise ValueError('回復中に目的又は資料が変わった')
@@ -86,16 +92,31 @@ class 会話実行監督:
             except ValueError as exc:
                 if response is None: raise
                 attempts.append({'状態':'計画保留','理由':str(exc),'目的印':goal_seal,
-                                 '素材印':material_seal,'外部工程':()})
+                                 '素材印':material_seal,'外部工程':(),'作用契約印':'','要求被覆印':''})
                 break
             if plan.目的印!=goal_seal: raise ValueError('再計画が目的を変更した')
+            if (type(plan.要求被覆) is not tuple or not plan.要求被覆
+                    or goal_seal not in {x.目的鍵 for x in plan.要求被覆}
+                    or type(plan.作用契約印) is not str or not plan.作用契約印):
+                raise ValueError('再計画の要求被覆又は作用契約が閉じていない')
+            coverage_seal=意味指紋(tuple((x.目的鍵,x.種別,x.解決,x.作用,x.素材,x.入力役割,x.契約印)
+                                        for x in plan.要求被覆))
+            # 再計画で変えてよいのは明示的に再開放された経路の選択であり、
+            # 同じ目的・同じ作用の役割/設定契約を横滑りさせない。
+            for item in plan.要求被覆:
+                if item.解決!='作用': continue
+                pair=(item.目的鍵,item.作用)
+                previous=observed_contracts.get(pair)
+                if previous is not None and previous!=item.契約印:
+                    raise ValueError('再計画で既存作用契約が変わった')
+                observed_contracts[pair]=item.契約印
             packed=self.統合.準備(plan.計画,plan.Data,依頼文=原文)
             if packed.起点!=start: raise ValueError('計画準備中に起点が変わった')
             response=self.統合.実行(packed,外部読取許可=外部許可,停止要求=停止要求)
             attempts.append({'計画印':packed.ハッシュ,'素材印':material_seal,'目的印':plan.目的印,'工程作用':plan.工程作用,
-                '状態':response.状態,'外部工程':plan.外部作用,
+                '状態':response.状態,'外部工程':plan.外部作用,'作用契約印':plan.作用契約印,
+                '要求被覆印':coverage_seal,'要求被覆数':len(plan.要求被覆),
                 '実行印':response.実行.ルートハッシュ if response.実行 else '',
-                # 失敗した取得も診断記録として残す。採用した資料とは別。
                 '取得報告':[v.データ for _,v in response.実行.中間結果
                     if v.データ.get('種別')=='取得報告'] if response.実行 else []})
             if response.成立: return 監督結果(response,tuple(failures),tuple(attempts))
