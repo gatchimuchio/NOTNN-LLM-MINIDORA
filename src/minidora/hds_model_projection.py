@@ -8,10 +8,9 @@ from .hds_ir import HDSIR, 値状態
 from .semantic_tokens import 意味語
 from .言語構造 import 言語関係構造, _意味集合
 from .模型 import MINIDORA模型核, 成立候補, 言語状態, 模型結果
-from .模型閉包 import 模型終端を判定, 模型閉包状態
-from .汎用能力核 import 標準汎用能力核
 from .能力状態差循環 import (
     MINIDORA能力状態差模型核,
+    標準能力模型核,
     能力作用構造,
     能力作用記録,
     能力状態差記録,
@@ -121,6 +120,8 @@ def HDS内部言語状態(ir, *, 識別子="", 言語体系=None, 証拠境界=F
         ls,
         識別子,
         tuple(relations),
+        # 棄却済みの原文を内部化時の再解析・語彙照合で証拠へ戻さない。
+        # 原文は監査用に保持し、問題のない局所IRだけを継続利用する。
         表層再解析可=not (source_blocked or impacted or blocked_endpoints),
         証拠利用可=not source_blocked,
     )
@@ -187,31 +188,34 @@ class HDSMINIDORA射影結果:
 
 
 def _能力核終端(result: 模型結果) -> tuple[str, str | None, list[str]]:
-    """Core閉包を旧runtime状態へ写すだけの互換境界。ここでは採否を再判断しない。"""
-    closed = 模型終端を判定(result)
-    if closed.状態 == 模型閉包状態.成立:
+    """後段HDSを使わず、能力核の参照由来差だけで通常MINIDORAを閉じる。"""
+    answer = result.参照最有力候補ID
+    if answer is not None:
         return (
             "APPROVE",
-            closed.回答候補ID,
+            answer,
             [
                 "MINIDORA_MODEL_CORE_SELECTED",
                 "REFERENCE_CONTRIBUTION_PRESENT",
                 "REFERENCE_DIFFERENCE_SELECTED",
-                "CORE_CLOSURE:成立",
             ],
         )
-    reasons = ["NO_GUESS", "CORE_CLOSURE:" + closed.状態.value]
-    if closed.状態 == 模型閉包状態.参照不足:
-        reasons.append("MINIDORA_MODEL_CORE_NO_REFERENCE_CONTRIBUTION")
-    elif closed.状態 == 模型閉包状態.競合:
-        reasons.extend(("MINIDORA_MODEL_CORE_NO_UNIQUE_POSITIVE_DIFFERENCE", "REFERENCE_DIFFERENCE_NOT_UNIQUE"))
-    elif closed.状態 == 模型閉包状態.入力意味不足:
-        reasons.append("MINIDORA_MODEL_CORE_INCOMPLETE_INPUT")
-    elif closed.状態 == 模型閉包状態.矛盾:
-        reasons.append("MINIDORA_MODEL_CORE_CONTRADICTION")
-    else:
-        reasons.append("MINIDORA_MODEL_CORE_UNRESOLVED")
-    return "SUSPEND", None, reasons
+
+    ref_scores = result.参照候補辞書()
+    if not any(ref_scores.values()):
+        return (
+            "SUSPEND",
+            None,
+            ["MINIDORA_MODEL_CORE_NO_REFERENCE_CONTRIBUTION", "NO_GUESS"],
+        )
+    return (
+        "SUSPEND",
+        None,
+        [
+            "MINIDORA_MODEL_CORE_NO_UNIQUE_POSITIVE_DIFFERENCE",
+            "REFERENCE_DIFFERENCE_NOT_UNIQUE",
+        ],
+    )
 
 
 def HDSMINIDORA模型評価(
@@ -230,7 +234,7 @@ def HDSMINIDORA模型評価(
     ``判断主体`` は旧API互換の受取口として残すがactive pathでは使用しない。
     HDSの実体はこの能力評価内部には置かず、外側のHDS監督介入層だけに置く。
     """
-    core = 模型核 or 標準汎用能力核()
+    core = 模型核 or 標準能力模型核()
     target = _対象言語体系(question_ir)
     question = HDS内部言語状態(question_ir, 識別子="question", 言語体系=target)
     candidate_internal = {
