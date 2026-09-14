@@ -9,6 +9,7 @@ from minidora.有限仮説探索 import 仮説を検討
 from minidora.意味定義 import 単項計算定義を読む, 定義適用要求を読む, 定義を実行
 from minidora.模型閉包 import 模型終端を判定, 模型閉包状態
 from minidora.計算実行器 import 計算実行器
+from minidora.hds_model_projection import _能力核終端
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,9 @@ class Core閉包試験(unittest.TestCase):
         closed = 模型終端を判定(result)
         self.assertTrue(closed.成立)
         self.assertEqual(closed.回答候補ID, "A")
+        state, answer, reasons = _能力核終端(result)
+        self.assertEqual((state, answer), ("APPROVE", "A"))
+        self.assertIn("CORE_CLOSURE:成立", reasons)
 
     def test_正の参照差が同率なら競合(self):
         result = _結果(
@@ -59,10 +63,16 @@ class Core閉包試験(unittest.TestCase):
             )
         )
         self.assertEqual(模型終端を判定(result).状態, 模型閉包状態.競合)
+        state, answer, reasons = _能力核終端(result)
+        self.assertEqual((state, answer), ("SUSPEND", None))
+        self.assertIn("CORE_CLOSURE:競合", reasons)
 
     def test_参照なしは参照不足(self):
         result = _結果((_差("A", ()), _差("B", ())), refs=False)
         self.assertEqual(模型終端を判定(result).状態, 模型閉包状態.参照不足)
+        state, answer, reasons = _能力核終端(result)
+        self.assertEqual((state, answer), ("SUSPEND", None))
+        self.assertIn("CORE_CLOSURE:参照不足", reasons)
 
     def test_入力境界未成立を候補差で上書きしない(self):
         result = _結果(
