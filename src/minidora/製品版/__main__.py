@@ -3,13 +3,7 @@ import argparse, os
 from .製品チャット import 製品ミニドラ
 from .監査 import 監査台帳
 from .api import serve
-
-def _core():
-    try:
-        from minidora import ミニドラ
-        return ミニドラ()
-    except Exception:
-        return None
+from ..標準構成 import 標準ミニドラ
 
 def main() -> int:
     import sys
@@ -27,7 +21,7 @@ def main() -> int:
     audit = 監査台帳(os.getenv("MINIDORA_AUDIT_LOG") or None)
     if a.外部読取 and not a.汎用:
         p.error("--外部読取は--汎用と共に指定してください")
-    app = 製品ミニドラ(基礎ミニドラ=None if a.汎用 else _core(), 監査台帳_=audit,
+    app = 製品ミニドラ(基礎ミニドラ=None if a.汎用 else 標準ミニドラ(), 監査台帳_=audit,
                       汎用会話=a.汎用, 汎用外部読取許可=a.外部読取)
     if a.serve:
         if a.汎用: serve(app, host="127.0.0.1", 同一生成元限定=True)

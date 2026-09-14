@@ -5,8 +5,8 @@ import json
 import sys
 from collections.abc import Sequence
 
-from .hds_compiler_v1 import 公開HDSコンパイラ
 from .runtime import ミニドラ, 要求
+from .標準構成 import 標準ミニドラ
 
 
 def _標準入出力をUTF8化() -> None:
@@ -20,7 +20,7 @@ def _標準入出力をUTF8化() -> None:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="minidora",
-        description="MINIDORA v0.4 日本語基底・非ニューラルネットワークLLM Runtime",
+        description="MINIDORA v0.5 日本語基底・非ニューラルネットワークLLM Runtime",
     )
     parser.add_argument("query", nargs="?", help="MINIDORAへ渡す言語入力")
     parser.add_argument(
@@ -30,10 +30,6 @@ def _parser() -> argparse.ArgumentParser:
         help="値・採否・理由・計画をJSONで出力する",
     )
     return parser
-
-
-def _標準ミニドラ() -> ミニドラ:
-    return ミニドラ(HDSコンパイラ_=公開HDSコンパイラ())
 
 
 def _run_once(body: ミニドラ, query: str, *, json_mode: bool) -> None:
@@ -51,7 +47,7 @@ def _run_once(body: ミニドラ, query: str, *, json_mode: bool) -> None:
             "compiler": "公開HDSコンパイラ",
             "compiler_architecture": getattr(compiler, "Architecture版", None),
             "compiler_pipeline": getattr(compiler, "Pipeline版", None),
-            "runtime": "MINIDORA v0.4",
+            "runtime": "MINIDORA v0.5",
             "model_core": "MINIDORA模型核",
         }
         print(json.dumps(payload, ensure_ascii=False, default=str))
@@ -62,7 +58,7 @@ def _run_once(body: ミニドラ, query: str, *, json_mode: bool) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     _標準入出力をUTF8化()
     args = _parser().parse_args(argv)
-    body = _標準ミニドラ()
+    body = 標準ミニドラ()
 
     if args.query is not None:
         query = args.query.strip()

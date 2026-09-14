@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Any
+from ..採否 import 実行状態
 
 @dataclass(frozen=True, slots=True)
 class 参照資料:
@@ -25,6 +26,15 @@ class 能力結果:
     参照: tuple[参照資料, ...] = ()
     データ: dict[str, Any] = field(default_factory=dict)
     保留理由: str = ""
+    # 旧6項目ABIは維持する。Core等の境界だけが必要に応じて明示する。
+    採否状態: 実行状態 | None = None
+
+    @property
+    def 状態(self) -> 実行状態:
+        """製品境界で使う実効状態。旧結果は成立boolから互換的に導出する。"""
+        if isinstance(self.採否状態, 実行状態):
+            return self.採否状態
+        return 実行状態.合格 if self.成立 is True else 実行状態.保留
 
 @dataclass(frozen=True, slots=True)
 class 製品応答:
