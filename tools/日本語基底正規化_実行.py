@@ -31,6 +31,10 @@ import runpy
     '        相対 = 対象.relative_to(根).as_posix()\n        if 相対.startswith(除外先頭):',
     '        相対 = 対象.relative_to(根).as_posix()\n        if 相対.startswith(".github/workflows/"):\n            continue\n        if 相対.startswith(除外先頭):',
 )
+本文 = 本文.replace(
+    '        if not 対象.is_file() or 対象.resolve() == 自己 or 対象.suffix.lower() not in 対象拡張子:\n            continue',
+    '        if not 対象.is_file() or 対象.resolve() == 自己 or 対象.suffix.lower() not in 対象拡張子:\n            continue\n        if 対象.name in {"日本語基底監査.py", "日本語基底詳細監査.py", "日本語基底正規化_実行.py"}:\n            continue',
+)
 対象.write_text(本文, encoding="utf-8")
 名前空間 = runpy.run_path(str(対象), run_name="_日本語基底正規化")
 正規化 = 名前空間.get("main")
@@ -38,6 +42,38 @@ if not callable(正規化):
     raise RuntimeError("日本語基底正規化器のmainを取得できない")
 if 正規化() != 0:
     raise RuntimeError("日本語基底正規化器が失敗した")
+
+# 過去の一括正規化で監査器自身の「検出対象語」まで日本語化された箇所を正す。
+根 = Path(__file__).resolve().parents[1]
+監査対象 = 根 / "tools/日本語基底監査.py"
+監査本文 = 監査対象.read_text(encoding="utf-8")
+監査本文 = 監査本文.replace("pipeline|実行系|gate", "pipeline|runtime|gate")
+状態開始 = 監査本文.index("_旧状態値 = {")
+状態終了 = 監査本文.index("\n}\n\n\ndef _日本語を含む", 状態開始) + 2
+旧状態定義 = '''_旧状態値 = {
+    "PROVISIONAL_BY_DEFAULT",
+    "CLOSED_FOR_OPERATION",
+    "STRUCTURED_PUBLIC_PROJECTION",
+    "FULL_FIELD_ACTIVE",
+    "PARTIALLY_ARTICULATED",
+    "MEANING_PRESERVED",
+    "UNFORMED",
+    "SHADOW",
+    "PATTERN",
+    "MECHANISM_CANDIDATE",
+    "PRINCIPLE_CANDIDATE",
+    "STANDARD_RELATIONS",
+    "FORMED_RELATIONS",
+    "PRIMARY_CAPABILITY_ACTIONS",
+}'''
+監査本文 = 監査本文[:状態開始] + 旧状態定義 + 監査本文[状態終了:]
+監査対象.write_text(監査本文, encoding="utf-8")
+
+詳細対象 = 根 / "tools/日本語基底詳細監査.py"
+if 詳細対象.exists():
+    詳細本文 = 詳細対象.read_text(encoding="utf-8")
+    詳細本文 = 詳細本文.replace('"実行系", "gate"', '"runtime", "gate"')
+    詳細対象.write_text(詳細本文, encoding="utf-8")
 
 # 途中版の日本語化で生じた「日本語正本語 + 旧英語サフィックス」を全treeで解消する。
 混成名置換 = {
@@ -56,7 +92,6 @@ if 正規化() != 0:
     "HDS構文化器_records": "HDS構文化記録",
     "HDS構文化器_tacit": "HDS構文化暗黙知",
 }
-根 = Path(__file__).resolve().parents[1]
 変更数 = 0
 for 経路 in (根 / "src").rglob("*.py"):
     内容 = 経路.read_text(encoding="utf-8")
