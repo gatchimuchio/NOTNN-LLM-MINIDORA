@@ -33,3 +33,29 @@ import runpy
 )
 対象.write_text(本文, encoding="utf-8")
 runpy.run_path(str(対象), run_name="__main__")
+
+# 途中版の日本語化で生じた「日本語正本語 + 旧英語サフィックス」を全treeで解消する。
+混成名置換 = {
+    "HDS構文化器_action_delta": "HDS構文化作用差分",
+    "HDS構文化器_audit_ir": "HDS構文化監査中間表現",
+    "HDS構文化器_dynamics": "HDS構文化動態",
+    "HDS構文化器_failure_bank": "HDS構文化失敗集",
+    "HDS構文化器_failure": "HDS構文化失敗",
+    "HDS構文化器_frontend": "HDS構文化前処理",
+    "HDS構文化器_history": "HDS構文化履歴",
+    "HDS構文化器_pipeline_v1_4": "HDS構文化処理系列_v1_4",
+    "HDS構文化器_pipeline_v1_3": "HDS構文化処理系列_v1_3",
+    "HDS構文化器_records_v1_3": "HDS構文化記録_v1_3",
+    "HDS構文化器_records_v1_2": "HDS構文化記録_v1_2",
+    "HDS構文化器_records_v1_1": "HDS構文化記録_v1_1",
+    "HDS構文化器_records": "HDS構文化記録",
+    "HDS構文化器_tacit": "HDS構文化暗黙知",
+}
+根 = Path(__file__).resolve().parents[1]
+for 経路 in (根 / "src").rglob("*.py"):
+    内容 = 経路.read_text(encoding="utf-8")
+    新内容 = 内容
+    for 旧名, 新名 in 混成名置換.items():
+        新内容 = 新内容.replace(旧名, 新名)
+    if 新内容 != 内容:
+        経路.write_text(新内容, encoding="utf-8")
