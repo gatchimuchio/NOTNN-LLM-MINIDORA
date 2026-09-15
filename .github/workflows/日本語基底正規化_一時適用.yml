@@ -7,6 +7,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: 日本語基底正規化-pr115
+  cancel-in-progress: true
+
 jobs:
   apply:
     if: >-
@@ -18,21 +22,28 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: chore/japanese-base-normalization-2026-09-15
+          fetch-depth: 0
           token: ${{ github.token }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: 日本語基底正規化
-        run: python tools/日本語基底正規化_一時.py
-      - name: 作業ブランチへ固定
+      - name: 現行mainから正規化を再構成
+        run: |
+          cp tools/日本語基底正規化_一時.py /tmp/日本語基底正規化_一時.py
+          git fetch origin main
+          git reset --hard origin/main
+          cp /tmp/日本語基底正規化_一時.py tools/日本語基底正規化_一時.py
+          python tools/日本語基底正規化_一時.py
+          rm -f tools/日本語基底正規化_一時.py
+          git restore -- .github/workflows
+      - name: 作業ブランチへ原子的に固定
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git restore -- .github/workflows
           git add -A
           if git diff --cached --quiet; then
             echo "変更なし"
           else
             git commit -m "cleanup: 日本語基底規定へ全体正規化"
-            git push origin HEAD:chore/japanese-base-normalization-2026-09-15
+            git push --force-with-lease origin HEAD:chore/japanese-base-normalization-2026-09-15
           fi
