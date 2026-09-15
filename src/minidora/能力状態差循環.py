@@ -137,37 +137,37 @@ class _循環作業状態:
         後段: str,
         番号: int,
     ) -> 能力候補状態差:
-        changed: list[str] = []
-        score_delta: list[tuple[str, int, int]] = []
-        contribution_delta: list[
+        変化候補群: list[str] = []
+        得点変化群: list[tuple[str, int, int]] = []
+        寄与変化群: list[
             tuple[
                 str,
                 tuple[tuple[object, ...], ...],
                 tuple[tuple[object, ...], ...],
             ]
         ] = []
-        for cid in sorted(after):
-            old = before.get(cid, (0, ()))
-            new = after[cid]
-            if old != new:
-                changed.append(cid)
-                score_delta.append((cid, int(old[0]), int(new[0])))
-                old_contributions = set(old[1])
-                new_contributions = set(new[1])
-                contribution_delta.append(
+        for 候補ID in sorted(after):
+            旧状態 = before.get(候補ID, (0, ()))
+            新状態 = after[候補ID]
+            if 旧状態 != 新状態:
+                変化候補群.append(候補ID)
+                得点変化群.append((候補ID, int(旧状態[0]), int(新状態[0])))
+                旧寄与集合 = set(旧状態[1])
+                新寄与集合 = set(新状態[1])
+                寄与変化群.append(
                     (
-                        cid,
-                        tuple(sorted(new_contributions - old_contributions, key=repr)),
-                        tuple(sorted(old_contributions - new_contributions, key=repr)),
+                        候補ID,
+                        tuple(sorted(新寄与集合 - 旧寄与集合, key=repr)),
+                        tuple(sorted(旧寄与集合 - 新寄与集合, key=repr)),
                     )
                 )
         return 能力候補状態差(
             f"能力状態差:{番号:03d}",
             前段,
             後段,
-            tuple(changed),
-            tuple(score_delta),
-            tuple(contribution_delta),
+            tuple(変化候補群),
+            tuple(得点変化群),
+            tuple(寄与変化群),
         )
 
     def 記録(self, 段階: str, active: Sequence[str] = (), reuse: Sequence[str] = ()) -> None:
@@ -300,7 +300,7 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
                     work.追加(cid, item)
         work.記録("FORMED_RELATIONS", 候補ID群)
 
-        before_primary = work.状態署名()
+        一次作用前状態 = work.状態署名()
 
         if 作用構造群:
             result = 参照状態差連結作用().評価群(tuple(内部候補群), tuple(作用構造群))
@@ -318,23 +318,23 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
                     if item:
                         work.追加(cid, item)
 
-        after_primary = work.状態署名()
-        primary_delta = work.差分(
-            before_primary,
-            after_primary,
+        一次作用後状態 = work.状態署名()
+        一次状態差 = work.差分(
+            一次作用前状態,
+            一次作用後状態,
             前段="FORMED_RELATIONS",
             後段="PRIMARY_CAPABILITY_ACTIONS",
             番号=len(状態差履歴),
         )
-        if primary_delta.変化有無:
-            状態差履歴.append(primary_delta)
+        if 一次状態差.変化有無:
+            状態差履歴.append(一次状態差)
         work.記録(
             "PRIMARY_CAPABILITY_ACTIONS",
-            primary_delta.変化候補ID,
-            (primary_delta.差分ID,) if primary_delta.変化有無 else (),
+            一次状態差.変化候補ID,
+            (一次状態差.差分ID,) if 一次状態差.変化有無 else (),
         )
 
-        未処理状態差 = primary_delta if primary_delta.変化有無 else None
+        未処理状態差 = 一次状態差 if 一次状態差.変化有無 else None
         for 循環番号 in range(1, self.最大再作用回数 + 1):
             if 未処理状態差 is None or not 未処理状態差.変化候補ID:
                 break
@@ -386,7 +386,7 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
             work.大域再照合数 += 1
             work.再作用回数 += 1
 
-            before = work.状態署名()
+            再作用前状態 = work.状態署名()
             再作用候補行 = tuple(row for row in 内部候補群 if row[0] in 再作用候補群)
             再利用記録: list[str] = [未処理状態差.差分ID]
             for action in 再作用群:
@@ -404,23 +404,23 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
                     if work.追加(cid, item):
                         work.再利用数 += 1
 
-            after = work.状態署名()
-            next_delta = work.差分(
-                before,
-                after,
+            再作用後状態 = work.状態署名()
+            次状態差 = work.差分(
+                再作用前状態,
+                再作用後状態,
                 前段=f"RECONCILE_{循環番号 - 1}" if 循環番号 > 1 else "PRIMARY_CAPABILITY_ACTIONS",
                 後段=f"RECONCILE_{循環番号}",
                 番号=len(状態差履歴),
             )
-            if next_delta.変化有無:
-                状態差履歴.append(next_delta)
-                work.候補横断更新数 += len(next_delta.変化候補ID)
+            if 次状態差.変化有無:
+                状態差履歴.append(次状態差)
+                work.候補横断更新数 += len(次状態差.変化候補ID)
             work.記録(
                 f"RECONCILE_{循環番号}",
                 再作用候補群,
                 tuple(再利用記録),
             )
-            未処理状態差 = next_delta if next_delta.変化有無 else None
+            未処理状態差 = 次状態差 if 次状態差.変化有無 else None
 
         differences = tuple(
             成立差(cid, sum(item.差 for item in work.寄与[cid]), tuple(work.寄与[cid]))
@@ -480,8 +480,8 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
         参照状態=(),
         作用構造群: Sequence[能力作用構造] = (),
     ) -> 模型結果:
-        context = self.文脈化(現在, 履歴, 条件, 参照状態)
-        return self._評価作用付き(context, 候補群, 作用構造群=作用構造群)
+        文脈 = self.文脈化(現在, 履歴, 条件, 参照状態)
+        return self._評価作用付き(文脈, 候補群, 作用構造群=作用構造群)
 
 
 def 標準能力模型核() -> MINIDORA能力状態差模型核:
