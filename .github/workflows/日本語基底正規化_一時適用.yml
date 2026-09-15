@@ -1,0 +1,37 @@
+name: 日本語基底正規化 一時適用
+
+on:
+  pull_request_target:
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: >-
+      github.event.pull_request.number == 115 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'chore/japanese-base-normalization-2026-09-15'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/japanese-base-normalization-2026-09-15
+          token: ${{ github.token }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 日本語基底正規化
+        run: python tools/日本語基底正規化_一時.py
+      - name: 作業ブランチへ固定
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "変更なし"
+          else
+            git commit -m "cleanup: 日本語基底規定へ全体正規化"
+            git push origin HEAD:chore/japanese-base-normalization-2026-09-15
+          fi
