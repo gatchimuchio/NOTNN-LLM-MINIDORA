@@ -5,7 +5,7 @@ import json
 import sys
 from collections.abc import Sequence
 
-from .runtime import ミニドラ, 要求
+from .実行系 import ミニドラ, 要求
 from .標準構成 import 標準ミニドラ
 
 
@@ -43,11 +43,11 @@ def _run_once(body: ミニドラ, query: str, *, json_mode: bool) -> None:
             "reasons": list(result.採否.理由),
             "plan": result.言語計画,
             "reference_count": len(result.参照),
-            "hds_ir": result.HDS_IR is not None,
+            "HDS中間表現": result.HDS_IR is not None,
             "compiler": "公開HDSコンパイラ",
             "compiler_architecture": getattr(compiler, "Architecture版", None),
             "compiler_pipeline": getattr(compiler, "Pipeline版", None),
-            "runtime": "MINIDORA v0.5",
+            "実行系": "MINIDORA v0.5",
             "model_core": "MINIDORA模型核",
         }
         print(json.dumps(payload, ensure_ascii=False, default=str))

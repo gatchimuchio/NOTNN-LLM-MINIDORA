@@ -58,7 +58,7 @@ class 製品ミニドラ:
             return 能力結果(False,"",保留理由="基礎MINIDORA Core未接続",採否状態=実行状態.非適用),{}
         if hasattr(self.基礎ミニドラ,"実行"):
             try:
-                from minidora.runtime import 要求
+                from minidora.実行系 import 要求
                 r=self.基礎ミニドラ.実行(要求(text))
             except Exception as exc:
                 trace={"例外":type(exc).__name__}

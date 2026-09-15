@@ -22,8 +22,8 @@ def _load(path: Path) -> list[dict]:
         if not line.strip():
             continue
         row = json.loads(line)
-        if row.get("schema") not in {None, SCHEMA}:
-            raise ValueError(f"line {line_no}: unsupported schema {row.get('schema')!r}")
+        if row.get("契約形式") not in {None, SCHEMA}:
+            raise ValueError(f"line {line_no}: unsupported schema {row.get('契約形式')!r}")
         rows.append(row)
     return rows
 

@@ -8,7 +8,7 @@ ATTEMPT 1 REVERTED
 CI 8/8 PASS
 ```
 
-本記録は、現行mainに対する性能改善の探索履歴を保持する。過去のv0.6系実測 `31 / 198 = 15.6565657%` は有力な参照値だが、その後にHDS Compiler Architecture v1.2等がmainへ入っているため、現行mainとの直接差分として扱わない。
+本記録は、現行mainに対する性能改善の探索履歴を保持する。過去のv0.6系実測 `31 / 198 = 15.6565657%` は有力な参照値だが、その後にHDS 構文化器 構造 v1.2等がmainへ入っているため、現行mainとの直接差分として扱わない。
 
 ## 事前観測
 
@@ -51,11 +51,11 @@ retrieval empty: 0
 data compile failed: 0
 ```
 
-この値は旧v0.6系の31/198を下回る。ただし旧31/198は別code head / 別Compiler時点であり、Attempt 1の因果効果だけを示す比較ではない。
+この値は旧v0.6系の31/198を下回る。ただし旧31/198は別code head / 別構文化器時点であり、Attempt 1の因果効果だけを示す比較ではない。
 
 ## Attempt 1の扱い
 
-Attempt 1のRuntime変更と追加fixtureは**revert済み**。mainへ採用しない。
+Attempt 1の実行系変更と追加fixtureは**revert済み**。mainへ採用しない。
 
 理由:
 
@@ -65,7 +65,7 @@ Attempt 1のRuntime変更と追加fixtureは**revert済み**。mainへ採用し�
 
 ## 現行main baseline再測定
 
-現在のPR差分からRuntime変更を外し、`.github/workflows/gpqa_current_measure.yml` のPR自動測定経路だけを残して、現行main RuntimeそのものをGPQA Diamond 198問で再測定する。
+現在のPR差分から実行系変更を外し、`.github/workflows/gpqa_current_measure.yml` のPR自動測定経路だけを残して、現行main 実行系そのものをGPQA Diamond 198問で再測定する。
 
 この値をv0.7開発の比較基準とし、以後は同じcurrent-main系コードから一変更ずつ測る。
 

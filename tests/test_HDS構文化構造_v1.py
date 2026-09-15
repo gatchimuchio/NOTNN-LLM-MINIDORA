@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_compiler_records import HDS原理段階
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
+from minidora.HDS構文化器_records import HDS原理段階
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 from minidora.HDS資料K import HDSIR知識Adapter, HDS証拠事実
 from minidora.HDS探索方針 import HDS努力水準
-from minidora.hds_reference import HDS参照問合せ候補
+from minidora.HDS参照 import HDS参照問合せ候補
 from minidora.K3機能 import K3相当能力核
 
 

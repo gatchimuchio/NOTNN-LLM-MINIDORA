@@ -17,7 +17,7 @@ core内部stateとmodal統合stateは未観測。外部から渡す入力modal�
 
 ## A — 作用
 
-公開thinking仕様では、Gemini 3系はrequest complexityに応じてreasoning effortを動的調整し、`thinking_level` で外部からも条件指定できる。tool/function callingはproduct/runtime作用。内部operatorは未観測。
+公開thinking仕様では、Gemini 3系はrequest complexityに応じてreasoning effortを動的調整し、`thinking_level` で外部からも条件指定できる。tool/function callingはproduct/実行系作用。内部operatorは未観測。
 
 ## Δ — 状態差
 
@@ -29,7 +29,7 @@ request condition / thinking levelがreasoning effortへ影響するというAPI
 
 ## P — 状態依存の経路変化
 
-compute effortが入力複雑性と設定に応じて変化することは公開仕様にあるが、内部path topology/選択規則は未観測。これをlatent loopや明示checkpoint再活性の証拠にしない。
+compute effortが入力複雑性と設定に応じて変化することは公開仕様にあるが、内部path topology/選択規則は未観測。これをlatent loopや明示検査点再活性の証拠にしない。
 
 ## R — 再参照・再利用の尺度
 
@@ -37,7 +37,7 @@ compute effortが入力複雑性と設定に応じて変化することは公開
 
 ## C — 再結合
 
-multimodal integration topologyは未観測。tool結果統合はruntime/product層。
+multimodal integration topologyは未観測。tool結果統合は実行系/product層。
 
 ## F — 形成循環
 

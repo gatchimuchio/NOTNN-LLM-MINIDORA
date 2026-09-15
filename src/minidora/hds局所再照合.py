@@ -5,8 +5,8 @@ import re
 import unicodedata
 from typing import Iterable, Sequence
 
-from .hds_ir import HDSIR
-from .semantic_tokens import 意味語
+from .HDS中間表現 import HDSIR
+from .意味字句 import 意味語
 from .参照 import 参照記録
 
 

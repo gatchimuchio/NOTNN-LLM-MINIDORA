@@ -3,7 +3,7 @@
 ## 状態
 
 ```text
-Core canonical baseline: MINIDORA30
+模型核 canonical baseline: MINIDORA30
 System capability canonical: MINIDORA80
 Date: 2026-09-09
 Development state: ACTIVE
@@ -11,14 +11,14 @@ GPQA canonical benchmark: LIVE_ONLY
 GPQA fixed reference Data: FORBIDDEN
 ```
 
-現行MINIDORAは、Core性能とModule込みシステム能力を分離して二層正本として保持する。
+現行MINIDORAは、模型核性能と能力モジュール込みシステム能力を分離して二層正本として保持する。
 
 ```text
-Core正本               = MINIDORA30
-Module込みシステム正本 = MINIDORA80
+模型核正本               = MINIDORA30
+能力モジュール込みシステム正本 = MINIDORA80
 ```
 
-## 1. Core正本 — MINIDORA30
+## 1. 模型核正本 — MINIDORA30
 
 | 指標 | 正本値 |
 |---|---:|
@@ -48,14 +48,14 @@ MINIDORA30 / GPQA-E2E-LIVE / 30/198 / 15.151515151515152%
 詳細:
 
 - [MINIDORA30 GPQA E2E正本](評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md)
-- [MINIDORA30 manifest](評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json)
+- [MINIDORA30 目録](評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json)
 - [MINIDORA30 Savepoint](docs/SAVEPOINT_2026-09-09_MINIDORA30.md)
 
-## 2. Module込みシステム能力正本 — MINIDORA80
+## 2. 能力モジュール込みシステム能力正本 — MINIDORA80
 
-2026-09-09、同一の現行Coreへ既存科学Capability Module群を接続し、固定参照Dataを使わないLIVE E2E同一run controlled A/BをGPQA Diamond 198問全数で実行した。
+2026-09-09、同一の現行模型核へ既存科学能力モジュール群を接続し、固定参照Dataを使わないLIVE E2E同一run controlled A/BをGPQA Diamond 198問全数で実行した。
 
-| 指標 | Module OFF | Module ON |
+| 指標 | 能力モジュール OFF | 能力モジュール ON |
 |---|---:|---:|
 | 正答 | 29 / 198 | **80 / 198** |
 | 正答率 | 14.65% | **40.40%** |
@@ -65,7 +65,7 @@ MINIDORA30 / GPQA-E2E-LIVE / 30/198 / 15.151515151515152%
 ```text
 正答純増   = +51
 正答率差   = +25.76pt
-Module発火 = 55
+能力モジュール発火 = 55
 発火正答   = 55 / 55
 改善       = 51
 退行       = 0
@@ -78,7 +78,7 @@ changed    = 51
 MINIDORA80 / GPQA-E2E-LIVE + SCIENTIFIC-CAPABILITY-MODULE / 80/198 / 40.4040404040404%
 ```
 
-この結果はCore単体性能ではない。**成立済みCoreへ独立Capabilityを追加することで、Core再学習なしにシステム実効能力を増設できることの現行LIVE正本**である。
+この結果は模型核単体性能ではない。**成立済み模型核へ独立Capabilityを追加することで、模型核再学習なしにシステム実効能力を増設できることの現行LIVE正本**である。
 
 実測由来:
 
@@ -96,8 +96,8 @@ MINIDORA80 / GPQA-E2E-LIVE + SCIENTIFIC-CAPABILITY-MODULE / 80/198 / 40.40404040
 
 詳細:
 
-- [MINIDORA80 Module E2E正本](評価/GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.md)
-- [MINIDORA80 manifest](評価/GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.json)
+- [MINIDORA80 能力モジュール E2E正本](評価/GPQA_Diamond_MINIDORA80_能力モジュール_E2E_正本_2026-09-09.md)
+- [MINIDORA80 目録](評価/GPQA_Diamond_MINIDORA80_能力モジュール_E2E_正本_2026-09-09.json)
 - [MINIDORA80 Savepoint](docs/SAVEPOINT_2026-09-09_MINIDORA80.md)
 
 ## 3. GPT-4比較の正本表現
@@ -108,7 +108,7 @@ MINIDORA80はGPQA Diamondで **40.40%** を実測した。
 
 したがって正本では次の表現を許可する。
 
-> **GPQAスコアという限定した観測軸では、MINIDORA + 科学Capability ModuleはGPT-4ベースラインと同じ約40%帯の水準に到達した。**
+> **GPQAスコアという限定した観測軸では、MINIDORA + 科学能力モジュールはGPT-4ベースラインと同じ約40%帯の水準に到達した。**
 
 数値上は `40.40% > 39%` である。
 
@@ -137,7 +137,7 @@ Replay fixture
 過去run参照の再投入
 ```
 
-Core正本・Module込みシステム正本のいずれも、公式GPQA Diamond 198問へ実行時に参照を新規取得するLIVE E2Eで測る。
+模型核正本・能力モジュール込みシステム正本のいずれも、公式GPQA Diamond 198問へ実行時に参照を新規取得するLIVE E2Eで測る。
 
 正本条件:
 
@@ -152,14 +152,14 @@ fixed reference Data = forbidden
 
 詳細契約: [Benchmark Contract v2](評価/BENCHMARK_CONTRACT_v2.md)
 
-Module効果は同一runでModule OFF / ONへ同一取得資料を共有したcontrolled A/B差を直接差分として扱う。
+能力モジュール効果は同一runで能力モジュール OFF / ONへ同一取得資料を共有したcontrolled A/B差を直接差分として扱う。
 
 異なる日時のLIVE run得点差は時系列スナップショットであり、コード変更だけの純粋因果差とは扱わない。
 
 ## 5. 過去Replay
 
-- Core37 C2 replay: 37 / 198
-- 科学Capability Module replay: 63 / 198
+- 模型核37 C2 replay: 37 / 198
+- 科学能力モジュール replay: 63 / 198
 
 は履歴証拠として保持するが、現行GPQA正本性能ではない。固定参照Dataを将来のGPQA正本性能比較へ再利用しない。
 
@@ -175,10 +175,10 @@ Module効果は同一runでModule OFF / ONへ同一取得資料を共有したco
 → S_t+1
 ```
 
-これは同一Runtime寿命の局所意思決定連続性であり、永続人格・端末間同期・長期主体記憶をLLMへ追加するものではない。長期保持はAgent / AGI等の上位主体の責任として分離する。
+これは同一実行系寿命の局所意思決定連続性であり、永続人格・端末間同期・長期主体記憶をLLMへ追加するものではない。長期保持はAgent / AGI等の上位主体の責任として分離する。
 
 - [局所解釈起点契約](設計/36_MINIDORA_局所解釈起点_v1.md)
 
 ## 7. 正本置換条件
 
-Core正本またはModule込みシステム正本を置換する場合は、固定参照Data禁止を維持したLIVE_ONLY GPQA Diamond 198/198全数実測と、dataset hash・seed・provider条件・artifact・runを保存する。
+模型核正本または能力モジュール込みシステム正本を置換する場合は、固定参照Data禁止を維持したLIVE_ONLY GPQA Diamond 198/198全数実測と、dataset hash・seed・provider条件・artifact・runを保存する。

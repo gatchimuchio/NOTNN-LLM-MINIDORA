@@ -4,7 +4,7 @@ import unittest
 
 from minidora.HDS選択仮説 import HDS候補代入仮説, HDS候補代入仮説群
 from minidora.HDS資料K import HDSIR知識Adapter
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
 from minidora.K3機能 import K3相当能力核
 from minidora.K3_HDSネイティブ import HDSIRネイティブAdapter
 

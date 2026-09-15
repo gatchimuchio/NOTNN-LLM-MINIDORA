@@ -4,9 +4,9 @@ import unittest
 
 from minidora.HDS資料K import HDSIR知識Adapter
 from minidora.HDS関係図推論 import HDS意味Graph索引構築, HDS意味経路探索
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差
 from minidora.K3機能 import K3相当能力核
-from minidora.semantic_tokens import 意味語
+from minidora.意味字句 import 意味語
 
 
 def _関係中間表現(target: str, residuals: tuple[HDS残差, ...] = ()) -> HDSIR:

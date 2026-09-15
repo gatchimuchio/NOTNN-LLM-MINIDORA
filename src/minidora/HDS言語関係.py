@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 import re
 
-from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
-from .semantic_tokens import 意味語
+from .HDS中間表現 import HDSIR, HDS座標, HDS関係, 値状態
+from .意味字句 import 意味語
 from .言語基底 import 言語基底P, 標準言語基底P
 from .言語基底_英語 import 英語関係一致
 from .言語基底_英日意味強化 import 英語明示述語関係抽出

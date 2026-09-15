@@ -17,8 +17,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
-from minidora.hds_runtime_projection import HDSK候補代入可能, HDSK候補射影, HDSK質問射影
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
+from minidora.HDS実行系射影 import HDSK候補代入可能, HDSK候補射影, HDSK質問射影
 
 
 DATASET_URL = "https://raw.githubusercontent.com/idavidrein/gpqa/main/dataset.zip"
@@ -200,7 +200,7 @@ def 意味被覆監査(cases, compiler) -> dict[str, object]:
         return 100.0 * value / total if total else 0.0
 
     return {
-        "schema": "minidora.projection-chain-audit.compiler-gpqa.v2",
+        "契約形式": "minidora.projection-chain-audit.compiler-gpqa.v2",
         "purpose": "問いと匿名4候補の意味被覆監査。正解ラベル・正解解説はCompilerへ入力しない",
         "question": {
             "total": question_total,
@@ -254,8 +254,8 @@ def main(argv: list[str] | None = None) -> int:
     result = 意味被覆監査(cases, 公開HDSコンパイラ())
     result.update({
         "dataset": "GPQA Diamond 198",
-        "dataset_csv_sha256": csv_hash,
-        "choice_shuffle_seed": CHOICE_SHUFFLE_SEED,
+        "資料集合CSV_SHA256": csv_hash,
+        "選択肢シャッフル種": CHOICE_SHUFFLE_SEED,
         "synthetic_projection_contracts": 人工射影契約監査(),
         "legacy_expert_explanation_comparable": False,
     })

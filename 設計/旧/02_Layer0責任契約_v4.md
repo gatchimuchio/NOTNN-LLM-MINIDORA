@@ -22,7 +22,7 @@ MINIDORAが参照するLayer-0の論理上位契約は、外部Repository:
 
 MINIDORA内の旧8責任は `構文化/MINIDORA_v0.2/` の履歴として保持し、現行責任数へは使用しない。
 
-## 2. Functional Core 5責任
+## 2. Functional 模型核 5責任
 
 1. `LINGUISTIC_ADDRESSABILITY` — **言語アドレス化**
 2. `CONTEXT_BOUND_STATE` — **文脈束縛状態**
@@ -45,8 +45,8 @@ MINIDORA内の旧8責任は `構文化/MINIDORA_v0.2/` の履歴として保持�
 | 言語アドレス化 | `要求.問合せ`、HDS-IRの原文/正規化文、参照R検索キー、日本語命令形P |
 | 文脈束縛状態 | `Layer0`状態、`主体主幹`、Trinity記憶M、HDS文脈、参照R |
 | 変換・合成中核 | `Layer0`命令適用、P、K3相当能力核、HDS構造処理 |
-| 文脈依存結果形成 | J/採否、主体整合Gate、HDS実行Gate、Pによる結果形成 |
-| 結果表面 | Runtime `結果`契約、`multilingual_surface`、Legacy `自然言語器.表面化` |
+| 文脈依存結果形成 | J/採否、主体整合関門、HDS実行関門、Pによる結果形成 |
+| 結果表面 | 実行系 `結果`契約、`多言語表層`、Legacy `自然言語器.表面化` |
 
 この表は責任の主担当を示すもので、一対一対応を宣言しない。
 
@@ -55,9 +55,9 @@ MINIDORA内の旧8責任は `構文化/MINIDORA_v0.2/` の履歴として保持�
 ### K3 — 主基盤
 
 K3はMINIDORAの主たる能力・状態関係の観測基盤である。
-KDA / MLA / AttnRes / LatentMoE等の物理実装名そのものをLayer-0へ移植せず、HDSで抽出した作用・責任・状態関係をPとRuntimeへ再構成する。
+KDA / MLA / AttnRes / LatentMoE等の物理実装名そのものをLayer-0へ移植せず、HDSで抽出した作用・責任・状態関係をPと実行系へ再構成する。
 
-公開MINIDORA RuntimeがK3ニューラルモデル推論を呼び出すことは、Runtime成立の必要条件ではない。
+公開MINIDORA 実行系がK3ニューラルモデル推論を呼び出すことは、実行系成立の必要条件ではない。
 
 ### Llama 3 — 自己一貫性の対抗基準
 
@@ -80,7 +80,7 @@ CONTEXT_BOUND_STATE
 CONTEXT_DEPENDENT_RESULT_FORMATION
 ```
 
-処理中の主体状態を全経路へ必須参照させ、専門処理・命令実行が返した差分を主体整合Gateで評価し、理由付き更新だけを次turnへ持ち越す。
+処理中の主体状態を全経路へ必須参照させ、専門処理・命令実行が返した差分を主体整合関門で評価し、理由付き更新だけを次turnへ持ち越す。
 
 ## 6. Construction / Operational Wrapper
 
@@ -89,7 +89,7 @@ Layer-0 v4に従い、作られ方と実行責任を分離する。
 - MINIDORA construction profile: `authored / compiled / retrieved / hybrid`
 - operational profile: `interactive_chat / structured_output / text_api`
 
-HDS構文化、K3/Llama 3からの抽出、手書きP、検索R等の由来は記録するが、Functional Coreの定義へ混入しない。
+HDS構文化、K3/Llama 3からの抽出、手書きP、検索R等の由来は記録するが、Functional 模型核の定義へ混入しない。
 
 ## 7. Negative controls
 
@@ -99,7 +99,7 @@ MINIDORAでは最低限、Layer-0 v4の8 negative controlを評価対象にす�
 2. transformation bypass/canned response
 3. source material破損
 4. result surface遮断
-5. unknown input fallback
+5. unknown input 代替経路
 6. contradictory context resolution
 7. exact retrieval と composition の区別
 8. merged-role implementation の許容確認
@@ -118,7 +118,7 @@ Layer-0責任の意味・数・適合状態・negative controlを変更すると
 1. 外部Layer-0正本
 2. 本書の局所写像
 3. `src/minidora/第0層.py`
-4. 関連Runtime実装
+4. 関連実行系実装
 5. tests / CI
 6. README / REFERENCES
 

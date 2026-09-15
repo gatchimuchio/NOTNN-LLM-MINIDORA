@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標
 from minidora.HDS再生_capture import HDSChoiceReplay収録, ReplayJSONL保存, Replay入力問題
 from minidora.参照 import 参照記録
 
@@ -142,7 +142,7 @@ class HDSReplay収録試験(unittest.TestCase):
         self.assertEqual(rows[0]["question_ir"]["原文"], "plain question")
 
     def test_JSONL保存は1case1行でUTF8保存する(self) -> None:
-        rows = ({"schema": "minidora.hds-choice-replay.v1", "id": "日本語"},)
+        rows = ({"契約形式": "minidora.hds-choice-replay.v1", "id": "日本語"},)
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "bundle.jsonl"
             ReplayJSONL保存(rows, path)

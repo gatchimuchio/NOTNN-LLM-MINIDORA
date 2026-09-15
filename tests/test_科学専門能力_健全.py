@@ -1,7 +1,7 @@
 from __future__ import annotations
 import math
 import unittest
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, 値状態
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, 値状態
 from minidora.科学専門能力 import 科学専門能力解決
 
 class 科学専門能力健全性試験(unittest.TestCase):
@@ -38,10 +38,10 @@ class 科学専門能力健全性試験(unittest.TestCase):
 
 class 科学専門能力明示接続試験(unittest.TestCase):
     def test_科学能力は明示接続時だけ利用できる(self):
-        import minidora.hds_choice_runtime as runtime
+        import minidora.HDS選択実行系 as 実行系
         from minidora.科学専門能力統合 import 科学専門能力を通常MINIDORAへ接続
-        original = runtime.HDS選択推論実行
-        科学専門能力を通常MINIDORAへ接続(runtime)
+        original = 実行系.HDS選択推論実行
+        科学専門能力を通常MINIDORAへ接続(実行系)
         question = 'A radial vector field has magnitude 1/r^2. Evaluate the volume integral of its divergence over a sphere enclosing the origin.'
         rows = (
             HDS座標('choice:A', '目的.候補', '0', 値状態.確定),
@@ -63,13 +63,13 @@ class 科学専門能力明示接続試験(unittest.TestCase):
             入力言語='en',
         )
         try:
-            result = runtime.HDS選択推論実行(ir, (), コンパイル=None, 基礎能力核=None)
+            result = 実行系.HDS選択推論実行(ir, (), コンパイル=None, 基礎能力核=None)
             self.assertEqual(result.状態, 'APPROVE')
             self.assertEqual(result.回答ラベル, 'B')
             self.assertEqual(result.専門作用起動数, 1)
             self.assertIn('MINIDORA_EXISTING_SCIENTIFIC_CAPABILITY', result.理由)
         finally:
-            runtime.HDS選択推論実行 = original
+            実行系.HDS選択推論実行 = original
 
 if __name__ == '__main__':
     unittest.main()

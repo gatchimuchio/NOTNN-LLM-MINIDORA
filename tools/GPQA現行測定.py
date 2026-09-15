@@ -16,11 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
-from minidora.hds_choice_runtime import HDS選択推論実行
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
-from minidora.hds_reference import HDS参照検索
+from minidora.HDS選択実行系 import HDS選択推論実行
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
+from minidora.HDS参照 import HDS参照検索
 from minidora.K3機能 import K3相当能力核
-from minidora.standard_reference import 一般知識参照供給器
+from minidora.標準参照 import 一般知識参照供給器
 
 
 DATASET_URL = "https://raw.githubusercontent.com/idavidrein/gpqa/main/dataset.zip"
@@ -174,19 +174,19 @@ def main() -> int:
             )
 
         result = {
-            "schema": "minidora.gpqa.current-measurement.v1",
+            "契約形式": "minidora.gpqa.current-measurement.v1",
             "protocol": {
                 "dataset": "official idavidrein/gpqa dataset.zip / gpqa_diamond.csv",
                 "dataset_url": DATASET_URL,
                 "dataset_zip_sha256": zip_hash,
-                "dataset_csv_sha256": csv_hash,
+                "資料集合CSV_SHA256": csv_hash,
                 "n": len(cases),
-                "choice_shuffle_seed": SEED,
+                "選択肢シャッフル種": SEED,
                 "compiler": "MINIDORA public standard HDS Compiler; Japanese-base role projection; benchmark-agnostic",
                 "gold_boundary": "gold used only after inference for scoring",
-                "openalex_enabled": api_key is not None,
-                "wikipedia_languages": ["en"],
-                "runtime": "current repository head; HDS choice native R->HDS->K->J",
+                "OpenAlex有効": api_key is not None,
+                "Wikipedia言語群": ["en"],
+                "実行系": "current repository head; HDS choice native R->HDS->K->J",
             },
             "metrics": {
                 "correct": correct_count,

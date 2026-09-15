@@ -11,13 +11,13 @@ def solve_teq_period_ratio(q, choices):
     ratios = [float(x) for x in re.findall('(?:approximately|about)\\s*([0-9]+(?:\\.[0-9]+)?)', q, re.I)]
     if len(ratios) >= 2 and 'planet3' in s and ('planet1' in s):
         target = (ratios[0] * ratios[1]) ** 3
-        return _result(_nearest(choices, target, rel_tol=0.15), 'teq_period_chain', target)
+        return _結果(_nearest(choices, target, rel_tol=0.15), 'teq_period_chain', target)
     m = re.search('periods? in a ratio of\\s*([0-9.:]+)', q, re.I)
     if m and 'planet_4' in s and ('planet_2' in s):
         vals = [float(x) for x in m.group(1).split(':')]
         if len(vals) >= 4:
             target = (vals[3] / vals[1]) ** (-1 / 3)
-            return _result(_nearest(choices, target, rel_tol=0.1), 'teq_from_period_ratio', target)
+            return _結果(_nearest(choices, target, rel_tol=0.1), 'teq_from_period_ratio', target)
     return None
 
 def solve_parallax_distribution(q, choices):
@@ -27,11 +27,11 @@ def solve_parallax_distribution(q, choices):
         for i, c in enumerate(choices):
             if re.search('1\\s*/\\s*(?:plx|parallax)\\s*\\^?\\s*4', c, re.I):
                 idx = i
-        return _result(idx, 'uniform_parallax_jacobian', 'p^-4')
+        return _結果(idx, 'uniform_parallax_jacobian', 'p^-4')
     if 'varies with parallax as 1/plx^5' in s and 'distance' in s:
         for i, c in enumerate(choices):
             if re.search('r\\s*\\^\\s*3', c):
-                return _result(i, 'parallax_to_distance_jacobian', 'r^3')
+                return _結果(i, 'parallax_to_distance_jacobian', 'r^3')
     return None
 
 def solve_rv_teq_generic(q, choices):
@@ -45,7 +45,7 @@ def solve_rv_teq_generic(q, choices):
     if len(shifts) < 2 or len(masses) < 2:
         return None
     target = shifts[0] / masses[0] / (shifts[1] / masses[1])
-    return _generic_result(_nearest(choices, target, rel_tol=0.15), 'rv_to_teq_ratio', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.15), 'rv_to_teq_ratio', target)
 
 def solve_rv_period(q, choices):
     s = q.casefold()
@@ -57,7 +57,7 @@ def solve_rv_period(q, choices):
     if len(vals) < 2:
         return None
     target = (vals[0] / vals[1]) ** 3
-    return _generic_result(_nearest(choices, target, rel_tol=0.15), 'rv_period_scaling', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.15), 'rv_period_scaling', target)
 
 def solve_starspot(q, choices):
     s = q.casefold()
@@ -74,7 +74,7 @@ def solve_starspot(q, choices):
     if Ts <= 0:
         return None
     target = math.sqrt(f * (1 - (Ts / T) ** 4))
-    return _generic_result(_nearest(choices, target, rel_tol=0.15), 'starspot_equivalent_transit', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.15), 'starspot_equivalent_transit', target)
 
 def solve_black_hole(q, choices):
     s = q.casefold()
@@ -90,7 +90,7 @@ def solve_black_hole(q, choices):
         return None
     Rs = 2 * 6.6743e-11 * (M * 1.98847e+30) / 299792458.0 ** 2
     theta = Rs / (dpc * 3.085677581e+16) * 180 / math.pi
-    return _generic_result(_nearest(choices, theta, log=True), 'black_hole_angular_size', theta)
+    return _一般結果(_nearest(choices, theta, log=True), 'black_hole_angular_size', theta)
 
 def solve_lyman(q, choices):
     s = q.casefold()
@@ -103,7 +103,7 @@ def solve_lyman(q, choices):
     obsm = re.search('(?:peak|break|drop)[^0-9]{0,40}(?:at|about)?\\s*([0-9.]+)\\s*nm', q, re.I)
     if obsm:
         z = float(obsm.group(1)) / rest - 1
-        return _generic_result(_nearest(choices, z, rel_tol=0.25), 'gunn_peterson_redshift', z)
+        return _一般結果(_nearest(choices, z, rel_tol=0.25), 'gunn_peterson_redshift', z)
     if 'ground' in s and 'optical' in s:
         z = 360 / rest - 1
         candidates = []
@@ -118,7 +118,7 @@ def solve_lyman(q, choices):
                 candidates.append((abs(z - bound), i))
         if candidates:
             candidates.sort()
-            return _generic_result(candidates[0][1], 'lyman_alpha_optical_threshold', z)
+            return _一般結果(candidates[0][1], 'lyman_alpha_optical_threshold', z)
     return None
 
 def solve_binary_mass(q, choices):
@@ -131,7 +131,7 @@ def solve_binary_mass(q, choices):
         p1, p2 = periods[:2]
         k11, k12, k21, k22 = velocities[:4]
         target = p1 / p2 * ((k11 + k12) / (k21 + k22)) ** 3
-        return _generic_result(_nearest(choices, target, rel_tol=0.18), 'binary_total_mass_ratio', target)
+        return _一般結果(_nearest(choices, target, rel_tol=0.18), 'binary_total_mass_ratio', target)
     return None
 
 def solve_transit_max(q, choices):
@@ -151,7 +151,7 @@ def solve_transit_max(q, choices):
     if not 0 < b < 1:
         return None
     target = P1 * ((1 - k2) / b) ** 1.5
-    return _generic_result(_nearest(choices, target, rel_tol=0.15), 'coplanar_transit_max_period', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.15), 'coplanar_transit_max_period', target)
 
 def solve_abundance_generic(q, choices):
     s = q.casefold()
@@ -164,7 +164,7 @@ def solve_abundance_generic(q, choices):
     if not (a and b and fe and mg):
         return None
     target = 10 ** (float(a.group(1)) + float(b.group(1)) + float(fe.group(1)) - float(mg.group(1)))
-    return _generic_result(_nearest(choices, target, rel_tol=0.15), 'abundance_dex_ratio', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.15), 'abundance_dex_ratio', target)
 REGISTRY = (solve_teq_period_ratio, solve_parallax_distribution, solve_rv_teq_generic, solve_rv_period, solve_starspot, solve_black_hole, solve_lyman, solve_binary_mass, solve_transit_max, solve_abundance_generic)
 
 def 解決(question: str, choices: Sequence[str]):

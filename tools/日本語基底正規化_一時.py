@@ -275,13 +275,14 @@ def _互換モジュール本文(正本名: str) -> str:
 def _互換ツール本文(正本名: str) -> str:
     return (
         f'"""旧英字名の互換入口。現行日本語正本は `{正本名}`。"""\n'
-        'from pathlib import Path\nimport runpy\n\n'
+        'from pathlib import Path\n'
+        'import runpy\n\n'
         f'_正本経路 = Path(__file__).with_name("{正本名}")\n'
         '_名前空間 = runpy.run_path(str(_正本経路), run_name="_minidora_互換")\n'
         'for _名, _値 in _名前空間.items():\n'
-        '    if not _名.startswith("__"):\n        globals()[_名] = _値\n'
+        '    if not _名.startswith("__"):\n'
+        '        globals()[_名] = _値\n'
     )
-
 
 def _移送(基点: Path, 対応: dict[str, str], ツール: bool = False) -> None:
     for 旧名, 新名 in 対応.items():
@@ -362,6 +363,8 @@ def _内容を正規化() -> None:
         if not 対象.is_file() or 対象.resolve() == 自己 or 対象.suffix.lower() not in 対象拡張子:
             continue
         相対 = 対象.relative_to(根).as_posix()
+        if 相対.startswith(".github/workflows/"):
+            continue
         if 相対.startswith(除外先頭):
             continue
         try:
@@ -410,7 +413,7 @@ def main() -> int:
     _移送(根 / "src/minidora", ソース移動)
     _移送(根 / "tools", ツール移動, ツール=True)
     _試験名を日本語化()
-    _ワークフロー名を日本語化()
+    # workflow 改名は GitHub 接続権限のある別経路で適用する。
     _設計正本を補う()
     _内容を正規化()
     _監査器を補正()

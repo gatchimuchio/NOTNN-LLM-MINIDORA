@@ -4,10 +4,10 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from minidora.hds_choice_runtime import HDS選択実行結果
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標
+from minidora.HDS選択実行系 import HDS選択実行結果
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標
 from minidora.hds介入制御 import HDS指令, HDS指令種別, 標準HDS介入制御
-from minidora.hds監督選択runtime import HDS監督選択実行
+from minidora.HDS監督選択実行系 import HDS監督選択実行
 from minidora.参照 import 参照記録
 from minidora.能力状態差循環 import 標準能力模型核
 
@@ -75,7 +75,7 @@ class _計算実行器:
 
 
 class SupervisoryChoiceRuntimeTest(unittest.TestCase):
-    @patch("minidora.hds監督選択runtime.HDS選択推論実行")
+    @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
     def test_初期APPROVEは完全透過で再評価しない(self, mock_normal):
         initial = 結果("APPROVE", "A", ("NORMAL_MINIDORA",), proof=2)
         out = HDS監督選択実行(
@@ -86,7 +86,7 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
         self.assertEqual(out.HDS介入数, 0)
         mock_normal.assert_not_called()
 
-    @patch("minidora.hds監督選択runtime.HDS選択推論実行")
+    @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
     def test_HDSなしはSUSPENDも完全透過(self, mock_normal):
         initial = 結果("SUSPEND", None, ("AMBIGUOUS_EVIDENCE",))
         out = HDS監督選択実行(
@@ -97,7 +97,7 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
         self.assertEqual(out.HDS介入数, 0)
         mock_normal.assert_not_called()
 
-    @patch("minidora.hds監督選択runtime.HDS選択推論実行")
+    @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
     def test_閉包済み計算IRがある時だけ汎用計算を起動して通常MINIDORAへ戻す(self, mock_normal):
         initial = 結果("SUSPEND", None, ("NO_KNOWLEDGE_EVIDENCE",))
         mock_normal.return_value = 結果("APPROVE", "B", ("EVIDENCE_PRESENT",), proof=3)
@@ -118,8 +118,8 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
         self.assertEqual(out.参照[-1].供給器, "MINIDORA計算実行器")
         self.assertIn("HDS_SUPERVISORY_INTERVENTION", out.選択.理由)
 
-    @patch("minidora.hds監督選択runtime.HDS追加参照検索")
-    @patch("minidora.hds監督選択runtime.HDS選択推論実行")
+    @patch("minidora.HDS監督選択実行系.HDS追加参照検索")
+    @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
     def test_観測不足時だけ参照を広げて通常MINIDORAを再実行(self, mock_normal, mock_extra):
         initial = 結果("SUSPEND", None, ("NO_KNOWLEDGE_EVIDENCE",))
         extra = 参照記録("extra", "extra", "evidence", "fixture://extra", "fixture")
@@ -136,7 +136,7 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
         mock_extra.assert_called_once()
         mock_normal.assert_called_once()
 
-    @patch("minidora.hds監督選択runtime.HDS選択推論実行")
+    @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
     def test_STOPだけなら初期SUSPENDを改変しない(self, mock_normal):
         initial = 結果("SUSPEND", None, ("AMBIGUOUS_EVIDENCE",))
         out = HDS監督選択実行(
@@ -148,7 +148,7 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
         self.assertEqual(out.停止理由, ("TEST_STOP",))
         mock_normal.assert_not_called()
 
-    @patch("minidora.hds監督選択runtime.HDS選択推論実行")
+    @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
     def test_初期選択省略時も通常MINIDORAを一度だけ先に実行(self, mock_normal):
         normal = 結果("APPROVE", "A", ("NORMAL_MINIDORA",), proof=1)
         mock_normal.return_value = normal

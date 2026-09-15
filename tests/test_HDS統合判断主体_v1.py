@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_choice_runtime import HDS選択実行結果
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標
-from minidora.hds統合runtime import HDS駆動選択実行
+from minidora.HDS選択実行系 import HDS選択実行結果
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標
+from minidora.hds統合実行系 import HDS駆動選択実行
 from minidora.hds統合判断主体 import HDS作用種別, MINIDORAHDS判断主体
 from minidora.参照 import 参照記録
 

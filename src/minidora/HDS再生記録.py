@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .hds_adapter import HDSコンパイラProtocol, HDS独立コンパイル
-from .hds_reference import HDS参照検索
+from .HDS適合器 import HDSコンパイラProtocol, HDS独立コンパイル
+from .HDS参照 import HDS参照検索
 from .HDS再生 import HDSIR辞書化
 from .参照 import 参照供給器, 参照記録
 
@@ -85,8 +85,8 @@ def HDSChoiceReplay収録(
         question_ir = _問題IR(compiler, problem)
         choice_irs: dict[str, Any] = {}
         for label, text in sorted(problem.選択肢.items(), key=lambda item: str(item[0])):
-            choice_ir = HDS独立コンパイル(compiler, str(text))
-            choice_irs[str(label)] = HDSIR辞書化(choice_ir)
+            選択中間表現 = HDS独立コンパイル(compiler, str(text))
+            choice_irs[str(label)] = HDSIR辞書化(選択中間表現)
             choice_compiled += 1
 
         references = HDS参照検索(provider, question_ir) if provider is not None else ()
@@ -108,7 +108,7 @@ def HDSChoiceReplay収録(
             )
 
         row: dict[str, Any] = {
-            "schema": "minidora.hds-choice-replay.v1",
+            "契約形式": "minidora.hds-choice-replay.v1",
             "id": problem.識別子,
             "question_ir": HDSIR辞書化(question_ir),
             "choices_ir": choice_irs,

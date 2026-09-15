@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from .hds_ir import HDSIR
+from .HDS中間表現 import HDSIR
 from .hds統合判断主体 import HDS作用種別, MINIDORAHDS判断主体
-from .hds統一状態循環 import HDS統一状態Session, HDS統一状態政策
+from .HDS統一状態循環 import HDS統一状態Session, HDS統一状態政策
 from .hds適応候補調停 import HDS適応候補提案実行
 from .模型 import MINIDORA模型核
 from .参照 import 参照記録

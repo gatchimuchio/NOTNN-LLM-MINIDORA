@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Mapping
 
-from .hds_ir import HDSIR, HDS座標, HDS関係, 値状態
+from .HDS中間表現 import HDSIR, HDS座標, HDS関係, 値状態
 
 
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}

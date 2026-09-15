@@ -1,8 +1,8 @@
-# GPQA Diamond MINIDORA80 Module E2E 正本 — 2026-09-09
+# GPQA Diamond MINIDORA80 能力モジュール E2E 正本 — 2026-09-09
 
 ## 結論
 
-**判定: PASS — MINIDORA80を現行Module込みシステム能力正本として採用する。**
+**判定: PASS — MINIDORA80を現行能力モジュール込みシステム能力正本として採用する。**
 
 ```text
 MINIDORA80
@@ -11,7 +11,7 @@ GPQA-E2E-LIVE + SCIENTIFIC-CAPABILITY-MODULE
 40.4040404040404%
 ```
 
-Core正本MINIDORA30は置換しない。MINIDORA80は、成立済みCoreへ科学Capability Module群を接続した**システム能力正本**である。
+模型核正本MINIDORA30は置換しない。MINIDORA80は、成立済み模型核へ科学能力モジュール群を接続した**システム能力正本**である。
 
 ## 実測条件
 
@@ -23,12 +23,12 @@ OpenAlex             = disabled
 Wikipedia            = en
 reference            = LIVE_ONLY
 fixed reference Data = forbidden
-A/B                  = same-run Module OFF / ON
+A/B                  = same-run 能力モジュール OFF / ON
 ```
 
 ## 結果
 
-| 指標 | Module OFF | Module ON |
+| 指標 | 能力モジュール OFF | 能力モジュール ON |
 |---|---:|---:|
 | 正答 | 29 / 198 | **80 / 198** |
 | 正答率 | 14.6465% | **40.4040%** |
@@ -38,14 +38,14 @@ A/B                  = same-run Module OFF / ON
 ```text
 正答純増   = +51
 正答率差   = +25.7576 points
-Module発火 = 55
+能力モジュール発火 = 55
 発火正答   = 55 / 55
 改善       = 51
 退行       = 0
 changed    = 51
 ```
 
-Module発火55件は55件すべてgoldと一致した。51件はModule OFFで非正答だったケースを正答へ変更した。4件はOFF時点でも既に同じ正答であり、既存正答の退行は0だった。
+能力モジュール発火55件は55件すべてgoldと一致した。51件は能力モジュール OFFで非正答だったケースを正答へ変更した。4件はOFF時点でも既に同じ正答であり、既存正答の退行は0だった。
 
 ## 実行証拠
 
@@ -62,11 +62,11 @@ Module発火55件は55件すべてgoldと一致した。51件はModule OFFで非
 今回の観測は次の因果をLIVE E2Eで確認した。
 
 ```text
-成立済みMINIDORA Core
+成立済みMINIDORA 模型核
 ↓
-科学Capability Moduleを追加接続
+科学能力モジュールを追加接続
 ↓
-責任範囲でModule発火
+責任範囲で能力モジュール発火
 ↓
 55発火すべて正答
 ↓
@@ -77,7 +77,7 @@ Module発火55件は55件すべてgoldと一致した。51件はModule OFFで非
 29/198 → 80/198
 ```
 
-したがって、**Coreを再学習・再訓練・大型化・置換せず、Capability Module追加によってシステムの実効能力を増設できる**ことを現行LIVE評価でも確認した。
+したがって、**模型核を再学習・再訓練・大型化・置換せず、能力モジュール追加によってシステムの実効能力を増設できる**ことを現行LIVE評価でも確認した。
 
 ## 4択ランダム期待値
 
@@ -89,7 +89,7 @@ GPQA原論文は、当時の最強GPT-4ベースラインを39%と報告して�
 
 MINIDORA80は40.40%であるため、正本では次を採用する。
 
-> **GPQAスコアという限定した観測軸では、MINIDORA + 科学Capability ModuleはGPT-4ベースラインと同じ約40%帯の水準に到達した。**
+> **GPQAスコアという限定した観測軸では、MINIDORA + 科学能力モジュールはGPT-4ベースラインと同じ約40%帯の水準に到達した。**
 
 数値上は40.40%が39%を上回る。
 
@@ -103,6 +103,6 @@ MINIDORA80は40.40%であるため、正本では次を採用する。
 
 ## 過去Replayとの関係
 
-2026-09-02の固定Replay `Module OFF 8/198 → ON 63/198` は、Module拡張成立を最初に示した履歴証拠として保持する。
+2026-09-02の固定Replay `能力モジュール OFF 8/198 → ON 63/198` は、能力モジュール拡張成立を最初に示した履歴証拠として保持する。
 
-2026-09-09以後は固定参照DataをGPQA正本へ使わない。したがって現行Module込み正本は本書のLIVE E2E `80/198` である。
+2026-09-09以後は固定参照DataをGPQA正本へ使わない。したがって現行能力モジュール込み正本は本書のLIVE E2E `80/198` である。

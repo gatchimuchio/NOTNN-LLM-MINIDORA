@@ -69,7 +69,7 @@ HDSは模型核へ導入していない。
 - 問い専用関係とData関係を検索述語identityで接続
 - 1参照内の複数独立関係差を保持
 - 形成済み関係と一般作用を分離
-- checkpointを再活性し候補共同再照合へ利用
+- 検査点を再活性し候補共同再照合へ利用
 - `except / least / incorrect`等を相対例外差として扱う
 - knowledge choiceの終端を参照由来の正の一意差へ限定
 
@@ -89,9 +89,9 @@ Compute IR / ABIに相当する日本語正本を次として確定した。
 計算実行器
 ```
 
-## HDS Compiler Pipeline
+## HDS 構文化器 処理系列
 
-Meaning/Audit Architecture `v1.2` を維持したまま、Pipeline `v1.3` で責任を分離した。
+Meaning/Audit 構造 `v1.2` を維持したまま、処理系列 `v1.3` で責任を分離した。
 
 ```text
 自然言語
@@ -151,7 +151,7 @@ v0.3実装は削除せず、
 LLM模型核再構成            = PASS
 構成再現v3局所試験         = PASS
 計算中間表現/実行境界 v1  = PASS
-HDS Compiler Pipeline v1.3 = PASS
+HDS 構文化器 処理系列 v1.3 = PASS
 v0.4大規模性               = 局所成立候補
 製品・最終完成             = 別関門
 ```

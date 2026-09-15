@@ -1,13 +1,13 @@
 {
-  "schema": "minidora.benchmark.repository-runner.v3",
+  "契約形式": "minidora.benchmark.repository-runner.v3",
   "protocol": {
     "benchmark": "GPQA Diamond",
     "dataset": "official idavidrein/gpqa dataset.zip / gpqa_diamond.csv",
     "dataset_url": "https://raw.githubusercontent.com/idavidrein/gpqa/main/dataset.zip",
     "dataset_zip_sha256": "461ae7329f15a3e35f8184d2dac24b990f34fdf12f366ca4062d8e6638cd08dc",
-    "dataset_csv_sha256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
-    "full_benchmark_total": 198,
-    "selected_indices": [
+    "資料集合CSV_SHA256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+    "全問題数": 198,
+    "選択番号群": [
       0,
       1,
       2,
@@ -207,17 +207,17 @@
       196,
       197
     ],
-    "choice_shuffle_seed": 0,
+    "選択肢シャッフル種": 0,
     "compiler": "MINIDORA public standard HDS Compiler; Japanese-base role projection; benchmark-agnostic",
     "gold_boundary": "gold used only after baseline/current inference for scoring",
     "repository_commit": "061d81244058703c1b28ac33191ced83d7381be3",
-    "openalex_enabled": false,
-    "wikipedia_languages": [
+    "OpenAlex有効": false,
+    "Wikipedia言語群": [
       "en"
     ],
-    "runtime": "minimal generic MINIDORA formal core + HDS safety valve on anomaly only; specialist modules excluded",
+    "実行系": "minimal generic MINIDORA formal core + HDS safety valve on anomaly only; specialist modules excluded",
     "working_state_boundary": "working/local relations are request-local and never auto-promoted to persistent canonical K",
-    "controlled_ab": true,
+    "統制AB": true,
     "controlled_ab_definition": "same question IR + same initial retrieved references + same initial normal MINIDORA result. baseline=normal MINIDORA without HDS intervention; current=exact baseline result when closed, otherwise HDS-triggered existing actions followed by normal MINIDORA re-evaluation",
     "checkpoint_resume": "same dataset + selected range + repository commit + OpenAlex + controlled-ab condition only",
     "hds_role": "通常MINIDORAを俯瞰監視し、未閉包・競合・観測不足等の異常時だけ既存作用を起動。正常推論は完全透過",

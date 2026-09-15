@@ -4,7 +4,7 @@ from dataclasses import replace
 from itertools import permutations
 import unittest
 
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差, HDS意味作用, 値状態
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差, HDS意味作用, 値状態
 from minidora.要求解釈 import 要求計画器
 from minidora.要求解釈実行 import 要求計画を実行
 from minidora.能力合成 import 能力合成器

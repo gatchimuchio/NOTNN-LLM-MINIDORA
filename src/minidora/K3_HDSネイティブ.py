@@ -4,14 +4,14 @@ from dataclasses import dataclass
 import math
 from typing import Mapping
 
-from .choice_intent import HDS選択意図判定
+from .選択意図 import HDS選択意図判定
 from .HDS候補再照合 import HDS候補証拠, HDS候補横断調停
 from .HDS資料K import HDS証拠事実
 from .HDS探索方針 import HDS探索方針選択
 from .HDS関係図推論 import HDS意味経路探索
-from .hds_ir import HDSIR, 値状態
+from .HDS中間表現 import HDSIR, 値状態
 from .K3機能 import Candidate, HDSJudge, JudgeDecision, K3相当能力核, SemanticFrame
-from .semantic_tokens import 意味語
+from .意味字句 import 意味語
 
 
 _SURFACE_ONLY_KINDS = {

@@ -1,5 +1,5 @@
 {
-  "schema": "minidora.k3.capability_action_structuring.v1",
+  "契約形式": "minidora.k3.capability_action_structuring.v1",
   "date_jst": "2026-08-26",
   "language": "ja",
   "license": "CC-BY-4.0",
@@ -95,13 +95,13 @@
     },
     "B8": {
       "name": "形成作用",
-      "action": "runtime作用機構と形成済みweight関係を分離",
+      "action": "実行系作用機構と形成済みweight関係を分離",
       "observed": "形成済みprojection/gate/expert/AttnRes weights",
       "unobserved": "raw training全因果"
     },
     "B9": {
       "name": "展開後制御",
-      "action": "weight core / serving runtime / agent harnessを分離"
+      "action": "weight core / serving 実行系 / agent harnessを分離"
     }
   },
   "orthogonal_action_axes": [

@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Callable, TYPE_CHECKING
 
-from .hds_choice_runtime import HDS選択実行結果, HDS選択推論実行
-from .hds_ir import HDSIR
+from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
+from .HDS中間表現 import HDSIR
 from .hds能力経路_v3 import HDS能力経路V3候補提案実行
-from .hds統一状態循環 import HDS統一状態Session, HDS統一状態政策
+from .HDS統一状態循環 import HDS統一状態Session, HDS統一状態政策
 if TYPE_CHECKING:
     from .K3機能 import K3相当能力核
 from .模型 import MINIDORA模型核

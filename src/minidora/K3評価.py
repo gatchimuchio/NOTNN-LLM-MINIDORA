@@ -201,7 +201,7 @@ def K3同等性評価を実行() -> dict[str, Any]:
         "total_count":len(tests),
         "tests":[asdict(t) for t in tests],
         "failed_tests":[asdict(t) for t in failed],
-        "runtime":{"elapsed_seconds":elapsed,"peak_tracemalloc_mib":peak/(1024*1024),"peak_rss_mib":peak_rss/(1024*1024) if peak_rss is not None else None},
+        "実行系":{"elapsed_seconds":elapsed,"peak_tracemalloc_mib":peak/(1024*1024),"peak_rss_mib":peak_rss/(1024*1024) if peak_rss is not None else None},
         "fit_metrics":fit,
         "claim":"K3公開構造に対する機能形式・統合循環の相当。K3の重み・規模・世界知識・frontier性能の同等性は主張しない。",
     }

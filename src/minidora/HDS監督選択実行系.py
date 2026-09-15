@@ -5,9 +5,9 @@ from hashlib import sha256
 import json
 from typing import Callable
 
-from .hds_choice_runtime import HDS選択実行結果, HDS選択推論実行
-from .hds_ir import HDSIR
-from .hds_runtime_projection import HDSR質問射影
+from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
+from .HDS中間表現 import HDSIR
+from .HDS実行系射影 import HDSR質問射影
 from .hds介入制御 import (
     HDS介入制御,
     HDS介入記録,

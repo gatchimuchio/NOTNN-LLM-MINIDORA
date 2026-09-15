@@ -3,12 +3,12 @@ from __future__ import annotations
 import unittest
 
 from minidora.HDS選択仮説 import HDS候補代入仮説群
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差, 値状態
-from minidora.hds_language_relations import HDS英語基底関係射影
-from minidora.hds_language_semantic_bridge import HDS英日意味射影
-from minidora.hds_model_projection import HDSMINIDORA模型評価
-from minidora.hds_runtime_projection import (
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差, 値状態
+from minidora.HDS言語関係 import HDS英語基底関係射影
+from minidora.HDS言語意味橋渡し import HDS英日意味射影
+from minidora.HDS模型射影 import HDSMINIDORA模型評価
+from minidora.HDS実行系射影 import (
     HDSK候補代入可能, HDSK候補射影, HDSK質問射影, HDS模型候補代入可能,
 )
 from minidora.模型 import 標準模型核

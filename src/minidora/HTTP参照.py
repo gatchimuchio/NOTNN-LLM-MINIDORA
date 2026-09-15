@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
-from .semantic_tokens import 意味語
+from .意味字句 import 意味語
 from .参照 import 参照記録
 
 

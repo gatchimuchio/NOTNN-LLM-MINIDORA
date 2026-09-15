@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
 from minidora.実行系_HDS_v1 import HDS駆動ミニドラ
 from minidora.実行系_v03 import 要求
 from minidora.参照 import 参照記録
@@ -73,8 +73,8 @@ class Provider:
 
 class RuntimeHDSV1試験(unittest.TestCase):
     def test_実RuntimeでREFERENCE_EVALUATE_COMMITが成立する(self):
-        runtime = HDS駆動ミニドラ(Provider(), HDSコンパイラ_=構文化器())
-        result = runtime.実行(要求("What does Alpha use?"))
+        実行系 = HDS駆動ミニドラ(Provider(), HDSコンパイラ_=構文化器())
+        result = 実行系.実行(要求("What does Alpha use?"))
 
         self.assertEqual(result.採否.状態, 実行状態.合格, result.採否.理由)
         self.assertEqual(result.値, "engine")

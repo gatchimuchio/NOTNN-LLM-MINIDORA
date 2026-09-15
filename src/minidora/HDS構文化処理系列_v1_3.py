@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Any
 
-from .hds_ir import HDSIR, HDS実行核
+from .HDS中間表現 import HDSIR, HDS実行核
 from .命令 import 手順
 from .命令計算降下 import 命令計算降下
 from .計算中間表現 import 計算中間表現

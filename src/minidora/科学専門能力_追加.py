@@ -4,7 +4,7 @@ import math
 import re
 from typing import Sequence
 
-from .科学専門能力_共通 import _generic_result, _nearest, _result
+from .科学専門能力_共通 import _一般結果, _nearest, _結果
 
 
 def _compact(text: object) -> str:
@@ -80,7 +80,7 @@ def solve_pauli_superposition_expectation(q: str, choices: Sequence[str]):
     ez = (a * a - b * b) / norm
     ex = 2 * a * b / norm
     target = cz * ez + cx * ex
-    return _generic_result(_nearest(choices, target, rel_tol=0.12), 'pauli_superposition_expectation', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.12), 'pauli_superposition_expectation', target)
 
 
 def solve_spinor_xz_eigenvector(q: str, choices: Sequence[str]):
@@ -95,7 +95,7 @@ def solve_spinor_xz_eigenvector(q: str, choices: Sequence[str]):
         half = ('cos(\\theta/2)' in c or 'cos(theta/2)' in c) and ('sin(\\theta/2)' in c or 'sin(theta/2)' in c)
         if half and 'hbar' not in c and '\\hbar' not in c:
             hits.append(i)
-    return _result(hits[0] if len(hits) == 1 else None, 'spinor_xz_positive_eigenvector', 'half-angle spinor')
+    return _結果(hits[0] if len(hits) == 1 else None, 'spinor_xz_positive_eigenvector', 'half-angle spinor')
 
 
 def solve_anisotropic_oscillator_spectrum(q: str, choices: Sequence[str]):
@@ -121,7 +121,7 @@ def solve_anisotropic_oscillator_spectrum(q: str, choices: Sequence[str]):
         zero_ok = ('3/2' in c) if abs(zero - 1.5) < 1e-9 else str(zero) in c
         if x_ok and y_ok and zero_ok:
             hits.append(i)
-    return _result(hits[0] if len(hits) == 1 else None, 'anisotropic_oscillator_spectrum', f'omega_x={wx},omega_y={wy},zero={zero}')
+    return _結果(hits[0] if len(hits) == 1 else None, 'anisotropic_oscillator_spectrum', f'omega_x={wx},omega_y={wy},zero={zero}')
 
 
 def solve_gamma_gamma_pair_threshold_latex(q: str, choices: Sequence[str]):
@@ -133,7 +133,7 @@ def solve_gamma_gamma_pair_threshold_latex(q: str, choices: Sequence[str]):
         return None
     target_ev = 510998.95 ** 2 / eps
     target = target_ev / 1e9 if any('gev' in str(c).casefold() for c in choices) else target_ev
-    return _generic_result(_nearest(choices, target, log=True, rel_tol=0.25), 'gamma_gamma_pair_threshold_latex', target)
+    return _一般結果(_nearest(choices, target, log=True, rel_tol=0.25), 'gamma_gamma_pair_threshold_latex', target)
 
 
 def solve_edta_dissociation_typo_tolerant(q: str, choices: Sequence[str]):
@@ -149,7 +149,7 @@ def solve_edta_dissociation_typo_tolerant(q: str, choices: Sequence[str]):
     if concentration <= 0 or kf <= 0:
         return None
     target = math.sqrt(concentration / kf)
-    return _generic_result(_nearest(choices, target, log=True, rel_tol=0.12), 'edta_complex_dissociation', target)
+    return _一般結果(_nearest(choices, target, log=True, rel_tol=0.12), 'edta_complex_dissociation', target)
 
 
 def solve_wavefunction_normalization_symbol(q: str, choices: Sequence[str]):
@@ -170,7 +170,7 @@ def solve_wavefunction_normalization_symbol(q: str, choices: Sequence[str]):
     if integral <= 0 or remainder <= 0:
         return None
     target = math.sqrt(remainder / integral)
-    return _generic_result(_nearest(choices, target, rel_tol=0.08), 'wavefunction_normalization_symbol', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.08), 'wavefunction_normalization_symbol', target)
 
 
 def solve_decay_resolution_latex(q: str, choices: Sequence[str]):
@@ -191,7 +191,7 @@ def solve_decay_resolution_latex(q: str, choices: Sequence[str]):
     beta_gamma = math.sqrt(energy * energy - mass * mass) / mass
     mean = beta_gamma * 299792458.0 * tau
     target = -mean * math.log(fraction)
-    return _generic_result(_nearest(choices, target, log=True, rel_tol=0.2), 'decay_resolution', target)
+    return _一般結果(_nearest(choices, target, log=True, rel_tol=0.2), 'decay_resolution', target)
 
 
 def solve_qpcr_direction_consistency(q: str, choices: Sequence[str]):
@@ -214,7 +214,7 @@ def solve_qpcr_direction_consistency(q: str, choices: Sequence[str]):
         c = choice.casefold()
         if ('not in agreement' in c or 'inconsistent' in c) and ('amount' in c or 'copy' in c or 'nucleic acid' in c):
             hits.append(i)
-    return _result(hits[0] if len(hits) == 1 else None, 'qpcr_direction_consistency', 'Ct must decrease as log(copy number) increases')
+    return _結果(hits[0] if len(hits) == 1 else None, 'qpcr_direction_consistency', 'Ct must decrease as log(copy number) increases')
 
 
 def solve_black_hole_entropy_from_angular_size(q: str, choices: Sequence[str]):
@@ -248,7 +248,7 @@ def solve_black_hole_entropy_from_angular_size(q: str, choices: Sequence[str]):
     scored.sort()
     if len(scored) > 1 and scored[0][0] == scored[1][0]:
         return None
-    return _result(scored[0][1], 'black_hole_entropy_from_angular_size', f'order10^{target_order}')
+    return _結果(scored[0][1], 'black_hole_entropy_from_angular_size', f'order10^{target_order}')
 
 
 def solve_synchrocyclotron_braced_symbols(q: str, choices: Sequence[str]):
@@ -271,7 +271,7 @@ def solve_synchrocyclotron_braced_symbols(q: str, choices: Sequence[str]):
         return None
     phase = math.pi / denom
     target = energy / (2 * voltage * math.cos(phase))
-    return _generic_result(_nearest(choices, target, rel_tol=0.03), 'synchrocyclotron_braced_symbols', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.03), 'synchrocyclotron_braced_symbols', target)
 
 
 def solve_fission_relativistic_correction(q: str, choices: Sequence[str]):
@@ -296,7 +296,7 @@ def solve_fission_relativistic_correction(q: str, choices: Sequence[str]):
     q_value = M - m_heavy - m_light
     t_classical = q_value * m_light / (m_heavy + m_light)
     target_mev = abs(t_rel - t_classical) * 1000
-    return _generic_result(_nearest(choices, target_mev, rel_tol=0.05), 'fission_relativistic_correction', target_mev)
+    return _一般結果(_nearest(choices, target_mev, rel_tol=0.05), 'fission_relativistic_correction', target_mev)
 
 
 def solve_pauli_hamiltonian_exact_eigenvalues(q: str, choices: Sequence[str]):
@@ -312,7 +312,7 @@ def solve_pauli_hamiltonian_exact_eigenvalues(q: str, choices: Sequence[str]):
         extra_scale = 'hbar' in c or '\\hbar' in c or '/2' in c
         if eps and '+' in c and '-' in c and not extra_scale:
             hits.append(i)
-    return _result(hits[0] if len(hits) == 1 else None, 'pauli_hamiltonian_exact_eigenvalues', '±epsilon')
+    return _結果(hits[0] if len(hits) == 1 else None, 'pauli_hamiltonian_exact_eigenvalues', '±epsilon')
 
 
 def solve_rhombohedral_111_spacing(q: str, choices: Sequence[str]):
@@ -328,7 +328,7 @@ def solve_rhombohedral_111_spacing(q: str, choices: Sequence[str]):
     if a <= 0 or factor <= 0:
         return None
     target = a * math.sqrt(factor)
-    return _generic_result(_nearest(choices, target, rel_tol=0.03), 'rhombohedral_111_spacing', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.03), 'rhombohedral_111_spacing', target)
 
 
 def solve_conducting_sphere_external_field_latex(q: str, choices: Sequence[str]):
@@ -341,7 +341,7 @@ def solve_conducting_sphere_external_field_latex(q: str, choices: Sequence[str])
         q_over_L2 = bool(re.search(r'q/(?:\(?L\)?\^?2|L2)', raw)) or ('q' in raw and ('L^2' in raw or 'L2' in raw))
         if q_over_L2 and 'cos' not in raw.casefold():
             hits.append(i)
-    return _result(hits[0] if len(hits) == 1 else None, 'conducting_sphere_external_field_latex', 'q/(4*pi*eps0*L^2)')
+    return _結果(hits[0] if len(hits) == 1 else None, 'conducting_sphere_external_field_latex', 'q/(4*pi*eps0*L^2)')
 
 
 def solve_uncertainty_energy_relativistic(q: str, choices: Sequence[str]):
@@ -366,7 +366,7 @@ def solve_uncertainty_energy_relativistic(q: str, choices: Sequence[str]):
     if not scored:
         return None
     scored.sort()
-    return _generic_result(scored[0][1], 'uncertainty_energy_relativistic', target)
+    return _一般結果(scored[0][1], 'uncertainty_energy_relativistic', target)
 
 
 def solve_three_spin_partition(q: str, choices: Sequence[str]):
@@ -382,7 +382,7 @@ def solve_three_spin_partition(q: str, choices: Sequence[str]):
         mixed = '6e^(-j' in c or '6e^-j' in c
         if aligned and mixed:
             hits.append(i)
-    return _result(hits[0] if len(hits) == 1 else None, 'three_spin_ising_partition', '2 exp(3 beta J) + 6 exp(-beta J)')
+    return _結果(hits[0] if len(hits) == 1 else None, 'three_spin_ising_partition', '2 exp(3 beta J) + 6 exp(-beta J)')
 
 
 REGISTRY = (

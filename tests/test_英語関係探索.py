@@ -8,8 +8,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
-from minidora.hds_language_relations import HDS英語基底関係射影
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
+from minidora.HDS言語関係 import HDS英語基底関係射影
 from minidora.言語基底_英語 import 英語明示関係構文, 英語関係一致, 英語関係構文
 from minidora.言語構造 import _英文一致, 言語関係抽出
 
@@ -157,7 +157,7 @@ class 英語関係探索試験(unittest.TestCase):
             with self.subTest(text=text):
                 ir = compiler._意味基礎.コンパイル(text)
                 actual = HDS英語基底関係射影(ir)
-                with patch("minidora.hds_language_relations.英語関係一致", _従来探索):
+                with patch("minidora.HDS言語関係.英語関係一致", _従来探索):
                     self.assertEqual(actual, HDS英語基底関係射影(ir))
 
 

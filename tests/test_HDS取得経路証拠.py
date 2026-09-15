@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import unittest
 
-from minidora import hds_choice_runtime
-from minidora.hds_choice_runtime import _参照provenance
+from minidora import HDS選択実行系
+from minidora.HDS選択実行系 import _参照provenance
 from minidora.HDS資料K import HDSIR知識Adapter, HDS証拠事実
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係
 from minidora.K3機能 import K3相当能力核
 from minidora.参照 import 参照記録
 
@@ -46,7 +46,7 @@ class HDS検索経路境界試験(unittest.TestCase):
         self.assertIn("query_choice:A", provenance)
 
     def test_query経路から擬似K証拠を生成する関数を持たない(self) -> None:
-        self.assertFalse(hasattr(hds_choice_runtime, "_検索経路証拠"))
+        self.assertFalse(hasattr(HDS選択実行系, "_検索経路証拠"))
 
     def test_query候補ラベルはFact引数へ混入しない(self) -> None:
         record = _record("cat-1", "ProteinX catalysis is experimentally observed.", "A")

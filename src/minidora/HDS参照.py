@@ -5,10 +5,10 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 import re
 
-from .hds_compiler_records import HDS_COMPILER_META_PREFIXES
+from .HDS構文化器_records import HDS_COMPILER_META_PREFIXES
 from .HDS探索方針 import HDS努力水準
-from .hds_ir import HDSIR, 値状態
-from .semantic_tokens import 意味語
+from .HDS中間表現 import HDSIR, 値状態
+from .意味字句 import 意味語
 from .参照 import 参照供給器, 参照記録
 
 _SURFACE_ONLY_KINDS = {"source_text", "language.input", "language.normalized", "対象.原文保持", "文脈.言語"}

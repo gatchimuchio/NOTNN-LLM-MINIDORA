@@ -1,16 +1,16 @@
 {
-  "schema": "minidora.gpqa.module-e2e-canonical.v1",
+  "契約形式": "minidora.gpqa.module-e2e-canonical.v1",
   "canonical_name": "MINIDORA80",
   "date_jst": "2026-09-09",
   "benchmark": "GPQA Diamond",
   "evaluation": "LIVE_ONLY same-run controlled A/B; fixed reference data forbidden",
-  "dataset_csv_sha256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
-  "choice_shuffle_seed": 0,
-  "openalex_enabled": false,
-  "wikipedia_languages": [
+  "資料集合CSV_SHA256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+  "選択肢シャッフル種": 0,
+  "OpenAlex有効": false,
+  "Wikipedia言語群": [
     "en"
   ],
-  "fixed_reference_data_allowed": false,
+  "固定参照資料許可": false,
   "module_off": {
     "correct": 29,
     "total": 198,
@@ -49,12 +49,12 @@
     "statement": "same roughly-40% GPQA score band; MINIDORA80 is numerically above 39%",
     "boundary": "not a direct identical-setup comparison and not an overall capability-equivalence claim"
   },
-  "claim_scope": [
+  "主張可能範囲": [
     "scientific Capability Modules add measurable system capability without Core retraining",
     "same-run LIVE A/B attributes +51 net correct cases to Module ON with 0 regressions",
     "GPQA score is in the same roughly-40% band as the original paper GPT-4-based baseline"
   ],
-  "forbidden_claims": [
+  "禁止主張": [
     "MINIDORA80 is Core-only performance",
     "MINIDORA80 and original GPT-4 were measured under identical conditions",
     "MINIDORA80 proves overall GPT-4 capability equivalence"

@@ -120,7 +120,7 @@ def HDSReplay評価(
 
     total = len(details)
     return {
-        "schema": "minidora.hds-choice-replay.result.v2",
+        "契約形式": "minidora.hds-choice-replay.result.v2",
         "total": total,
         "with_gold": with_gold,
         "correct": correct if with_gold else None,

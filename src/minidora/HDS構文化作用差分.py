@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .HDS構文化記録_v1_1 import HDS状態遷移図, HDS遷移辺
-from .hds_compiler_records_v1_3 import (
+from .HDS構文化器_records_v1_3 import (
     HDS作用差分構造,
     HDS作用記録,
     HDS状態差記録,

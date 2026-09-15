@@ -3,8 +3,8 @@ from __future__ import annotations
 import unittest
 
 from minidora import 公開HDSコンパイラ
-from minidora.hds_choice_runtime import HDS選択推論実行
-from minidora.hds_ir import HDSIR
+from minidora.HDS選択実行系 import HDS選択推論実行
+from minidora.HDS中間表現 import HDSIR
 from minidora.hds局所再照合 import HDS局所Window候補
 from minidora.K3機能 import K3相当能力核
 from minidora.参照 import 参照記録

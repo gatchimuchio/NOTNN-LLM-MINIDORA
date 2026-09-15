@@ -1,5 +1,5 @@
 {
-  "schema": "minidora.prototype.baseline.v1",
+  "契約形式": "minidora.prototype.baseline.v1",
   "milestone": {
     "name": "MINIDORA prototype completion",
     "status": "PROTOTYPE_COMPLETE",
@@ -83,7 +83,7 @@
       "reason": "External retrieval Data was injected into K as raw retrieved_document string Facts without the required external Data -> HDS Compiler -> HDS-IR -> K path. This result is diagnostic only and is not a valid MINIDORA benchmark baseline."
     }
   ],
-  "public_runtime_reference": {
+  "public_実行系_reference": {
     "merge_commit": "eb251f5a1d553e59cf4488c7df1a7a0f74bc47b3"
   },
   "baseline_policy": "Immutable prototype-completion baseline. Future benchmark results must be appended as new dated baselines and must not overwrite this record."

@@ -11,7 +11,7 @@
 通常のチャットAI製品として使う主画面。
 
 - MINIDORA Chat
-- Capability Module表示
+- 能力モジュール表示
 - Sources表示
 - Governance Trace
 - 新しい会話
@@ -27,7 +27,7 @@ GeminiはMINIDORAの内部経路へ一切入らない。
 ```text
 同じユーザー入力
       ├─ MINIDORA
-      │    └─ Core / Capability Modules / Search API / Governance
+      │    └─ 模型核 / 能力モジュールs / Search API / Governance
       │
       └─ Gemini比較窓
            └─ Gemini API
@@ -36,15 +36,15 @@ GeminiはMINIDORAの内部経路へ一切入らない。
 ## 絶対境界
 
 - GeminiをMINIDORAのData sourceにしない。
-- GeminiをMINIDORAの検索、推論、要約、fallbackに使わない。
-- MINIDORAのSources、Trace、Module出力をGeminiへ渡さない。
+- GeminiをMINIDORAの検索、推論、要約、代替経路に使わない。
+- MINIDORAのSources、Trace、能力モジュール出力をGeminiへ渡さない。
 - Geminiの回答をMINIDORAへ渡さない。
 - 比較ON時に共有するのは**ユーザー入力文だけ**。
-- MINIDORAが必要とする外部情報は、MINIDORA側のSearch / Reference Moduleから検索APIへ接続する。
+- MINIDORAが必要とする外部情報は、MINIDORA側のSearch / Reference 能力モジュールから検索APIへ接続する。
 
 この分離により、デモ時の説明は次の一文で閉じる。
 
-> MINIDORAは検索APIからDataを取得して自身のCapability Moduleで処理し、Geminiは別ウィンドウで独立した比較対象として同じ質問に回答している。
+> MINIDORAは検索APIからDataを取得して自身の能力モジュールで処理し、Geminiは別ウィンドウで独立した比較対象として同じ質問に回答している。
 
 ## 必須設定
 

@@ -24,7 +24,7 @@ from .統合実行 import 統合セッション
 from .能力意味カタログ import 能力意味カタログ
 from .目的計画 import 目的計画器
 from .HDS目的射影 import HDSから目的要求,_HDS照合
-from .hds_compiler import 公開HDSコンパイラ
+from .HDS構文化器 import 公開HDSコンパイラ
 from .能力合成 import 合成計画,合成工程,素材参照,_結果辞書,_符号化
 from .応答構成 import 能力結果を復元
 from .製品版.型 import 能力結果,参照資料

@@ -14,7 +14,7 @@
 - 未来方向/予測補助: thinking modeはposttraining/serving modeとして中央decoder geometryと分離。
 - 入力表象・モダリティ: 1.5はimage/audio/text input。repoにはcore model 3 shardsに加えvision_tokenizerとwavtokenizerのweightが別ファイルで存在。
 - 形成過程: continued pretraining（multimodal mix）＋posttraining改善。
-- 展開後制御: tool callingとthinking modeは同時利用制約もあり、runtime mode境界を持つ。
+- 展開後制御: tool callingとthinking modeは同時利用制約もあり、実行系 mode境界を持つ。
 
 ## 相対化上の意味
 中央decoderを維持したままモダリティとreasoning/tool capabilityが拡張。能力追加＝中央architecture刷新、ではない自然実験。

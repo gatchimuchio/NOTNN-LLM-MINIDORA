@@ -5,7 +5,7 @@ import unittest
 from minidora.HDS選択仮説 import HDS候補代入仮説群
 from minidora.HDS資料K import HDSIR知識Adapter
 from minidora.HDS直接関係検証 import HDS直接関係検証
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
 from minidora.K3機能 import K3相当能力核
 
 
@@ -120,7 +120,7 @@ class HDS直接関係検証試験(unittest.TestCase):
         adapter = HDSIR知識Adapter(core)
         adapter.投入(_data("Alpha", "engine"), provenance=("fixture", "doc:same"))
         adapter.投入(_data("Alpha", "engine"), provenance=("fixture", "doc:same"))
-        _candidate, diagnostics = HDS直接関係検証(core, _candidates(question))
+        _候補, diagnostics = HDS直接関係検証(core, _candidates(question))
         a = next(item for item in diagnostics if item.候補 == "A")
         self.assertEqual(a.独立出典数, 1)
 

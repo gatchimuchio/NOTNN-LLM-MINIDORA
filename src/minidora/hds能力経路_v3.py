@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from .hds_ir import HDSIR
+from .HDS中間表現 import HDSIR
 from .hds多時間尺度 import HDS多時間尺度政策, HDS阻害回復方針
 from .hds能力経路_v2 import HDS能力経路V2候補提案実行
-from .hds統一状態循環 import (
+from .HDS統一状態循環 import (
     HDS統一作用,
     HDS統一状態Session,
     HDS統一状態政策,
@@ -63,10 +63,10 @@ def HDS能力経路V3候補提案実行(
     attempts = 0
 
     for attempts in range(1, unified_policy.最大循環 + 1):
-        runtime_references = session.選択参照()
+        実行系_references = session.選択参照()
         result = HDS能力経路V2候補提案実行(
             question_ir,
-            tuple(runtime_references),
+            tuple(実行系_references),
             コンパイル=コンパイル,
             基礎能力核=基礎能力核,
             最大コンパイル並列=最大コンパイル並列,

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_choice_runtime import HDS選択実行結果
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標
-from minidora.hds統合runtime import HDS駆動選択実行
+from minidora.HDS選択実行系 import HDS選択実行結果
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標
+from minidora.hds統合実行系 import HDS駆動選択実行
 from minidora.hds統合判断主体 import HDS作用種別, MINIDORAHDS判断主体
 from minidora.参照 import 参照記録
 
 
-def choice_ir(*, required: bool = False) -> HDSIR:
+def 選択中間表現(*, required: bool = False) -> HDSIR:
     return HDSIR(
         原文="正しい候補を選べ A:猫 B:犬",
         正規化文="正しい候補を選べ A:猫 B:犬",
@@ -39,7 +39,7 @@ class HDS統合判断主体試験(unittest.TestCase):
     def test_参照_計算_COMMITを判断主体が順番に承認する(self):
         ref = 参照記録("r1", "q", "猫が正しい", "test", "test")
         result = HDS駆動選択実行(
-            FakeRuntime(True), choice_ir(),
+            FakeRuntime(True), 選択中間表現(),
             参照実行=lambda _: (ref,),
             評価実行=lambda _ir, refs: proposed() if refs else suspended(),
         )
@@ -52,7 +52,7 @@ class HDS統合判断主体試験(unittest.TestCase):
 
     def test_候補生成結果だけでは自己COMMITしない(self):
         subject = MINIDORAHDS判断主体()
-        world = subject.開始(choice_ir(), 参照利用可能=False)
+        world = subject.開始(選択中間表現(), 参照利用可能=False)
         self.assertEqual(subject.次作用(world).作用, HDS作用種別.候補計算)
         world = subject.評価帰還(world, proposed())
         self.assertEqual(world.状態, "OPEN")
@@ -61,7 +61,7 @@ class HDS統合判断主体試験(unittest.TestCase):
 
     def test_必須参照が無ければ計算へ進まずSUSPENDする(self):
         result = HDS駆動選択実行(
-            FakeRuntime(False), choice_ir(required=True), 参照必須=True,
+            FakeRuntime(False), 選択中間表現(required=True), 参照必須=True,
             評価実行=lambda _ir, _refs: (_ for _ in ()).throw(AssertionError("評価してはならない")),
         )
         self.assertEqual(result.状態, "SUSPEND")
@@ -70,7 +70,7 @@ class HDS統合判断主体試験(unittest.TestCase):
         self.assertIn("HDS_REQUIRED_REFERENCE_UNAVAILABLE", result.理由)
 
     def test_評価が閉じなければSUSPENDし捏造回答を作らない(self):
-        result = HDS駆動選択実行(FakeRuntime(False), choice_ir(), 評価実行=lambda _ir, _refs: suspended())
+        result = HDS駆動選択実行(FakeRuntime(False), 選択中間表現(), 評価実行=lambda _ir, _refs: suspended())
         self.assertEqual(result.状態, "SUSPEND")
         self.assertIsNone(result.値)
         self.assertEqual(tuple(action for action, _ in result.認知世界.作用履歴), ("EVALUATE", "SUSPEND"))
@@ -78,7 +78,7 @@ class HDS統合判断主体試験(unittest.TestCase):
 
     def test_留保後も理由付きで再開放できる(self):
         subject = MINIDORAHDS判断主体()
-        world = subject.開始(choice_ir(), 参照利用可能=False)
+        world = subject.開始(選択中間表現(), 参照利用可能=False)
         world = subject.評価帰還(world, suspended())
         world = subject.留保(world, ("不足",))
         reopened = subject.再開放(world, "新しい観測が到着")
@@ -89,7 +89,7 @@ class HDS統合判断主体試験(unittest.TestCase):
 
     def test_作用予算超過は留保し無限循環しない(self):
         subject = MINIDORAHDS判断主体()
-        world = subject.開始(choice_ir(), 参照利用可能=True, 作用予算=1)
+        world = subject.開始(選択中間表現(), 参照利用可能=True, 作用予算=1)
         world = subject.参照帰還(world, 参照数=1)
         next_action = subject.次作用(world)
         self.assertEqual(next_action.作用, HDS作用種別.留保)

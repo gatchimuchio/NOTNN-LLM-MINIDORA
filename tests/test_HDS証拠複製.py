@@ -4,7 +4,7 @@ import unittest
 
 from minidora.HDS資料K import HDSIR知識Adapter, HDS証拠事実, HDS証拠状態複製
 from minidora.HDS関係図推論 import HDS意味Graph索引構築
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係
 from minidora.K3機能 import K3相当能力核
 
 

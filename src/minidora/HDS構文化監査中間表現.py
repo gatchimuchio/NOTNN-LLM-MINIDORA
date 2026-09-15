@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from .HDS構文化記録_v1_1 import HDS監査参照候補
-from .hds_ir import HDSIR, HDS座標, 値状態
+from .HDS中間表現 import HDSIR, HDS座標, 値状態
 
 
 def HDS監査参照IR射影(ir: HDSIR, candidates: tuple[HDS監査参照候補, ...]) -> HDSIR:

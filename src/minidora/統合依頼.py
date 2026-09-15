@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from .文脈照応 import 会話参照記憶
 from .要求解釈 import 要求計画器
-from .hds_compiler import 公開HDSコンパイラ
-from .hds_ir import HDSIR
+from .HDS構文化器 import 公開HDSコンパイラ
+from .HDS中間表現 import HDSIR
 from .多言語変換 import 対訳を変換
 
 

@@ -175,7 +175,7 @@
     {
       "id": "REL-14",
       "名称": "安全の多層成立",
-      "構造": "pretraining filtering + safety fine-tuning + red-team/eval + runtime guards + application policy → 配備安全性。",
+      "構造": "pretraining filtering + safety fine-tuning + red-team/eval + 実行系 guards + application policy → 配備安全性。",
       "成立条件": [
         "モデル内外の複数層",
         "用途別評価",

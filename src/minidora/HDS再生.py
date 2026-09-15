@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from .hds_ir import (
+from .HDS中間表現 import (
     HDSIR,
     HDS実行核,
     HDS座標,
@@ -27,7 +27,7 @@ def HDSIR辞書化(ir: HDSIR) -> dict[str, Any]:
     比較することが目的である。
     """
     return {
-        "schema": "minidora.hds-ir.replay.v1",
+        "契約形式": "minidora.hds-ir.replay.v1",
         "原文": ir.原文,
         "正規化文": ir.正規化文,
         "認知世界ID": ir.認知世界ID,
@@ -103,7 +103,7 @@ def HDSIR辞書化(ir: HDSIR) -> dict[str, Any]:
 
 
 def HDSIR復元(data: Mapping[str, Any]) -> HDSIR:
-    schema = data.get("schema")
+    schema = data.get("契約形式")
     if schema not in {None, "minidora.hds-ir.replay.v1"}:
         raise ValueError(f"未対応HDS-IR replay schema: {schema}")
 

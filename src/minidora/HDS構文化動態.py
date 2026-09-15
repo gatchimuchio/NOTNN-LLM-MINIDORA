@@ -4,7 +4,7 @@ from dataclasses import replace
 import re
 
 from .HDS構文化記録_v1_1 import HDS状態ノード, HDS状態遷移図, HDS遷移辺
-from .hds_ir import HDSIR, HDS座標, HDS関係, HDS残差, 値状態
+from .HDS中間表現 import HDSIR, HDS座標, HDS関係, HDS残差, 値状態
 
 
 _状態語 = r"[A-Za-z0-9_一-龥々ぁ-んァ-ヶー.+\-]{1,48}"

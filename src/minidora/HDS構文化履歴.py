@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import replace
 from hashlib import sha256
 
-from .hds_compiler_records import HDS_COMPILER_META_PREFIXES
+from .HDS構文化器_records import HDS_COMPILER_META_PREFIXES
 from .HDS構文化記録_v1_1 import HDS認知世界差分
-from .hds_ir import HDSIR, HDS座標, 値状態
+from .HDS中間表現 import HDSIR, HDS座標, 値状態
 
 
 def _meta(kind: str) -> bool:

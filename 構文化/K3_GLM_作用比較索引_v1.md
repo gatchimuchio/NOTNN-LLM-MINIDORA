@@ -11,19 +11,19 @@
 | 作用 | K3 | GLM | MINIDORA |
 |---|---|---|---|
 | 局所状態更新 | KDA recurrent state | KDA linear/state layers | `selective_update` / 作業状態 |
-| 局所↔大域 | 3 KDA + 1 Gated MLA | 3 KDA + 1 DSA | `HDS多時間尺度政策` + 局所再照合 |
-| 過去処理の再利用 | AttnRes depth checkpoint | IndexShareは参照選択を再利用 | checkpoint + `HDS参照計画` |
+| 局所↔大域 | 3 KDA + 1 関門d MLA | 3 KDA + 1 DSA | `HDS多時間尺度政策` + 局所再照合 |
+| 過去処理の再利用 | AttnRes depth 検査点 | IndexShareは参照選択を再利用 | 検査点 + `HDS参照計画` |
 | 粗い索引 | 明示分離なし | DSA indexer | `HDS参照索引` |
 | 索引圧縮 | 明示分離なし | IndexPool 4→1 | `HDS参照索引圧縮(bucket幅=4)` |
 | 正確な証拠本文 | MLA context | sparse selected context | `参照記録`正本を再読 |
 | 並列状態 | 系列/深さ/幅の三軸 | mHC 4 streams | `HDS並列作業状態` |
-| 混合Gate | KDA/MLA/AttnRes/MoE別Gate | mHC Sinkhorn constrained mix | `HDS制約混合行列` |
+| 混合関門 | KDA/MLA/AttnRes/MoE別関門 | mHC Sinkhorn constrained mix | `HDS制約混合行列` |
 | 共通作用 | shared experts | shared expert / dense prefix | 既存共通作用 |
 | 専門作用 | top-16 routed experts | top-k routed experts | 既存専門作用routing |
 | effort | MOPD | reasoning effort | `HDS探索方針` |
 | 最終採否分離 | GRM構造類似 | training/eval criticは外部境界 | `J/HDS`既存境界 |
 | 生成先読み | 直接中心成果ではない | MTP | `HDS先行草案検証` |
-| blocker後の再作用 | checkpoint/re-entry | long-horizon feedback training | `HDS阻害回復方針` |
+| blocker後の再作用 | 検査点/re-entry | long-horizon feedback training | `HDS阻害回復方針` |
 | multimodal | modality adapter→text hidden | native multimodal path | `HDS異種入力射影` |
 | topology/政策分離 | 構造観測中心 | 5.2→5.3でpost-training差が顕在 | 構造moduleと`HDS多時間尺度政策`を分離 |
 
@@ -33,9 +33,9 @@ K3のD4構文化からMINIDORAが先に持ち帰った本体は次。
 
 1. 確定前状態を捨てず保持する。
 2. 局所更新と大域再照合を別作用にする。
-3. 過去checkpointへ戻る。
+3. 過去検査点へ戻る。
 4. 共通作用と複数専門作用を併存させる。
-5. Gateを早期採否ではなく寄与調整にも使う。
+5. 関門を早期採否ではなく寄与調整にも使う。
 6. effortを同一核の運用政策として切り替える。
 7. 最終採否をJ/HDSへ分離する。
 
@@ -132,6 +132,6 @@ K3既存実装:
 
 - K3/GLMの公開weight・config・implementationから直接見えるものは観測。
 - MINIDORA命令へ置き換えたものは作用射影。
-- GLM post-trainingから`BLOCKER_RECOVERY`等へ落としたものはruntime設計推定。
+- GLM post-trainingから`BLOCKER_RECOVERY`等へ落としたものは実行系設計推定。
 - GLM内部にMINIDORAと同名moduleが存在するとは主張しない。
 - GLMの4-laneへMINIDORA独自の意味役割を割り当てたとは主張しない。

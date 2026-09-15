@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
-from minidora.runtime_hds_v1 import HDS駆動ミニドラ
-from minidora.runtime_v03 import 要求
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from minidora.実行系_hds_v1 import HDS駆動ミニドラ
+from minidora.実行系_v03 import 要求
 from minidora.参照 import 参照記録
 from minidora.採否 import 実行状態
 
@@ -38,7 +38,7 @@ def _question():
     )
 
 
-def _candidate(text):
+def _候補(text):
     return _ir(text, (HDS座標("candidate", "対象.実体", text, 原文範囲=(0, len(text))),))
 
 
@@ -53,12 +53,12 @@ def _data():
     )
 
 
-class Compiler:
+class 構文化器:
     def コンパイル(self, 入力: str, **kwargs):
         if 入力 == "What does Alpha use?":
             return _question()
         if 入力 in {"engine", "stone"}:
-            return _candidate(入力)
+            return _候補(入力)
         if 入力 == "Alpha uses engine.":
             return _data()
         raise ValueError(入力)
@@ -73,8 +73,8 @@ class Provider:
 
 class RuntimeHDSV1試験(unittest.TestCase):
     def test_実RuntimeでREFERENCE_EVALUATE_COMMITが成立する(self):
-        runtime = HDS駆動ミニドラ(Provider(), HDSコンパイラ_=Compiler())
-        result = runtime.実行(要求("What does Alpha use?"))
+        実行系 = HDS駆動ミニドラ(Provider(), HDSコンパイラ_=構文化器())
+        result = 実行系.実行(要求("What does Alpha use?"))
 
         self.assertEqual(result.採否.状態, 実行状態.合格, result.採否.理由)
         self.assertEqual(result.値, "engine")

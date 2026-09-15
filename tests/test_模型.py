@@ -70,7 +70,7 @@ class 模型核試験(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "候補と言語文脈の言語体系が一致しない"):
             core.評価言語状態(言語状態("question", "自然言語:en"), candidates)
 
-    def test_runtimeが模型核入口を持つ(self):
+    def test_実行系が模型核入口を持つ(self):
         core = MINIDORA模型核(
             (関係規則("選択", 文脈必須=frozenset({"日本"}), 候補必須=frozenset({"東京"}), 差=4),)
         )

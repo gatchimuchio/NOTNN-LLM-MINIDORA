@@ -3,35 +3,35 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Sequence
 
-from .choice_intent import HDS選択意図判定
-from .hds_adapter import HDS文脈
-from .hds_compiler import 公開HDSコンパイラ as _基礎HDSコンパイラ
-from .hds_compiler import 公開HDSコンパイラ方針
-from .hds_compiler_action_delta import HDS作用差分構造生成
-from .hds_compiler_audit_ir import HDS監査参照IR射影
-from .hds_compiler_dynamics import HDS状態遷移IR射影, HDS状態遷移抽出
-from .hds_compiler_failure import HDSチェックリスト生成, HDS失敗署名候補生成, HDS監査参照候補生成
-from .hds_compiler_failure_bank import HDS失敗署名Bank
-from .hds_compiler_frontend import 公開HDSフロントエンド射影, 公開HDS詳細成果
-from .hds_compiler_history import HDS認知世界差分IR射影, HDS認知世界差分生成
-from .hds_compiler_pipeline_v1_4 import (
+from .選択意図 import HDS選択意図判定
+from .HDS適合器 import HDS文脈
+from .HDS構文化器 import 公開HDSコンパイラ as _基礎HDSコンパイラ
+from .HDS構文化器 import 公開HDSコンパイラ方針
+from .HDS構文化器_action_delta import HDS作用差分構造生成
+from .HDS構文化器_audit_ir import HDS監査参照IR射影
+from .HDS構文化器_dynamics import HDS状態遷移IR射影, HDS状態遷移抽出
+from .HDS構文化器_failure import HDSチェックリスト生成, HDS失敗署名候補生成, HDS監査参照候補生成
+from .HDS構文化器_failure_bank import HDS失敗署名Bank
+from .HDS構文化器_frontend import 公開HDSフロントエンド射影, 公開HDS詳細成果
+from .HDS構文化器_history import HDS認知世界差分IR射影, HDS認知世界差分生成
+from .HDS構文化器_pipeline_v1_4 import (
     HDSコンパイル束,
     HDS意味IR化,
     HDS意味専用計画器,
     HDS計算コンパイル成果,
     HDS計算降下バックエンド,
 )
-from .hds_compiler_records import HDSCompiler成果
+from .HDS構文化器_records import HDSCompiler成果
 from .HDS構文化記録_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規則改善候補
-from .hds_compiler_records_v1_3 import HDS作用差分構造
-from .hds_compiler_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
-from .hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
-from .hds_language_coordination import HDS英語AND展開
-from .hds_language_relations import HDS英語基底関係射影
-from .hds_language_scope import HDS英語関係scope射影
-from .hds_language_semantic_bridge import HDS英日意味射影
-from .hds_semantic_topic_projection import HDS問い主題射影
-from .semantic_tokens import 意味語
+from .HDS構文化器_records_v1_3 import HDS作用差分構造
+from .HDS構文化器_tacit import HDS暗黙知IR射影, HDS暗黙知抽出
+from .HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from .HDS言語協調 import HDS英語AND展開
+from .HDS言語関係 import HDS英語基底関係射影
+from .HDS言語範囲 import HDS英語関係scope射影
+from .HDS言語意味橋渡し import HDS英日意味射影
+from .HDS意味主題射影 import HDS問い主題射影
+from .意味字句 import 意味語
 from .言語 import 言語計画
 from .言語基底 import 言語基底P, 標準言語基底P
 

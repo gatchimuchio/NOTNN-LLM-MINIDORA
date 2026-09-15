@@ -9,7 +9,7 @@
 
 K3をそのままコピーする必要はない。
 
-MINIDORAへ最も強く射影すべき差分は、**確定Gateと寄与Gateを分けること**である。
+MINIDORAへ最も強く射影すべき差分は、**確定関門と寄与関門を分けること**である。
 
 現行MINIDORAの確定K境界は、ハルシネーション防止のため維持する。
 
@@ -25,26 +25,26 @@ MINIDORAへ最も強く射影すべき差分は、**確定Gateと寄与Gateを�
 
 な関係を即廃棄せず、寄与量つきのworking stateとして残す。
 
-K3ではKDA / Gated MLA / AttnRes / MoEの複数箇所で、途中Gateが「真偽確定」ではなく「どの状態・経路をどれだけ使うか」に働く。
+K3ではKDA / 関門d MLA / AttnRes / MoEの複数箇所で、途中関門が「真偽確定」ではなく「どの状態・経路をどれだけ使うか」に働く。
 
 ## P0 — 最優先
 
-### 1. Gateを二種類へ分離
+### 1. 関門を二種類へ分離
 
 ```text
-確定Gate
+確定関門
 - 確定Kへ入れてよいか
 - 最終Jへ進めてよいか
 
-寄与Gate
+寄与関門
 - working relationをどれだけ残すか
-- どのcheckpointを再利用するか
+- どの検査点を再利用するか
 - どの専門作用をどれだけ使うか
 ```
 
-確定Gateは現行の安全性を守る。
+確定関門は現行の安全性を守る。
 
-寄与Gateは真偽を決めず、未確定状態の再利用順・寄与量だけを決める。
+寄与関門は真偽を決めず、未確定状態の再利用順・寄与量だけを決める。
 
 非ニューラル実装ではsoftmaxや確率分布を採用する必要はない。決定論的な整数 / 有理重み / 順序規則でよい。
 
@@ -54,7 +54,7 @@ K3ではKDA / Gated MLA / AttnRes / MoEの複数箇所で、途中Gateが「真�
 
 ```text
 current_working_state
-checkpoint_store
+検査点_store
 candidate_competition_state
 ```
 
@@ -76,7 +76,7 @@ working relationには、
 
 確定Kとは物理的・型的に分離する。
 
-### 3. depth checkpoint作用
+### 3. depth 検査点作用
 
 AttnResの非ニューラル射影。
 
@@ -91,7 +91,7 @@ AttnResの非ニューラル射影。
 反証探索後
 ```
 
-後段で矛盾・残差が出たら、現在状態だけで継続せず、過去checkpointと現在状態を再照合する。
+後段で矛盾・残差が出たら、現在状態だけで継続せず、過去検査点と現在状態を再照合する。
 
 固定12段周期は採用しない。
 
@@ -110,7 +110,7 @@ Data
 ↓
 反証との照合
 ↓
-checkpointとの再照合
+検査点との再照合
 ↓
 確定可能ならK/J
 ```
@@ -143,7 +143,7 @@ MINIDORAでは、
 ↓
 大域問題状態と再照合
 ↓
-必要ならraw Data / checkpointへ戻る
+必要ならraw Data / 検査点へ戻る
 ```
 
 とする。
@@ -235,8 +235,8 @@ P0実装後はGPQA正答率だけでは不足する。
 - `working_relations_reused`
 - `working_relations_promoted_to_K`
 - `working_relations_discarded_after_recheck`
-- `checkpoint_count`
-- `checkpoint_reactivations`
+- `検査点_count`
+- `検査点_reactivations`
 - `global_reconciliations`
 - `candidate_cross_updates`
 - `specialist_actions_invoked`
@@ -277,9 +277,9 @@ working relationは増える
 ## 実装順
 
 ```text
-1. 寄与Gate型
+1. 寄与関門型
 2. Working Relation Store
-3. checkpoint_store
+3. 検査点_store
 4. 候補共同状態
 5. 再作用loop
 6. 局所→大域再照合
@@ -298,7 +298,7 @@ K3が強いからといって、次を必須化しない。
 - KDA
 - MLA
 - AttnRes
-- 12-layer checkpoint
+- 12-layer 検査点
 - 896 experts
 - 16 experts/token
 - MoE

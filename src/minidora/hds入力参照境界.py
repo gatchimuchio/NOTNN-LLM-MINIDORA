@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from .hds_ir import HDSIR
+from .HDS中間表現 import HDSIR
 from .参照 import 参照記録
 
 

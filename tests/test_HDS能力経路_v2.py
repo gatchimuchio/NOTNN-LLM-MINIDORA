@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標
-from minidora.hds_reference import HDS参照問合せ候補
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標
+from minidora.HDS参照 import HDS参照問合せ候補
 from minidora.hds能力経路_v2 import (
     HDS参照検索V2,
     HDS局所観測view,

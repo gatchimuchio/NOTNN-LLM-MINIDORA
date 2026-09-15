@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class BenchmarkContractRepositoryLockTest(unittest.TestCase):
     def test_必須評価契約資産が存在する(self) -> None:
         required = (
-            "tools/benchmark_contract.py",
+            "tools/評価契約.py",
             "tools/benchmark_strict.py",
             "評価/BENCHMARK_CONTRACT_v2.md",
             "評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md",
@@ -63,10 +63,10 @@ class BenchmarkContractRepositoryLockTest(unittest.TestCase):
         self.assertTrue(payload["canonical"])
         self.assertEqual(payload["result"]["current"]["correct"], 30)
         self.assertEqual(payload["result"]["current"]["total"], 198)
-        self.assertEqual(payload["protocol"]["retrieval_mode"], "LIVE_ONLY")
-        self.assertFalse(payload["protocol"]["fixed_reference_data_allowed"])
+        self.assertEqual(payload["protocol"]["参照方式"], "LIVE_ONLY")
+        self.assertFalse(payload["protocol"]["固定参照資料許可"])
         self.assertEqual(
-            payload["protocol"]["dataset_csv_sha256"],
+            payload["protocol"]["資料集合CSV_SHA256"],
             "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
         )
         self.assertEqual(payload["provenance"]["workflow_run_id"], 34281226412)
@@ -75,7 +75,7 @@ class BenchmarkContractRepositoryLockTest(unittest.TestCase):
         path = ROOT / "評価/GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.json"
         payload = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(payload["canonical_name"], "MINIDORA80")
-        self.assertFalse(payload["fixed_reference_data_allowed"])
+        self.assertFalse(payload["固定参照資料許可"])
         self.assertEqual(payload["module_off"]["correct"], 29)
         self.assertEqual(payload["module_off"]["total"], 198)
         self.assertEqual(payload["module_on"]["correct"], 80)
@@ -88,7 +88,7 @@ class BenchmarkContractRepositoryLockTest(unittest.TestCase):
         self.assertEqual(payload["execution_evidence"]["workflow_run_id"], 34301888230)
         self.assertEqual(payload["execution_evidence"]["aggregate_artifact_id"], 10085678050)
         self.assertEqual(
-            payload["dataset_csv_sha256"],
+            payload["資料集合CSV_SHA256"],
             "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
         )
 

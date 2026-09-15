@@ -42,7 +42,7 @@ def main() -> int:
     high = HDSReplay評価(rows, effort="high")
     maximum = HDSReplay評価(rows, effort="max")
     result = {
-        "schema": "minidora.hds-choice-replay.ablation.v1",
+        "契約形式": "minidora.hds-choice-replay.ablation.v1",
         "adaptive": _要約(adaptive),
         "low": _要約(low),
         "high": _要約(high),

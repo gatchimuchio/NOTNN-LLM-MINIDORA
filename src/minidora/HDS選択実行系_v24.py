@@ -5,12 +5,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .hds_adapter import HDS独立コンパイル
+from .HDS適合器 import HDS独立コンパイル
 from .HDS選択仮説 import HDS候補代入仮説群
-from .hds_ir import HDSIR, 値状態
-from .hds_model_projection import HDSMINIDORA模型評価
+from .HDS中間表現 import HDSIR, 値状態
+from .HDS模型射影 import HDSMINIDORA模型評価
 from .hds入力参照境界 import HDS入力Data本文, HDS入力Data整列
-from .hds_runtime_projection import (
+from .HDS実行系射影 import (
     HDSKData射影, HDSK候補代入可能, HDSK候補射影, HDSK質問射影, HDS模型候補代入可能,
 )
 from .参照 import 参照記録
@@ -204,7 +204,7 @@ def _直接関係で再判定(
     k3: HDSK3結果,
 ) -> HDSK3結果:
     """旧v0.3 K3 helper診断だけに使う。正式回答を上書きしない。"""
-    from .choice_intent import HDS選択意図判定
+    from .選択意図 import HDS選択意図判定
     from .HDS直接関係検証 import HDS直接関係検証
     from .K3機能 import SemanticFrame
     from .K3_HDSネイティブ import HDSK3結果
@@ -411,7 +411,7 @@ def HDS選択推論実行(
         )
 
     from .HDS資料K import HDSIR知識Adapter, HDS証拠状態複製
-    from .hds作業状態 import (
+    from .HDS作業状態 import (
         HDS一時証拠統合,
         HDS作業状態構築,
         HDS候補共同状態更新,

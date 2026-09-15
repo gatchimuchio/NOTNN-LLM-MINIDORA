@@ -6,7 +6,7 @@ import json
 import unicodedata
 from typing import Iterable, Sequence
 
-from .semantic_tokens import 意味語
+from .意味字句 import 意味語
 from .参照 import 参照記録
 
 

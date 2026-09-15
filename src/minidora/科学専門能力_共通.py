@@ -195,7 +195,7 @@ def _tuple_support(nums: list[float], targets: Sequence[float], tol: float=0.06)
 def 候補支持成立(result, choice: str) -> bool:
     """Absolute candidate-support gate.
 
-    A solver may rank candidates internally, but runtime acceptance requires the selected
+    A solver may rank candidates internally, but 実行系 acceptance requires the selected
     candidate itself to encode the computed result within a bounded tolerance. This prevents
     'nearest remaining option' behavior when the supported answer is absent.
     """

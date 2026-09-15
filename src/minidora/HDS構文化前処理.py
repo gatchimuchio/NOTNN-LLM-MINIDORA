@@ -4,7 +4,7 @@ from dataclasses import replace
 import re
 from typing import Iterable
 
-from .hds_compiler_records import (
+from .HDS構文化器_records import (
     HDSCompiler成果,
     HDS保持契約,
     HDS原理探索要求,
@@ -14,7 +14,7 @@ from .hds_compiler_records import (
     HDS監査項目,
     HDS認知世界断片,
 )
-from .hds_ir import HDSIR, HDS座標, HDS意味作用, 値状態
+from .HDS中間表現 import HDSIR, HDS座標, HDS意味作用, 値状態
 
 
 _文分割 = re.compile(r"(?<=[。！？!?;；])\s*|\n+")

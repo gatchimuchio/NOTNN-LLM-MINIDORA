@@ -4,8 +4,8 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from hashlib import sha256
 
-from .hds_choice_runtime import HDS選択実行結果, HDS選択問題
-from .hds_ir import HDSIR, 値状態
+from .HDS選択実行系 import HDS選択実行結果, HDS選択問題
+from .HDS中間表現 import HDSIR, 値状態
 
 
 class HDS作用種別(StrEnum):

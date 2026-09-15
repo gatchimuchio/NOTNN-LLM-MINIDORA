@@ -4,7 +4,7 @@
 
 > **The hackathon demo uses a short “What are today's news stories? → Summarize them” interaction to show MINIDORA's external references, conversation state, capability modules, and response traceability as one product behavior.**
 
-This directory records the operational boundary for the hackathon submission and demonstration. The implementation lives under [`../src/minidora/ハッカソン/`](../src/minidora/ハッカソン/) and is connected as a capability layer without rewriting the existing MINIDORA Core.
+This directory records the operational boundary for the hackathon submission and demonstration. The implementation lives under [`../src/minidora/ハッカソン/`](../src/minidora/ハッカソン/) and is connected as a capability layer without rewriting the existing MINIDORA 模型核.
 
 > This file is an English translation for international access. The Japanese version is the normative source.
 
@@ -50,10 +50,10 @@ MINIDORA
 
 The dedicated news-to-summary path does not use free-form generation from an external LLM.
 
-## v0.2 implemented scope
+## v0.2 implemented 範囲
 
 - Minimal basic chat
-- Delegation of general questions to the existing MINIDORA Core
+- Delegation of general questions to the existing MINIDORA 模型核
 - Current-news retrieval through RSS
 - Same-session “today's news → summarize” flow
 - Deterministic extractive summarization of explicitly supplied text
@@ -61,7 +61,7 @@ The dedicated news-to-summary path does not use free-form generation from an ext
 - Recording of input acceptance, route selection, external references, context references, capability execution, response composition, and conversation-state updates
 - SHA-256 hash chaining for stage-level tamper detection
 - Linking the previous response's trace ID and root hash into the next response's audit chain
-- When the existing MINIDORA Core exposes execution records, capturing `result / references / history / decision / language plan / HDS_IR`
+- When the existing MINIDORA 模型核 exposes execution records, capturing `result / references / history / decision / language plan / HDS_IR`
 - Optional append-only JSONL audit persistence
 
 ## Response governance
@@ -99,12 +99,12 @@ Representative audit fields include:
 - module and module version
 - module input and output
 - conversation-state references and updates
-- exposed MINIDORA Core execution records when delegated
+- exposed MINIDORA 模型核 execution records when delegated
 - final response
 - final response state
 - stage hashes and root hash
 
-When a general question is delegated to the existing MINIDORA Core, the public execution result, references, history, decision, and HDS_IR are included in the same audit chain.
+When a general question is delegated to the existing MINIDORA 模型核, the public execution result, references, history, decision, and HDS_IR are included in the same audit chain.
 
 If an alternative connected component does not expose an execution-record API, the trace boundary is explicitly marked as the **module boundary**; it is not represented as internally fully traced.
 
@@ -147,11 +147,11 @@ Each response prints a `trace_id` and `trace_hash`.
 
 Library users can inspect `ハッカソンチャット.監査台帳.取得(trace_id)` and call `検証(trace_id)` to verify the execution path and hash chain.
 
-## Modules
+## 能力モジュールs
 
 | Implementation | Responsibility |
 |---|---|
-| `チャット.py` | Capability routing, delegation to the existing MINIDORA Core, audit connection |
+| `チャット.py` | Capability routing, delegation to the existing MINIDORA 模型核, audit connection |
 | `ニュース.py` | RSS external references and current-news extraction |
 | `要約.py` | Deterministic extractive summarization without free-form generation |
 | `会話状態.py` | Session history, previous-news retention, removal of stale news context |
@@ -174,7 +174,7 @@ The hackathon tests inject a fixed news provider instead of external RSS and rep
 
 - news-to-summary context connection
 - trace-ID and audit-hash continuity across responses
-- delegation to the base Core
+- delegation to the base 模型核
 - explicit-text summarization
 - basic chat
 - removal of stale news context after another route is used
@@ -183,7 +183,7 @@ The hackathon tests inject a fixed news provider instead of external RSS and rep
 
 ## Delivery layer not implemented yet
 
-v0.2 establishes the chat Core and governance boundary first. The following delivery and presentation layers are next-stage work:
+v0.2 establishes the chat 模型核 and governance boundary first. The following delivery and presentation layers are next-stage work:
 
 - browser chat UI
 - Cloud Run delivery boundary

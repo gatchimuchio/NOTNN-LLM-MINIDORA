@@ -4,7 +4,7 @@ import unittest
 
 from minidora import 公開HDSコンパイラ
 from minidora.HDS資料K import HDSIR知識Adapter, HDS修飾Fact, HDS証拠事実, HDS証拠状態複製
-from minidora.hds_runtime_projection import HDSKData射影
+from minidora.HDS実行系射影 import HDSKData射影
 from minidora.K3機能 import K3相当能力核
 
 

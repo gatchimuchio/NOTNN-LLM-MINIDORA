@@ -2,7 +2,7 @@ import json
 import unittest
 
 from minidora.K3評価 import run_k3_equivalence_benchmark
-from minidora.runtime import ミニドラ
+from minidora.実行系 import ミニドラ
 
 
 class K3機能相当試験(unittest.TestCase):
@@ -13,7 +13,7 @@ class K3機能相当試験(unittest.TestCase):
             "pass_count": result["pass_count"],
             "total_count": result["total_count"],
             "failed_tests": [item["name"] for item in result["failed_tests"]],
-            "runtime": result["runtime"],
+            "実行系": result["実行系"],
             "fit_metrics": result["fit_metrics"],
         }, ensure_ascii=False, default=str))
         self.assertEqual(result["total_count"], 47)

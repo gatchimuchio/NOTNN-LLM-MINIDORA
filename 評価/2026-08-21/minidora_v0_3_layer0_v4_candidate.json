@@ -7,17 +7,17 @@
   "operational_profile": ["interactive_chat", "structured_output", "text_api"],
   "source_material_digest": "f58f6a1b6a359d0b2d8b16973ff878fc894d7da04547712ac2d7b823185c109f",
   "mechanisms": [
-    {"mechanism_id": "runtime-address-reference", "responsibilities": ["LINGUISTIC_ADDRESSABILITY", "CONTEXT_BOUND_STATE"]},
+    {"mechanism_id": "実行系-address-reference", "responsibilities": ["LINGUISTIC_ADDRESSABILITY", "CONTEXT_BOUND_STATE"]},
     {"mechanism_id": "第0層-japanese-p-core", "responsibilities": ["TRANSFORMATION_OR_COMPOSITION_CORE"]},
     {"mechanism_id": "subject-trunk-gate", "responsibilities": ["CONTEXT_BOUND_STATE", "CONTEXT_DEPENDENT_RESULT_FORMATION"]},
     {"mechanism_id": "result-contract", "responsibilities": ["RESULT_SURFACE"]}
   ],
   "functional_evidence": {
-    "LINGUISTIC_ADDRESSABILITY": {"status": "PASS", "evidence": ["tests/test_reference.py", "tests/test_runtime.py"]},
+    "LINGUISTIC_ADDRESSABILITY": {"status": "PASS", "evidence": ["tests/test_reference.py", "tests/test_実行系.py"]},
     "CONTEXT_BOUND_STATE": {"status": "PASS", "evidence": ["tests/test_subject_trunk.py"]},
     "TRANSFORMATION_OR_COMPOSITION_CORE": {"status": "PASS", "evidence": ["tests/test_第0層.py"]},
-    "CONTEXT_DEPENDENT_RESULT_FORMATION": {"status": "PASS", "evidence": ["tests/test_runtime.py", "tests/test_subject_trunk.py"]},
-    "RESULT_SURFACE": {"status": "PASS", "evidence": ["tests/test_runtime.py"]}
+    "CONTEXT_DEPENDENT_RESULT_FORMATION": {"status": "PASS", "evidence": ["tests/test_実行系.py", "tests/test_subject_trunk.py"]},
+    "RESULT_SURFACE": {"status": "PASS", "evidence": ["tests/test_実行系.py"]}
   },
   "execution_trace": [
     {"event": "input_addressed"},

@@ -6,7 +6,7 @@ from typing import Iterable, Mapping
 
 from .HDS資料K import HDS証拠事実
 from .K3機能 import K3相当能力核
-from .semantic_tokens import 意味語
+from .意味字句 import 意味語
 
 
 _GENERIC = {"意味原子→節", "談話順序", "節→述語"}

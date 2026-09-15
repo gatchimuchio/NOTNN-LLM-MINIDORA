@@ -18,7 +18,7 @@ v0.5作業記録に記載された開発途中実測 **17 / 198 = 8.5858586%** �
 
 ## v0.6 の目的
 
-Jの `NO_GUESS` / `SUSPEND` 境界やLayer-0 / HDS Compiler契約を緩めず、選択問題で既に取得・構造化された証拠から候補差分を失わないようにする。
+Jの `NO_GUESS` / `SUSPEND` 境界やLayer-0 / HDS 構文化器契約を緩めず、選択問題で既に取得・構造化された証拠から候補差分を失わないようにする。
 
 GPQA固有ルール、正解ラベル参照、gold依存分岐は追加しない。
 
@@ -42,7 +42,7 @@ v0.6では次へ変更した。
 
 ### 2. 反転選択意図の被覆拡張
 
-対象: `src/minidora/choice_intent.py`
+対象: `src/minidora/選択意図.py`
 
 明示的な `except / incorrect / not true / cannot` に加えて、次の反転選択を `EXCEPTION` として扱う。
 
@@ -93,7 +93,7 @@ Kへ投入されたHDS relation factについても `→` の前後を分離し�
 
 ### 4. `false / incorrect` の内容語による誤反転を抑止
 
-対象: `src/minidora/choice_intent.py`
+対象: `src/minidora/選択意図.py`
 
 従来は最終質問文に `false` や `incorrect` が含まれるだけで `EXCEPTION` へ反転し得た。
 
@@ -117,7 +117,7 @@ v0.6では `false / incorrect / not` を単なる内容語として検出せず�
 - 僅差の共通sourceは相対差だけを残す
 - 独立sourceは別々に加点
 
-### `tests/test_choice_intent.py`
+### `tests/test_選択意図.py`
 
 - `least likely / least consistent / most unlikely`
 - `Which ... is false` と `Select the false statement`
@@ -136,7 +136,7 @@ v0.6では `false / incorrect / not` を単なる内容語として検出せず�
 以下は変更していない。
 
 - Layer-0上位契約
-- HDS Compiler Protocol
+- HDS 構文化器 Protocol
 - Jの `NO_GUESS`
 - `SUSPEND` 境界
 - GPQA固有分岐

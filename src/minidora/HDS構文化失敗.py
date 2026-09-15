@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from hashlib import sha256
 
-from .hds_compiler_records import HDS監査要求, HDS認知世界断片
+from .HDS構文化器_records import HDS監査要求, HDS認知世界断片
 from .HDS構文化記録_v1_1 import (
     HDSチェックリスト項目,
     HDS失敗署名候補,
     HDS監査参照候補,
 )
-from .hds_ir import HDSIR, 値状態
+from .HDS中間表現 import HDSIR, 値状態
 
 
 _GATE_MAP: dict[str, tuple[str, ...]] = {

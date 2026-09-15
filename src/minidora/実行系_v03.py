@@ -3,14 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
-from .hds_adapter import HDSコンパイラProtocol, HDS文脈
-from .hds_choice_runtime import HDS選択実行結果, HDS選択問題, HDS選択推論実行
-from .hds_ir import HDSIR
-from .hds_reference import HDS参照予算選択, HDS参照検索
-from .hds_runtime_projection import HDSR質問射影
+from .HDS適合器 import HDSコンパイラProtocol, HDS文脈
+from .HDS選択実行系 import HDS選択実行結果, HDS選択問題, HDS選択推論実行
+from .HDS中間表現 import HDSIR
+from .HDS参照 import HDS参照予算選択, HDS参照検索
+from .HDS実行系射影 import HDSR質問射影
 from .第0層 import Layer0
-from .multilingual_surface import 表面化 as 多言語表面化
-from .trinity_context import Trinity文脈系
+from .多言語表層 import 表面化 as 多言語表面化
+from .トリニティ文脈 import Trinity文脈系
 from .主体 import 主体主幹, 主体状態, 主体更新提案, 主体整合結果, 主体更新記録
 from .参照 import 参照供給器, 参照記録, 参照矛盾数
 from .命令 import 手順
@@ -239,7 +239,7 @@ class ミニドラ:
 
     def 実行(self, 要求_: 要求) -> 結果:
         自動計画 = 要求_.手順 is None
-        hds_ir: HDSIR | None = None
+        HDS中間表現: HDSIR | None = None
         hds_choice = False
         plan_name: str | None = None
         initial_from_plan: dict[str, Any] = {}
@@ -248,7 +248,7 @@ class ミニドラ:
 
         if 自動計画 and self.HDSコンパイラ is not None:
             try:
-                hds_ir = self.コンパイル(要求_.問合せ)
+                HDS中間表現 = self.コンパイル(要求_.問合せ)
             except (ValueError, TypeError) as exc:
                 主体整合 = self.主体主幹.非適用結果("HDS Compiler実行失敗")
                 return 結果(
@@ -263,22 +263,22 @@ class ミニドラ:
                     "HDS_IR",
                     None,
                 )
-            hds_choice = HDS選択問題(hds_ir)
+            hds_choice = HDS選択問題(HDS中間表現)
             if hds_choice:
                 手順_ = None
-                initial_from_plan = dict(hds_ir.初期状態)
-                reference_from_plan = hds_ir.参照必須
+                initial_from_plan = dict(HDS中間表現.初期状態)
+                reference_from_plan = HDS中間表現.参照必須
                 plan_name = "HDS_CHOICE_NATIVE"
             else:
-                if not hds_ir.実行可能:
-                    理由 = ["HDS_IR未閉包", *hds_ir.実行阻害理由]
-                    if hds_ir.残差:
-                        理由.extend(f"残差:{item.理由}" for item in hds_ir.残差)
-                    return self._HDS未閉包(要求_, hds_ir, tuple(理由))
-                手順_ = hds_ir.手順
-                initial_from_plan = dict(hds_ir.初期状態)
-                reference_from_plan = hds_ir.参照必須
-                plan_name = hds_ir.種別 or "HDS_IR"
+                if not HDS中間表現.実行可能:
+                    理由 = ["HDS_IR未閉包", *HDS中間表現.実行阻害理由]
+                    if HDS中間表現.残差:
+                        理由.extend(f"残差:{item.理由}" for item in HDS中間表現.残差)
+                    return self._HDS未閉包(要求_, HDS中間表現, tuple(理由))
+                手順_ = HDS中間表現.手順
+                initial_from_plan = dict(HDS中間表現.初期状態)
+                reference_from_plan = HDS中間表現.参照必須
+                plan_name = HDS中間表現.種別 or "HDS_IR"
         elif 自動計画:
             計画 = self.自然言語器.計画(要求_.問合せ)
             手順_ = 計画.手順
@@ -292,11 +292,11 @@ class ミニドラ:
 
         参照: tuple[参照記録, ...] = ()
         if self.参照供給器 is not None:
-            if hds_ir is not None:
-                budget = HDS参照予算選択(hds_ir)
+            if HDS中間表現 is not None:
+                budget = HDS参照予算選択(HDS中間表現)
                 参照 = HDS参照検索(
                     self.参照供給器,
-                    HDSR質問射影(hds_ir),
+                    HDSR質問射影(HDS中間表現),
                     上限=budget.取得上限,
                     一問合せ上限=budget.一問合せ上限,
                     最大問合せ並列=budget.最大問合せ並列,
@@ -316,24 +316,24 @@ class ミニドラ:
                 主体整合,
                 self.主体主幹.履歴,
                 plan_name,
-                hds_ir,
+                HDS中間表現,
             )
-            return self._帰還(result) if hds_ir is not None else result
+            return self._帰還(result) if HDS中間表現 is not None else result
 
-        if hds_choice and hds_ir is not None:
+        if hds_choice and HDS中間表現 is not None:
             selected = HDS選択推論実行(
-                hds_ir,
+                HDS中間表現,
                 参照,
                 コンパイル=self.コンパイル,
                 基礎能力核=self.K3能力核,
             )
-            return self._HDS選択結果(要求_, hds_ir, 参照, selected)
+            return self._HDS選択結果(要求_, HDS中間表現, 参照, selected)
 
         初期 = dict(要求_.初期状態)
         初期.update(initial_from_plan)
         初期["参照"] = 参照
         初期["主体状態"] = self.主体主幹.状態辞書()
-        if hds_ir is not None:
+        if HDS中間表現 is not None:
             初期["HDS文脈"] = self.HDS文脈
 
         assert 手順_ is not None
@@ -353,9 +353,9 @@ class ミニドラ:
                 主体整合,
                 self.主体主幹.履歴,
                 plan_name,
-                hds_ir,
+                HDS中間表現,
             )
-            return self._帰還(result) if hds_ir is not None else result
+            return self._帰還(result) if HDS中間表現 is not None else result
 
         値 = 文脈.状態.get("結果")
         提案 = self._主体更新提案(文脈.状態, 要求_)
@@ -380,9 +380,9 @@ class ミニドラ:
             主体整合,
             self.主体主幹.履歴,
             plan_name,
-            hds_ir,
+            HDS中間表現,
         )
-        return self._帰還(result) if hds_ir is not None else result
+        return self._帰還(result) if HDS中間表現 is not None else result
 
     def 応答(self, 問合せ: str) -> str:
         result = self.実行(要求(問合せ))

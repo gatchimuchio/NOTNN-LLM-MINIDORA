@@ -5,9 +5,9 @@ import math
 from typing import Mapping
 
 from .HDS資料K import HDS証拠事実
-from .hds_ir import HDSIR, 値状態
+from .HDS中間表現 import HDSIR, 値状態
 from .K3機能 import Candidate, K3相当能力核
-from .semantic_tokens import 意味語
+from .意味字句 import 意味語
 
 
 _BLOCKING_PROVENANCE = {

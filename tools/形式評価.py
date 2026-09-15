@@ -11,10 +11,10 @@ from collections import Counter
 import benchmark as _benchmark
 import gpqa_measure_current as _gpqa
 
-from minidora.hds_choice_runtime import HDS選択実行結果
-from minidora.hds_reference import HDS参照検索 as _標準初期参照検索
+from minidora.HDS選択実行系 import HDS選択実行結果
+from minidora.HDS参照 import HDS参照検索 as _標準初期参照検索
 from minidora.hds介入制御 import 標準HDS介入制御
-from minidora.hds監督選択runtime import HDS監督選択実行
+from minidora.HDS監督選択実行系 import HDS監督選択実行
 from minidora.能力状態差循環 import 標準能力模型核
 from minidora.計算実行器 import 計算実行器
 
@@ -143,7 +143,7 @@ def _介入統計(details):
 def _監督結果構造(*args, **kwargs):
     payload = _original_result_payload(*args, **kwargs)
     protocol = payload.setdefault("protocol", {})
-    protocol["runtime"] = "minimal generic MINIDORA formal core + HDS supervisory intervention layer; specialist modules excluded"
+    protocol["実行系"] = "minimal generic MINIDORA formal core + HDS supervisory intervention layer; specialist modules excluded"
     protocol["hds_role"] = "通常MINIDORAを俯瞰監督し、未閉包・競合・観測不足等がある場合だけHDS介入として既存作用を起動。非介入時は完全透過"
     protocol["hds_intervention_definition"] = "HDS監督は観測層、HDS介入はRUN_EXISTING_ACTIONによる外部作用起動。停止要求・非介入は監督判断であり介入件数に含めない"
     protocol["initial_reference_route"] = "HDS投入前と同じ標準HDS参照検索。追加RはHDS介入時だけ"
@@ -153,7 +153,7 @@ def _監督結果構造(*args, **kwargs):
     protocol["final_hds_judgement_wrapper"] = False
     protocol["gold_boundary"] = "gold used only after baseline/current inference for scoring"
     protocol["non_intervention_invariant"] = "HDS interventions=0 => current selection object is the exact normal MINIDORA baseline result"
-    if protocol.get("controlled_ab"):
+    if protocol.get("統制AB"):
         protocol["controlled_ab_definition"] = (
             "same question IR + same initial retrieved references + same initial normal MINIDORA result. "
             "baseline=normal MINIDORA without HDS intervention; "

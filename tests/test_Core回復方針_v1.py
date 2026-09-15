@@ -13,7 +13,7 @@ from minidora.会話実行監督 import 会話実行監督, 会話実行監督�
 from minidora.会話作用契約 import 会話作用群
 
 
-def _registry(*names):
+def _登録簿(*names):
     return tuple({'名前':n,'版':'v1','外部読取':False} for n in names)
 
 
@@ -85,7 +85,7 @@ class 回復方針単体試験(unittest.TestCase):
         alt=役割作用('x','A','成果',lambda p:(),lambda p:{},lambda p:True,
                      回復=(回復規則('実行環境'),))
         retry=replace(alt,回復=(回復規則('実行環境',方式='同一作用再試行',最大再試行=1),))
-        reg=_registry('A')
+        reg=_登録簿('A')
         a=会話実行監督(役割計画器((alt,),reg),_Integration(reg,({'ok':True},)))
         b=会話実行監督(役割計画器((retry,),reg),_Integration(reg,({'ok':True},)))
         self.assertNotEqual(a._回復契約印(),b._回復契約印())
@@ -95,7 +95,7 @@ class 回復方針単体試験(unittest.TestCase):
 
 class 回復監督試験(unittest.TestCase):
     def test_代替作用を局所再計画する(self):
-        reg=_registry('A','B')
+        reg=_登録簿('A','B')
         first=役割作用('第一','A','成果',lambda p:(),lambda p:{},lambda p:True,
                        回復=(回復規則('検証失敗'),))
         second=役割作用('第二','B','成果',lambda p:(),lambda p:{},lambda p:True,費用=2)
@@ -108,7 +108,7 @@ class 回復監督試験(unittest.TestCase):
         self.assertEqual(r.失敗[0].再開放,(意味目的('成果',{}).鍵(),'第一'))
 
     def test_同一作用再試行は計画器を再評価せず同一計画を使う(self):
-        reg=_registry('A')
+        reg=_登録簿('A')
         action=役割作用('一時失敗','A','成果',lambda p:(),lambda p:{},lambda p:True,
                          回復=(回復規則('実行環境',方式='同一作用再試行',最大再試行=1),))
         planner=役割計画器((action,),reg)
@@ -122,7 +122,7 @@ class 回復監督試験(unittest.TestCase):
         self.assertEqual(r.試行[1]['固定被覆数'],1)
 
     def test_同一作用再試行上限で停止(self):
-        reg=_registry('A')
+        reg=_登録簿('A')
         action=役割作用('一時失敗','A','成果',lambda p:(),lambda p:{},lambda p:True,
                          回復=(回復規則('実行環境',方式='同一作用再試行',最大再試行=1),))
         planner=役割計画器((action,),reg)
@@ -132,7 +132,7 @@ class 回復監督試験(unittest.TestCase):
         self.assertEqual([x.回復方針 for x in r.失敗],['同一作用再試行','停止'])
 
     def test_入力役割回復は子作用だけを再取得へ開く(self):
-        reg=_registry('採用','初期','代替')
+        reg=_登録簿('採用','初期','代替')
         child=意味目的('報告',{})
         root_goal=意味目的('成果',{})
         adopt=役割作用('採用作用','採用','成果',lambda p:(('報告',child),),lambda p:{},lambda p:True,
@@ -148,7 +148,7 @@ class 回復監督試験(unittest.TestCase):
         self.assertEqual(r.試行[1]['固定被覆数'],1)  # 親の採用作用は固定
 
     def test_局所再計画は対象外の兄弟作用変更を拒否(self):
-        reg=_registry('ROOT','L1','L2','R1','R2')
+        reg=_登録簿('ROOT','L1','L2','R1','R2')
         left=意味目的('左',{}); right=意味目的('右',{}); goal=意味目的('成果',{})
         root_rule=役割作用('根','ROOT','成果',lambda p:(('左',left),('右',right)),lambda p:{},lambda p:True)
         l1=役割作用('左初期','L1','左',lambda p:(),lambda p:{},lambda p:True,
@@ -167,7 +167,7 @@ class 回復監督試験(unittest.TestCase):
         self.assertEqual(integration.calls,1)
 
     def test_局所再計画は失敗した左部分木だけ変更し親と右を固定(self):
-        reg=_registry('ROOT','L1','L2','R1')
+        reg=_登録簿('ROOT','L1','L2','R1')
         left=意味目的('左',{}); right=意味目的('右',{}); goal=意味目的('成果',{})
         root_rule=役割作用('根','ROOT','成果',lambda p:(('左',left),('右',right)),lambda p:{},lambda p:True)
         l1=役割作用('左初期','L1','左',lambda p:(),lambda p:{},lambda p:True,
@@ -185,7 +185,7 @@ class 回復監督試験(unittest.TestCase):
         self.assertEqual(second[goal.鍵()],'根')
 
     def test_意味未確定は利用者確認方針を記録し自動再試行しない(self):
-        reg=_registry('A','B')
+        reg=_登録簿('A','B')
         a=役割作用('第一','A','成果',lambda p:(),lambda p:{},lambda p:True)
         b=役割作用('第二','B','成果',lambda p:(),lambda p:{},lambda p:True,費用=2)
         planner=役割計画器((a,b),reg)

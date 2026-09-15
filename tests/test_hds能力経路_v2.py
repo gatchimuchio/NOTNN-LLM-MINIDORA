@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標
-from minidora.hds_reference import HDS参照問合せ候補
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標
+from minidora.HDS参照 import HDS参照問合せ候補
 from minidora.hds能力経路_v2 import (
     HDS参照検索V2,
     HDS局所観測view,
@@ -37,7 +37,7 @@ def _ir() -> HDSIR:
     )
 
 
-def _query_choice(record: 参照記録) -> frozenset[str]:
+def _問合せ選択肢(record: 参照記録) -> frozenset[str]:
     return frozenset(
         str(value)
         for key, value in record.条件
@@ -82,7 +82,7 @@ class HDS能力経路V2試験(unittest.TestCase):
 
         coverage = set()
         for record in records:
-            coverage.update(_query_choice(record))
+            coverage.update(_問合せ選択肢(record))
         self.assertEqual(coverage, set("ABCD"))
         self.assertEqual(len(records), 4)
         self.assertNotIn("generic", {record.識別子 for record in records})
@@ -100,10 +100,10 @@ class HDS能力経路V2試験(unittest.TestCase):
 
         shared = [record for record in records if record.識別子 == "shared"]
         self.assertEqual(len(shared), 1)
-        self.assertEqual(_query_choice(shared[0]), {"A", "B"})
+        self.assertEqual(_問合せ選択肢(shared[0]), {"A", "B"})
         coverage = set()
         for record in records:
-            coverage.update(_query_choice(record))
+            coverage.update(_問合せ選択肢(record))
         self.assertEqual(coverage, set("ABCD"))
 
     def test_local_viewは同source置換でconfidenceとprovenanceを保持する(self) -> None:

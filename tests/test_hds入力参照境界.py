@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_ir import HDSIR, HDS実行核
+from minidora.HDS中間表現 import HDSIR, HDS実行核
 from minidora.hds入力参照境界 import HDS入力Data本文, HDS入力Data整列, HDS入力出典ID
 from minidora.参照 import 参照記録
 

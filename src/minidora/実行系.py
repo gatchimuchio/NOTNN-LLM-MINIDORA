@@ -6,14 +6,14 @@ from fractions import Fraction
 import inspect
 from typing import Any
 
-from .hds_adapter import HDS文脈
-from .hds_choice_runtime import HDS選択実行結果, HDS選択問題, HDS選択推論実行
-from .hds_ir import HDSIR
-from .hds_reference import HDS参照予算選択, HDS参照検索
-from .hds_runtime_projection import HDSR質問射影
+from .HDS適合器 import HDS文脈
+from .HDS選択実行系 import HDS選択実行結果, HDS選択問題, HDS選択推論実行
+from .HDS中間表現 import HDSIR
+from .HDS参照 import HDS参照予算選択, HDS参照検索
+from .HDS実行系射影 import HDSR質問射影
 from .hds介入制御 import HDS介入制御, 標準HDS介入制御
-from .hds監督選択runtime import HDS監督選択実行
-from .multilingual_surface import 表面化 as 多言語表面化
+from .HDS監督選択実行系 import HDS監督選択実行
+from .多言語表層 import 表面化 as 多言語表面化
 from .参照 import 参照供給器, 参照記録, 参照矛盾数
 from .命令 import 手順
 from .採否 import 実行状態, 採否, 採否結果
@@ -316,7 +316,7 @@ class ミニドラ:
 
     def 実行(self, 要求_: 要求) -> 結果:
         自動計画 = 要求_.手順 is None
-        hds_ir: HDSIR | None = None
+        HDS中間表現: HDSIR | None = None
         plan_name: str | None = None
         initial_from_plan: dict[str, Any] = {}
         reference_from_plan = False
@@ -325,41 +325,41 @@ class ミニドラ:
 
         if 自動計画 and self.HDSコンパイラ is not None:
             try:
-                hds_ir = self.コンパイル(要求_.問合せ)
+                HDS中間表現 = self.コンパイル(要求_.問合せ)
             except (ValueError, TypeError) as exc:
                 state = dict(要求_.初期状態)
                 state["局所解釈起点"] = 起点.辞書化()
                 return self._帰還(結果(None, state, (), (), 採否結果(実行状態.失敗, ("HDS Compiler実行失敗", str(exc))), self.主体状態, self._非主体結果("HDS Compiler実行失敗"), (), "HDS_IR", None), 要求_.問合せ)
 
-            if HDS選択問題(hds_ir):
+            if HDS選択問題(HDS中間表現):
                 references: tuple[参照記録, ...] = ()
                 if self.参照供給器 is not None:
-                    budget = HDS参照予算選択(hds_ir)
+                    budget = HDS参照予算選択(HDS中間表現)
                     references = HDS参照検索(
-                        self.参照供給器, HDSR質問射影(hds_ir), 上限=budget.取得上限,
+                        self.参照供給器, HDSR質問射影(HDS中間表現), 上限=budget.取得上限,
                         一問合せ上限=budget.一問合せ上限, 最大問合せ並列=budget.最大問合せ並列,
                     )
                 initial = HDS選択推論実行(
-                    hds_ir, references, コンパイル=self.コンパイル, 基礎能力核=None,
+                    HDS中間表現, references, コンパイル=self.コンパイル, 基礎能力核=None,
                     模型核=self.能力模型核, 正式模型評価=True,
                 )
                 if self.HDS監督制御 is None or (initial.状態 == "APPROVE" and initial.回答ラベル is not None):
-                    return self._HDS選択結果(要求_, hds_ir, references, initial)
+                    return self._HDS選択結果(要求_, HDS中間表現, references, initial)
                 supervised = HDS監督選択実行(
-                    hds_ir, references, コンパイル=self.コンパイル, 基礎能力核=None,
+                    HDS中間表現, references, コンパイル=self.コンパイル, 基礎能力核=None,
                     模型核=self.能力模型核, 参照供給器=self.参照供給器,
                     計算実行器_=self.計算実行器, HDS制御=self.HDS監督制御, 初期選択=initial,
                 )
-                return self._HDS選択結果(要求_, hds_ir, supervised.参照, supervised.選択)
+                return self._HDS選択結果(要求_, HDS中間表現, supervised.参照, supervised.選択)
 
-            if not hds_ir.実行可能:
-                reasons = ["HDS_IR未閉包", *hds_ir.実行阻害理由]
-                reasons.extend(f"残差:{item.理由}" for item in hds_ir.残差)
-                return self._HDS未閉包(要求_, hds_ir, tuple(reasons))
-            手順_ = hds_ir.手順
-            initial_from_plan = dict(hds_ir.初期状態)
-            reference_from_plan = hds_ir.参照必須
-            plan_name = hds_ir.種別 or "HDS_IR"
+            if not HDS中間表現.実行可能:
+                reasons = ["HDS_IR未閉包", *HDS中間表現.実行阻害理由]
+                reasons.extend(f"残差:{item.理由}" for item in HDS中間表現.残差)
+                return self._HDS未閉包(要求_, HDS中間表現, tuple(reasons))
+            手順_ = HDS中間表現.手順
+            initial_from_plan = dict(HDS中間表現.初期状態)
+            reference_from_plan = HDS中間表現.参照必須
+            plan_name = HDS中間表現.種別 or "HDS_IR"
         elif 自動計画:
             plan = self.自然言語器.計画(
                 要求_.問合せ,
@@ -375,9 +375,9 @@ class ミニドラ:
         reference_required = 要求_.参照必須 or reference_from_plan
         references: tuple[参照記録, ...] = ()
         if self.参照供給器 is not None:
-            if hds_ir is not None:
-                budget = HDS参照予算選択(hds_ir)
-                references = HDS参照検索(self.参照供給器, HDSR質問射影(hds_ir), 上限=budget.取得上限, 一問合せ上限=budget.一問合せ上限, 最大問合せ並列=budget.最大問合せ並列)
+            if HDS中間表現 is not None:
+                budget = HDS参照予算選択(HDS中間表現)
+                references = HDS参照検索(self.参照供給器, HDSR質問射影(HDS中間表現), 上限=budget.取得上限, 一問合せ上限=budget.一問合せ上限, 最大問合せ並列=budget.最大問合せ並列)
             else:
                 references = self.参照供給器.検索(要求_.問合せ)
         if reference_required and not references:
@@ -385,7 +385,7 @@ class ミニドラ:
             subject = self._非主体結果("参照不足のため主体更新未実行") if self.主体主幹 is None else self.主体主幹.非適用結果("参照不足のため主体更新未実行")
             state = dict(要求_.初期状態)
             state["局所解釈起点"] = 起点.辞書化()
-            result = 結果(None, state, (), (), decision, self.主体状態, subject, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, hds_ir)
+            result = 結果(None, state, (), (), decision, self.主体状態, subject, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, HDS中間表現)
             return self._帰還(result, 要求_.問合せ)
 
         initial = dict(要求_.初期状態)
@@ -393,7 +393,7 @@ class ミニドラ:
         initial["参照"] = references
         initial["主体状態"] = self._主体状態辞書()
         initial["局所解釈起点"] = 起点.辞書化()
-        if hds_ir is not None:
+        if HDS中間表現 is not None:
             initial["HDS文脈"] = self.HDS文脈
         try:
             context = self.第0層.実行(手順_, initial)
@@ -401,7 +401,7 @@ class ミニドラ:
             if not 自動計画:
                 raise
             subject = self._非主体結果("自動計画の実行失敗") if self.主体主幹 is None else self.主体主幹.非適用結果("自動計画の実行失敗")
-            result = 結果(None, initial, (), (), 採否結果(実行状態.失敗, ("自動計画実行失敗", str(exc))), self.主体状態, subject, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, hds_ir)
+            result = 結果(None, initial, (), (), 採否結果(実行状態.失敗, ("自動計画実行失敗", str(exc))), self.主体状態, subject, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, HDS中間表現)
             return self._帰還(result, 要求_.問合せ)
 
         value = context.状態.get("結果")
@@ -412,7 +412,7 @@ class ミニドラ:
         if decision.状態 in {実行状態.保留, 実行状態.失敗}:
             value = None
             state["結果"] = None
-        result = 結果(value, state, references, tuple(context.履歴), decision, self.主体状態, subject, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, hds_ir)
+        result = 結果(value, state, references, tuple(context.履歴), decision, self.主体状態, subject, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, HDS中間表現)
         return self._帰還(result, 要求_.問合せ)
 
     def 応答(self, 問合せ: str) -> str:

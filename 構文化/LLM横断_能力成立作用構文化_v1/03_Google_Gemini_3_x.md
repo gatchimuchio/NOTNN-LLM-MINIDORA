@@ -28,7 +28,7 @@ multimodal能力から「共通embedding方式」「単一encoder」「特定cro
 
 ### 直接作用
 
-- 入力が同じでも、runtime設定により使用する計算予算・経路が変わりうる。
+- 入力が同じでも、実行系設定により使用する計算予算・経路が変わりうる。
 - 能力評価ではmodel identityとtest-time compute conditionを同時に固定する必要がある。
 
 内部で何回再帰するか、どのstateを再利用するかは未観測。
@@ -50,7 +50,7 @@ modelへ渡せる表象へ接続
 ↓
 model処理
 ↓
-tool / channel / runtime control
+tool / channel / 実行系 control
 ↓
 可観測結果
 ```
@@ -60,7 +60,7 @@ tool / channel / runtime control
 ## MINIDORAへの作用射影候補
 
 - modalityは別adapterから共通の明示言語状態へ接続できる設計にする。
-- reasoning effortは模型関係そのものではなく、同じ関係へ何回・どこまで再作用するかを決めるruntime制御として分離可能。
+- reasoning effortは模型関係そのものではなく、同じ関係へ何回・どこまで再作用するかを決める実行系制御として分離可能。
 - tool resultをmodel内部知識と混同しない。
 - 長context能力を単なる最大文字数ではなく、保持状態へ再アクセスできるかで評価する。
 

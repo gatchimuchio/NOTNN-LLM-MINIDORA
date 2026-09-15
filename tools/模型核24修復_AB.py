@@ -15,11 +15,11 @@ from typing import Any
 import benchmark as bench
 import gpqa_measure_current as gpqa
 
-from minidora.hds_choice_runtime import HDS選択推論実行 as 現行Core選択
+from minidora.HDS選択実行系 import HDS選択推論実行 as 現行Core選択
 from minidora.HDS選択実行系_v24 import HDS選択推論実行 as Core24選択
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
-from minidora.hds_reference import HDS参照検索
-from minidora.standard_reference import 一般知識参照供給器
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
+from minidora.HDS参照 import HDS参照検索
+from minidora.標準参照 import 一般知識参照供給器
 from minidora.能力状態差循環 import 標準能力模型核
 
 
@@ -143,18 +143,18 @@ def main() -> int:
     local_selected = sum("FORMAL_LOCAL_VIEW_RECHECK_SELECTED" in x["current"]["reasons"] for x in details)
 
     payload = {
-        "schema": "minidora.core24-current.same-reference-ab.v1",
+        "契約形式": "minidora.core24-current.same-reference-ab.v1",
         "protocol": {
             "dataset_zip_sha256": zip_hash,
-            "dataset_csv_sha256": csv_hash,
-            "choice_shuffle_seed": gpqa.SEED,
-            "selected_indices": list(selected),
+            "資料集合CSV_SHA256": csv_hash,
+            "選択肢シャッフル種": gpqa.SEED,
+            "選択番号群": list(selected),
             "same_reference_records": True,
             "gold_boundary": "gold used only after Core24 and current inference",
             "baseline": "HDS選択実行系_v24.HDS選択推論実行",
-            "current": "hds_choice_runtime.HDS選択推論実行",
+            "current": "HDS選択実行系.HDS選択推論実行",
             "specialist_module": False,
-            "openalex_enabled": api_key is not None,
+            "OpenAlex有効": api_key is not None,
         },
         "metrics": {
             "completed": len(details),
@@ -174,9 +174,9 @@ def main() -> int:
     args.snapshot_out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     args.snapshot_out.write_text(json.dumps({
-        "schema": "minidora.gpqa.reference-snapshot.v1",
-        "dataset_csv_sha256": csv_hash,
-        "choice_shuffle_seed": gpqa.SEED,
+        "契約形式": "minidora.gpqa.reference-snapshot.v1",
+        "資料集合CSV_SHA256": csv_hash,
+        "選択肢シャッフル種": gpqa.SEED,
         "cases": snapshots,
     }, ensure_ascii=False, indent=2, default=str) + "\n", encoding="utf-8")
     print("CORE_AB=" + json.dumps(payload["metrics"], ensure_ascii=False), flush=True)

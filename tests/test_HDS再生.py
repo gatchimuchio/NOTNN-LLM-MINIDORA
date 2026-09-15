@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
 from minidora.HDS再生 import HDSIR復元, HDSIR辞書化
 
 
@@ -52,7 +52,7 @@ def _選択肢行(*, case_id: str) -> dict:
         (HDS関係("use", ("alpha",), ("engine",), "作用"),),
     )
     return {
-        "schema": "minidora.hds-choice-replay.v1",
+        "契約形式": "minidora.hds-choice-replay.v1",
         "id": case_id,
         "question_ir": HDSIR辞書化(question),
         "choices_ir": {label: HDSIR辞書化(ir) for label, ir in choices.items()},

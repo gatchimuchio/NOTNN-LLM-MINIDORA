@@ -7,7 +7,7 @@ import unittest
 from copy import deepcopy
 
 from minidora import ミニドラ
-from minidora.hds_adapter import HDS文脈
+from minidora.HDS適合器 import HDS文脈
 from minidora.言語構造 import 言語関係抽出
 from minidora.言語確率法則 import MINIDORA厳密言語模型
 from minidora.計算中間表現 import 計算中間表現, 計算値, 計算作用, 計算命令
@@ -74,7 +74,7 @@ class 最小汎用Core改善Round2試験(unittest.TestCase):
         self.assertTrue(any(x.種別 == "阻害" and not x.肯定 for x in relations))
         self.assertTrue(any(x.種別 == "活性化" and x.肯定 for x in relations))
 
-    def test_default_runtimeは主体Trinityを起動しない(self) -> None:
+    def test_default_実行系は主体Trinityを起動しない(self) -> None:
         body = ミニドラ()
         self.assertIsNone(body.主体主幹)
         self.assertIsNone(body.Trinity文脈)
@@ -102,7 +102,7 @@ import json, sys
 import minidora
 blocked = [
     "minidora.実行系_v03",
-    "minidora.trinity_context",
+    "minidora.トリニティ文脈",
     "minidora.K3機能",
     "minidora.HTTP参照",
     "minidora.EuropePMC参照",

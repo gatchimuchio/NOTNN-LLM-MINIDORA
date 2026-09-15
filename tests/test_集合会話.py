@@ -12,8 +12,8 @@ from minidora.会話回答 import 回答記録整合
 from minidora.数量集合 import 集合記録整合, 数量群を処理, 有理数を表記
 from minidora.応答構成 import 能力結果を復元
 from minidora.会話意味 import 意味指紋
-from minidora.hds_compiler import 公開HDSコンパイラ
-from minidora.hds_ir import HDS残差
+from minidora.HDS構文化器 import 公開HDSコンパイラ
+from minidora.HDS中間表現 import HDS残差
 
 
 def 資料(values=(75,60,95), *, unit='円', nested=False):

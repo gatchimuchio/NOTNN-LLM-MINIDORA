@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from .hds_ir import HDSIR
-from .hds_reference import (
+from .HDS中間表現 import HDSIR
+from .HDS参照 import (
     HDS参照予算選択,
     HDS参照検索,
     _候補被覆,

@@ -14,7 +14,7 @@
 - 未来方向/予測補助: model variantごとのtraining/posttrainingと分ける。
 - 入力表象・モダリティ: text。
 - 形成過程: Base/Instruct/Thinkで形成差を持つがcore layer scheduleは共通に近い。
-- 展開後制御: open code/checkpoint。
+- 展開後制御: open code/検査点。
 
 ## 相対化上の意味
 Qwen3.6との相対化により「3:1の周期」という見た目の同型と「局所作用子」の非同型を分離できた。

@@ -74,7 +74,7 @@ result: SUCCESS
 - Prototype baselineの回答数27 → v0.6実測128: `+101問`
 - Prototype baselineのSUSPEND 171 → v0.6実測70: `-101問`
 
-ただし、prototype baselineは後続測定と完全に同一の実行可能Compiler/configurationではない。したがって上記は**開発履歴上の変化量**であり、統制された同条件比較の改善量ではない。
+ただし、prototype baselineは後続測定と完全に同一の実行可能構文化器/configurationではない。したがって上記は**開発履歴上の変化量**であり、統制された同条件比較の改善量ではない。
 
 ## 現時点の診断
 
@@ -112,5 +112,5 @@ GitHub Actions artifact `9486518870` には今回の元の `gpqa_current_measure
 1. Prototype completion baselineは上書きしない。
 2. 新しい実測は新規日付ファイルとして追加する。
 3. 開発途中値・無効診断・正式実測を混同しない。
-4. 異なるCompiler/configuration間は「変遷」として記録し、同条件比較と称さない。
+4. 異なる構文化器/configuration間は「変遷」として記録し、同条件比較と称さない。
 5. workflow run / head SHA / artifact digestを残し、後から測定対象を再同定できるようにする。

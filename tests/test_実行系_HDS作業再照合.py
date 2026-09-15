@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_choice_runtime import HDS選択推論実行
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from minidora.HDS選択実行系 import HDS選択推論実行
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
 from minidora.K3機能 import K3相当能力核
 from minidora.参照 import 参照記録
 
@@ -12,7 +12,7 @@ def _ir(text: str, coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ..
     return HDSIR(
         原文=text,
         正規化文=text,
-        認知世界ID="working-reconcile-runtime-test",
+        認知世界ID="working-reconcile-実行系-test",
         座標=coords,
         関係=relations,
         残差=(),

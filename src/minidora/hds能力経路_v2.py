@@ -4,9 +4,9 @@ from dataclasses import replace
 import unicodedata
 from typing import Iterable, TYPE_CHECKING
 
-from .hds_choice_runtime import HDS選択実行結果
-from .hds_ir import HDSIR
-from .hds_reference import (
+from .HDS選択実行系 import HDS選択実行結果
+from .HDS中間表現 import HDSIR
+from .HDS参照 import (
     HDS参照予算選択,
     HDS参照検索,
     _候補被覆,
@@ -16,7 +16,7 @@ from .hds_reference import (
     _縮退仕様,
     _記録統合,
 )
-from .hds候補提案runtime import HDS候補提案実行
+from .hds候補提案実行系 import HDS候補提案実行
 from .hds局所再照合 import HDS局所Window候補
 if TYPE_CHECKING:
     from .K3機能 import K3相当能力核

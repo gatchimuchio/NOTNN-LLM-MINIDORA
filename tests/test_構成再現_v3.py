@@ -1,8 +1,8 @@
 from __future__ import annotations
 import unittest
 from minidora.能力作用則 import 関係寄与, 証拠状態寄与, 証拠状態合計寄与
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
-from minidora.hds_model_projection import HDSMINIDORA模型評価
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from minidora.HDS模型射影 import HDSMINIDORA模型評価
 from minidora.模型 import (
     LLM成立規定版, LLM構成再現区別, MINIDORA模型核, 成立候補, 言語状態,
     関係規則, 意味連続関係, 標準模型核,

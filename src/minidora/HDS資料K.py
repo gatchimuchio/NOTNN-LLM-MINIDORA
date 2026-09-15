@@ -6,8 +6,8 @@ import json
 import re
 from typing import Iterable
 
-from .hds_compiler_records import HDS_COMPILER_META_PREFIXES
-from .hds_ir import HDSIR, HDS関係, 値状態
+from .HDS構文化器_records import HDS_COMPILER_META_PREFIXES
+from .HDS中間表現 import HDSIR, HDS関係, 値状態
 from .K3機能 import Fact, K3相当能力核
 
 

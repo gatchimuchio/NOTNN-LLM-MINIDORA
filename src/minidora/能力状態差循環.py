@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from .semantic_tokens import 意味語
+from .意味字句 import 意味語
 from .模型 import (
     _不成立入力の留保結果,
     MINIDORA模型核,

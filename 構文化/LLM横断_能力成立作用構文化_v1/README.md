@@ -44,7 +44,7 @@ K3は本ディレクトリの再構文化対象から除外する。K3 v2 full-w
 - **B6 未確定差の共存** — 途中差を即時二値化せず残せる構造上の余地。
 - **B7 未来補助** — MTP、draft、先読み等。主経路と分離する。
 - **B8 形成作用** — pretraining / continued pretraining / SFT / RL / trajectory学習が模型へ残す差。
-- **B9 展開後制御** — classifier、fallback、tool orchestration、cache、routing等の模型外作用。
+- **B9 展開後制御** — classifier、代替経路、tool orchestration、cache、routing等の模型外作用。
 
 ## 成果物
 

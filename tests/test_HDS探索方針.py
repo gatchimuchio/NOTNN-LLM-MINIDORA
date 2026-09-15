@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from minidora.HDS探索方針 import HDS努力水準, HDS探索方針選択
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差
 from minidora.K3_HDSネイティブ import HDSIRネイティブAdapter
 
 

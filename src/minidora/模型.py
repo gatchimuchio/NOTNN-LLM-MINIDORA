@@ -7,7 +7,7 @@ from math import log1p, sqrt
 import re
 import json
 
-from .semantic_tokens import 意味語
+from .意味字句 import 意味語
 from .言語構造 import 言語関係構造, 意味列, 言語関係抽出, 問い候補関係形成, 問題前提関係抽出
 from .能力作用則 import 証拠状態合計寄与, 証拠状態照合, _端点意味同一, _述語対応, _比較成立域
 

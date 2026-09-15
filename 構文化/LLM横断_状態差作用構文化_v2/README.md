@@ -2,9 +2,9 @@
 
 - 実施日: 2026-08-28
 - 対象: K3を除く10モデル
-- 性格: 観測・再構成資料。LLM成立条件・MINIDORA実装仕様・HDS Compiler仕様へ自動昇格しない。
+- 性格: 観測・再構成資料。LLM成立条件・MINIDORA実装仕様・HDS 構文化器仕様へ自動昇格しない。
 - 直前資料: `LLM横断_能力成立作用構文化_v1`
-- 再構文化の契機: MINIDORA v0.5 GPQA Diamond controlled A/Bで、checkpoint生成815に対してcheckpoint再活性・大域再照合・候補横断更新・specialist作用が0だったこと。
+- 再構文化の契機: MINIDORA v0.5 GPQA Diamond controlled A/Bで、検査点生成815に対して検査点再活性・大域再照合・候補横断更新・specialist作用が0だったこと。
 - ライセンス: CC-BY-4.0
 
 ## v2で変えた観測単位
@@ -43,4 +43,4 @@ v1は「状態保持」「再作用可能な経路」を中心に観測した。
 - `観測台帳_v2/part_01.jsonl` 〜 `part_05.jsonl` — 10モデル横断35件の個別観測レコード。
 - `作用因果座標_v2.json` — モデル単位の相対座標。
 
-文章資料と機械可読データのどちらも、K3・構成定義・HDS Compiler・MINIDORAへ自動昇格しない。
+文章資料と機械可読データのどちらも、K3・構成定義・HDS 構文化器・MINIDORAへ自動昇格しない。

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.runtime import ミニドラ, 要求
-from minidora.hds_adapter import HDS文脈
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
+from minidora.実行系 import ミニドラ, 要求
+from minidora.HDS適合器 import HDS文脈
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 
 
 class 局所解釈連続性試験(unittest.TestCase):

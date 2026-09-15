@@ -4,19 +4,19 @@ import inspect
 import unittest
 
 import minidora.hds介入制御 as control
-import minidora.hds_model_projection as projection
-import minidora.hds監督選択runtime as supervised
-import minidora.runtime as runtime
+import minidora.HDS模型射影 as projection
+import minidora.HDS監督選択実行系 as supervised
+import minidora.実行系 as 実行系
 
 
 class HDS監督ArchitectureTest(unittest.TestCase):
-    def test_active_runtimeは旧outer_HDS_wrapperをimportしない(self):
-        text = inspect.getsource(runtime)
-        self.assertNotIn("runtime_hds_v1", text)
+    def test_active_実行系は旧outer_HDS_wrapperをimportしない(self):
+        text = inspect.getsource(実行系)
+        self.assertNotIn("実行系_hds_v1", text)
         self.assertNotIn("HDS駆動選択実行", text)
         self.assertNotIn("MINIDORAHDS判断主体", text)
 
-    def test_supervised_runtimeは通常MINIDORAを再構成しない(self):
+    def test_supervised_実行系は通常MINIDORAを再構成しない(self):
         text = inspect.getsource(supervised)
         self.assertNotIn("HDS判断主体", text)
         self.assertNotIn("HDSMINIDORA模型評価", text)

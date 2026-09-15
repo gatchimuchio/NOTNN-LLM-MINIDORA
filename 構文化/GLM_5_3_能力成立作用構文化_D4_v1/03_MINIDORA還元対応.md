@@ -80,7 +80,7 @@ GLMで再観測されたがK3由来実装を正本として維持するもの:
 
 - selective state update
 - local/global separation
-- checkpoint/re-entry
+- 検査点/re-entry
 - shared/common action
 - specialist routing
 - effort control

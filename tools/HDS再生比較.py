@@ -95,7 +95,7 @@ def compare(before: Mapping[str, Any], after: Mapping[str, Any]) -> dict[str, An
         )
 
     return {
-        "schema": "minidora.hds-choice-replay.compare.v1",
+        "契約形式": "minidora.hds-choice-replay.compare.v1",
         "before": {
             "total": before.get("total"),
             "correct": before.get("correct"),

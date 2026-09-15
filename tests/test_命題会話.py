@@ -15,8 +15,8 @@ from minidora.会話回答 import 回答記録整合, 回答を構成
 from minidora.命題能力接続 import 命題資料を構成, 命題を検討, 命題判定整合, 命題資料整合
 from minidora.応答構成 import 能力結果を復元
 from minidora.能力合成 import _結果辞書
-from minidora.hds_compiler import 公開HDSコンパイラ
-from minidora.hds_ir import HDS座標, HDS残差
+from minidora.HDS構文化器 import 公開HDSコンパイラ
+from minidora.HDS中間表現 import HDS座標, HDS残差
 from minidora.会話解釈 import 会話を解釈
 from minidora.命題会話解釈 import HDS命題を照合
 from minidora.会話意味 import 意味指紋

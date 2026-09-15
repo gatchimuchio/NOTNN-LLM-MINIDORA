@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係
 from minidora.HDS再生 import HDSIR辞書化
 from minidora.HDS再生_eval import HDSReplayCase評価, HDSReplay評価
 
@@ -52,7 +52,7 @@ def _data(target: str) -> HDSIR:
 class HDSReplay評価試験(unittest.TestCase):
     def test_source_confidenceを再生して高信頼source側を選ぶ(self) -> None:
         row = {
-            "schema": "minidora.hds-choice-replay.v1",
+            "契約形式": "minidora.hds-choice-replay.v1",
             "id": "confidence-case",
             "question_ir": HDSIR辞書化(_question()),
             "choices_ir": {
@@ -81,7 +81,7 @@ class HDSReplay評価試験(unittest.TestCase):
 
     def test_集計は回答率正答率理由努力分布を返す(self) -> None:
         row = {
-            "schema": "minidora.hds-choice-replay.v1",
+            "契約形式": "minidora.hds-choice-replay.v1",
             "id": "one",
             "question_ir": HDSIR辞書化(_question()),
             "choices_ir": {

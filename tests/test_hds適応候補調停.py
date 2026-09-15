@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_choice_runtime import HDS選択実行結果
+from minidora.HDS選択実行系 import HDS選択実行結果
 from minidora.hds適応候補調停 import HDS適応候補調停
 
 
-def _result(
+def _結果(
     state: str,
     label: str | None,
     content: str | None,
@@ -34,8 +34,8 @@ def _result(
 
 class HDS適応候補調停試験(unittest.TestCase):
     def test_raw候補横断更新だけでは能力提案を優先しない(self) -> None:
-        primary = _result("PROPOSE", "A", "能力", cross_updates=3, reasons=("STATE_DELTA_CROSS_UPDATE",))
-        base = _result("APPROVE", "B", "基礎", reasons=("BASE",))
+        primary = _結果("PROPOSE", "A", "能力", cross_updates=3, reasons=("STATE_DELTA_CROSS_UPDATE",))
+        base = _結果("APPROVE", "B", "基礎", reasons=("BASE",))
 
         selected = HDS適応候補調停(primary, base)
 
@@ -45,8 +45,8 @@ class HDS適応候補調停試験(unittest.TestCase):
         self.assertNotIn("HDS_ADAPTIVE_PRIMARY_SELECTED", selected.理由)
 
     def test_local_view実観測変化なら能力提案を優先する(self) -> None:
-        primary = _result("PROPOSE", "A", "能力", reasons=("C_LOCAL_VIEW_RECHECK_SELECTED",))
-        base = _result("APPROVE", "B", "基礎", reasons=("BASE",))
+        primary = _結果("PROPOSE", "A", "能力", reasons=("C_LOCAL_VIEW_RECHECK_SELECTED",))
+        base = _結果("APPROVE", "B", "基礎", reasons=("BASE",))
 
         selected = HDS適応候補調停(primary, base)
 
@@ -56,14 +56,14 @@ class HDS適応候補調停試験(unittest.TestCase):
         self.assertIn("HDS_ADAPTIVE_PRIMARY_SELECTED", selected.理由)
 
     def test_専門作用実消費なら能力提案を優先する(self) -> None:
-        primary = _result(
+        primary = _結果(
             "PROPOSE",
             "A",
             "能力",
             specialist=1,
             reasons=("HDS_ACTION_DELTA_CONSUMED",),
         )
-        base = _result("APPROVE", "B", "基礎", reasons=("BASE",))
+        base = _結果("APPROVE", "B", "基礎", reasons=("BASE",))
 
         selected = HDS適応候補調停(primary, base)
 
@@ -71,8 +71,8 @@ class HDS適応候補調停試験(unittest.TestCase):
         self.assertIn("HDS_ADAPTIVE_PRIMARY_SELECTED", selected.理由)
 
     def test_実観測変化が無ければ閉じた基礎経路を提案へ落とす(self) -> None:
-        primary = _result("PROPOSE", "A", "能力", reasons=("PRIMARY",))
-        base = _result("APPROVE", "B", "基礎", reasons=("BASE",))
+        primary = _結果("PROPOSE", "A", "能力", reasons=("PRIMARY",))
+        base = _結果("APPROVE", "B", "基礎", reasons=("BASE",))
 
         selected = HDS適応候補調停(primary, base)
 
@@ -82,8 +82,8 @@ class HDS適応候補調停試験(unittest.TestCase):
         self.assertIn("CANDIDATE_GENERATION_HAS_NO_COMMIT_AUTHORITY", selected.理由)
 
     def test_実観測変化も基礎閉包も無ければ単独primaryを救済しない(self) -> None:
-        primary = _result("PROPOSE", "A", "能力", reasons=("PRIMARY",))
-        base = _result("SUSPEND", None, None, reasons=("BASE_SUSPEND",))
+        primary = _結果("PROPOSE", "A", "能力", reasons=("PRIMARY",))
+        base = _結果("SUSPEND", None, None, reasons=("BASE_SUSPEND",))
 
         selected = HDS適応候補調停(primary, base)
 
@@ -93,8 +93,8 @@ class HDS適応候補調停試験(unittest.TestCase):
         self.assertIn("PRIMARY_WITHOUT_OBSERVATION_CHANGE_NOT_COMMITTED", selected.理由)
 
     def test_能力経路がSUSPENDでも基礎閉包は提案として残す(self) -> None:
-        primary = _result("SUSPEND", None, None, reasons=("PRIMARY_SUSPEND",))
-        base = _result("APPROVE", "C", "基礎", reasons=("BASE",))
+        primary = _結果("SUSPEND", None, None, reasons=("PRIMARY_SUSPEND",))
+        base = _結果("APPROVE", "C", "基礎", reasons=("BASE",))
 
         selected = HDS適応候補調停(primary, base)
 

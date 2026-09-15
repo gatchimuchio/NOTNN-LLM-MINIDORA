@@ -168,7 +168,7 @@ _GLM = (
         "HDS阻害回復方針",
         "追加",
         "公開post-training記述からの作用射影",
-        "runtime内部命令は推定でありGLMのliteral componentではない",
+        "実行系内部命令は推定でありGLMのliteral componentではない",
     ),
     構文化還元対応(
         "GLM-5.2→5.3",

@@ -139,7 +139,7 @@ def 会話を解釈(原文: str, 資料名: tuple[str,...]=()) -> 会話要求:
 
 def HDS会話を照合(ir, request: 会話要求, *, 文脈解消=False):
     """新規比較・確認等は、未処理のHDS条件を免除しない。原文も保存する。"""
-    from .hds_ir import HDSIR,値状態
+    from .HDS中間表現 import HDSIR,値状態
     if type(ir) is not HDSIR or ir.原文!=request.原文:
         raise ValueError('実HDS原文の不一致')
     coords=ir.座標辞書()

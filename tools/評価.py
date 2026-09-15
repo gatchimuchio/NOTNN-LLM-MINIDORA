@@ -126,16 +126,16 @@ def _load_resume(
         return {}
     payload = json.loads(path.read_text(encoding="utf-8"))
     protocol = payload.get("protocol", {})
-    if protocol.get("dataset_csv_sha256") != csv_hash:
+    if protocol.get("資料集合CSV_SHA256") != csv_hash:
         raise SystemExit("--resume対象のdataset hashが現行GPQAと一致しません。")
     if protocol.get("repository_commit") != repository_commit:
         raise SystemExit("--resume対象のrepository commitが現在のcheckoutと一致しません。")
-    if bool(protocol.get("openalex_enabled")) != openalex_enabled:
+    if bool(protocol.get("OpenAlex有効")) != openalex_enabled:
         raise SystemExit("--resume対象のOpenAlex条件が今回の実行条件と一致しません。")
-    if bool(protocol.get("controlled_ab")) != bool(controlled_ab):
+    if bool(protocol.get("統制AB")) != bool(controlled_ab):
         raise SystemExit("--resume対象のcontrolled A/B条件が今回と一致しません。")
     expected = list(selected)
-    if protocol.get("selected_indices") != expected:
+    if protocol.get("選択番号群") != expected:
         raise SystemExit("--resume対象の実行範囲が今回の --start-index/--limit と一致しません。")
     result: dict[int, dict[str, Any]] = {}
     for detail in payload.get("details", []):
@@ -308,24 +308,24 @@ def _結果構造(
         else None
     )
     return {
-        "schema": "minidora.benchmark.repository-runner.v3",
+        "契約形式": "minidora.benchmark.repository-runner.v3",
         "protocol": {
             "benchmark": "GPQA Diamond",
             "dataset": "official idavidrein/gpqa dataset.zip / gpqa_diamond.csv",
             "dataset_url": gpqa.DATASET_URL,
             "dataset_zip_sha256": zip_hash,
-            "dataset_csv_sha256": csv_hash,
-            "full_benchmark_total": BENCHMARKS["gpqa-diamond"]["full_total"],
-            "selected_indices": list(selected),
-            "choice_shuffle_seed": gpqa.SEED,
+            "資料集合CSV_SHA256": csv_hash,
+            "全問題数": BENCHMARKS["gpqa-diamond"]["full_total"],
+            "選択番号群": list(selected),
+            "選択肢シャッフル種": gpqa.SEED,
             "compiler": "MINIDORA public standard HDS Compiler; Japanese-base role projection; benchmark-agnostic",
             "gold_boundary": "gold used only after both inferences for scoring",
             "repository_commit": repository_commit,
-            "openalex_enabled": openalex_enabled,
-            "wikipedia_languages": ["en"],
-            "runtime": "current repository checkout; HDS choice native R->HDS->K/Working->J",
+            "OpenAlex有効": openalex_enabled,
+            "Wikipedia言語群": ["en"],
+            "実行系": "current repository checkout; HDS choice native R->HDS->K/Working->J",
             "working_state_boundary": "working/local relations are request-local and never auto-promoted to persistent canonical K",
-            "controlled_ab": bool(controlled_ab),
+            "統制AB": bool(controlled_ab),
             "controlled_ab_definition": "same question IR + same retrieved reference records; baseline disables working/local re-action; current enables them",
             "checkpoint_resume": "same dataset + selected range + repository commit + OpenAlex + controlled-ab condition only",
         },

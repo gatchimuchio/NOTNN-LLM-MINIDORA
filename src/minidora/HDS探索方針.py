@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
 
-from .hds_compiler_records import HDS_COMPILER_META_PREFIXES
-from .hds_ir import HDSIR
+from .HDS構文化器_records import HDS_COMPILER_META_PREFIXES
+from .HDS中間表現 import HDSIR
 from .K3機能 import DistilledEffortPolicyController, EffortPolicy, SemanticFrame
-from .semantic_tokens import 意味語
+from .意味字句 import 意味語
 
 
 @dataclass(frozen=True, slots=True)

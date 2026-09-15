@@ -4,7 +4,7 @@ import math
 import re
 from typing import Sequence
 
-from .科学専門能力_共通 import _result
+from .科学専門能力_共通 import _結果
 
 
 def _compact(text: object) -> str:
@@ -100,7 +100,7 @@ def solve_exponential_decay_probability(q: str, choices: Sequence[str]):
         return None
     ratio = t1 * scale[unit1] / (t0 * scale[unit0])
     target = 1.0 - (1.0 - p) ** ratio
-    return _result(
+    return _結果(
         _nearest_scalar(choices, target, tol=0.035),
         'exponential_decay_probability',
         f'{target:.12g}',
@@ -130,7 +130,7 @@ def solve_magnetic_monopole_maxwell(q: str, choices: Sequence[str]):
         )
         if electric_curl and magnetic_div:
             hits.append(i)
-    return _result(
+    return _結果(
         hits[0] if len(hits) == 1 else None,
         'magnetic_monopole_maxwell_symmetry',
         'curl(E),div(B)',
@@ -159,7 +159,7 @@ def solve_dipole_operator_mass_dimension(q: str, choices: Sequence[str]):
         )
         if neg_one and nonren:
             hits.append(i)
-    return _result(
+    return _結果(
         hits[0] if len(hits) == 1 else None,
         'dipole_operator_mass_dimension',
         -1,
@@ -293,7 +293,7 @@ def solve_projective_measurement_3x3(q: str, choices: Sequence[str]):
         if first is None or second is None:
             return None
         target = first * second
-        return _result(
+        return _結果(
             _nearest_scalar(choices, target, tol=0.025),
             'sequential_projective_measurement_3x3',
             f'{target:.12g}',
@@ -309,7 +309,7 @@ def solve_projective_measurement_3x3(q: str, choices: Sequence[str]):
     target = _射影確率(state, eigenvector)
     if target is None:
         return None
-    return _result(
+    return _結果(
         _nearest_scalar(choices, target, tol=0.025),
         'projective_measurement_probability_3x3',
         f'{target:.12g}',
@@ -343,7 +343,7 @@ def solve_blackbody_luminosity_with_radial_velocity(q: str, choices: Sequence[st
 
     temperature_ratio = doppler(v1) / doppler(v2)
     target = radius_ratio ** 2 * temperature_ratio ** 4
-    return _result(
+    return _結果(
         _nearest_scalar(choices, target, tol=0.02),
         'blackbody_luminosity_radial_doppler',
         f'{target:.12g}',

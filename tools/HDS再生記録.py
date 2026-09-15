@@ -97,7 +97,7 @@ def main() -> int:
     ReplayJSONL保存(rows, args.output)
 
     summary = {
-        "schema": "minidora.hds-choice-replay.capture-result.v1",
+        "契約形式": "minidora.hds-choice-replay.capture-result.v1",
         "input": str(args.input),
         "output": str(args.output),
         "problem_count": stats.問題数,

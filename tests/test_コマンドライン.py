@@ -46,7 +46,7 @@ class CLI試験(unittest.TestCase):
         self.assertEqual(payload["value"], 5)
         self.assertEqual(payload["status"], "合格")
         self.assertEqual(payload["plan"], "算術")
-        self.assertTrue(payload["hds_ir"])
+        self.assertTrue(payload["HDS中間表現"])
         self.assertEqual(payload["compiler"], "公開HDSコンパイラ")
 
     def test_非UTF8ロケールでも日本語標準入力を処理できる(self):

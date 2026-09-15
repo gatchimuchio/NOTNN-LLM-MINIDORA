@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_choice_runtime import HDS選択実行結果
+from minidora.HDS選択実行系 import HDS選択実行結果
 from minidora.hds適応候補調停 import HDS適応候補調停
 
 

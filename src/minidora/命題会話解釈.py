@@ -82,7 +82,7 @@ def 命題会話を解釈(original, material_names):
 
 def HDS命題を照合(ir, request):
     """実HDSを保持・照合。引用内の否定・条件を局所解析へ束縛し、無関係な残差は止める。"""
-    from .hds_ir import HDSIR, 値状態
+    from .HDS中間表現 import HDSIR, 値状態
     if (type(ir) is not HDSIR or ir.原文 != request.原文 or ir.入力言語 != 'ja'
             or ir.出力言語 not in (None, 'ja')):
         raise ValueError('命題要求と実HDSの原文・言語不一致')

@@ -1,7 +1,7 @@
-# GPQA Diamond Core整合化後 正式全数 — 2026-09-05
+# GPQA Diamond 模型核整合化後 正式全数 — 2026-09-05
 
 標準 `tools/benchmark_formal.py` を4つの非重複index範囲へ分割し、全198問を結合した正式測定。
-専門Capability Moduleは除外。Goldは推論完了後の採点にのみ使用。
+専門能力モジュールは除外。Goldは推論完了後の採点にのみ使用。
 
 ```json
 {

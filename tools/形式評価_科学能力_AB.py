@@ -21,7 +21,7 @@ import benchmark as _benchmark
 import benchmark_formal as _formal
 import gpqa_measure_current as _gpqa
 
-import minidora.hds_choice_runtime as _choice_runtime
+import minidora.HDS選択実行系 as _choice_実行系
 from minidora.科学専門能力統合 import 科学専門能力を通常MINIDORAへ接続
 
 
@@ -68,12 +68,12 @@ def _baseline透過(question_ir, references, *args, **kwargs):
     )
 
 
-_科学能力runtime = ModuleType("minidora_scientific_specialist_ab_runtime")
-_科学能力runtime.HDS選択推論実行 = _baseline透過
-_科学能力runtime.HDS選択問題 = _choice_runtime.HDS選択問題
-_科学能力runtime.HDS選択実行結果 = _choice_runtime.HDS選択実行結果
-科学専門能力を通常MINIDORAへ接続(_科学能力runtime)
-_科学専門能力付き推論 = _科学能力runtime.HDS選択推論実行
+_科学能力実行系 = ModuleType("minidora_scientific_specialist_ab_実行系")
+_科学能力実行系.HDS選択推論実行 = _baseline透過
+_科学能力実行系.HDS選択問題 = _choice_実行系.HDS選択問題
+_科学能力実行系.HDS選択実行結果 = _choice_実行系.HDS選択実行結果
+科学専門能力を通常MINIDORAへ接続(_科学能力実行系)
+_科学専門能力付き推論 = _科学能力実行系.HDS選択推論実行
 
 
 def _科学専門能力AB選択推論実行(*args, **kwargs):
@@ -127,7 +127,7 @@ def _科学専門能力AB選択推論実行(*args, **kwargs):
 
 
 # benchmark.pyが既に参照しているgpqa名前空間だけを差し替える。
-# benchmark_formal本体や通常runtimeの実装は変更しない。
+# benchmark_formal本体や通常実行系の実装は変更しない。
 _gpqa.HDS選択推論実行 = _科学専門能力AB選択推論実行
 
 
@@ -160,14 +160,14 @@ def _科学solver統計(details):
 def _科学専門能力結果構造(*args, **kwargs):
     payload = _original_result_payload(*args, **kwargs)
     protocol = payload.setdefault("protocol", {})
-    protocol["runtime"] = "current formal MINIDORA + HDS supervisory intervention layer; repo-native scientific capability controlled A/B"
+    protocol["実行系"] = "current formal MINIDORA + HDS supervisory intervention layer; repo-native scientific capability controlled A/B"
     protocol["candidate_resolution"] = (
         "baseline=current formal MINIDORA. specialist_on=existing scientific capability may close only a uniquely and absolutely supported candidate; otherwise exact baseline result is returned"
     )
     protocol["specialist_source"] = "existing src/minidora/科学専門能力*.py via 科学専門能力を通常MINIDORAへ接続; no new GPQA solver in this wrapper"
     protocol["gold_boundary"] = "gold used only after baseline and specialist_on inference for scoring"
     protocol["non_intervention_invariant"] = "scientific specialist not fired => specialist_on returns the exact baseline selection object"
-    if protocol.get("controlled_ab"):
+    if protocol.get("統制AB"):
         protocol["controlled_ab_definition"] = (
             "same question IR + exact same initial retrieved references. "
             "baseline=current formal MINIDORA with HDS supervisory intervention layer. "

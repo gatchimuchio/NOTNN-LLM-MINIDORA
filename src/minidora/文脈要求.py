@@ -9,8 +9,8 @@ from copy import deepcopy
 from dataclasses import dataclass
 from threading import Lock
 
-from .hds_adapter import HDSコンパイラProtocol
-from .hds_ir import HDSIR
+from .HDS適合器 import HDSコンパイラProtocol
+from .HDS中間表現 import HDSIR
 from .要求解釈 import 要求計画器, 要求解釈結果
 from .要求解釈実行 import 要求計画を実行, 要求実行結果
 from .能力合成 import 能力合成器
@@ -48,7 +48,7 @@ class 文脈付き要求セッション:
     def __init__(self, セッションID: str, *, コンパイラ: HDSコンパイラProtocol | None = None,
                  最大応答数: int = 64, 最大記録バイト数: int = 2_000_000):
         if コンパイラ is None:
-            from .hds_compiler import 公開HDSコンパイラ
+            from .HDS構文化器 import 公開HDSコンパイラ
             コンパイラ = 公開HDSコンパイラ()
         self._コンパイラ = コンパイラ
         self._文脈 = 会話参照記憶(セッションID, 最大応答数=最大応答数,

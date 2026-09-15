@@ -73,7 +73,7 @@ class 言語確率模型状態:
 
     def 辞書化(self) -> dict[str, object]:
         return {
-            "schema": "minidora.strict-language-model.v1",
+            "契約形式": "minidora.strict-language-model.v1",
             "次数": self.次数,
             "加算平滑化": self.加算平滑化,
             "語彙": list(self.語彙),
@@ -86,7 +86,7 @@ class 言語確率模型状態:
 
     @classmethod
     def 復元(cls, data: Mapping[str, object]) -> "言語確率模型状態":
-        if data.get("schema") != "minidora.strict-language-model.v1":
+        if data.get("契約形式") != "minidora.strict-language-model.v1":
             raise ValueError("未知の言語確率模型状態schema")
         raw_counts = data.get("遷移計数")
         if not isinstance(raw_counts, Mapping):

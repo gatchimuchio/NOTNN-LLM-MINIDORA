@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import replace
 import unittest
 
-from minidora.hds_choice_runtime import HDS選択推論実行
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
-from minidora.hds_ir import HDS残差
-from minidora.hds_language_semantic_bridge import HDS英日意味射影
-from minidora.hds_model_projection import HDS内部言語状態
-from minidora.hds_runtime_projection import HDSKData射影
+from minidora.HDS選択実行系 import HDS選択推論実行
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
+from minidora.HDS中間表現 import HDS残差
+from minidora.HDS言語意味橋渡し import HDS英日意味射影
+from minidora.HDS模型射影 import HDS内部言語状態
+from minidora.HDS実行系射影 import HDSKData射影
 from minidora.参照 import 参照記録
 from minidora.能力状態差循環 import 標準能力模型核
 from minidora.言語基底_英日意味 import 英語質問境界解析, 英語質問表示, 英日意味フレーム抽出 as 基礎抽出

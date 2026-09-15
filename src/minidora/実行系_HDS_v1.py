@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from .hds_choice_runtime import HDS選択問題
-from .hds統合runtime import HDS駆動選択実行
-from .runtime import ミニドラ as _MINIDORAV05
+from .HDS選択実行系 import HDS選択問題
+from .hds統合実行系 import HDS駆動選択実行
+from .実行系 import ミニドラ as _MINIDORAV05
 from .実行系_v03 import 結果, 要求
 
 

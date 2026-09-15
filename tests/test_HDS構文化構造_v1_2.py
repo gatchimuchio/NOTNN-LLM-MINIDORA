@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_compiler_failure_bank import HDS失敗署名Bank
+from minidora.HDS構文化器_failure_bank import HDS失敗署名Bank
 from minidora.HDS構文化記録_v1_1 import HDS失敗署名候補, HDS失敗署名状態
 from minidora.HDS構文化記録_v1_2 import HDS改善対象
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 
 
 class HDSCompilerArchitectureV12試験(unittest.TestCase):

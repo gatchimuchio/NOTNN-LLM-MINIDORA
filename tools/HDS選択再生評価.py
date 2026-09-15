@@ -30,8 +30,8 @@ def _load(path: Path) -> list[dict[str, Any]]:
         if not line.strip():
             continue
         row = json.loads(line)
-        if row.get("schema") not in {None, SCHEMA}:
-            raise ValueError(f"line {line_no}: unsupported schema {row.get('schema')!r}")
+        if row.get("契約形式") not in {None, SCHEMA}:
+            raise ValueError(f"line {line_no}: unsupported schema {row.get('契約形式')!r}")
         if str(row.get("id", "")).lower().startswith("gpqa:"):
             raise ValueError(GPQA_FIXED_REFERENCE_FORBIDDEN)
         rows.append(row)
@@ -154,7 +154,7 @@ def run(path: Path, *, effort: str | None = None) -> dict[str, Any]:
 
     total = len(details)
     summary = {
-        "schema": "minidora.hds-choice-replay.result.v1",
+        "契約形式": "minidora.hds-choice-replay.result.v1",
         "input": str(path),
         "total": total,
         "with_gold": total_with_gold,

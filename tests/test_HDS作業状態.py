@@ -3,8 +3,8 @@ from __future__ import annotations
 import unittest
 
 from minidora.HDS資料K import HDSIR知識Adapter, HDS証拠事実, HDS証拠状態複製
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
-from minidora.hds作業状態 import HDS一時証拠統合, HDS作業状態構築, HDS寄与Gate再照合
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from minidora.HDS作業状態 import HDS一時証拠統合, HDS作業状態構築, HDS寄与Gate再照合
 from minidora.K3機能 import K3相当能力核
 
 
