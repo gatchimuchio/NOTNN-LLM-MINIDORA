@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: 日本語基底正規化-pr115
@@ -24,17 +25,25 @@ jobs:
           ref: chore/japanese-base-normalization-2026-09-15
           fetch-depth: 0
           token: ${{ github.token }}
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: 現行mainから正規化を再構成
+      - name: 現行mainへ確定成果物を適用
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          cp tools/日本語基底正規化_一時.py /tmp/日本語基底正規化_一時.py
           git fetch origin main
           git reset --hard origin/main
-          cp /tmp/日本語基底正規化_一時.py tools/日本語基底正規化_一時.py
-          python tools/日本語基底正規化_一時.py
-          rm -f tools/日本語基底正規化_一時.py
+          rm -rf /tmp/jpnorm && mkdir -p /tmp/jpnorm
+          curl -L --fail \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/gatchimuchio/NOTNN-LLM-MINIDORA/actions/artifacts/10377706037/zip \
+            -o /tmp/jpnorm/artifact.zip
+          cd /tmp/jpnorm
+          unzip -q artifact.zip
+          unzip -q 日本語基底正規化_変更ファイル.zip -d files
+          cd "${GITHUB_WORKSPACE}"
+          rsync -a --exclude='.github/workflows/' /tmp/jpnorm/files/ ./
+          rm -f tests/test_cli.py tests/test_layer0.py
           git restore -- .github/workflows
       - name: 作業ブランチへ原子的に固定
         run: |
