@@ -362,6 +362,8 @@ def _内容を正規化() -> None:
     for 対象 in 根.rglob("*"):
         if not 対象.is_file() or 対象.resolve() == 自己 or 対象.suffix.lower() not in 対象拡張子:
             continue
+        if 対象.name in {"日本語基底監査.py", "日本語基底詳細監査.py", "日本語基底正規化_実行.py"}:
+            continue
         相対 = 対象.relative_to(根).as_posix()
         if 相対.startswith(".github/workflows/"):
             continue

@@ -19,7 +19,7 @@ import sys
 # 設計/01_日本語正本語彙_v1.md と既知の移行残存語を正本化する。
 旧英語意味語 = {
     "core", "module", "capability", "compiler", "architecture", "pipeline",
-    "実行系", "gate", "scope", "solver", "helper", "benchmark", "fallback",
+    "runtime", "gate", "scope", "solver", "helper", "benchmark", "fallback",
     "registry", "trace", "checkpoint", "manifest", "inventory", "candidate",
     "relation", "state", "action", "result", "source", "summary", "choice",
     "context", "reference", "projection", "semantic", "reasoning", "effort",

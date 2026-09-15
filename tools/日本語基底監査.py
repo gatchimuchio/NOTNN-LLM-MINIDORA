@@ -24,7 +24,7 @@ from minidora.HDS構文化器_v1 import 公開HDSコンパイラ  # noqa: E402
 
 _日本語文字 = re.compile(r"[ぁ-んァ-ヶ一-龠々]")
 _旧意味語 = re.compile(
-    r"(?:^|_)(?:core|module|capability|compiler|architecture|pipeline|実行系|gate|scope|"
+    r"(?:^|_)(?:core|module|capability|compiler|architecture|pipeline|runtime|gate|scope|"
     r"solver|helper|benchmark|fallback|registry|trace|checkpoint|manifest|inventory|"
     r"candidate|relation|state|action|result|source|summary|choice|context|reference|"
     r"projection|semantic|reasoning|effort|adapter|model|language)(?:_|$)",
@@ -56,20 +56,20 @@ _現行説明資料 = (
     "aistudio/README.md",
 )
 _旧状態値 = {
-    "原則暫定",
-    "作用閉包",
-    "構造化公開射影",
-    "全領域有効",
-    "部分構文化",
-    "意味保持",
-    "未形成",
-    "影",
-    "パターン",
-    "機構候補",
-    "原理候補",
-    "標準関係",
-    "形成済み関係",
-    "一次能力作用",
+    "PROVISIONAL_BY_DEFAULT",
+    "CLOSED_FOR_OPERATION",
+    "STRUCTURED_PUBLIC_PROJECTION",
+    "FULL_FIELD_ACTIVE",
+    "PARTIALLY_ARTICULATED",
+    "MEANING_PRESERVED",
+    "UNFORMED",
+    "SHADOW",
+    "PATTERN",
+    "MECHANISM_CANDIDATE",
+    "PRINCIPLE_CANDIDATE",
+    "STANDARD_RELATIONS",
+    "FORMED_RELATIONS",
+    "PRIMARY_CAPABILITY_ACTIONS",
 }
 
 
