@@ -27,5 +27,9 @@ import runpy
     "    _ワークフロー名を日本語化()\n",
     "    # workflow 改名は GitHub 接続権限のある別経路で適用する。\n",
 )
+本文 = 本文.replace(
+    '        相対 = 対象.relative_to(根).as_posix()\n        if 相対.startswith(除外先頭):',
+    '        相対 = 対象.relative_to(根).as_posix()\n        if 相対.startswith(".github/workflows/"):\n            continue\n        if 相対.startswith(除外先頭):',
+)
 対象.write_text(本文, encoding="utf-8")
 runpy.run_path(str(対象), run_name="__main__")
