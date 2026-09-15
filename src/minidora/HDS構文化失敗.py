@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 
-from .HDS構文化器_records import HDS監査要求, HDS認知世界断片
+from .HDS構文化記録 import HDS監査要求, HDS認知世界断片
 from .HDS構文化記録_v1_1 import (
     HDSチェックリスト項目,
     HDS失敗署名候補,

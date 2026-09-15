@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 import re
 
-from .HDS構文化器_records_v1_1 import HDS暗黙知記録
+from .HDS構文化記録_v1_1 import HDS暗黙知記録
 from .HDS中間表現 import HDSIR, HDS座標, HDS関係, 値状態
 
 

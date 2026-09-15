@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 import re
 
-from .HDS構文化器_records import HDS_COMPILER_META_PREFIXES
+from .HDS構文化記録 import HDS_COMPILER_META_PREFIXES
 from .HDS探索方針 import HDS努力水準
 from .HDS中間表現 import HDSIR, 値状態
 from .意味字句 import 意味語

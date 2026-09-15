@@ -4,7 +4,7 @@ from dataclasses import replace
 import re
 from typing import Iterable
 
-from .HDS構文化器_records import (
+from .HDS構文化記録 import (
     HDSCompiler成果,
     HDS保持契約,
     HDS原理探索要求,

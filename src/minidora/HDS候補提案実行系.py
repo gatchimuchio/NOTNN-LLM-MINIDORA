@@ -13,7 +13,7 @@ from .HDS選択実行系 import (
     _独立コンパイル入口,
     _suspend,
 )
-from .HDS構文化器_records_v1_3 import HDS作用差分構造
+from .HDS構文化記録_v1_3 import HDS作用差分構造
 from .HDS中間表現 import HDSIR, 値状態
 from .HDS模型射影 import (
     HDS内部言語状態,

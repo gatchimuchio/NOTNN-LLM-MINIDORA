@@ -12,7 +12,7 @@ from .HDS構文化記録_v1_1 import (
     HDS認知世界差分,
     HDS監査参照候補,
 )
-from .HDS構文化器_records_v1_3 import HDS作用差分構造
+from .HDS構文化記録_v1_3 import HDS作用差分構造
 
 
 class HDS監査状態(StrEnum):

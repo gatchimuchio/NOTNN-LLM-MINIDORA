@@ -5,8 +5,8 @@ from hashlib import sha256
 import json
 from typing import Iterable
 
-from .HDS構文化器_records_v1_1 import HDS失敗署名候補, HDS失敗署名状態
-from .HDS構文化器_records_v1_2 import (
+from .HDS構文化記録_v1_1 import HDS失敗署名候補, HDS失敗署名状態
+from .HDS構文化記録_v1_2 import (
     HDS失敗観測,
     HDS失敗署名BankSnapshot,
     HDS失敗署名記録,

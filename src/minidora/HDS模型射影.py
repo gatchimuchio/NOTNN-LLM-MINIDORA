@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
-from .HDS構文化器_records_v1_3 import HDS作用差分構造
+from .HDS構文化記録_v1_3 import HDS作用差分構造
 from .HDS中間表現 import HDSIR, 値状態
 from .意味字句 import 意味語
 from .言語構造 import 言語関係構造, _意味集合

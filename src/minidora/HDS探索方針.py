@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
 
-from .HDS構文化器_records import HDS_COMPILER_META_PREFIXES
+from .HDS構文化記録 import HDS_COMPILER_META_PREFIXES
 from .HDS中間表現 import HDSIR
 from .K3機能 import DistilledEffortPolicyController, EffortPolicy, SemanticFrame
 from .意味字句 import 意味語
