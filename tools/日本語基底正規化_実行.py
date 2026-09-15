@@ -32,7 +32,12 @@ import runpy
     '        相対 = 対象.relative_to(根).as_posix()\n        if 相対.startswith(".github/workflows/"):\n            continue\n        if 相対.startswith(除外先頭):',
 )
 対象.write_text(本文, encoding="utf-8")
-runpy.run_path(str(対象), run_name="__main__")
+名前空間 = runpy.run_path(str(対象), run_name="_日本語基底正規化")
+正規化 = 名前空間.get("main")
+if not callable(正規化):
+    raise RuntimeError("日本語基底正規化器のmainを取得できない")
+if 正規化() != 0:
+    raise RuntimeError("日本語基底正規化器が失敗した")
 
 # 途中版の日本語化で生じた「日本語正本語 + 旧英語サフィックス」を全treeで解消する。
 混成名置換 = {
@@ -52,6 +57,7 @@ runpy.run_path(str(対象), run_name="__main__")
     "HDS構文化器_tacit": "HDS構文化暗黙知",
 }
 根 = Path(__file__).resolve().parents[1]
+変更数 = 0
 for 経路 in (根 / "src").rglob("*.py"):
     内容 = 経路.read_text(encoding="utf-8")
     新内容 = 内容
@@ -59,3 +65,11 @@ for 経路 in (根 / "src").rglob("*.py"):
         新内容 = 新内容.replace(旧名, 新名)
     if 新内容 != 内容:
         経路.write_text(新内容, encoding="utf-8")
+        変更数 += 1
+
+確認対象 = 根 / "src/minidora/HDS構文化器_v1.py"
+確認本文 = 確認対象.read_text(encoding="utf-8")
+残存 = [旧名 for 旧名 in 混成名置換 if 旧名 in 確認本文]
+if 残存:
+    raise RuntimeError("混成import名の補正漏れ: " + ", ".join(残存))
+print(f"混成import補正: {変更数}ファイル")
