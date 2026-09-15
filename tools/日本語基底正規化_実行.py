@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""一時正規化器の自己修復後に日本語基底正規化を実行する。PR #115 専用。"""
+"""PR #115 専用の一時正規化実行器。workflow群は接続権限のある別経路で扱う。"""
 from __future__ import annotations
 
 from pathlib import Path
