@@ -1,6 +1,8 @@
 name: 日本語基底正規化 一時検証
 
 on:
+  push:
+    branches: [main]
   pull_request_target:
     types: [synchronize]
 
@@ -14,14 +16,15 @@ concurrency:
 jobs:
   verify:
     if: >-
-      github.event.pull_request.number == 115 &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'chore/japanese-base-normalization-2026-09-15'
+      github.event_name == 'push' ||
+      (github.event.pull_request.number == 115 &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref == 'chore/japanese-base-normalization-2026-09-15')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: chore/japanese-base-normalization-2026-09-15
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
