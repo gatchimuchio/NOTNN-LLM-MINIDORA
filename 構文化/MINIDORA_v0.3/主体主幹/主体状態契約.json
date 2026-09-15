@@ -21,7 +21,7 @@
     "理由付き訂正は旧版・新版・差分・理由・根拠を保存",
     "主体整合失敗/保留候補は必須モードで結果表面へ昇格させない"
   ],
-  "layer0_v4_mapping": [
+  "第0層_v4_mapping": [
     "CONTEXT_BOUND_STATE",
     "CONTEXT_DEPENDENT_RESULT_FORMATION"
   ],

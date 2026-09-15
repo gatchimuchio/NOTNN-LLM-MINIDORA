@@ -6,7 +6,7 @@ from minidora.科学専門能力 import 科学専門能力解決
 
 
 class 科学構造作用試験(unittest.TestCase):
-    def assert_solver(self, question, choices, expected):
+    def 解決器を確認(self, question, choices, expected):
         row = 科学専門能力解決(question, choices)
         self.assertIsNotNone(row)
         self.assertEqual(row.index, expected)
@@ -17,7 +17,7 @@ class 科学構造作用試験(unittest.TestCase):
             'It has survived for 17 minutes. What is the probability of decay in the next 200 minutes?'
         )
         target = 1 - (1 - 0.36) ** (200 / 80)
-        self.assert_solver(q, ('10%', f'{100*target:.3f}%', '80%', '36%'), 1)
+        self.解決器を確認(q, ('10%', f'{100*target:.3f}%', '80%', '36%'), 1)
 
     def test_磁気単極子はFaradayと磁気Gaussを変更する(self):
         q = (
@@ -30,7 +30,7 @@ class 科学構造作用試験(unittest.TestCase):
             'Only the divergence of the magnetic field.',
             'Only the circulation of the magnetic field.',
         )
-        self.assert_solver(q, choices, 1)
+        self.解決器を確認(q, choices, 1)
 
     def test_次元解析は候補順に依存しない(self):
         q = (
@@ -43,7 +43,7 @@ class 科学構造作用試験(unittest.TestCase):
             'The mass dimension [kappa]_M=1. The theory is not renormalizable.',
             'The mass dimension [kappa]_M=-1. The theory is renormalizable.',
         )
-        self.assert_solver(q, choices, 1)
+        self.解決器を確認(q, choices, 1)
 
     def test_行列分類は成分から判定する(self):
         q = (
@@ -59,7 +59,7 @@ class 科学構造作用試験(unittest.TestCase):
             '(e^X)*Y*(e^{-X}) represents a quantum state.',
             'W and X represent the evolution operator of some quantum system.',
         )
-        self.assert_solver(q, choices, 2)
+        self.解決器を確認(q, choices, 2)
 
     def test_三次元射影測定は任意の対角演算子でも解ける(self):
         q = (
@@ -68,7 +68,7 @@ class 科学構造作用試験(unittest.TestCase):
             'in the second row as (0, 0, 0) and in the third row as (0, 0, -1). '
             'Calculate the probability that the measurement will yield 0 at time t.'
         )
-        self.assert_solver(q, ('1/3', '2/3', '1/6', '1'), 1)
+        self.解決器を確認(q, ('1/3', '2/3', '1/6', '1'), 1)
 
     def test_連続射影測定はBorn則と崩壊を積算する(self):
         q = (
@@ -77,7 +77,7 @@ class 科学構造作用試験(unittest.TestCase):
             'The matrix operator for Q is represented by the square matrix having elements in the first row as (0, 0, 0), second row as (0, -1, 0) and third row as (0, 0, 1). '
             'If someone measures Q just after the measurement of P, what is the probability of getting 0 for P and -1 for Q in the respective measurements?'
         )
-        self.assert_solver(q, ('1/6', '2/3', '1/3', '1'), 1)
+        self.解決器を確認(q, ('1/6', '2/3', '1/3', '1'), 1)
 
     def test_黒体光度比は半径と視線速度を同時補正する(self):
         q = (
@@ -87,7 +87,7 @@ class 科学構造作用試験(unittest.TestCase):
         beta = 1000 / 299792.458
         d2 = ((1 + beta) / (1 - beta)) ** 0.5
         target = 4 / d2 ** 4
-        self.assert_solver(q, ('4.00', f'{target:.3f}', '2.00', '8.00'), 1)
+        self.解決器を確認(q, ('4.00', f'{target:.3f}', '2.00', '8.00'), 1)
 
     def test_無関係な行列文へは発火しない(self):
         self.assertIsNone(

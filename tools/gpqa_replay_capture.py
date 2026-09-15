@@ -1,27 +1,11 @@
-from __future__ import annotations
+"""旧英字名の互換入口。現行正本は `GPQA再生記録.py`。"""
+from pathlib import Path
+import runpy
 
-"""履歴専用: 旧GPQA固定参照Replay capture入口。
-
-2026-09-09以後、GPQA正本性能評価では固定参照Dataを禁止する。
-旧実装はGit履歴に保存されており、現行worktreeでは再実行入口を提供しない。
-
-現行GPQA正本:
-    python tools/benchmark_strict.py gpqa-e2e --out gpqa_e2e.json
-"""
-
-import sys
-
-
-GPQA_FIXED_REFERENCE_FORBIDDEN = (
-    "GPQA_FIXED_REFERENCE_FORBIDDEN: 2026-09-09以後、GPQAでは固定参照Dataを禁止しています。"
-    "この旧capture入口は履歴専用で実行できません。"
-)
-
-
-def main() -> int:
-    print(GPQA_FIXED_REFERENCE_FORBIDDEN, file=sys.stderr)
-    return 2
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+_正本経路 = Path(__file__).with_name("GPQA再生記録.py")
+_名前空間 = runpy.run_path(str(_正本経路), run_name="_minidora_互換")
+for _名, _値 in _名前空間.items():
+    if not _名.startswith("__"):
+        globals()[_名] = _値
+if __name__ == "__main__" and callable(_名前空間.get("main")):
+    raise SystemExit(_名前空間["main"]())

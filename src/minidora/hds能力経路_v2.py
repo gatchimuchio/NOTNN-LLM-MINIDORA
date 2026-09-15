@@ -19,7 +19,7 @@ from .hds_reference import (
 from .hds候補提案runtime import HDS候補提案実行
 from .hds局所再照合 import HDS局所Window候補
 if TYPE_CHECKING:
-    from .k3_functional import K3相当能力核
+    from .K3機能 import K3相当能力核
 from .模型 import MINIDORA模型核, 模型結果
 from .能力状態差循環 import MINIDORA能力状態差模型核, 標準能力模型核
 from .参照 import 参照供給器, 参照記録

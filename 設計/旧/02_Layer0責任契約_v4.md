@@ -117,7 +117,7 @@ Layer-0責任の意味・数・適合状態・negative controlを変更すると
 
 1. 外部Layer-0正本
 2. 本書の局所写像
-3. `src/minidora/layer0.py`
+3. `src/minidora/第0層.py`
 4. 関連Runtime実装
 5. tests / CI
 6. README / REFERENCES

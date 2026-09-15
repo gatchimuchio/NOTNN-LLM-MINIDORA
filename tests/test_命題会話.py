@@ -111,9 +111,9 @@ class 命題会話試験(unittest.TestCase):
         r=p.応答('資料「規則」から「Q」は言える？')
         self.assertIn('支持されます',r.本文)
     def test_元Coreにフォールバックしない(self):
-        class Core:
+        class 模型核:
             def 応答(self,*a,**kw):raise AssertionError('Core不可')
-        p=製品ミニドラ(汎用会話=True,基礎ミニドラ=Core())
+        p=製品ミニドラ(汎用会話=True,基礎ミニドラ=模型核())
         r=p.応答('資料「未登録」から「P」は言える？');self.assertNotIn('支持されます',r.本文)
 
 

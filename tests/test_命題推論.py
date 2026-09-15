@@ -5,12 +5,12 @@ from minidora.命題推論 import 命題推論器, 推論上限
 
 
 class 命題推論試験(unittest.TestCase):
-    def result(self,source,query):
+    def 結果(self,source,query):
         rows=命題資料を読む(source,'資料')
         e=命題を読む(query)
         self.assertEqual(len(e),1)
         return 命題推論器(rows).判定(e[0].式)
-    def status(self,source,query,status):self.assertEqual(self.result(source,query)['判定'],status)
+    def status(self,source,query,status):self.assertEqual(self.結果(source,query)['判定'],status)
     def test_直接支持(self):self.status('P。','P','支持')
     def test_直接反証(self):self.status('否定(P)。','P','反証')
     def test_支持反証を同時保持(self):self.status('P。否定(P)。','P','矛盾')
@@ -61,12 +61,12 @@ class 命題推論試験(unittest.TestCase):
         with self.assertRaises(ValueError):engine.判定(命題を読む('Q')[0].式)
     def test_循環規則は停止する(self):self.status('P。PならばQ。QならばP。','Q','支持')
     def test_根拠グラフが全件閉じる(self):
-        r=self.result('P。PならばQ。QならばR。','R')
+        r=self.結果('P。PならばQ。QならばR。','R')
         for p in r['導出'].values():self.assertTrue(set(p['親'])<=set(r['導出']))
     def test_支持反証の根拠が別(self):
-        r=self.result('P。否定(P)。','P');self.assertNotEqual(r['支持'],r['反証'])
+        r=self.結果('P。否定(P)。','P');self.assertNotEqual(r['支持'],r['反証'])
     def test_存在と全称の無制限入れ子は停止(self):
-        with self.assertRaises(ValueError):self.result('すべてのxについて(あるyについて(親(x,y)))。','P')
+        with self.assertRaises(ValueError):self.結果('すべてのxについて(あるyについて(親(x,y)))。','P')
     def test_同じ問いの反復で同じ結果(self):
         e=命題推論器(命題資料を読む('P。PならばQ。','資料'));q=命題を読む('Q')[0].式
         self.assertEqual(e.判定(q),e.判定(q))

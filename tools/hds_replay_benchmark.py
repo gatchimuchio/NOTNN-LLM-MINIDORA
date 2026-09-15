@@ -1,48 +1,11 @@
-from __future__ import annotations
-
-import argparse
-import json
+"""旧英字名の互換入口。現行正本は `HDS再生評価.py`。"""
 from pathlib import Path
-import sys
+import runpy
 
-
-ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-sys.path.insert(0, str(SRC))
-
-from minidora.hds_replay_eval import HDSReplay評価  # noqa: E402
-
-
-SCHEMA = "minidora.hds-choice-replay.v1"
-
-
-def _load(path: Path) -> list[dict]:
-    rows: list[dict] = []
-    for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        if row.get("schema") not in {None, SCHEMA}:
-            raise ValueError(f"line {line_no}: unsupported schema {row.get('schema')!r}")
-        rows.append(row)
-    return rows
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description="固定HDS-IR bundleをMINIDORA Runtimeで再評価する。")
-    parser.add_argument("input", type=Path)
-    parser.add_argument("--out", type=Path)
-    parser.add_argument("--effort", choices=("low", "high", "max"))
-    args = parser.parse_args()
-
-    result = HDSReplay評価(_load(args.input), effort=args.effort)
-    text = json.dumps(result, ensure_ascii=False, indent=2)
-    if args.out is not None:
-        args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(text + "\n", encoding="utf-8")
-    print(text)
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+_正本経路 = Path(__file__).with_name("HDS再生評価.py")
+_名前空間 = runpy.run_path(str(_正本経路), run_name="_minidora_互換")
+for _名, _値 in _名前空間.items():
+    if not _名.startswith("__"):
+        globals()[_名] = _値
+if __name__ == "__main__" and callable(_名前空間.get("main")):
+    raise SystemExit(_名前空間["main"]())

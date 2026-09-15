@@ -16,7 +16,7 @@ MINIDORA自体を上流規定の成立証人には使用しない。
 
 ## 旧混線と再分類
 
-- 旧`layer0.py`: 汎用命令インタプリタ → **計算実行器**
+- 旧`第0層.py`: 汎用命令インタプリタ → **計算実行器**
 - HDS-IR: LLM模型中核ではなく意味Projection / 運用 / 監査
 - 外部参照R: 外部Data
 - 主体主幹: 運用主体性
@@ -137,8 +137,8 @@ Meaning/Audit Architecture `v1.2` を維持したまま、Pipeline `v1.3` で責
 
 v0.3実装は削除せず、
 
-- `src/minidora/runtime_v03.py`
-- `src/minidora/旧_layer0_v03.py`
+- `src/minidora/実行系_v03.py`
+- `src/minidora/旧_第0層_v03.py`
 - `設計/旧/02_Layer0責任契約_v4.md`
 
 として再現可能性を保持する。

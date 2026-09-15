@@ -176,5 +176,5 @@ live 198問 controlled A/Bは `.github/workflows/gpqa_scientific_specialist_ab.y
 再現入口:
 
 ```bash
-python tools/gpqa_scientific_specialist_replay.py --out gpqa_scientific_specialist_replay.json
+python tools/GPQA科学専門能力再生.py --out gpqa_scientific_specialist_replay.json
 ```

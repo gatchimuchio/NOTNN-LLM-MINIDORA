@@ -155,7 +155,7 @@ HDSが能力模型照合を起動する場合も、通常MINIDORAがSUSPENDし�
 次は履歴・互換資産として保持するが、現行active pathでは使用しない。
 
 - `hds判断主体.py` の output-only Gate
-- `runtime_hds_v1.py`
+- `実行系_HDS_v1.py`
 - `hds統合runtime.py`
 - `hds統合判断主体.py`
 - `hds能力経路_v2.py` の別formal C

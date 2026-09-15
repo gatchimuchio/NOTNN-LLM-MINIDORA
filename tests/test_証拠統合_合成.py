@@ -137,7 +137,7 @@ class _HTML供給:
 
 
 class 取得証拠接続試験(unittest.TestCase):
-    def pipeline(self, second):
+    def 処理系列(self, second):
         retrieval=知識取得Module(知識取得器(_検索(),_HTML供給(second)),外部読取許可=True)
         runner=能力合成器((retrieval.登録(),証拠統合Module().登録(),記載値採用Module().登録(),*局所能力群()))
         p,d=plan_and_data([])
@@ -148,7 +148,7 @@ class 取得証拠接続試験(unittest.TestCase):
         return runner.実行(合成計画((first,proof,*p.工程[1:]),p.出力工程),d,外部読取許可=True)
 
     def test_実取得機構から単位統合と既存数値抽出(self):
-        r=self.pipeline("装置Aの電圧は0.12 kVです。")
+        r=self.処理系列("装置Aの電圧は0.12 kVです。")
         self.assertTrue(r.成立,r.理由)
         self.assertEqual(r.出力[0][1].本文,"120")
         self.assertEqual(r.実行数,4)
@@ -156,7 +156,7 @@ class 取得証拠接続試験(unittest.TestCase):
         self.assertEqual(len(r.出力[0][1].参照),2)
 
     def test_取得成功でも証拠競合なら最後の抽出を停止(self):
-        r=self.pipeline("装置Aの電圧は240 Vです。")
+        r=self.処理系列("装置Aの電圧は240 Vです。")
         self.assertTrue(dict(r.中間結果)["取得"].成立)
         self.assertTrue(dict(r.中間結果)["証拠"].成立)
         self.assertFalse(r.成立)
@@ -164,7 +164,7 @@ class 取得証拠接続試験(unittest.TestCase):
         self.assertNotIn("情報抽出",[t.能力 for t in r.履歴])
 
     def test_抜粋だけ見て後半の留保を落とさない(self):
-        r=self.pipeline("装置Aの電圧は0.12 kVです。</p><p>ただし上記は仮定である。")
+        r=self.処理系列("装置Aの電圧は0.12 kVです。</p><p>ただし上記は仮定である。")
         self.assertFalse(r.成立)
         self.assertTrue(dict(r.中間結果)["証拠"].データ["残差"])
 

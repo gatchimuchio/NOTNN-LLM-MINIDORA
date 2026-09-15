@@ -8,7 +8,7 @@ from .hds_ir import HDSIR
 from .hds能力経路_v3 import HDS能力経路V3候補提案実行
 from .hds統一状態循環 import HDS統一状態Session, HDS統一状態政策
 if TYPE_CHECKING:
-    from .k3_functional import K3相当能力核
+    from .K3機能 import K3相当能力核
 from .模型 import MINIDORA模型核
 from .参照 import 参照記録
 

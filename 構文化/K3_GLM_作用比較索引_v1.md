@@ -20,7 +20,7 @@
 | 混合Gate | KDA/MLA/AttnRes/MoE別Gate | mHC Sinkhorn constrained mix | `HDS制約混合行列` |
 | 共通作用 | shared experts | shared expert / dense prefix | 既存共通作用 |
 | 専門作用 | top-16 routed experts | top-k routed experts | 既存専門作用routing |
-| effort | MOPD | reasoning effort | `hds_effort` |
+| effort | MOPD | reasoning effort | `HDS探索方針` |
 | 最終採否分離 | GRM構造類似 | training/eval criticは外部境界 | `J/HDS`既存境界 |
 | 生成先読み | 直接中心成果ではない | MTP | `HDS先行草案検証` |
 | blocker後の再作用 | checkpoint/re-entry | long-horizon feedback training | `HDS阻害回復方針` |
@@ -123,8 +123,8 @@ GLM追加実装:
 
 K3既存実装:
 
-- `../src/minidora/k3_functional.py`
-- `../src/minidora/k3_hds_native.py`
+- `../src/minidora/K3機能.py`
+- `../src/minidora/K3_HDSネイティブ.py`
 - `../src/minidora/能力状態差循環.py`
 - `../src/minidora/hds局所再照合.py`
 

@@ -239,10 +239,10 @@ class 多段解決契約試験(unittest.TestCase):
 
     def test_能力内で停止した結果は採用しない(self):
         stop = [False]
-        def action(c):
+        def 作用(c):
             stop[0] = True
             return 能力結果(True, "未採用")
-        m = 試験能力(関数=action)
+        m = 試験能力(関数=作用)
         p = replace(self.p, 解法群=(手順(module=m.名前),))
         r = 実行器(m).実行(p, self.d, 停止要求=lambda: stop[0])
         self.check(r, "中止")

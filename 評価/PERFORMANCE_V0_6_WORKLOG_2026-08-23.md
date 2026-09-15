@@ -26,7 +26,7 @@ GPQA固有ルール、正解ラベル参照、gold依存分岐は追加しない
 
 ### 1. 同一sourceの共通知識を候補識別証拠から分離
 
-対象: `src/minidora/hds_candidate_reconcile.py`
+対象: `src/minidora/HDS候補再照合.py`
 
 従来は同一sourceが複数候補へ同程度に一致した場合でも、識別係数に正のfloorが残っていた。そのため「全候補へ当たる共通知識」が小さい候補marginやproof provenanceとして残り得た。
 
@@ -60,7 +60,7 @@ v0.6では次へ変更した。
 
 ### 3. HDS関係の始点→終点を候補意味署名へ保持
 
-対象: `src/minidora/k3_hds_native.py`
+対象: `src/minidora/K3_HDSネイティブ.py`
 
 従来の `HDS意味署名` は次だけを保持していた。
 
@@ -110,7 +110,7 @@ v0.6では `false / incorrect / not` を単なる内容語として検出せず�
 
 ## 追加した回帰fixture
 
-### `tests/test_hds_candidate_reconcile.py`
+### `tests/test_HDS候補再照合.py`
 
 - 同一sourceのfact/document二重加点禁止
 - 全候補共通sourceをmargin/provenanceから除外

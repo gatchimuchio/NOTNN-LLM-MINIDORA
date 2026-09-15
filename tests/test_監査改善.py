@@ -52,12 +52,12 @@ def 命題要求(text='太郎は猫である。', query='太郎は猫である',
 class 採用境界試験(unittest.TestCase):
     class 能力:
         名前, 版, 優先度 = '検査能力', '1', 0
-        def __init__(self, result): self.result = result; self.count = 0
+        def __init__(self, 結果): self.結果 = 結果; self.count = 0
         def 判定(self, context): return 1
-        def 実行(self, context): self.count += 1; return self.result
+        def 実行(self, context): self.count += 1; return self.結果
 
-    def run_composer(self, result, data=None):
-        module = self.能力(result)
+    def run_composer(self, 結果, data=None):
+        module = self.能力(結果)
         plan = 合成計画((合成工程('工程', ('検査能力',), '指示'),), ('工程',))
         outcome = 能力合成器((登録能力(module),)).実行(plan, data or {'指示': 能力結果(True, '実行')})
         return module, outcome
@@ -117,7 +117,7 @@ class 区切り境界試験(unittest.TestCase):
 
 
 class 意味拡張試験(unittest.TestCase):
-    def result(self, text, query, **options): return 拡張命題を検討(命題要求(text,query,**options))
+    def 結果(self, text, query, **options): return 拡張命題を検討(命題要求(text,query,**options))
 
     def test_帰属の全語尾は構造を保つ(self):
         for suffix, kind in 帰属語尾.items():
@@ -125,12 +125,12 @@ class 意味拡張試験(unittest.TestCase):
                 with self.subTest(suffix=suffix, marker=marker):
                     e=命題を読む('太郎'+marker+'「P」'+suffix)[0].式
                     self.assertEqual(e.種別,'帰属'); self.assertEqual(e.述語,kind)
-                    self.assertEqual(self.result('太郎'+marker+'「P」'+suffix+'。','P')['状態'],'未確定')
+                    self.assertEqual(self.結果('太郎'+marker+'「P」'+suffix+'。','P')['状態'],'未確定')
 
     def test_全否定語尾を肯定と誤読しない(self):
         for suffix in 否定語尾:
             with self.subTest(suffix=suffix):
-                r=self.result('太郎は猫'+suffix+'。','太郎は猫である')
+                r=self.結果('太郎は猫'+suffix+'。','太郎は猫である')
                 self.assertEqual(r['状態'],'反証')
 
     def test_未対応の否定複合を肯定の述語名にしない(self):
@@ -144,9 +144,9 @@ class 意味拡張試験(unittest.TestCase):
 
     def test_接続語の同値(self):
         for word in ('および','かつ'):
-            self.assertEqual(self.result(f'P{word}Q。','Q')['状態'],'支持')
+            self.assertEqual(self.結果(f'P{word}Q。','Q')['状態'],'支持')
         for word in ('あるいは','又は','または'):
-            self.assertEqual(self.result(f'P{word}Q。PならばR。QならばR。','R')['状態'],'支持')
+            self.assertEqual(self.結果(f'P{word}Q。PならばR。QならばR。','R')['状態'],'支持')
 
     def test_機能形の全指示語を固有名化しない(self):
         for word in 指示語:
@@ -157,44 +157,44 @@ class 意味拡張試験(unittest.TestCase):
         self.assertEqual(命題を読む('すべてのxについて(猫(x))')[0].式.子[0].項[0].種別,'変数')
 
     def test_時点付き引用の私を束縛(self):
-        r=self.result('2026年では(太郎が「私は猫です」と言いました)。',
+        r=self.結果('2026年では(太郎が「私は猫です」と言いました)。',
                       '2026年では(太郎は「太郎は猫である」と述べた)')
         self.assertEqual(r['状態'],'支持')
-        r=self.result('2026年では(太郎が「私は猫です」と言いました)。','太郎は猫である')
+        r=self.結果('2026年では(太郎が「私は猫です」と言いました)。','太郎は猫である')
         self.assertEqual(r['状態'],'未確定')
 
     def test_括弧付き引用の私を束縛(self):
-        r=self.result('  （太郎は「私は猫です」と述べた）。','太郎は「太郎は猫である」と述べた')
+        r=self.結果('  （太郎は「私は猫です」と述べた）。','太郎は「太郎は猫である」と述べた')
         self.assertEqual(r['状態'],'支持')
 
     def test_引用帰属全体の否定を保つ(self):
-        r=self.result('否定(太郎は「私は猫です」と述べた)。','太郎は「太郎は猫である」と述べた')
+        r=self.結果('否定(太郎は「私は猫です」と述べた)。','太郎は「太郎は猫である」と述べた')
         self.assertEqual(r['状態'],'反証')
 
     def test_入れ子引用の話者を分ける(self):
-        r=self.result('太郎が「花子が『私は猫です』と信じています」と言いました。',
+        r=self.結果('太郎が「花子が『私は猫です』と信じています」と言いました。',
                       '太郎は「花子は『花子は猫である』と考えている」と述べた')
         self.assertEqual(r['状態'],'支持')
 
     def test_有界照応は明示設定のみ(self):
         text='太郎は猫である。P。彼は鳥である。'
-        with self.assertRaises(ValueError): self.result(text,'太郎は鳥である')
-        out=self.result(text,'太郎は鳥である',照応距離=2)
+        with self.assertRaises(ValueError): self.結果(text,'太郎は鳥である')
+        out=self.結果(text,'太郎は鳥である',照応距離=2)
         self.assertEqual(out['状態'],'支持')
         binding=out['判定結果']['場合別'][0]['照応解消'][0]
         self.assertEqual(binding['参照記載'],0); self.assertIn('未保証',binding['理由'])
 
     def test_照応距離を超えない(self):
-        with self.assertRaises(ValueError): self.result('太郎は猫である。P。Q。彼は鳥である。','太郎は鳥である',照応距離=2)
+        with self.assertRaises(ValueError): self.結果('太郎は猫である。P。Q。彼は鳥である。','太郎は鳥である',照応距離=2)
 
     def test_無主題をまたいでも直近明示主題を選ぶ(self):
-        r=self.result('太郎は猫である。花子は魚である。P。彼は鳥である。','花子は鳥である',照応距離=3)
+        r=self.結果('太郎は猫である。花子は魚である。P。彼は鳥である。','花子は鳥である',照応距離=3)
         self.assertEqual(r['状態'],'支持')
         self.assertEqual(r['判定結果']['場合別'][0]['照応解消'][0]['束縛先'],'花子')
 
     def test_曖昧な先行主題と後続の依存を維持(self):
         text='太郎は猫であるかつ花子は魚である。P。彼は鳥である。彼は動物である。'
-        r=self.result(text,'太郎は動物である',照応距離=2)
+        r=self.結果(text,'太郎は動物である',照応距離=2)
         self.assertEqual(r['状態'],'解釈依存'); self.assertEqual(r['判定結果']['場合総数'],2)
         for case in r['判定結果']['場合別']:
             self.assertEqual(case['照応解消'][0]['束縛先'],case['照応解消'][1]['束縛先'])
@@ -205,7 +205,7 @@ class 意味拡張試験(unittest.TestCase):
         with self.assertRaises(ValueError): 拡張命題を検討(req)
 
     def test_引用内人物を主題へ輸出しない(self):
-        r=self.result('太郎が「花子は猫である」と言いました。P。彼は鳥である。','花子は鳥である',照応距離=2)
+        r=self.結果('太郎が「花子は猫である」と言いました。P。彼は鳥である。','花子は鳥である',照応距離=2)
         self.assertEqual(r['状態'],'未確定')
 
     def test_照応予算型を厳格検査(self):
@@ -219,24 +219,24 @@ class 意味拡張試験(unittest.TestCase):
         for row in d['記載候補']: self.assertEqual(text[slice(*row['範囲'])],row['原文'])
 
     def test_未知尾部は捨てない(self):
-        with self.assertRaises(ValueError): self.result('太郎は猫だ。ただし例外があります。','太郎は猫だ')
+        with self.assertRaises(ValueError): self.結果('太郎は猫だ。ただし例外があります。','太郎は猫だ')
 
     def test_曖昧な問いは明示選択を要求(self):
-        with self.assertRaises(ValueError): self.result('P。','PまたはQかつR')
-        r=self.result('P。','PまたはQかつR',問い候補=1)
+        with self.assertRaises(ValueError): self.結果('P。','PまたはQかつR')
+        r=self.結果('P。','PまたはQかつR',問い候補=1)
         self.assertIn(r['状態'],('支持','未確定'))
         self.assertIn('問い候補1',改善回答を構成(r)['本文'])
 
     def test_読みが違っても共通判定を一意な読みにしない(self):
-        r=self.result('PまたはQかつR。','PまたはQ')
+        r=self.結果('PまたはQかつR。','PまたはQ')
         self.assertEqual(r['状態'],'支持'); self.assertEqual(r['判定結果']['解釈状態'],'読み未確定')
 
     def test_資料選択を条件として回答に保持(self):
-        r=self.result('PまたはQかつR。','R',資料候補=2)
+        r=self.結果('PまたはQかつR。','R',資料候補=2)
         self.assertIn('資料候補2',改善回答を構成(r,詳細=False)['本文'])
 
     def test_報告往復と改変検出(self):
-        r=self.result('太郎は猫だ。','太郎は猫です')
+        r=self.結果('太郎は猫だ。','太郎は猫です')
         restored=json.loads(json.dumps(r,ensure_ascii=False))
         self.assertTrue(拡張命題報告を検査(restored))
         restored['事実認定']=True

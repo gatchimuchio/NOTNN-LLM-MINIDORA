@@ -8,51 +8,51 @@ from minidora.導出談話 import 導出説明節
 
 
 class 場合分け試験(unittest.TestCase):
-    def result(self, source, q):
+    def 結果(self, source, q):
         return 命題推論器(命題資料を読む(source, 'A')).判定(命題を読む(q)[0].式)
     def test_全ての場合で結論が成立(self):
-        r=self.result('PまたはQ。PならばR。QならばR。','R')
+        r=self.結果('PまたはQ。PならばR。QならばR。','R')
         self.assertEqual(r['判定'],'支持')
         self.assertIn('全場合を閉じた選言除去',[p['作用'] for p in r['導出'].values()])
     def test_片方の成功だけでは不足(self):
-        self.assertEqual(self.result('PまたはQ。PならばR。','R')['判定'],'未確定')
+        self.assertEqual(self.結果('PまたはQ。PならばR。','R')['判定'],'未確定')
     def test_どちらの場合かは未確定のまま(self):
-        self.assertEqual(self.result('PまたはQ。PならばR。QならばR。','P')['判定'],'未確定')
+        self.assertEqual(self.結果('PまたはQ。PならばR。QならばR。','P')['判定'],'未確定')
     def test_三つの場合で全てを要求(self):
-        self.assertEqual(self.result('PまたはQまたはS。PならばR。QならばR。','R')['判定'],'未確定')
-        self.assertEqual(self.result('PまたはQまたはS。PならばR。QならばR。SならばR。','R')['判定'],'支持')
+        self.assertEqual(self.結果('PまたはQまたはS。PならばR。QならばR。','R')['判定'],'未確定')
+        self.assertEqual(self.結果('PまたはQまたはS。PならばR。QならばR。SならばR。','R')['判定'],'支持')
     def test_反証も独立に場合分け(self):
-        r=self.result('PまたはQ。Pならば否定(R)。Qならば否定(R)。','R')
+        r=self.結果('PまたはQ。Pならば否定(R)。Qならば否定(R)。','R')
         self.assertEqual(r['判定'],'反証')
     def test_異なる場合の支持と反証を一つに混ぜない(self):
-        self.assertEqual(self.result('PまたはQ。PならばR。Qならば否定(R)。','R')['判定'],'未確定')
+        self.assertEqual(self.結果('PまたはQ。PならばR。Qならば否定(R)。','R')['判定'],'未確定')
     def test_矛盾を含む場合を捨てない(self):
-        self.assertEqual(self.result('PまたはQ。否定(P)。QならばR。','R')['判定'],'未確定')
+        self.assertEqual(self.結果('PまたはQ。否定(P)。QならばR。','R')['判定'],'未確定')
     def test_場合分けからの矛盾は両経路を保持(self):
-        r=self.result('PまたはQ。PならばR。QならばR。否定(R)。','R')
+        r=self.結果('PまたはQ。PならばR。QならばR。否定(R)。','R')
         self.assertEqual(r['判定'],'矛盾');self.assertTrue(r['支持']);self.assertTrue(r['反証'])
     def test_場合の仮定を次の問いへ漏らさない(self):
         e=命題推論器(命題資料を読む('PまたはQ。PならばR。QならばR。','A'))
         e.判定(命題を読む('R')[0].式)
         self.assertEqual(e.判定(命題を読む('P')[0].式)['判定'],'未確定')
     def test_二つの独立した選言を使う(self):
-        r=self.result('PまたはQ。SまたはT。(PかつS)ならばR。(PかつT)ならばR。(QかつS)ならばR。(QかつT)ならばR。','R')
+        r=self.結果('PまたはQ。SまたはT。(PかつS)ならばR。(PかつT)ならばR。(QかつS)ならばR。(QかつT)ならばR。','R')
         self.assertEqual(r['判定'],'支持')
     def test_全称規則と場合分け(self):
-        r=self.result('(太郎は猫である)または(太郎は鳥である)。すべての猫は動物である。すべての鳥は動物である。','太郎は動物である')
+        r=self.結果('(太郎は猫である)または(太郎は鳥である)。すべての猫は動物である。すべての鳥は動物である。','太郎は動物である')
         self.assertEqual(r['判定'],'支持')
     def test_引用内の選言を分岐材料にしない(self):
-        r=self.result('太郎は「PまたはQ」と述べた。PならばR。QならばR。','R')
+        r=self.結果('太郎は「PまたはQ」と述べた。PならばR。QならばR。','R')
         self.assertEqual(r['判定'],'未確定')
     def test_予算上限で部分成功を返さない(self):
         e=命題推論器(命題資料を読む('PまたはQ。PならばR。QならばR。','A'),上限=推論上限(操作数=12))
         with self.assertRaises(ValueError):e.判定(命題を読む('R')[0].式)
     def test_根拠グラフの親が閉じる(self):
-        r=self.result('PまたはQ。PならばR。QならばR。','R')
+        r=self.結果('PまたはQ。PならばR。QならばR。','R')
         for node in r['導出'].values(): self.assertTrue(set(node['親']) <= set(r['導出']))
     def test_同じ入力は同じ導出(self):
         source='PまたはQ。PならばR。QならばR。'
-        self.assertEqual(self.result(source,'R'),self.result(source,'R'))
+        self.assertEqual(self.結果(source,'R'),self.結果(source,'R'))
     def test_独立真理値表との人工対照(self):
         # 32反復は一つの試験。古典論理と一致させるのは整合した命題集合での健全性だけ。
         rng=random.Random(21)

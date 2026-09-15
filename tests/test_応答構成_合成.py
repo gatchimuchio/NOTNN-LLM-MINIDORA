@@ -119,7 +119,7 @@ class _本文:
 
 
 class 取得比較回答接続試験(unittest.TestCase):
-    def pipeline(self,n=120,conflict=False,residual=False):
+    def 処理系列(self,n=120,conflict=False,residual=False):
         retrieval=知識取得Module(知識取得器(_検索(),_本文(n,conflict,residual)),外部読取許可=True)
         runner=能力合成器((retrieval.登録(),証拠統合Module().登録(),応答構成Module().登録()))
         data={"取得指示":能力結果(True,"資料取得"),
@@ -133,7 +133,7 @@ class 取得比較回答接続試験(unittest.TestCase):
         return runner.実行(plan,data,外部読取許可=True)
 
     def test_本文取得から証拠比較と回答まで(self):
-        value=self.pipeline()
+        value=self.処理系列()
         self.assertTrue(value.成立,value.理由)
         self.assertEqual([x.能力 for x in value.履歴],["知識取得","証拠統合","応答構成"])
         self.assertIn("採用できる値は120 V",value.出力[0][1].本文)
@@ -141,13 +141,13 @@ class 取得比較回答接続試験(unittest.TestCase):
         self.assertTrue(応答記録整合(value.出力[0][1]))
 
     def test_実処理の資料摂動で回答も変わる(self):
-        value=self.pipeline(731)
+        value=self.処理系列(731)
         self.assertTrue(value.成立,value.理由)
         self.assertIn("採用できる値は731 V",value.出力[0][1].本文)
         self.assertNotIn("120 V",value.出力[0][1].本文)
 
     def test_競合になれば保留説明へ切り替わる(self):
-        value=self.pipeline(conflict=True)
+        value=self.処理系列(conflict=True)
         self.assertTrue(value.成立,value.理由)
         answer=value.出力[0][1]
         self.assertIn("採用を保留",answer.本文)
@@ -156,7 +156,7 @@ class 取得比較回答接続試験(unittest.TestCase):
         self.assertFalse(answer.データ["項目状態"][0]["記載値採用可"])
 
     def test_抜粋にない但し書きが回答の採否へ到達(self):
-        value=self.pipeline(residual=True)
+        value=self.処理系列(residual=True)
         self.assertTrue(value.成立,value.理由)
         answer=value.出力[0][1]
         self.assertIn("解釈できていない記載が1件",answer.本文)

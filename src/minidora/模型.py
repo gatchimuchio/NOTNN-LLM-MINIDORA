@@ -109,7 +109,7 @@ class 模型結果:
     候補差: tuple[成立差,...]
     最有力候補ID: str|None
     同率候補ID: tuple[str,...] = ()
-    checkpoint: tuple[模型Checkpoint,...] = ()
+    検査点: tuple[模型Checkpoint,...] = ()
     統計: 模型統計 = 模型統計()
     参照最有力候補ID: str|None = None
     参照同率候補ID: tuple[str,...] = ()
@@ -454,7 +454,7 @@ class _作業状態:
             return False
         self.contributions[cid].append(item);self.created+=1;return True
     def scores(self):return {cid:sum(x.差 for x in rows) for cid,rows in self.contributions.items()}
-    def checkpoint(self,stage,active=(),reuse=()):
+    def 検査点(self,stage,active=(),reuse=()):
         scores=self.scores(); self.checkpoints.append(模型Checkpoint(stage,tuple(sorted(scores.items())),tuple(active),tuple(reuse)))
 
 class MINIDORA模型核:
@@ -494,14 +494,14 @@ class MINIDORA模型核:
             for rel in self._関係群:
                 item=rel.評価(文脈,state)
                 if item:work.add(cid,item)
-        work.checkpoint("STANDARD_RELATIONS",ids)
+        work.検査点("標準関係",ids)
 
         # 2) 形成済み関係は作用機構と分離した別段で再利用する。
         for cid,state in internal:
             for rel in self._形成済み関係群:
                 item=rel.評価(文脈,state)
                 if item:work.add(cid,item)
-        work.checkpoint("FORMED_RELATIONS",ids)
+        work.検査点("形成済み関係",ids)
 
         # 3) 参照/共同作用の初回作用。
         for action in self._能力作用群:
@@ -512,7 +512,7 @@ class MINIDORA模型核:
                 for cid,state in internal:
                     item=action.評価(文脈,state)
                     if item:work.add(cid,item)
-        work.checkpoint("PRIMARY_CAPABILITY_ACTIONS",ids)
+        work.検査点("一次能力作用",ids)
 
         # 4) 候補共同状態を変えながら、過去状態へ再作用する。active集合が同じなら重複反復しない。
         for round_index in range(1,self.最大再作用回数+1):
@@ -529,7 +529,7 @@ class MINIDORA模型核:
                 for cid,item in result.items():
                     if work.add(cid,item):changed+=1;work.reused+=1
             work.cross_updates+=changed
-            work.checkpoint(f"RECONCILE_{round_index}",active,reuse=("PRIMARY_CAPABILITY_ACTIONS",))
+            work.検査点(f"RECONCILE_{round_index}",active,reuse=("一次能力作用",))
             if not changed:break
 
         differences=tuple(成立差(cid,sum(x.差 for x in work.contributions[cid]),tuple(work.contributions[cid])) for cid in ids)

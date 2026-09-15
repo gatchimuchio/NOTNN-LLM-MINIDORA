@@ -5,8 +5,8 @@ from hashlib import sha256
 import json
 from typing import Iterable
 
-from .hds_data_k import HDS証拠事実
-from .k3_functional import Fact, K3相当能力核
+from .HDS資料K import HDS証拠事実
+from .K3機能 import Fact, K3相当能力核
 
 
 _EVIDENCE_ATTR = "_hds_evidence_facts"
@@ -25,7 +25,7 @@ def _stable_id(prefix: str, value: object) -> str:
     return prefix + sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
-def _source_id(fact: Fact) -> str:
+def _情報源ID(fact: Fact) -> str:
     provenance = tuple(str(x) for x in getattr(fact, "provenance", ()))
     if "HDS-IR" in provenance:
         prefix = provenance[: provenance.index("HDS-IR")]
@@ -42,7 +42,7 @@ def _blocked(fact: Fact) -> bool:
     return bool(provenance & _BLOCKING_MARKERS) or any(x.startswith("residual_blocked:") for x in provenance)
 
 
-def _support_state(fact: Fact) -> str:
+def _支持状態(fact: Fact) -> str:
     if not bool(getattr(fact, "polarity", True)):
         return "反対"
     qualifiers = tuple(getattr(fact, "qualifiers", ()))
@@ -163,7 +163,7 @@ def HDS作業状態構築(core: K3相当能力核) -> HDS作業状態:
             continue
         args = tuple(str(x) for x in getattr(fact, "args", ()))
         qualifiers = tuple(getattr(fact, "qualifiers", ()))
-        source_id = _source_id(fact)
+        source_id = _情報源ID(fact)
         fact_id = str(getattr(fact, "fact_id", ""))
         rows.append(
             HDS作業関係(
@@ -174,7 +174,7 @@ def HDS作業状態構築(core: K3相当能力核) -> HDS作業状態:
                 args,
                 bool(getattr(fact, "polarity", True)),
                 qualifiers,
-                _support_state(fact),
+                _支持状態(fact),
                 max(0.0, float(getattr(fact, "confidence", 0.0))),
                 _blocked(fact),
             )

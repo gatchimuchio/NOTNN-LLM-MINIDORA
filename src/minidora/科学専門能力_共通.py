@@ -49,14 +49,14 @@ def _nums(text: str) -> list[float]:
             pass
     return out
 
-def _choice_numeric(choice: str) -> float | None:
+def _選択肢数値(choice: str) -> float | None:
     ns = _nums(choice)
     return ns[0] if ns else None
 
 def _nearest(choices: Sequence[str], target: float, *, log: bool=False, rel_tol: float | None=None) -> int | None:
     vals = []
     for i, c in enumerate(choices):
-        v = _choice_numeric(c)
+        v = _選択肢数値(c)
         if v is None:
             continue
         if log and (v == 0 or target == 0):
@@ -81,7 +81,7 @@ def _nearest(choices: Sequence[str], target: float, *, log: bool=False, rel_tol:
         return None
     return vals[0][1]
 
-def _choice_contains(choices: Sequence[str], *needles: str) -> int | None:
+def _選択肢包含(choices: Sequence[str], *needles: str) -> int | None:
     needles = tuple((_norm(n).casefold() for n in needles))
     hits = []
     for i, c in enumerate(choices):
@@ -90,10 +90,10 @@ def _choice_contains(choices: Sequence[str], *needles: str) -> int | None:
             hits.append(i)
     return hits[0] if len(hits) == 1 else None
 
-def _result(idx: int | None, name: str, value=None, reason='', confidence=0.995) -> 科学専門能力結果 | None:
+def _結果(idx: int | None, name: str, value=None, reason='', confidence=0.995) -> 科学専門能力結果 | None:
     return None if idx is None else 科学専門能力結果(idx, name, confidence, value, reason)
 
-def _generic_result(idx: int | None, name: str, value=None, confidence=0.995):
+def _一般結果(idx: int | None, name: str, value=None, confidence=0.995):
     return None if idx is None else 科学専門能力結果(idx, name, confidence, value, 'generic-law')
 
 def _num_expr(token: str) -> float | None:

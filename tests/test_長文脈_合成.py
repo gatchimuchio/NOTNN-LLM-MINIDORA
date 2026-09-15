@@ -61,7 +61,7 @@ class 長文脈合成試験(unittest.TestCase):
         result = DEMO['抽出'](self.a)
         self.assertEqual(result.出力[0][1].参照[0].本文, '売上は120です。費用は75です。利益は45です。')
 
-    def context(self, data=None, session=None, settings=None):
+    def 文脈(self, data=None, session=None, settings=None):
         from minidora.能力合成 import _結果辞書
         data = data or 長文脈要求Data(self.a, 文脈選択要求(('原資料',), 直近件数=0))
         return 能力文脈('', session or '長文脈デモ', 補助={
@@ -69,29 +69,29 @@ class 長文脈合成試験(unittest.TestCase):
             '合成入力': ({'結果': _結果辞書(data)},)})
 
     def test_旧改訂のDataを実行しない(self):
-        context = self.context()
+        文脈 = self.文脈()
         self.a.更新(self.a.起点(), (文脈登録('追加', 能力結果(True, '追加')),))
         module = 長文脈選択Module(self.a)
-        self.assertEqual(module.判定(context), 0)
-        self.assertFalse(module.実行(context).成立)
+        self.assertEqual(module.判定(文脈), 0)
+        self.assertFalse(module.実行(文脈).成立)
 
     def test_同じ表示名でも別所有者のDataは不採用(self):
         other = DEMO['用意']()
         module = 長文脈選択Module(other)
-        self.assertFalse(module.実行(self.context()).成立)
+        self.assertFalse(module.実行(self.文脈()).成立)
 
     def test_実行セッションが違えば読めない(self):
         module = 長文脈選択Module(self.a)
-        self.assertFalse(module.実行(self.context(session='other')).成立)
+        self.assertFalse(module.実行(self.文脈(session='other')).成立)
 
     def test_未知設定を無視しない(self):
         module = 長文脈選択Module(self.a)
-        self.assertEqual(module.判定(self.context(settings={'原文を破棄': True})), 0)
-        self.assertFalse(module.実行(self.context(settings={'原文を破棄': True})).成立)
+        self.assertEqual(module.判定(self.文脈(settings={'原文を破棄': True})), 0)
+        self.assertFalse(module.実行(self.文脈(settings={'原文を破棄': True})).成立)
 
     def test_過小予算なら全本文を返さない(self):
         data = 長文脈要求Data(self.a, 文脈選択要求(('原資料',), 最大バイト数=10))
-        result = 長文脈選択Module(self.a).実行(self.context(data=data))
+        result = 長文脈選択Module(self.a).実行(self.文脈(data=data))
         self.assertFalse(result.成立)
         self.assertEqual(result.本文, '')
         self.assertGreater(result.データ['必須バイト数'], 10)
@@ -113,7 +113,7 @@ class 長文脈合成試験(unittest.TestCase):
 
     def test_選択窓の役割と依存を後段Dataへ残す(self):
         self.a.更新(self.a.起点(), (文脈登録('条件', 能力結果(True, '試験用途に限定。'), '条件'),))
-        result = 長文脈選択Module(self.a).実行(self.context())
+        result = 長文脈選択Module(self.a).実行(self.文脈())
         self.assertTrue(result.成立)
         self.assertIn('試験用途に限定。', result.本文)
         self.assertEqual([s['種別'] for s in result.データ['原文対応']], ['資料', '条件'])

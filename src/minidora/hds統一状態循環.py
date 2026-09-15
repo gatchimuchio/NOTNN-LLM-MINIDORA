@@ -156,7 +156,7 @@ class HDS統一状態Session:
             self.参照上限 = min(len(self.参照正本), self.政策.初期参照上限)
         self._索引再構築()
         self._計画再構築("SESSION_START")
-        self._checkpoint("SESSION_START")
+        self._検査点("SESSION_START")
 
     @property
     def sessionID(self) -> str:
@@ -213,7 +213,7 @@ class HDS統一状態Session:
             and self.計画主体署名 == self.主体署名
         )
 
-    def _checkpoint(self, stage: str, residuals: Iterable[str] = ()) -> None:
+    def _検査点(self, stage: str, residuals: Iterable[str] = ()) -> None:
         plan = self.参照計画
         self.checkpoint.append(HDS統一Checkpoint(
             self.cycle,
@@ -238,7 +238,7 @@ class HDS統一状態Session:
             self.参照上限 = min(len(new_records), max(self.参照上限, self.政策.初期参照上限))
             self._計画再構築("ARCHIVE_REVISION_CHANGED")
             self.cycle += 1
-            self._checkpoint("ARCHIVE_REVISION_CHANGED")
+            self._検査点("ARCHIVE_REVISION_CHANGED")
         return changed
 
     def 主体状態更新(self, subject: object | None) -> bool:
@@ -250,7 +250,7 @@ class HDS統一状態Session:
                 self.参照計画 = HDS参照計画無効化(self.参照計画, "SUBJECT_STATE_CHANGED")
             self._計画再構築("SUBJECT_STATE_CHANGED")
             self.cycle += 1
-            self._checkpoint("SUBJECT_STATE_CHANGED")
+            self._検査点("SUBJECT_STATE_CHANGED")
         return changed
 
     def 選択参照(self) -> tuple[参照記録, ...]:
@@ -280,7 +280,7 @@ class HDS統一状態Session:
             self.参照計画 = HDS参照計画無効化(self.参照計画, reason)
         self._計画再構築(reason)
         self.cycle += 1
-        self._checkpoint("REFERENCE_WIDENED", (reason,))
+        self._検査点("REFERENCE_WIDENED", (reason,))
         return True
 
     def 候補状態記録(self, values: Mapping[str, float] | Iterable[tuple[str, float]], *, stage: str) -> None:
@@ -291,7 +291,7 @@ class HDS統一状態Session:
                 self.候補lane群[:] = self.候補lane群[-self.政策.最大候補lane数:]
             self._並列状態再構築()
         self.cycle += 1
-        self._checkpoint(stage)
+        self._検査点(stage)
 
     def _並列状態再構築(self) -> None:
         if not self.候補lane群:
@@ -363,7 +363,7 @@ class HDS統一状態Session:
     def 作用記録(self, action: HDS統一作用, reasons: Iterable[str] = ()) -> None:
         self.作用履歴.append(action.value)
         self.cycle += 1
-        self._checkpoint(action.value, reasons)
+        self._検査点(action.value, reasons)
 
     def snapshot(self) -> HDS統一状態Snapshot:
         plan = self.参照計画

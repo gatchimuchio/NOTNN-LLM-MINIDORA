@@ -34,10 +34,10 @@ LLM模型中核は新たに次へ分離した。
 
 - `src/minidora/模型.py` — LLM模型中核
 - `src/minidora/計算実行器.py` — 汎用計算実行
-- `src/minidora/layer0.py` — 旧公開API互換窓口
+- `src/minidora/第0層.py` — 旧公開API互換窓口
 - `src/minidora/runtime.py` — v0.4統合Runtime
-- `src/minidora/runtime_v03.py` — v0.3運用経路の履歴互換
-- `src/minidora/旧_layer0_v03.py` — v0.3命令器の履歴実装
+- `src/minidora/実行系_v03.py` — v0.3運用経路の履歴互換
+- `src/minidora/旧_第0層_v03.py` — v0.3命令器の履歴実装
 
 ## 3. HDS境界
 

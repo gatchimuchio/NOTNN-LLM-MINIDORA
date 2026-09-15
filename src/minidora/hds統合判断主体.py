@@ -42,7 +42,7 @@ class MINIDORA認知世界:
     評価回答内容: str | None = None
     残差: tuple[str, ...] = ()
     作用履歴: tuple[tuple[str, tuple[str, ...]], ...] = ()
-    暫定性: str = "PROVISIONAL_BY_DEFAULT"
+    暫定性: str = "原則暫定"
     再開放条件: tuple[str, ...] = ("新観測", "未解残差", "評価非承認", "委任境界変更")
 
 

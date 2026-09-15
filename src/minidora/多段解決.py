@@ -177,12 +177,12 @@ class 多段解決器:
             raise ValueError("解法数範囲外")
         goals, methods = {}, {}
 
-        def capability(name):
+        def 能力(name):
             _名前(name)
             if name not in self._能力:
                 raise ValueError("未登録能力")
 
-        def reference(name):
+        def 参照(name):
             _名前(name)
             if name not in data:
                 raise ValueError("必要Data欠落")
@@ -193,14 +193,14 @@ class 多段解決器:
             _名前(goal.識別子)
             if goal.識別子 in goals:
                 raise ValueError("目的ID重複")
-            capability(goal.検証能力)
-            reference(goal.検証指示参照)
+            能力(goal.検証能力)
+            参照(goal.検証指示参照)
             if goal.検証設定参照 is not None:
-                reference(goal.検証設定参照)
+                参照(goal.検証設定参照)
             if type(goal.検証資料参照) is not tuple or len(goal.検証資料参照) > 16:
                 raise ValueError("検証資料数範囲外")
             for key in goal.検証資料参照:
-                reference(key)
+                参照(key)
             goals[goal.識別子] = goal
         if type(p.最終目的) is not tuple or not 1 <= len(p.最終目的) <= 16:
             raise ValueError("最終目的数範囲外")
@@ -216,10 +216,10 @@ class 多段解決器:
             _名前(m.識別子)
             if m.識別子 in methods or m.目的ID not in goals:
                 raise ValueError("解法ID重複または目的未宣言")
-            capability(m.能力)
-            reference(m.指示参照)
+            能力(m.能力)
+            参照(m.指示参照)
             if m.設定参照 is not None:
-                reference(m.設定参照)
+                参照(m.設定参照)
             if type(m.優先度) is not int:
                 raise ValueError("優先度型不正")
             if type(m.下位目的) is not tuple or len(m.下位目的) > 16:
@@ -238,7 +238,7 @@ class 多段解決器:
                     raise ValueError("素材型不正")
                 _名前(r.識別子)
                 if r.領域 == "入力":
-                    reference(r.識別子)
+                    参照(r.識別子)
                 elif r.領域 == "目的" and r.識別子 in m.下位目的:
                     used.add(r.識別子)
                 else:

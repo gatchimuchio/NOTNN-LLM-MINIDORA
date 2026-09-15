@@ -13,7 +13,7 @@ from .hds統一状態循環 import (
     HDS結果候補得点,
 )
 if TYPE_CHECKING:
-    from .k3_functional import K3相当能力核
+    from .K3機能 import K3相当能力核
 from .模型 import MINIDORA模型核
 from .参照 import 参照記録
 

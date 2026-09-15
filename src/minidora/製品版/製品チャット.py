@@ -40,7 +40,7 @@ class 製品ミニドラ:
         self._汎用取得器=汎用取得器; self._汎用セッション={}; self._汎用ロック=Lock()
         self.基礎ミニドラ=基礎ミニドラ; self.監査台帳=監査台帳_ or 監査台帳(); self.状態庫=状態庫 or 会話状態庫()
         news=ニュースModule(ニュース供給器 or RSSニュース供給器()); summary=汎用要約Module(); transform=文脈変換Module(); extract=情報抽出Module(); calc=計算Module(); basic=基本会話Module(); web=Web検索Module本体(検索供給器 or SearXNG検索供給器()); knowledge=知識参照Module本体(知識供給器 or Wikipedia知識供給器())
-        builtin=(ニュース能力(news),要約能力(summary),変換能力(transform),抽出能力(extract),計算能力(calc),基本会話能力(basic),Web検索能力(web),知識参照能力(knowledge),Core能力(self._core))
+        builtin=(ニュース能力(news),要約能力(summary),変換能力(transform),抽出能力(extract),計算能力(calc),基本会話能力(basic),Web検索能力(web),知識参照能力(knowledge),Core能力(self._模型核))
         self.能力レジストリ=能力レジストリ((*builtin,*追加Module))
 
     def 能力一覧(self)->tuple[str,...]:
@@ -53,7 +53,7 @@ class 製品ミニドラ:
     def Module登録(self,module)->None: self.能力レジストリ.登録(module)
     def Module解除(self,name:str)->None: self.能力レジストリ.解除(name)
 
-    def _core(self,text:str)->tuple[能力結果,dict[str,Any]]:
+    def _模型核(self,text:str)->tuple[能力結果,dict[str,Any]]:
         if self.基礎ミニドラ is None:
             return 能力結果(False,"",保留理由="基礎MINIDORA Core未接続",採否状態=実行状態.非適用),{}
         if hasattr(self.基礎ミニドラ,"実行"):
@@ -105,7 +105,7 @@ class 製品ミニドラ:
             audit.記録("能力実行",selected.Module.名前,selected.Module.版,text,{"成立":result.成立,"状態":result.状態.value,"本文":result.本文,"保留理由":result.保留理由,"データ":result.データ},tuple(result.根拠))
             if not result.成立 and route!="基礎Core" and self.基礎ミニドラ is not None:
                 audit.記録("Module透過","能力レジストリ",レジストリ版,{"不成立Module":route,"状態":result.状態.value,"理由":result.保留理由},{"次経路":"基礎Core"})
-                route=f"{route}→基礎Core"; result,_=self._core(text)
+                route=f"{route}→基礎Core"; result,_=self._模型核(text)
                 audit.記録("能力実行","基礎Core","repository-current",text,{"成立":result.成立,"状態":result.状態.value,"本文":result.本文,"保留理由":result.保留理由,"データ":result.データ},tuple(result.根拠))
         audit.経路設定(route)
         status=result.状態.value; body=result.本文 if result.成立 else _不採用本文(result)
