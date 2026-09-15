@@ -1,20 +1,20 @@
-# HDS Compiler Pipeline v1.3 受入記録
+# HDS 構文化器 処理系列 v1.3 受入記録
 
 日付: 2026-08-26
 
 ## 対象
 
 - MINIDORA v0.4
-- Meaning/Audit Architecture: `v1.2`
-- Compiler Pipeline: `v1.3`
+- Meaning/Audit 構造: `v1.2`
+- 構文化器 処理系列: `v1.3`
 - validated head: `29fe0bbca28310a23c23ef22c5533814d9fd06c3`
 - workflow run id: `32890261690`
 
 ## 変更目的
 
-旧Compilerでは意味座標・関係を形成した後、計算計画を同じHDSIRへ `実行核 / 初期状態 / 種別 / 手順` として再結合していた。
+旧構文化器では意味座標・関係を形成した後、計算計画を同じHDSIRへ `実行核 / 初期状態 / 種別 / 手順` として再結合していた。
 
-Pipeline v1.3では、意味HDS-IRと計算計画を分離し、計算実行が必要な場合だけ別バックエンドで計算中間表現へ降下する。
+処理系列 v1.3では、意味HDS-IRと計算計画を分離し、計算実行が必要な場合だけ別バックエンドで計算中間表現へ降下する。
 
 ## 受入した境界
 
@@ -40,7 +40,7 @@ Pipeline v1.3では、意味HDS-IRと計算計画を分離し、計算実行が�
 - 計算降下は形成済み束だけを使い、自然言語を再解析しない。
 - `コンパイル()` はLegacy互換窓口でのみPを再付与する。
 - 独立Data/候補コンパイルは意味入口を優先しPを混入しない。
-- Meaning/Audit Architecture v1.2の既存能力を維持する。
+- Meaning/Audit 構造 v1.2の既存能力を維持する。
 
 ## 実測
 
@@ -48,7 +48,7 @@ GitHub Actions `MINIDORA 再構築CI` run `32890261690`:
 
 - Ubuntu / Windows × Python 3.11–3.14: **全8 job PASS**
 - 代表job: **345 tests / OK**
-- Pipeline v1.3追加試験: **9 / 9 PASS**
+- 処理系列 v1.3追加試験: **9 / 9 PASS**
 - Compute IR / ABI試験: 維持PASS
 - K3相当構造: **47 / 47 PASS**
 - module CLI: `5です。`
@@ -59,7 +59,7 @@ GitHub Actions `MINIDORA 再構築CI` run `32890261690`:
 ## 判定
 
 ```text
-HDS Compiler Pipeline v1.3 責任分離
+HDS 構文化器 処理系列 v1.3 責任分離
 = PASS
 ```
 

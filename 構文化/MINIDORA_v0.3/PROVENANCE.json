@@ -7,7 +7,7 @@
     "other_llms": "K3/Llama3差分の補助観測点"
   },
   "sources": {
-    "layer0_v4": {
+    "第0層_v4": {
       "repository": "gatchimuchio/LLM-Layer-0-Functional-Compliance-Specification",
       "commit": "4adf86d13d7beb99fe5eaa9e240b22996ba3d3bc",
       "state": "v4.0-provisional / L0-C observed-set-supported"

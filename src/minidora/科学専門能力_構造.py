@@ -4,7 +4,7 @@ import math
 import re
 from typing import Sequence
 
-from .科学専門能力_共通 import _result
+from .科学専門能力_共通 import _結果
 
 
 def _compact(text: object) -> str:
@@ -35,7 +35,7 @@ def _scalar(raw: str) -> complex | None:
     return value if math.isfinite(value.real) and math.isfinite(value.imag) else None
 
 
-def _choice_scalar(choice: str) -> float | None:
+def _選択肢スカラー(choice: str) -> float | None:
     s = _compact(choice).replace('~', '').strip()
     pct = '%' in s
     m = re.search(
@@ -54,7 +54,7 @@ def _choice_scalar(choice: str) -> float | None:
 def _nearest_scalar(choices: Sequence[str], target: float, tol: float = 0.08) -> int | None:
     scored = []
     for i, choice in enumerate(choices):
-        value = _choice_scalar(str(choice))
+        value = _選択肢スカラー(str(choice))
         if value is None:
             continue
         error = abs(value - target) / max(abs(target), 1e-12)
@@ -100,7 +100,7 @@ def solve_exponential_decay_probability(q: str, choices: Sequence[str]):
         return None
     ratio = t1 * scale[unit1] / (t0 * scale[unit0])
     target = 1.0 - (1.0 - p) ** ratio
-    return _result(
+    return _結果(
         _nearest_scalar(choices, target, tol=0.035),
         'exponential_decay_probability',
         f'{target:.12g}',
@@ -130,7 +130,7 @@ def solve_magnetic_monopole_maxwell(q: str, choices: Sequence[str]):
         )
         if electric_curl and magnetic_div:
             hits.append(i)
-    return _result(
+    return _結果(
         hits[0] if len(hits) == 1 else None,
         'magnetic_monopole_maxwell_symmetry',
         'curl(E),div(B)',
@@ -159,7 +159,7 @@ def solve_dipole_operator_mass_dimension(q: str, choices: Sequence[str]):
         )
         if neg_one and nonren:
             hits.append(i)
-    return _result(
+    return _結果(
         hits[0] if len(hits) == 1 else None,
         'dipole_operator_mass_dimension',
         -1,
@@ -202,7 +202,7 @@ def _parse_row_matrix(q: str, label: str):
     return _parse_matrix_entries(';'.join(match.groups()))
 
 
-def _parse_state(q: str):
+def _状態解析(q: str):
     match = re.search(
         r'state[^.]{0,100}?column matrix having elements\s*\(([^)]*)\)',
         q,
@@ -255,7 +255,7 @@ def _eigvec3(a, eigenvalue: float):
     return [value / root for value in vector]
 
 
-def _projection_probability(state, eigenvector):
+def _射影確率(state, eigenvector):
     norm2 = _norm2(state)
     if norm2 <= 0:
         return None
@@ -270,7 +270,7 @@ def solve_projective_measurement_3x3(q: str, choices: Sequence[str]):
     s = q.casefold()
     if 'measurement' not in s or 'column matrix' not in s or 'operator p' not in s:
         return None
-    state = _parse_state(q)
+    state = _状態解析(q)
     p_matrix = _parse_row_matrix(q, 'P')
     if state is None or p_matrix is None or len(p_matrix) != 3:
         return None
@@ -288,12 +288,12 @@ def solve_projective_measurement_3x3(q: str, choices: Sequence[str]):
         q_vector = _eigvec3(q_matrix, q_value)
         if p_vector is None or q_vector is None:
             return None
-        first = _projection_probability(state, p_vector)
-        second = _projection_probability(p_vector, q_vector)
+        first = _射影確率(state, p_vector)
+        second = _射影確率(p_vector, q_vector)
         if first is None or second is None:
             return None
         target = first * second
-        return _result(
+        return _結果(
             _nearest_scalar(choices, target, tol=0.025),
             'sequential_projective_measurement_3x3',
             f'{target:.12g}',
@@ -306,10 +306,10 @@ def solve_projective_measurement_3x3(q: str, choices: Sequence[str]):
     eigenvector = _eigvec3(p_matrix, eigenvalue)
     if eigenvector is None:
         return None
-    target = _projection_probability(state, eigenvector)
+    target = _射影確率(state, eigenvector)
     if target is None:
         return None
-    return _result(
+    return _結果(
         _nearest_scalar(choices, target, tol=0.025),
         'projective_measurement_probability_3x3',
         f'{target:.12g}',
@@ -343,7 +343,7 @@ def solve_blackbody_luminosity_with_radial_velocity(q: str, choices: Sequence[st
 
     temperature_ratio = doppler(v1) / doppler(v2)
     target = radius_ratio ** 2 * temperature_ratio ** 4
-    return _result(
+    return _結果(
         _nearest_scalar(choices, target, tol=0.02),
         'blackbody_luminosity_radial_doppler',
         f'{target:.12g}',

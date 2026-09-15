@@ -73,7 +73,7 @@ class 言語確率模型状態:
 
     def 辞書化(self) -> dict[str, object]:
         return {
-            "schema": "minidora.strict-language-model.v1",
+            "契約形式": "minidora.strict-language-model.v1",
             "次数": self.次数,
             "加算平滑化": self.加算平滑化,
             "語彙": list(self.語彙),
@@ -86,7 +86,7 @@ class 言語確率模型状態:
 
     @classmethod
     def 復元(cls, data: Mapping[str, object]) -> "言語確率模型状態":
-        if data.get("schema") != "minidora.strict-language-model.v1":
+        if data.get("契約形式") != "minidora.strict-language-model.v1":
             raise ValueError("未知の言語確率模型状態schema")
         raw_counts = data.get("遷移計数")
         if not isinstance(raw_counts, Mapping):
@@ -263,11 +263,11 @@ class MINIDORA厳密言語模型:
         denominator = sum(raw.values()) + alpha * len(self._語彙)
         return raw, alpha, denominator
 
-    def _確率_for_context(self, context: tuple[str, ...], token: str) -> Fraction:
+    def _文脈確率(self, context: tuple[str, ...], token: str) -> Fraction:
         raw, alpha, denominator = self._分母(context)
         return Fraction(raw.get(token, 0) + alpha, denominator)
 
-    def _分布_for_context(self, context: tuple[str, ...]) -> 条件付き記号分布:
+    def _文脈分布(self, context: tuple[str, ...]) -> 条件付き記号分布:
         raw, alpha, denominator = self._分母(context)
         probabilities = tuple(
             (token, Fraction(raw.get(token, 0) + alpha, denominator))
@@ -276,10 +276,10 @@ class MINIDORA厳密言語模型:
         return 条件付き記号分布(context, probabilities)
 
     def _分布_for_history(self, history: Sequence[str]) -> 条件付き記号分布:
-        return self._分布_for_context(self._有効文脈(history))
+        return self._文脈分布(self._有効文脈(history))
 
     def _確率_for_history(self, history: Sequence[str], token: str) -> Fraction:
-        return self._確率_for_context(self._有効文脈(history), token)
+        return self._文脈確率(self._有効文脈(history), token)
 
     def 次記号分布(self, 接頭辞: str = "") -> 条件付き記号分布:
         return self._分布_for_history(self._符号化(接頭辞))
@@ -312,7 +312,7 @@ class MINIDORA厳密言語模型:
         reasons: list[str] = []
         eos_values: list[Fraction] = []
         for context in contexts:
-            dist = self._分布_for_context(context)
+            dist = self._文脈分布(context)
             total = sum((p for _, p in dist.確率), Fraction(0, 1))
             if total != Fraction(1, 1):
                 reasons.append(f"非正規化:{context!r}:{total}")

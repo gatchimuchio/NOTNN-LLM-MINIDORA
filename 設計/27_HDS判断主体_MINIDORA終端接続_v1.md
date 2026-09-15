@@ -5,14 +5,14 @@
 
 この文書が定めていた「後段HDSがQuestion / Candidate / Data / Referenceを再度受け取り、出典証拠を再審査して採否する」構造は、MINIDORAの責任境界を誤っていたため失効した。
 
-誤りは、HDS Compilerですでに構文化されMINIDORAへ入力されたDataを、MINIDORAの出力後に後段HDSが再び直接読む構造にした点である。これでは後段HDSがMINIDORAの出力を判断するのではなく、問題を再度解く経路になり得る。
+誤りは、HDS 構文化器ですでに構文化されMINIDORAへ入力されたDataを、MINIDORAの出力後に後段HDSが再び直接読む構造にした点である。これでは後段HDSがMINIDORAの出力を判断するのではなく、問題を再度解く経路になり得る。
 
-現行正本は [`28_HDS判断主体_MINIDORA出力Gate_v2.md`](28_HDS判断主体_MINIDORA出力Gate_v2.md) とする。
+現行正本は [`28_HDS判断主体_MINIDORA出力関門_v2.md`](28_HDS判断主体_MINIDORA出力関門_v2.md) とする。
 
 現行境界:
 
 ```text
-HDS Compiler
+HDS 構文化器
   ↓
 MINIDORA入力
   ↓

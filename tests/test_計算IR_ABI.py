@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from minidora.HDS計算降下 import HDS計算降下
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, 値状態
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, 値状態
 from minidora.命令 import 手順, 作用, 命令
 from minidora.命令計算降下 import 命令計算降下
 from minidora.計算中間表現 import (

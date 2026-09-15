@@ -1,5 +1,5 @@
 {
-  "schema": "minidora.llm_capability_preservation_law.v1",
+  "契約形式": "minidora.llm_capability_preservation_law.v1",
   "date_jst": "2026-08-26",
   "language": "ja",
   "sources": {
@@ -13,7 +13,7 @@
     "past_state_reaccess",
     "common_and_conditional_action_recombination",
     "late_commitment",
-    "formation_runtime_separation"
+    "formation_実行系_separation"
   ],
   "deterministic_projection": {
     "state_identity": ["relation_kind", "open_predicate_semantics", "endpoint_semantics", "direction", "polarity", "scope"],

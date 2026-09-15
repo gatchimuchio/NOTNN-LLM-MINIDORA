@@ -4,7 +4,7 @@
 
 | GLM側 | 作用 | MINIDORA還元先 | 状態 |
 |---|---|---|---|
-| KDA | 局所状態更新 | `k3_functional.MemorySystem.selective_update` / 作業状態 | 既存 |
+| KDA | 局所状態更新 | `K3機能.MemorySystem.selective_update` / 作業状態 | 既存 |
 | 3 KDA + 1 DSA | 多時間尺度 | `hds多時間尺度.py` | 追加 |
 | DSA indexer | 粗索引→参照ID選択 | `hds参照計画.py` | 追加 |
 | IndexPool | 索引のみbucket圧縮 | `HDS参照索引圧縮` | 追加 |
@@ -13,7 +13,7 @@
 | Sinkhorn mix | 制約付きread/write混合 | `HDS制約混合行列` | 追加 |
 | dense→MoE | 共通処理→専門分岐 | 既存能力作用経路 | 既存再利用 |
 | shared+routed experts | 共通+専門作用 | 既存専門作用routing | 既存再利用 |
-| effort | 予算選択 | `hds_effort.py` | 既存再利用 |
+| effort | 予算選択 | `HDS探索方針.py` | 既存再利用 |
 | MTP | 草案先行→検証→rollback | `HDS先行草案検証` | 追加・任意 |
 | multimodal path | adapter後共通表象 | `HDS異種入力射影` | 追加・境界 |
 | long-horizon feedback | blocker別再作用 | `HDS阻害回復方針` | 追加 |
@@ -80,7 +80,7 @@ GLMで再観測されたがK3由来実装を正本として維持するもの:
 
 - selective state update
 - local/global separation
-- checkpoint/re-entry
+- 検査点/re-entry
 - shared/common action
 - specialist routing
 - effort control

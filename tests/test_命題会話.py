@@ -15,8 +15,8 @@ from minidora.会話回答 import 回答記録整合, 回答を構成
 from minidora.命題能力接続 import 命題資料を構成, 命題を検討, 命題判定整合, 命題資料整合
 from minidora.応答構成 import 能力結果を復元
 from minidora.能力合成 import _結果辞書
-from minidora.hds_compiler import 公開HDSコンパイラ
-from minidora.hds_ir import HDS座標, HDS残差
+from minidora.HDS構文化器 import 公開HDSコンパイラ
+from minidora.HDS中間表現 import HDS座標, HDS残差
 from minidora.会話解釈 import 会話を解釈
 from minidora.命題会話解釈 import HDS命題を照合
 from minidora.会話意味 import 意味指紋
@@ -111,9 +111,9 @@ class 命題会話試験(unittest.TestCase):
         r=p.応答('資料「規則」から「Q」は言える？')
         self.assertIn('支持されます',r.本文)
     def test_元Coreにフォールバックしない(self):
-        class Core:
+        class 模型核:
             def 応答(self,*a,**kw):raise AssertionError('Core不可')
-        p=製品ミニドラ(汎用会話=True,基礎ミニドラ=Core())
+        p=製品ミニドラ(汎用会話=True,基礎ミニドラ=模型核())
         r=p.応答('資料「未登録」から「P」は言える？');self.assertNotIn('支持されます',r.本文)
 
 

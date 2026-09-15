@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from .hds_compiler_v1 import 公開HDSコンパイラ
-from .runtime import ミニドラ
+from .HDS構文化器_v1 import 公開HDSコンパイラ
+from .実行系 import ミニドラ
 
 標準構成版 = "MINIDORA-STANDARD-RUNTIME-v1"
 

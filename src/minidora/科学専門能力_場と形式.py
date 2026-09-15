@@ -15,8 +15,8 @@ def solve_gauss_radial(q, choices):
     for i, c in enumerate(choices):
         cc = c.casefold().replace(' ', '').replace('\\pi', 'pi').replace('π', 'pi')
         if cc in {'4pi', '4*pi'}:
-            return _result(i, 'gauss_radial_flux', 4 * math.pi)
-    return _result(_nearest(choices, 4 * math.pi, rel_tol=0.05), 'gauss_radial_flux', 4 * math.pi)
+            return _結果(i, 'gauss_radial_flux', 4 * math.pi)
+    return _結果(_nearest(choices, 4 * math.pi, rel_tol=0.05), 'gauss_radial_flux', 4 * math.pi)
 
 def solve_loop_count(q, choices):
     s = q.casefold()
@@ -29,7 +29,7 @@ def solve_loop_count(q, choices):
         return None
     power = abs(int(m.group(1)))
     loops = power / 2
-    return _result(_nearest(choices, loops, rel_tol=0.01), 'loop_factor_count', loops)
+    return _結果(_nearest(choices, loops, rel_tol=0.01), 'loop_factor_count', loops)
 
 def solve_partial_wave_forward_imag(q, choices):
     s = q.casefold()
@@ -48,7 +48,7 @@ def solve_partial_wave_forward_imag(q, choices):
     me = 0.51099895
     k = math.sqrt(2 * me * E) / 197.3269804
     target = summ / k
-    return _result(_nearest(choices, target, rel_tol=0.08), 'partial_wave_forward_imag', target)
+    return _結果(_nearest(choices, target, rel_tol=0.08), 'partial_wave_forward_imag', target)
 
 def solve_rhombohedral_metric(q, choices):
     s = q.casefold()
@@ -57,7 +57,7 @@ def solve_rhombohedral_metric(q, choices):
     for i, c in enumerate(choices):
         cc = c.replace(' ', '')
         if 'a^{2}' in cc and 'h^{2}+k^{2}+l^{2}' in cc and ('sin^{2}' in cc) and ('hk+kl+hl' in cc) and ('cos^{2}' in cc):
-            return _result(i, 'rhombohedral_reciprocal_metric', 'standard reciprocal metric')
+            return _結果(i, 'rhombohedral_reciprocal_metric', 'standard reciprocal metric')
     return None
 
 def solve_conductor_sphere_external_generic(q, choices):
@@ -72,7 +72,7 @@ def solve_conductor_sphere_external_generic(q, choices):
         raw = str(c).replace(' ', '').replace('{', '').replace('}', '')
         if re.search('q/L(?:\\^?2|2)', raw) and (not any((x in raw for x in ('L+s', 'L-s')))):
             hits.append(i)
-    return _generic_result(hits[0] if len(hits) == 1 else None, 'conducting_sphere_external_field', 'kq/L²')
+    return _一般結果(hits[0] if len(hits) == 1 else None, 'conducting_sphere_external_field', 'kq/L²')
 
 def solve_zeeman(q, choices):
     s = q.casefold()
@@ -92,9 +92,9 @@ def solve_zeeman(q, choices):
     for i, c in enumerate(choices):
         cc = c.replace(' ', '')
         if relation == 'll' and ('\\ll' in cc or '≪' in cc or '<<' in cc):
-            return _generic_result(i, 'zeeman_vs_transition', z / photon)
+            return _一般結果(i, 'zeeman_vs_transition', z / photon)
         if relation == 'gg' and ('\\gg' in cc or '≫' in cc or '>>' in cc):
-            return _generic_result(i, 'zeeman_vs_transition', z / photon)
+            return _一般結果(i, 'zeeman_vs_transition', z / photon)
     return None
 
 def solve_synchro(q, choices):
@@ -125,7 +125,7 @@ def solve_synchro(q, choices):
     if U <= 0 or math.cos(phi) <= 0:
         return None
     target = E / (2 * U * math.cos(phi))
-    return _generic_result(_nearest(choices, target, rel_tol=0.08), 'synchrocyclotron_revolutions', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.08), 'synchrocyclotron_revolutions', target)
 REGISTRY = (solve_gauss_radial, solve_loop_count, solve_partial_wave_forward_imag, solve_rhombohedral_metric, solve_conductor_sphere_external_generic, solve_zeeman, solve_synchro)
 
 def 解決(question: str, choices: Sequence[str]):

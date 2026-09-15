@@ -1,6 +1,6 @@
 from __future__ import annotations
 import unittest
-from minidora.hds_ir import HDSIR,HDS実行核
+from minidora.HDS中間表現 import HDSIR,HDS実行核
 from minidora.参照 import 参照記録
 from minidora.hds判断参照境界 import HDS判断Data整列,HDS判断出典ID
 

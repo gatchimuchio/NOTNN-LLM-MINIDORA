@@ -27,6 +27,6 @@
   "aa_lcr_q19_regression": {
     "result": "PASS",
     "answer": "-76%, -42%",
-    "layer0_ms_approx": 0.035
+    "第0層_ms_approx": 0.035
   }
 }

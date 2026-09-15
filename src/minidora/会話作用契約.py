@@ -8,7 +8,7 @@ from .実行回復 import 回復規則
 def 会話作用群():
     def role(name,kind,params): return (name,意味目的(kind,params))
     def table(p): return p['形式'] in ('JSON','CSV')
-    def source(p): return {'資料':p['資料'],'形式':p['形式']}
+    def 情報源(p): return {'資料':p['資料'],'形式':p['形式']}
     def quantity_settings(p,mode):
         return {k:p[k] for k in ('資料','属性','単位','行条件')}|{'方式':mode}
     def search_settings(p,focused):
@@ -25,12 +25,12 @@ def 会話作用群():
             lambda p:{'時点差':p['時点差']},lambda p:True,
             不成立条件=('異単位','異属性','異条件','無断の時点差')),
         役割作用('直下数量選択','表数量解釈','数量',
-            lambda p:(role('文書','構造文書',source(p)),),
+            lambda p:(role('文書','構造文書',情報源(p)),),
             lambda p:quantity_settings(p,'直下'),table,費用=1,
             不成立条件=('対象行曖昧','単位未確定','未解釈注記','構造未到達'),
             回復=(回復規則('構造未到達'),)),
         役割作用('入れ子数量選択','表数量解釈','数量',
-            lambda p:(role('文書','構造文書',source(p)),),
+            lambda p:(role('文書','構造文書',情報源(p)),),
             lambda p:quantity_settings(p,'入れ子'),lambda p:p['形式']=='JSON',費用=2,
             不成立条件=('対象行曖昧','単位未確定','未解釈注記')),
         役割作用('構造文書読取','文書読取','構造文書',

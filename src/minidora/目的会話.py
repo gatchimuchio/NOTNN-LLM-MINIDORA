@@ -6,7 +6,7 @@ from .統合実行 import 統合セッション, 統合応答
 from .能力意味カタログ import 能力意味カタログ
 from .目的計画 import 目的計画器, 目的計画結果
 from .HDS目的射影 import HDSから目的要求, 目的射影結果
-from .hds_compiler import 公開HDSコンパイラ
+from .HDS構文化器 import 公開HDSコンパイラ
 from .要求境界契約 import 被覆台帳印, 要求境界契約印
 
 @dataclass(frozen=True, slots=True)

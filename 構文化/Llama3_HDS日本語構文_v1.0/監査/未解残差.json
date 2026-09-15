@@ -33,7 +33,7 @@
     },
     {
       "id": "R-06",
-      "項目": "128K表記と厳密runtime vocab sizeの差",
+      "項目": "128K表記と厳密実行系 vocab sizeの差",
       "状態": "厳密値保留",
       "再開放条件": "公式gated config/tokenizer実物確認時"
     },

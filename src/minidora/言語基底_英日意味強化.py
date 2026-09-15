@@ -169,7 +169,7 @@ def _predicate_from_tokens(tokens: list[str], start: int) -> tuple[str, list[str
     return None
 
 
-def _generic_relation_question(raw: str, conditions: tuple[str, ...]) -> 英日関係質問 | None:
+def _一般関係質問(raw: str, conditions: tuple[str, ...]) -> 英日関係質問 | None:
     body = _端点(raw)
     tokens = body.split()
     if not tokens or tokens[0].casefold() not in {"which", "what", "who"}:
@@ -217,7 +217,7 @@ def _generic_relation_question(raw: str, conditions: tuple[str, ...]) -> 英日�
     return 英日関係質問(kind, "始点", requested, known, predicate, _反転(body), False, _修飾(body, conditions))
 
 
-def _fallback_question(focus: str, boundary: 英語質問境界 | None = None) -> 英日関係質問 | None:
+def _代替質問(focus: str, boundary: 英語質問境界 | None = None) -> 英日関係質問 | None:
     boundary = boundary if boundary is not None else 英語質問境界解析(focus)
     if not boundary.質問表示:
         return None
@@ -241,7 +241,7 @@ def _fallback_question(focus: str, boundary: 英語質問境界 | None = None) -
         if identity:
             target = _端点(identity.group("o"))
             return 英日関係質問("同定", "終点", "未特定", target, "identify", _反転(body), False, _修飾(body, conditions))
-    generic = _generic_relation_question(body, conditions)
+    generic = _一般関係質問(body, conditions)
     if generic:
         return generic
     identity = _一般同定.fullmatch(body)
@@ -266,7 +266,7 @@ def 英日意味フレーム抽出(text: str) -> 英日意味フレーム:
     boundary = 英語質問境界解析(text)
     focus = boundary.焦点
     proposition = _命題選択.fullmatch(boundary.本体)
-    fallback = _fallback_question(focus, boundary)
+    fallback = _代替質問(focus, boundary)
     if proposition is not None and fallback is not None:
         base = _旧抽出(text)
         canonical = tuple((*base.正本意味, f"関係:{fallback.種別}", f"述語:{fallback.検索述語}", f"不足位置:{fallback.未知位置}"))

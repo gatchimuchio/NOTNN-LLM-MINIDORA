@@ -8,7 +8,7 @@ import ast
 from copy import deepcopy
 from dataclasses import dataclass
 import re
-from .hds_ir import HDSIR, 値状態
+from .HDS中間表現 import HDSIR, 値状態
 from .汎用要求IR import 汎用要求IR, 目的指定
 from .製品版.型 import 能力結果
 from .要求解釈 import _符号

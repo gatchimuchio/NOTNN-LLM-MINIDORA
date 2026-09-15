@@ -6,7 +6,7 @@
 
 ## B0 観測境界
 
-公開config/checkpoint/repository構成と公式説明を観測。1.0から1.5へのcontinued pretraining、同系decoder architectureの維持、vision/audio tokenizer weightの分離を確認。全weight意味解析と前段→decoder接続の全詳細は未観測。
+公開config/検査点/repository構成と公式説明を観測。1.0から1.5へのcontinued pretraining、同系decoder architectureの維持、vision/audio tokenizer weightの分離を確認。全weight意味解析と前段→decoder接続の全詳細は未観測。
 
 ## 観測事実
 
@@ -66,14 +66,14 @@ continued pretraining
 
 ## B9 展開後制御
 
-tool calling / thinking modeの利用条件はruntime modeとして中央模型性から分離する。
+tool calling / thinking modeの利用条件は実行系 modeとして中央模型性から分離する。
 
 ## MINIDORAへの作用射影候補
 
 - 新modalityを追加するとき、模型核を書き換える前に**言語対応adapter**として共通内部状態へ接続できるかを検討する。
 - 新しい能力・関係密度はformation処理によって獲得できる設計を持つ。
 - `architecture変更` と `関係獲得` を別工程にする。
-- thinking / tool modeはruntime制御として追跡する。
+- thinking / tool modeは実行系制御として追跡する。
 
 ## 未観測
 

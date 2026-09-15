@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-構文化v3・構成定義v8・HDS Compiler Architecture v1.3 / Pipeline v1.4をMINIDORA能力模型核へ接続した後、状態差が実際の次作用選択へ到達するかをGPQA Diamond全198問で観測する。
+構文化v3・構成定義v8・HDS 構文化器 構造 v1.3 / 処理系列 v1.4をMINIDORA能力模型核へ接続した後、状態差が実際の次作用選択へ到達するかをGPQA Diamond全198問で観測する。
 
 本実測は厳密言語模型成立判定ではない。推論・知識能力の診断である。
 
@@ -11,8 +11,8 @@
 - workflow run: `33136492914` / run #160
 - repository commit: `8a1167ab7af9fcfd25323da99a906495212e0d29`
 - dataset: GPQA Diamond 198問
-- current: 日本語基底・状態差起動MINIDORA能力模型核 + HDS Compiler作用差分 + HDS判断主体
-- controlled baseline: 同一質問IR・同一取得資料を使う旧v0.3 helper、作業再作用/局所再照合なし
+- current: 日本語基底・状態差起動MINIDORA能力模型核 + HDS 構文化器作用差分 + HDS判断主体
+- controlled baseline: 同一質問IR・同一取得資料を使う旧v0.3 補助器、作業再作用/局所再照合なし
 - artifact: `minidora-gpqa-current-measurement`
 - artifact id: `9672803018`
 - artifact digest: `sha256:fc76e70b62b5f528b9ac9c290b6fbd796d58d66286dabd1b689edc975de00694`
@@ -21,8 +21,8 @@
 
 ```text
 completed                 = 198
-checkpoint_count          = 725
-checkpoint_reactivations  = 134
+検査点_count          = 725
+検査点_reactivations  = 134
 global_reconciliations    = 134
 candidate_cross_updates   = 21
 specialist_actions_invoked = 0
@@ -66,11 +66,11 @@ artifact個票198件を再集計した。
 → 再活性2
 ```
 
-これは単にcheckpoint数や再作用回数を非ゼロへ書き換えた結果ではない。
+これは単に検査点数や再作用回数を非ゼロへ書き換えた結果ではない。
 
-## 4. Compiler作用差分
+## 4. 構文化器作用差分
 
-HDS Compiler由来の作用差分構造は10問で能力経路へ添付された。
+HDS 構文化器由来の作用差分構造は10問で能力経路へ添付された。
 
 ```text
 HDS_ACTION_DELTA_ATTACHED = 10
@@ -86,7 +86,7 @@ specialist_actions_invoked = 0
 - 未確認追加条件なし
 - 連結終端状態が一候補を一意識別
 
-を全て満たして実際の候補寄与へ消費されたCompiler作用差分は0件だった。
+を全て満たして実際の候補寄与へ消費された構文化器作用差分は0件だった。
 
 これは0を失敗値とは扱わない。条件を満たさない作用を発火させなかった結果である。
 
@@ -169,7 +169,7 @@ baseline answered = 12
 退行              = 2
 ```
 
-この21問は全件 `checkpoint_reactivations = 2`、`candidate_cross_updates = 1` だった。
+この21問は全件 `検査点_reactivations = 2`、`candidate_cross_updates = 1` だった。
 
 つまり、
 
@@ -222,7 +222,7 @@ baseline保留 → current保留   = 80問
 再作用後の新状態差             = PASS
 新状態差による二段目再活性     = PASS
 同一証拠の別名再加点禁止       = 機構試験PASS
-Compiler作用差分の厳格不発火   = PASS
+構文化器作用差分の厳格不発火   = PASS
 ```
 
 ### 成立していないもの
@@ -231,13 +231,13 @@ Compiler作用差分の厳格不発火   = PASS
 GPQA能力改善                    = FAIL
 現行次作用選択の妥当性          = 未成立
 現行一次能力作用の十分性        = 未成立
-Compiler作用差分のGPQA実消費    = 0件
+構文化器作用差分のGPQA実消費    = 0件
 再作用単独の因果寄与            = 未分離
 ```
 
 ## 9. 今回得られた主要診断
 
-旧実装では、checkpointを記録しても状態差が後続作用を変えず、再活性・大域再照合・候補横断更新が全て0だった。
+旧実装では、検査点を記録しても状態差が後続作用を変えず、再活性・大域再照合・候補横断更新が全て0だった。
 
 今回、そこは解消した。
 

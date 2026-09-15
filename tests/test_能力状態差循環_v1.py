@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_choice_runtime import HDS選択推論実行
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
-from minidora.hds_model_projection import HDSMINIDORA模型評価
-from minidora.k3_functional import K3相当能力核
+from minidora.HDS選択実行系 import HDS選択推論実行
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
+from minidora.HDS模型射影 import HDSMINIDORA模型評価
+from minidora.K3機能 import K3相当能力核
 from minidora.参照 import 参照記録
 from minidora.能力状態差循環 import (
     MINIDORA能力状態差模型核,

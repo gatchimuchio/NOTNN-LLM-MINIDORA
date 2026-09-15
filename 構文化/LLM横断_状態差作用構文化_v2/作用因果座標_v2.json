@@ -1,5 +1,5 @@
 {
-  "schema": "minidora.cross_llm.state_delta_action_structuring.v2",
+  "契約形式": "minidora.cross_llm.state_delta_action_structuring.v2",
   "date_jst": "2026-08-28",
   "language": "ja",
   "license": "CC-BY-4.0",
@@ -169,7 +169,7 @@
       "loop_scales": [
         "DEPTH_REUSE"
       ],
-      "v1_correction": "v1の「80層に渡って再作用」を、fixed downstream transformationとして言い直す。形成済み関係の差とruntime再帰を混同しない。",
+      "v1_correction": "v1の「80層に渡って再作用」を、fixed downstream transformationとして言い直す。形成済み関係の差と実行系再帰を混同しない。",
       "unknown": "weight意味、training raw data全量、long-context利用の意味分業。"
     }
   ],
@@ -177,7 +177,7 @@
     "状態保持と能力寄与は別観測",
     "固定後段作用と動的経路発火を分離",
     "fixed 3:1 scheduleは状態差による再活性ではない",
-    "residual depth transportはruntime recursionではない",
+    "residual depth transportは実行系 recursionではない",
     "attentionのstate-dependent weightingとMoE/top-kのpath selectionを分離",
     "harness loopとcore内部作用を分離",
     "formation loopとsingle-inference loopを分離",

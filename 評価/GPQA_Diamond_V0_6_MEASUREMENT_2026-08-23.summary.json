@@ -1,5 +1,5 @@
 {
-  "schema": "minidora.gpqa.measurement.summary.v1",
+  "契約形式": "minidora.gpqa.measurement.summary.v1",
   "recorded_at_jst": "2026-08-23T12:06:48+09:00",
   "source": {
     "workflow_run_id": 32582547752,
@@ -16,14 +16,14 @@
     "dataset": "official idavidrein/gpqa dataset.zip / gpqa_diamond.csv",
     "dataset_url": "https://raw.githubusercontent.com/idavidrein/gpqa/main/dataset.zip",
     "dataset_zip_sha256": "461ae7329f15a3e35f8184d2dac24b990f34fdf12f366ca4062d8e6638cd08dc",
-    "dataset_csv_sha256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+    "資料集合CSV_SHA256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
     "n": 198,
-    "choice_shuffle_seed": 0,
+    "選択肢シャッフル種": 0,
     "compiler": "deterministic generic HDS semantic-atom projection; not the unavailable prototype-completion private compiler",
     "gold_boundary": "gold used only after inference for scoring",
-    "openalex_enabled": false,
-    "wikipedia_languages": ["en"],
-    "runtime": "current repository head; HDS choice native R->HDS->K->J"
+    "OpenAlex有効": false,
+    "Wikipedia言語群": ["en"],
+    "実行系": "current repository head; HDS choice native R->HDS->K->J"
   },
   "metrics": {
     "correct": 31,

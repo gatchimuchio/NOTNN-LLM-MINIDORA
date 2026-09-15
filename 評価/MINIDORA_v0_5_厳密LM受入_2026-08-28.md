@@ -3,7 +3,7 @@
 ## 対象
 
 - `src/minidora/言語確率法則.py`
-- `src/minidora/runtime.py`
+- `src/minidora/実行系.py`
 - 上位規定: `2026-08-28-成立規定-7`
 - 上位commit: `debb83e091a705a5eac09ef4fb97a5b36305db6d`
 - MINIDORA実装commit: `85f92c64027ba83da44f0dbb05f5efa5dbae3a42`
@@ -20,14 +20,14 @@
 6. JSON互換辞書化→復元で同一hash / 同一系列確率。
 7. 最小模型もUNK/EOS上の厳密確率法則を持つ。
 8. sampling非依存・決定論tie-break。
-9. Runtimeで厳密LM核と能力模型核を別保持。
+9. 実行系で厳密LM核と能力模型核を別保持。
 10. 候補scoreをLM確率へ流用しない。
 
 サンドボックス結果:
 
 ```text
 厳密LM単体       8 / 8 PASS
-Runtime二核stub  2 / 2 PASS
+実行系二核stub  2 / 2 PASS
 ```
 
 ## GitHub全体CI
@@ -53,7 +53,7 @@ module CLI             = PASS
 console CLI            = PASS
 ```
 
-これにより、v0.5厳密LM追加と二核分離が既存Runtime/knowledge choice/legacy回帰を破壊していないことを、Linux/Windows両方で受入した。
+これにより、v0.5厳密LM追加と二核分離が既存実行系/knowledge choice/legacy回帰を破壊していないことを、Linux/Windows両方で受入した。
 
 ## 非主張
 

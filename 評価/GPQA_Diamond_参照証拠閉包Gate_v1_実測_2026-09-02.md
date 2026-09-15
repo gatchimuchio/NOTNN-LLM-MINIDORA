@@ -1,11 +1,11 @@
-# GPQA Diamond 参照証拠閉包Gate v1 実測
+# GPQA Diamond 参照証拠閉包関門 v1 実測
 
 - 製品commit: `9e90f73609eae4e883d6c874f1b19670465f6f93`
 - 問題数: 198
 - 専門module: 除外
 - gold: 推論後採点のみ
 
-## Gate前後比較
+## 関門前後比較
 
 ```json
 {
@@ -70,8 +70,8 @@
   "working_relations_reused": 0,
   "working_relations_promoted_to_k": 0,
   "working_relations_discarded_after_recheck": 0,
-  "checkpoint_count": 757,
-  "checkpoint_reactivations": 166,
+  "検査点_count": 757,
+  "検査点_reactivations": 166,
   "global_reconciliations": 166,
   "candidate_cross_updates": 38,
   "specialist_actions_invoked": 0,
@@ -168,9 +168,9 @@
   "dataset": "official idavidrein/gpqa dataset.zip / gpqa_diamond.csv",
   "dataset_url": "https://raw.githubusercontent.com/idavidrein/gpqa/main/dataset.zip",
   "dataset_zip_sha256": "461ae7329f15a3e35f8184d2dac24b990f34fdf12f366ca4062d8e6638cd08dc",
-  "dataset_csv_sha256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
-  "full_benchmark_total": 198,
-  "selected_indices": [
+  "資料集合CSV_SHA256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+  "全問題数": 198,
+  "選択番号群": [
     0,
     1,
     2,
@@ -370,23 +370,23 @@
     196,
     197
   ],
-  "choice_shuffle_seed": 0,
-  "compiler": "MINIDORA public standard HDS Compiler; Japanese-base role projection; benchmark-agnostic",
+  "選択肢シャッフル種": 0,
+  "compiler": "MINIDORA public standard HDS 構文化器; Japanese-base role projection; benchmark-agnostic",
   "gold_boundary": "gold used only after baseline/current inference for scoring",
   "repository_commit": "686b26fe9da98900b303c4e73b37d1700305d621",
-  "openalex_enabled": false,
-  "wikipedia_languages": [
+  "OpenAlex有効": false,
+  "Wikipedia言語群": [
     "en"
   ],
-  "runtime": "minimal generic MINIDORA formal core + HDS safety valve on anomaly only; specialist modules excluded",
+  "実行系": "minimal generic MINIDORA formal core + HDS safety valve on anomaly only; specialist modules excluded",
   "working_state_boundary": "working/local relations are request-local and never auto-promoted to persistent canonical K",
-  "controlled_ab": true,
+  "統制AB": true,
   "controlled_ab_definition": "same question IR + same initial retrieved references + same initial normal MINIDORA result. baseline=normal MINIDORA without HDS intervention; current=exact baseline result when closed, otherwise HDS-triggered existing actions followed by normal MINIDORA re-evaluation",
-  "checkpoint_resume": "same dataset + selected range + repository commit + OpenAlex + controlled-ab condition only",
+  "検査点_resume": "same dataset + selected range + repository commit + OpenAlex + controlled-ab condition only",
   "hds_role": "通常MINIDORAを俯瞰監視し、未閉包・競合・観測不足等の異常時だけ既存作用を起動。正常推論は完全透過",
   "initial_reference_route": "HDS投入前と同じ標準HDS参照検索。追加RはHDS介入時だけ",
   "current_additional_reference": "HDSが観測不足等を検出した場合だけ追加Rを許可",
-  "candidate_resolution": "formal MINIDORA generic model core only; no specialist solver, no supervisory resolver, no HDS winner selection",
+  "candidate_resolution": "formal MINIDORA generic model core only; no specialist 解決器, no supervisory re解決器, no HDS winner selection",
   "formal_model_core": true,
   "final_hds_judgement_wrapper": false,
   "non_intervention_invariant": "HDS interventions=0 => current selection object is the exact normal MINIDORA baseline result"

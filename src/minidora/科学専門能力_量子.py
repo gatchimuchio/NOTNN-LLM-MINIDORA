@@ -19,7 +19,7 @@ def solve_pauli_expectation(q: str, choices: Sequence[str]):
         ez = (a * a - b * b) / n
         ex = 2 * a * b / n
         val = cz * ez + cx * ex
-        return _result(_nearest(choices, val, rel_tol=0.08), 'pauli_expectation', val)
+        return _結果(_nearest(choices, val, rel_tol=0.08), 'pauli_expectation', val)
     m = re.search('spin state\\s*\\(\\s*([+-]?[0-9.]+)\\s*i\\s*,\\s*([+-]?[0-9.]+)\\s*\\)', q, re.I)
     if m and 's_y' in s:
         ai, b = map(float, m.groups())
@@ -36,7 +36,7 @@ def solve_pauli_expectation(q: str, choices: Sequence[str]):
                 candidates.append((abs(val), i))
         if candidates:
             candidates.sort()
-            return _result(candidates[0][1], 'spin_y_expectation', val)
+            return _結果(candidates[0][1], 'spin_y_expectation', val)
     return None
 
 def solve_pauli_hamiltonian(q, choices):
@@ -54,20 +54,20 @@ def solve_pauli_hamiltonian(q, choices):
         eps = 'varepsilon' in cc or 'ε' in cc or 'epsilon' in cc
         if eps and '+' in cc and ('-' in cc):
             hits.append(i)
-    return _result(hits[0] if len(hits) == 1 else None, 'pauli_hamiltonian_eigenvalues', '±epsilon')
+    return _結果(hits[0] if len(hits) == 1 else None, 'pauli_hamiltonian_eigenvalues', '±epsilon')
 
 def solve_maximally_mixed_bloch(q, choices):
     s = q.casefold()
     if 'density matrix' not in s and 'rho' not in s:
         return None
     if '|0' in q and '|1' in q and ('1}{2' in q) or ('1/2' in q and 'qubit' in s):
-        idx = _choice_contains(choices, '0', '0', '0')
+        idx = _選択肢包含(choices, '0', '0', '0')
         if idx is None:
             for i, c in enumerate(choices):
                 if re.search('\\(\\s*0\\s*,\\s*0\\s*,\\s*0\\s*\\)', c):
                     idx = i
                     break
-        return _result(idx, 'bloch_maximally_mixed', (0, 0, 0))
+        return _結果(idx, 'bloch_maximally_mixed', (0, 0, 0))
     return None
 
 def solve_energy_time_resolution(q, choices):
@@ -85,13 +85,13 @@ def solve_energy_time_resolution(q, choices):
     width = 6.582119569e-16 / min(times)
     vals = []
     for i, c in enumerate(choices):
-        v = _choice_numeric(c)
+        v = _選択肢数値(c)
         if v is not None and v >= width:
             vals.append((v, i))
     if not vals:
         return None
     vals.sort()
-    return _result(vals[0][1], 'energy_time_resolution', width)
+    return _結果(vals[0][1], 'energy_time_resolution', width)
 
 def solve_spin_x_generic(q, choices):
     s = q.casefold()
@@ -125,7 +125,7 @@ def solve_spin_x_generic(q, choices):
     if not best:
         return None
     best.sort()
-    return _generic_result(best[0][1], 'spin_x_measurement', (pplus, pminus, exp_hbar))
+    return _一般結果(best[0][1], 'spin_x_measurement', (pplus, pminus, exp_hbar))
 
 def solve_angular_momentum_sum(q, choices):
     s = q.casefold()
@@ -143,7 +143,7 @@ def solve_angular_momentum_sum(q, choices):
         return None
     mval = -1.0 if signs[-1] == '-' else 1.0
     if abs(mval + mval - total_m) > 1e-12:
-        return _generic_result(_nearest(choices, 0.0), 'angular_momentum_m_sum', 0.0)
+        return _一般結果(_nearest(choices, 0.0), 'angular_momentum_m_sum', 0.0)
     return None
 
 def solve_wavefunction_normalization_generic(q, choices):
@@ -167,7 +167,7 @@ def solve_wavefunction_normalization_generic(q, choices):
     if integral <= 0 or remainder <= 0:
         return None
     N = math.sqrt(remainder / integral)
-    return _generic_result(_nearest(choices, N, rel_tol=0.15), 'wavefunction_normalization', N)
+    return _一般結果(_nearest(choices, N, rel_tol=0.15), 'wavefunction_normalization', N)
 
 def solve_infinite_well_fermions_generic(q, choices):
     s = q.casefold()
@@ -204,7 +204,7 @@ def solve_infinite_well_fermions_generic(q, choices):
     if not best:
         return None
     best.sort()
-    return _generic_result(best[0][1], 'infinite_well_fermion_occupancy', target)
+    return _一般結果(best[0][1], 'infinite_well_fermion_occupancy', target)
 
 def solve_larmor_frequency(q, choices):
     s = q.casefold()
@@ -213,7 +213,7 @@ def solve_larmor_frequency(q, choices):
     for i, c in enumerate(choices):
         cc = c.casefold().replace(' ', '')
         if cc in {'gamma*b', 'γ*b', 'gamma* b'} or ('gamma*b' in cc and '/' not in cc and ('sqrt' not in cc)):
-            return _result(i, 'larmor_frequency', 'gamma B')
+            return _結果(i, 'larmor_frequency', 'gamma B')
     return None
 REGISTRY = (solve_pauli_expectation, solve_pauli_hamiltonian, solve_maximally_mixed_bloch, solve_energy_time_resolution, solve_spin_x_generic, solve_angular_momentum_sum, solve_wavefunction_normalization_generic, solve_infinite_well_fermions_generic, solve_larmor_frequency)
 

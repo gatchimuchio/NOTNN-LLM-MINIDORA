@@ -11,19 +11,19 @@
 ```text
 自然言語問題
   ↓
-HDS Compiler
+HDS 構文化器
   ↓
 問題 HDS-IR
 
 4候補
   ↓
-各候補を HDS Compiler
+各候補を HDS 構文化器
   ↓
 候補 HDS-IR
 
 外部一般Data
   ↓
-全件 HDS Compiler
+全件 HDS 構文化器
   ↓
 Data HDS-IR
   ↓
@@ -71,14 +71,14 @@ MINIDORAプロトタイプは、以下をすべて満たしたため完成と判
 
 固定値として採用するrunでは、次を必須条件とした。
 
-- 問題文をHDS Compilerへ投入する。
-- A/B/C/Dの4候補をそれぞれ独立にHDS Compilerへ投入する。
-- 外部から取得したDataを**1件残らずHDS Compilerへ投入する**。
+- 問題文をHDS 構文化器へ投入する。
+- A/B/C/Dの4候補をそれぞれ独立にHDS 構文化器へ投入する。
+- 外部から取得したDataを**1件残らずHDS 構文化器へ投入する**。
 - Dataを生文字列FactとしてKへ直入れしない。
 - `source_text / normalized / 原文保持` は監査のためHDS-IRに保持するが、正答を支持するK/Jの根拠には使用しない。
 - 問題IR・候補IR・Data由来の意味FactをHDS構造として照合する。
 - 一意な根拠がなければJ/HDSは推測せずSUSPENDする。
-- GPQA固有ルール、正解ラベル、正答解説をCompiler/K/Jへ渡さない。
+- GPQA固有ルール、正解ラベル、正答解説を構文化器/K/Jへ渡さない。
 - 正解ラベルは採点時にのみ使用する。
 
 ## 4. 完成時runの構造実測
@@ -137,7 +137,7 @@ K3の93.5%は比較基準であり、プロトタイプ完成判定とは別軸�
 理由は、外部検索Dataを `retrieved_document` の生文字列FactとしてKへ直接投入しており、
 
 ```text
-外部Data → HDS Compiler → HDS-IR → K
+外部Data → HDS 構文化器 → HDS-IR → K
 ```
 
 というMINIDORAの正規経路を満たしていなかったためである。
@@ -152,7 +152,7 @@ K3の93.5%は比較基準であり、プロトタイプ完成判定とは別軸�
 
 機械可読値は `評価/GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json` を正本とする。
 
-公開Runtimeで、外部DataのHDS-IR→K構造Fact、問題IR／候補IR／Data意味Factの構造照合、およびHDS方向付き関係探索を実装した基準commit:
+公開実行系で、外部DataのHDS-IR→K構造Fact、問題IR／候補IR／Data意味Factの構造照合、およびHDS方向付き関係探索を実装した基準commit:
 
 `eb251f5a1d553e59cf4488c7df1a7a0f74bc47b3`
 

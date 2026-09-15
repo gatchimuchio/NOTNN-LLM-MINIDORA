@@ -1,66 +1,23 @@
 # tests
 
-`tests/` はMINIDORA模型核・計算中間表現/実行境界・HDS境界・主体主幹・K/J経路の単体試験、negative control、回帰試験を保持する。
+`tests/` はMINIDORA模型核・計算中間表現/実行境界・HDS境界・主体主幹・K/J経路の単体試験、負の対照、回帰試験を保持する。
 
-設計上の意味は `../設計/`、LLM成立上位契約は `../REFERENCES.md` を参照する。試験コードだけから仕様を逆定義しない。
+設計上の意味は `../設計/`、LLM成立上位契約は `../参照正本.md` を参照する。試験コードだけから仕様を逆定義しない。
 
-## 現行追加試験
+`test_` はPython試験発見規約として維持し、その後ろの独自試験名は日本語を正本とする。HDS、K3、GPQA、HTTP、CLI等の固定略称・外部固有名は例外とする。
 
-| Test | 主な対象 |
-|---|---|
-| `test_模型.py` | 文脈差→成立差、関係再利用、根拠なし停止、プログラム言語体系、Runtime模型核入口 |
-| `test_模型関係域.py` | 有向関係、肯否、履歴順序、条件結合、17一般関係族、HDS非依存 |
-| `test_構成再現_v3.py` | 構成再現7条件、checkpoint再作用、形成済み関係、参照差、MINIDORA出力→HDS終端 |
-| `test_hds判断主体.py` | 後段HDSの出力専用API、APPROVE/HOLD/REJECT、SILENT、差し戻し禁止 |
-| `test_hds入力参照境界.py` | 前段Dataコンパイル成功集合と参照同一性のMINIDORA入力整列 |
-| `test_hds判断参照境界.py` | 旧誤命名APIの互換性のみ |
-| `test_runtime_hds_choice.py` | 正式 `HDS Compiler→MINIDORA→MINIDORA出力→HDS→OUTPUT/SILENT` 統合 |
-| `test_規模測定.py` | 状態域・関係域・共有適用規模の三面、544関係構造、256共有適用、一点閾値禁止 |
-| `test_計算IR_ABI.py` | P→計算中間表現、型付き状態参照、実行境界決定論、旧P互換、未確定停止 |
-| `test_hds_compiler_pipeline_v1_3.py` | Architecture v1.2維持、Pipeline v1.3、意味IR/P分離、再解析なし計算降下 |
-| `test_layer0.py` | 旧Layer0名が計算実行器互換aliasであること |
+## 主要現行試験
 
-## 後段HDSの必須negative control
-
-- `HDS判断主体.判断()` にQuestion / Candidate / Data / Referenceを渡せない。
-- source confidenceを後段HDS判断入力にしない。
-- 一般表層winnerで正式MINIDORA出力を上書きしない。
-- MINIDORA出力不存在を推測で埋めない。HOLD / SILENTへ閉じる。
-- MINIDORA出力不整合を別候補生成で補正しない。REJECT / SILENTへ閉じる。
-- HOLD / REJECT後に再検索・再計算・MINIDORA差し戻しを行わない。
-- HDS判断結果に再試行・差し戻し状態を持たせない。
-
-## 前段入力境界の必須negative control
-
-- Dataコンパイル失敗を生Data fallbackでMINIDORAへ渡さない。
-- HDS Compiler出力と参照同一性の添字を崩さない。
-- 前段入力整列を後段HDS判断と呼ばない。
-
-## 模型関係域の必須negative control
-
-- `A causes B` と `B causes A` を同一視しない。
-- `A causes B` と `A does not cause B` を同一視しない。
-- 履歴を集合和へ潰して順序差を捨てない。
-- 条件付き関係を無条件関係へ潰さない。
-- 模型核へHDS依存を逆流させない。
-- 負の成立差だけで候補を確定しない。
-
-## Pipeline v1.3必須negative control
-
-- 意味IRへPを混入しない。
-- 意味IRへ計算初期状態を混入しない。
-- 計算降下時に自然言語を再解析しない。
-- 独立Data/候補の意味IRへPを混入しない。
-- 旧 `コンパイル()` の互換IRを意味正本として扱わない。
-
-## 計算中間表現の必須negative control
-
-- `$`文字列が計算実行境界へ残らない。
-- 状態値と状態住所を同一視しない。
-- 交換以外へ状態住所を渡すと失敗する。
-- 未確定HDS入力を計算中間表現へ昇格しない。
-- 同一IR+初期状態で同一結果になる。
-- 旧P入口も計算中間表現を迂回しない。
+- `test_模型.py` — 文脈差→成立差、関係再利用、根拠なし停止、実行系模型核入口
+- `test_模型関係域.py` — 有向関係、肯否、履歴順序、条件結合、一般関係族、HDS非依存
+- `test_構成再現_v3.py` — 構成再現、検査点再作用、形成済み関係、参照差、MINIDORA出力→HDS終端
+- `test_hds判断主体.py` — 後段HDSの出力専用API
+- `test_hds入力参照境界.py` — 前段資料構文化成功集合と参照同一性
+- `test_実行系_HDS選択.py` — 正式HDS構文化器→MINIDORA→HDS→出力/無出力統合
+- `test_規模測定.py` — 状態域・関係域・共有適用規模
+- `test_計算中間表現_境界.py` — P→計算中間表現、型付き状態参照、実行境界決定論
+- `test_HDS構文化処理系列_v1_3.py` — 旧処理系列互換回帰
+- `test_第0層.py` — 旧Layer0名の互換境界
 
 ## 実行
 
@@ -69,14 +26,4 @@ python -m unittest discover -s tests -v
 python tools/規模測定.py
 ```
 
-CIではリポジトリ整合性監査、構文確認、単体試験、規模測定、module CLI、console scriptをLinux / Windows × Python 3.11–3.14で確認する。
-
-## 状態の解釈
-
-```text
-局所test PASS
-!= 製品・最終完成
-!= 現代ニューラルLLMとの物理規模同等
-```
-
-現行v0.4規模測定v2は **局所成立候補**。詳細は `../評価/MINIDORA_v0_4_規模測定_v2_2026-08-26.md` を参照する。
+CIではリポジトリ整合性監査、日本語基底監査、構文確認、単体試験、規模測定、モジュールCLI、コンソール入口をLinux / Windows × Python 3.11–3.14で確認する。

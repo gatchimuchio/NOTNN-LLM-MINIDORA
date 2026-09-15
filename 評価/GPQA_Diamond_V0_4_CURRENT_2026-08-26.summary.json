@@ -1,5 +1,5 @@
 {
-  "schema": "minidora.gpqa.measurement-summary.v1",
+  "契約形式": "minidora.gpqa.measurement-summary.v1",
   "date_jst": "2026-08-26",
   "benchmark": "GPQA Diamond",
   "repository_commit": "a546ca0b9c88849506103315f8787f6c15355def",
@@ -9,8 +9,8 @@
   "artifact_digest_sha256": "90abce629f97e14d02edf888a775e6d38fdda02c621ec4eb66a2a77056a35317",
   "artifact_name": "minidora-gpqa-current-measurement",
   "dataset_zip_sha256": "461ae7329f15a3e35f8184d2dac24b990f34fdf12f366ca4062d8e6638cd08dc",
-  "dataset_csv_sha256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
-  "openalex_enabled": false,
+  "資料集合CSV_SHA256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+  "OpenAlex有効": false,
   "metrics": {
     "completed": 198,
     "selected_total": 198,

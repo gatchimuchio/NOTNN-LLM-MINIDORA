@@ -19,7 +19,7 @@ def original(query='Q'):
         データ={'資料': [{'名前': '例', '本文': ref.本文}], '問い': query})
 
 
-def context(query='Q'):
+def 文脈(query='Q'):
     obj = original(query)
     return 能力文脈('明示範囲で検討する', 'cache', 直前参照=obj.参照,
         補助={'合成入力': ({'参照': {'領域': '入力', '識別子': '原要求'}, '結果': _結果辞書(obj)},), '合成設定': {}})
@@ -32,23 +32,23 @@ class 純粋再利用回帰試験(unittest.TestCase):
         self.wrapper = 純粋再利用能力(self.module, self.cache)
 
     def test_実能力の再利用で意味全体が一致し原実行が減る(self):
-        one = self.wrapper.実行(context()); two = self.wrapper.実行(context())
+        one = self.wrapper.実行(文脈()); two = self.wrapper.実行(文脈())
         self.assertTrue(one.成立); self.assertEqual(_結果辞書(one), _結果辞書(two))
         stats = self.cache.統計()['能力別'][self.module.名前]
         self.assertEqual(stats, {'要求': 2, '再利用': 1, '原実行': 1})
 
     def test_問い変更を同一本文キャッシュとして取り違えない(self):
-        one = self.wrapper.実行(context()); two = self.wrapper.実行(context('R'))
+        one = self.wrapper.実行(文脈()); two = self.wrapper.実行(文脈('R'))
         self.assertNotEqual(_結果辞書(one), _結果辞書(two))
         self.assertEqual(self.cache.統計()['能力別'][self.module.名前]['再利用'], 0)
 
     def test_返却値の改変がキャッシュ内部に届かない(self):
-        one = self.wrapper.実行(context()); expected = deepcopy(_結果辞書(one))
+        one = self.wrapper.実行(文脈()); expected = deepcopy(_結果辞書(one))
         one.データ['状態'] = '改変'
-        self.assertEqual(_結果辞書(self.wrapper.実行(context())), expected)
+        self.assertEqual(_結果辞書(self.wrapper.実行(文脈())), expected)
 
     def test_未知設定で失敗した結果を再利用しない(self):
-        data = context(); data.補助['合成設定']['未対応'] = True
+        data = 文脈(); data.補助['合成設定']['未対応'] = True
         for _ in range(2):
             self.assertFalse(self.wrapper.実行(data).成立)
         self.assertEqual(self.cache.統計()['件数'], 0)
@@ -56,19 +56,19 @@ class 純粋再利用回帰試験(unittest.TestCase):
 
     def test_明示無効時はキャッシュに保存しない(self):
         store = 純粋結果庫(有効=False); wrapper = 純粋再利用能力(self.module, store)
-        self.assertEqual(_結果辞書(wrapper.実行(context())), _結果辞書(wrapper.実行(context())))
+        self.assertEqual(_結果辞書(wrapper.実行(文脈())), _結果辞書(wrapper.実行(文脈())))
         self.assertEqual(store.統計()['件数'], 0)
         self.assertEqual(store.統計()['能力別'][self.module.名前]['原実行'], 2)
 
     def test_登録後の版変更はヒットでも拒否する(self):
-        self.wrapper.実行(context()); self.module.版 = 'changed'
+        self.wrapper.実行(文脈()); self.module.版 = 'changed'
         with self.assertRaises(ValueError):
-            self.wrapper.実行(context())
+            self.wrapper.実行(文脈())
 
     def test_文脈と参照の差を鍵から落とさない(self):
-        self.wrapper.実行(context())
-        for altered in (replace(context(), 直前応答='新しい文脈'),
-                        replace(context(), 直前参照=(replace(original().参照[0], 本文='R。'),))):
+        self.wrapper.実行(文脈())
+        for altered in (replace(文脈(), 直前応答='新しい文脈'),
+                        replace(文脈(), 直前参照=(replace(original().参照[0], 本文='R。'),))):
             self.wrapper.実行(altered)
         self.assertEqual(self.cache.統計()['能力別'][self.module.名前]['原実行'], 3)
 

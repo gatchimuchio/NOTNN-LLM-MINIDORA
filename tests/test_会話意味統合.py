@@ -8,8 +8,8 @@ from minidora.会話解釈 import 会話を解釈,HDS会話を照合
 from minidora.会話回答 import 回答記録整合,回答を構成
 from minidora.会話意味 import 会話要求,比較対象
 from minidora.製品版.型 import 能力結果
-from minidora.hds_compiler import 公開HDSコンパイラ
-from minidora.hds_ir import HDS残差,値状態
+from minidora.HDS構文化器 import 公開HDSコンパイラ
+from minidora.HDS中間表現 import HDS残差,値状態
 
 
 def 素材(a=75,b=60,unit=True):

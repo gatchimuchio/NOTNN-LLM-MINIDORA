@@ -36,4 +36,4 @@
 
 ## 外部原語
 
-`same underlying model`、`classifier`、`fallback`、`persistent file-based memory` は出典照合用の外部原語としてのみ保持する。
+`same underlying model`、`classifier`、`代替経路`、`persistent file-based memory` は出典照合用の外部原語としてのみ保持する。

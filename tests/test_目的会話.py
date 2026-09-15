@@ -12,8 +12,8 @@ from unittest.mock import patch
 from minidora.目的会話 import 目的会話セッション
 from minidora.統合実行 import 統合セッション
 from minidora.製品版.型 import 能力結果
-from minidora.hds_compiler import 公開HDSコンパイラ
-from minidora.hds_ir import HDS残差, HDS座標, 値状態
+from minidora.HDS構文化器 import 公開HDSコンパイラ
+from minidora.HDS中間表現 import HDS残差, HDS座標, 値状態
 from minidora.HDS目的射影 import HDSから目的要求
 
 class 目的会話試験(unittest.TestCase):

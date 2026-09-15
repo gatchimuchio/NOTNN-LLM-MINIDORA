@@ -7,7 +7,7 @@ from minidora.規定参照 import LLM成立規定版, 厳密LM中核, 能力作�
 
 
 class MINIDORAv05統合試験(unittest.TestCase):
-    def test_runtimeは厳密LM核と能力核を分離する(self):
+    def test_実行系は厳密LM核と能力核を分離する(self):
         body = ミニドラ()
         self.assertIsInstance(body.言語模型核, MINIDORA厳密言語模型)
         self.assertIs(body.模型核, body.能力模型核)

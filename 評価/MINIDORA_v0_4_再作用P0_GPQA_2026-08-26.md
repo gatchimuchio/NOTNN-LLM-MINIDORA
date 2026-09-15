@@ -35,8 +35,8 @@ P0内部指標:
 | working relations created | 114,443 |
 | working relations reused | 0 |
 | working relations promoted to K | 0 |
-| checkpoint count | 594 |
-| checkpoint reactivations | 0 |
+| 検査点 count | 594 |
+| 検査点 reactivations | 0 |
 | global reconciliations | 0 |
 | candidate cross updates | 792 |
 | temporary working evidence | 0 |
@@ -49,7 +49,7 @@ P0内部指標:
 
 - working relations reused = 0
 - temporary working evidence = 0
-- checkpoint reactivations = 0
+- 検査点 reactivations = 0
 - global reconciliations = 0
 
 つまりP0の再作用経路は実GPQAで一度も発火していない。
@@ -62,7 +62,7 @@ P0内部指標:
 
 - Working Relation Storeは全問で形成できた。
 - persistent canonical Kへ作業関係を自動昇格しなかった。
-- checkpointを監査記録として形成できた。
+- 検査点を監査記録として形成できた。
 - 既存unknown / contradiction / direct relation等の境界を壊さなかった。
 
 ### 未成立

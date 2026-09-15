@@ -4,7 +4,7 @@ from dataclasses import replace
 import re
 import unittest
 
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差, 値状態
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差, 値状態
 from minidora.文脈照応 import 会話参照記憶
 from minidora.文脈要求 import 文脈付き要求セッション
 from minidora.要求解釈 import 要求計画器

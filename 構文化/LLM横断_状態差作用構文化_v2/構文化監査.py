@@ -11,7 +11,7 @@ for name in expected:
         assert token in t, (name,token)
     assert "K3" in t and "対象外" in t
 coord=json.loads((ROOT/"作用因果座標_v2.json").read_text(encoding="utf-8"))
-assert coord["schema"]=="minidora.cross_llm.state_delta_action_structuring.v2"
+assert coord["契約形式"]=="minidora.cross_llm.state_delta_action_structuring.v2"
 assert len(coord["models"])==10
 allowed=set(coord["dependency_kinds"])
 for m in coord["models"]:

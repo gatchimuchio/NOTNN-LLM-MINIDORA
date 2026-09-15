@@ -4,7 +4,7 @@ from typing import Any
 
 from .命令 import 手順
 from .命令計算降下 import 命令計算降下
-from .旧_layer0_v03 import Layer0 as _旧Layer0, 実行文脈
+from .旧_第0層_v03 import Layer0 as _旧Layer0, 実行文脈
 from .計算中間表現 import 計算中間表現, 計算実行結果
 from .計算実行境界 import 計算実行境界 as 計算実行境界型
 

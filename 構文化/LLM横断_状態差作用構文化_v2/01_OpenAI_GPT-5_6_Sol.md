@@ -41,7 +41,7 @@ tool結果・context・model出力をharnessが次callへ接続できる。core�
 
 ## F — 形成循環
 
-task successとefficiencyを形成圧力として観測するが、個々のruntime状態差がどのweight更新へ帰属するかは未観測。
+task successとefficiencyを形成圧力として観測するが、個々の実行系状態差がどのweight更新へ帰属するかは未観測。
 
 ## v1からの訂正・保持
 

@@ -1,15 +1,15 @@
 from __future__ import annotations
 import unittest
 from minidora.能力作用則 import 関係寄与, 証拠状態寄与, 証拠状態合計寄与
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
-from minidora.hds_model_projection import HDSMINIDORA模型評価
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from minidora.HDS模型射影 import HDSMINIDORA模型評価
 from minidora.模型 import (
     LLM成立規定版, LLM構成再現区別, MINIDORA模型核, 成立候補, 言語状態,
     関係規則, 意味連続関係, 標準模型核,
 )
 from minidora.言語構造 import 言語関係構造
 
-def relation(kind,s,o,pred,positive=True):
+def 関係(kind,s,o,pred,positive=True):
     return 言語関係構造(kind,frozenset({s}),frozenset({o}),positive,(),frozenset({pred}))
 
 def ir(text,coords=(),relations=(),*,language="en"):
@@ -24,13 +24,13 @@ class 構成再現v3試験(unittest.TestCase):
         self.assertEqual(len(LLM構成再現区別),7)
 
     def test_問い専用関係を検索述語でDataへ接続する(self):
-        target=relation("問い適合","enzyme","beta","stabilize")
-        evidence=relation("作用","enzyme","beta","stabilize")
+        target=関係("問い適合","enzyme","beta","stabilize")
+        evidence=関係("作用","enzyme","beta","stabilize")
         self.assertGreater(関係寄与(target,evidence),0)
 
     def test_1参照内の複数関係を最大1件へ潰さない(self):
-        targets=(relation("作用","a","b","p1"),relation("作用","c","d","p2"))
-        evidence=(relation("作用","a","b","p1"),relation("作用","c","d","p2"))
+        targets=(関係("作用","a","b","p1"),関係("作用","c","d","p2"))
+        evidence=(関係("作用","a","b","p1"),関係("作用","c","d","p2"))
         self.assertEqual(証拠状態寄与(targets,evidence),2)
         self.assertEqual(証拠状態合計寄与(targets,evidence),4)
 
@@ -42,7 +42,7 @@ class 構成再現v3試験(unittest.TestCase):
             (成立候補("A",言語状態("formed")),成立候補("B",言語状態("other"))),
         )
         self.assertEqual(result.最有力候補ID,"A")
-        self.assertTrue(any(cp.段階=="FORMED_RELATIONS" for cp in result.checkpoint))
+        self.assertTrue(any(cp.段階=="形成済み関係" for cp in result.checkpoint))
 
     def test_checkpointが再活性される(self):
         result=標準模型核().評価言語状態(
@@ -55,19 +55,19 @@ class 構成再現v3試験(unittest.TestCase):
         self.assertTrue(any(cp.段階.startswith("RECONCILE_") for cp in result.checkpoint))
 
     def test_反証だけで正の候補へしない(self):
-        a=言語状態("alpha",関係構造=(relation("作用","x","alpha","p",True),))
+        a=言語状態("alpha",関係構造=(関係("作用","x","alpha","p",True),))
         b=言語状態("beta")
-        ref=言語状態("r",識別子="r",関係構造=(relation("作用","x","alpha","p",False),))
+        ref=言語状態("r",識別子="r",関係構造=(関係("作用","x","alpha","p",False),))
         result=標準模型核().評価言語状態(言語状態("which"),(成立候補("A",a),成立候補("B",b)),参照状態=(ref,))
         self.assertIsNone(result.参照最有力候補ID)
 
     def test_反転は相対例外差として正に戻す(self):
-        a=言語状態("alpha",関係構造=(relation("作用","x","alpha","p"),))
-        b=言語状態("beta",関係構造=(relation("作用","x","beta","p"),))
-        c=言語状態("gamma",関係構造=(relation("作用","x","gamma","p"),))
+        a=言語状態("alpha",関係構造=(関係("作用","x","alpha","p"),))
+        b=言語状態("beta",関係構造=(関係("作用","x","beta","p"),))
+        c=言語状態("gamma",関係構造=(関係("作用","x","gamma","p"),))
         refs=(
-            言語状態("r1",識別子="r1",関係構造=(relation("作用","x","alpha","p"),)),
-            言語状態("r2",識別子="r2",関係構造=(relation("作用","x","beta","p"),)),
+            言語状態("r1",識別子="r1",関係構造=(関係("作用","x","alpha","p"),)),
+            言語状態("r2",識別子="r2",関係構造=(関係("作用","x","beta","p"),)),
         )
         result=標準模型核().評価言語状態(
             言語状態("except"),(成立候補("A",a),成立候補("B",b),成立候補("C",c)),
@@ -106,9 +106,9 @@ class 構成再現v3試験(unittest.TestCase):
 
     def test_候補順参照順に依存しない(self):
         core=標準模型核();q=言語状態("which")
-        a=成立候補("A",言語状態("alpha",関係構造=(relation("作用","x","alpha","p"),)))
-        b=成立候補("B",言語状態("beta",関係構造=(relation("作用","x","beta","p"),)))
-        r1=言語状態("r1",識別子="r1",関係構造=(relation("作用","x","beta","p"),));r2=言語状態("r2",識別子="r2")
+        a=成立候補("A",言語状態("alpha",関係構造=(関係("作用","x","alpha","p"),)))
+        b=成立候補("B",言語状態("beta",関係構造=(関係("作用","x","beta","p"),)))
+        r1=言語状態("r1",識別子="r1",関係構造=(関係("作用","x","beta","p"),));r2=言語状態("r2",識別子="r2")
         x=core.評価言語状態(q,(a,b),参照状態=(r1,r2));y=core.評価言語状態(q,(b,a),参照状態=(r2,r1))
         self.assertEqual(x.候補辞書(),y.候補辞書());self.assertEqual(x.参照候補辞書(),y.参照候補辞書())
 

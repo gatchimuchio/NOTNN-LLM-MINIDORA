@@ -2,8 +2,8 @@
 from dataclasses import replace
 import unittest
 
-from minidora.hds_compiler import 公開HDSコンパイラ
-from minidora.hds_ir import HDS残差
+from minidora.HDS構文化器 import 公開HDSコンパイラ
+from minidora.HDS中間表現 import HDS残差
 from minidora.要求解釈 import 要求計画器
 from minidora.要求解釈実行 import 要求計画を実行
 from minidora.能力合成 import 能力合成器

@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 import re
 import unicodedata
 
-from .semantic_tokens import 意味語
+from .意味字句 import 意味語
 from .言語基底_英語 import 英語明示関係構文 as _原本英語構文, 英語関係一致, 英語関係構文
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, Sequence, TYPE_CHECKING
 
-from .hds_choice_runtime import (
+from .HDS選択実行系 import (
     HDS選択実行結果,
     _choices,
     _一括コンパイル,
@@ -13,15 +13,15 @@ from .hds_choice_runtime import (
     _独立コンパイル入口,
     _suspend,
 )
-from .hds_compiler_records_v1_3 import HDS作用差分構造
-from .hds_ir import HDSIR, 値状態
-from .hds_model_projection import (
+from .HDS構文化記録_v1_3 import HDS作用差分構造
+from .HDS中間表現 import HDSIR, 値状態
+from .HDS模型射影 import (
     HDS内部言語状態,
     HDS能力作用構造射影,
     _対象言語体系,
     _文脈条件,
 )
-from .hds_runtime_projection import HDSKData射影, HDSK候補射影, HDSK質問射影
+from .HDS実行系射影 import HDSKData射影, HDSK候補射影, HDSK質問射影
 from .hds判断参照境界 import HDS判断Data整列
 if TYPE_CHECKING:
     from .k3_functional import K3相当能力核

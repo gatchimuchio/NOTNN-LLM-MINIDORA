@@ -1,4 +1,4 @@
-# 質問関係scope保持契約 v0.19
+# 質問関係範囲保持契約 v0.19
 
 ## 1. 目的
 
@@ -41,7 +41,7 @@ v0.19で質問relationへ保持する修飾は、v0.18のData修飾identityと�
 - `量化=全称`
 - `量化=不定`
 - `量化=全否定`
-- `条件scope=<明示条件句>`
+- `条件範囲=<明示条件句>`
 
 蓋然性 `most likely / least likely` はJの選択方向・比較意味と接続するため、v0.19のrelation qualifierへは入れない。
 
@@ -79,7 +79,7 @@ Which compound may inhibit X?
 関係 = 阻害
 既知終点 = X
 様相 = 可能
-条件scope = Under low pH
+条件範囲 = Under low pH
 ```
 
 へ落とす。
@@ -112,10 +112,10 @@ Which compound may inhibit X?
 例:
 
 ```python
-(("様相", "可能"), ("条件scope", "Under low pH"))
+(("様相", "可能"), ("条件範囲", "Under low pH"))
 ```
 
-条件scopeだけは条件内容そのものが意味境界なので、正規化した原表層を保持する。
+条件範囲だけは条件内容そのものが意味境界なので、正規化した原表層を保持する。
 
 ## 6. HDS relationへの射影
 
@@ -140,7 +140,7 @@ Which compound may inhibit X?
 v0.19は意味保持までである。
 
 - R: 既存検索構造を維持
-- K: scope-aware回答をまだ追加しない
+- K: 範囲-aware回答をまだ追加しない
 - J: 既存選択意図を維持
 - M: 完全IRを保持
 
@@ -149,17 +149,17 @@ v0.19は意味保持までである。
 ## 8. 不変条件
 
 1. 背景文の様相・条件を最終質問へ伝染させない。
-2. 明示された質問scopeをrelationから落とさない。
+2. 明示された質問範囲をrelationから落とさない。
 3. `may/could/might/can/would` を `様相=可能` へ寄せる。
 4. `must` を `様相=必要` へ寄せる。
 5. 量化をrelation qualifierとして保持する。
-6. 条件scopeは局所的に境界が明示された場合だけ保持する。
+6. 条件範囲は局所的に境界が明示された場合だけ保持する。
 7. 受動態の意味方向を維持する。
 8. `least likely` 等のJ選択方向とrelation様相を混同しない。
 9. 世界知識を追加しない。
 10. R queryや検索予算を変更しない。
 11. benchmark固有分岐を追加しない。
-12. scope-aware回答は次段へ分離する。
+12. 範囲-aware回答は次段へ分離する。
 
 ## 9. 次段
 
@@ -173,4 +173,4 @@ Data HDS修飾Fact
 
 を同じidentity空間で照合する。
 
-それまでは、v0.19で保持した質問scopeを採点へ使用しない。
+それまでは、v0.19で保持した質問範囲を採点へ使用しない。

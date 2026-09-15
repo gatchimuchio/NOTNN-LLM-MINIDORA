@@ -1,5 +1,5 @@
 {
-  "schema": "minidora.llm_structuring.state_delta.v2",
+  "契約形式": "minidora.llm_structuring.state_delta.v2",
   "言語": "ja",
   "対象": "K3を除くLLM横断観測",
   "観測状態": [
@@ -35,7 +35,7 @@
     "状態の存在≠後続効果",
     "後続効果≠経路変化",
     "固定配置≠状態差発火",
-    "深さ輸送≠runtime循環",
+    "深さ輸送≠実行系循環",
     "外部loop≠core内部loop",
     "形成循環≠single-inference循環"
   ],

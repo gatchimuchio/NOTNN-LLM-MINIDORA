@@ -72,7 +72,7 @@ M_ARCHIVE
   exact evidence / provenance-preserving
 
 M_WORKING
-  request-local working differences / checkpoints
+  request-local working differences / 検査点s
 
 M_INDEX
   compressed coarse search index

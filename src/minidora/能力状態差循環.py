@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from .semantic_tokens import 意味語
+from .意味字句 import 意味語
 from .模型 import (
     _不成立入力の留保結果,
     MINIDORA模型核,
@@ -291,14 +291,14 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
                 item = relation.評価(文脈, state)
                 if item:
                     work.追加(cid, item)
-        work.記録("STANDARD_RELATIONS", 候補ID群)
+        work.記録("標準関係", 候補ID群)
 
         for cid, state in 内部候補群:
             for relation in self._形成済み関係群:
                 item = relation.評価(文脈, state)
                 if item:
                     work.追加(cid, item)
-        work.記録("FORMED_RELATIONS", 候補ID群)
+        work.記録("形成済み関係", 候補ID群)
 
         一次作用前状態 = work.状態署名()
 
@@ -322,14 +322,14 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
         一次状態差 = work.差分(
             一次作用前状態,
             一次作用後状態,
-            前段="FORMED_RELATIONS",
-            後段="PRIMARY_CAPABILITY_ACTIONS",
+            前段="形成済み関係",
+            後段="一次能力作用",
             番号=len(状態差履歴),
         )
         if 一次状態差.変化有無:
             状態差履歴.append(一次状態差)
         work.記録(
-            "PRIMARY_CAPABILITY_ACTIONS",
+            "一次能力作用",
             一次状態差.変化候補ID,
             (一次状態差.差分ID,) if 一次状態差.変化有無 else (),
         )
@@ -408,7 +408,7 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
             次状態差 = work.差分(
                 再作用前状態,
                 再作用後状態,
-                前段=f"RECONCILE_{循環番号 - 1}" if 循環番号 > 1 else "PRIMARY_CAPABILITY_ACTIONS",
+                前段=f"RECONCILE_{循環番号 - 1}" if 循環番号 > 1 else "一次能力作用",
                 後段=f"RECONCILE_{循環番号}",
                 番号=len(状態差履歴),
             )

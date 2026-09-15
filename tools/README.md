@@ -1,21 +1,21 @@
 # tools
 
-`tools/` は、取得物の同一性確認、公開物inventory、リポジトリ整合性監査、外部ベンチ実測など、**開発・監査用の補助ツール**を置く。
+`tools/` は、取得物の同一性確認、公開物目録、リポジトリ整合性監査、外部ベンチ実測など、**開発・監査用の補助ツール**を置く。
 
-Runtime本体は `src/minidora/` であり、`tools/` のスクリプトをMINIDORAの推論Runtime依存として扱わない。
+実行系本体は `src/minidora/` であり、`tools/` のスクリプトをMINIDORAの推論実行系依存として扱わない。
 
 ## 現在のツール
 
 | Tool | 役割 | 追加依存 |
 |---|---|---|
 | `benchmark_strict.py` | **正本GPQA入口**。198/198全数・LIVE_ONLY・固定参照Data禁止を機械固定する | なし |
-| `benchmark_contract.py` | Benchmark Contract v2。正本GPQA条件・fingerprint・主張可能範囲を生成する | なし |
+| `評価契約.py` | Benchmark Contract v2。正本GPQA条件・fingerprint・主張可能範囲を生成する | なし |
 | `benchmark.py` | 低水準GPQA runner。部分実行・診断用。単独出力を正本性能値として引用しない | なし |
 | `benchmark_formal.py` | HDS監督介入を含む低水準GPQA runner。正本入口から呼ばれる | なし |
 | `gpqa_measure_current.py` | GPQA現行測定の低水準実装 | なし |
 | `repository_consistency_check.py` | v0.4模型核、上流LLM成立規定、version、Legacy境界、主要文書リンクの整合性監査 | なし |
-| `k3_hf_identity_inventory.py` | K3 Hugging Face固定revisionのファイル同一性inventory | `huggingface_hub` |
-| `k3_public_artifact_inventory.py` | K3固定revisionの公開artifact inventory | `huggingface_hub` |
+| `k3_hf_identity_目録.py` | K3 Hugging Face固定revisionのファイル同一性目録 | `huggingface_hub` |
+| `k3_public_artifact_目録.py` | K3固定revisionの公開artifact 目録 | `huggingface_hub` |
 
 ## Benchmark Contract v2
 
@@ -54,7 +54,7 @@ fixed reference Data = forbidden
 
 部分実行用の `--start-index` / `--limit` は低水準runner側にのみ残し、`benchmark_strict.py` の正本GPQA入口では受け付けない。
 
-結果JSONの `benchmark_contract` には最低限次が入る。
+結果JSONの `評価契約` には最低限次が入る。
 
 - `benchmark_id`
 - `evaluation_class`
@@ -66,7 +66,7 @@ fixed reference Data = forbidden
 - `canonical_score_field`
 - `cross_run_code_delta_direct`
 - `snapshot_score_chronology_allowed`
-- `claim_scope`
+- `claim_範囲`
 - `forbidden_claims`
 
 `fixed_reference_data_allowed` は必ず `false`。
@@ -153,14 +153,14 @@ v0.4では、旧Layer0の5責任を期待値にするのではなく、
 
 を監査する。
 
-## K3 inventory
+## K3 目録
 
-K3 inventoryは外部サービスへアクセスする開発用処理のため、Runtime依存から分離する。必要な場合だけ追加依存を導入する。
+K3 目録は外部サービスへアクセスする開発用処理のため、実行系依存から分離する。必要な場合だけ追加依存を導入する。
 
 ```bash
 python -m pip install huggingface_hub
-python tools/k3_hf_identity_inventory.py --out /tmp/k3-hf-identities.json
-python tools/k3_public_artifact_inventory.py --out /tmp/k3-public-artifacts.json
+python tools/k3_hf_identity_目録.py --out /tmp/k3-hf-identities.json
+python tools/k3_public_artifact_目録.py --out /tmp/k3-public-artifacts.json
 ```
 
 両ツールは指定した出力先へJSONを書くだけで、ブランチ作成・commit・pushを自動実行しない。

@@ -165,11 +165,11 @@ class ハッカソンチャット:
         execute = getattr(core, "実行", None)
         natural = getattr(core, "自然言語器", None)
         if callable(execute) and natural is not None:
-            from minidora.runtime import 要求
+            from minidora.実行系 import 要求
 
             result = execute(要求(text))
             if result.HDS_IR is not None:
-                from minidora.multilingual_surface import 表面化 as 多言語表面化
+                from minidora.多言語表層 import 表面化 as 多言語表面化
 
                 language = result.HDS_IR.出力言語 or result.HDS_IR.入力言語
                 response = 多言語表面化(result.値, result.採否.状態.value, result.採否.理由, language)

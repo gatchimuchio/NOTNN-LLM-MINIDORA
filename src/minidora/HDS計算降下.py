@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from .hds_ir import HDSIR
+from .HDS中間表現 import HDSIR
 from .命令計算降下 import 命令計算降下
 from .計算中間表現 import 計算中間表現
 

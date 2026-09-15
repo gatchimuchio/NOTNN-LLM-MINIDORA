@@ -16,7 +16,7 @@ import math
 import re
 import unicodedata
 
-from .hds_ir import HDSIR, HDS座標, HDS関係, HDS残差, HDS意味作用, HDS実行核, 値状態
+from .HDS中間表現 import HDSIR, HDS座標, HDS関係, HDS残差, HDS意味作用, HDS実行核, 値状態
 from .能力合成 import 合成工程, 合成計画, 素材参照, _結果辞書, _参照結合
 from .製品版.型 import 能力結果, 参照資料
 from .文脈照応 import 会話参照スナップショット, 照応束縛, 過去対象表層

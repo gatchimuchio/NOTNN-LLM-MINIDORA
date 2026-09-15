@@ -9,7 +9,7 @@ HDS-IRをMINIDORAのLLM模型中核および計算中間表現と混同せず、
 ```text
 外部入力
   ↓
-公開HDS Compiler
+公開HDS 構文化器
   ↓
 HDS semantic IR
   ├─ R / K / J / Mへ意味Projection
@@ -39,8 +39,8 @@ HDS-IR != LLM模型中核
 HDS-IR != 成立差
 HDS-IR != 計算中間表現
 日本語命令形P != 計算中間表現
-HDS Compiler != 計算実行境界
-HDS Compiler != LLM成立条件
+HDS 構文化器 != 計算実行境界
+HDS 構文化器 != LLM成立条件
 ```
 
 ## 4. HDS-IRが保持する情報
@@ -59,7 +59,7 @@ HDS Compiler != LLM成立条件
 - 参照要求
 - v0.3由来の互換 `手順`
 
-最後の `手順` は今後のsemantic IR正本責任ではない。現行Compiler互換の移行資産として扱う。
+最後の `手順` は今後のsemantic IR正本責任ではない。現行構文化器互換の移行資産として扱う。
 
 ## 5. 計算中間表現への降下
 
@@ -140,9 +140,9 @@ HDS semantic IR
 
 同じHDS-IRを使っていても、消費者ごとにProjectionを分離する。
 
-## 10. 次段HDS Compiler再設計
+## 10. 次段HDS 構文化器再設計
 
-Compute IR / ABI v1確定後、公開HDS Compilerを次へ分割する。
+Compute IR / ABI v1確定後、公開HDS 構文化器を次へ分割する。
 
 ```text
 自然言語
@@ -161,7 +161,7 @@ compute lowering backend
 - semantic frontendは意味・関係・残差・由来を保持する。
 - compute lowering backendは実行可能性が閉じた場合だけ計算中間表現を形成する。
 - `HDSIR.手順`をsemantic IRの恒久フィールドとして要求しない。
-- HDS本体の非公開理論を公開Compilerへ無断転記しない。
+- HDS本体の非公開理論を公開構文化器へ無断転記しない。
 
 ## 11. 受入条件
 
@@ -171,4 +171,4 @@ compute lowering backend
 - 計算降下で自然言語を再解析しない。
 - 旧Layer0実行責任を計算実行器へ限定する。
 - 日本語を内部規定言語とする。
-- HDS Compiler再設計前にcompute責任をsemantic frontendへ再混入させない。
+- HDS 構文化器再設計前にcompute責任をsemantic frontendへ再混入させない。

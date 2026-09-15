@@ -27,7 +27,7 @@ def solve_decay_survival(q, choices):
     if not (0 < p1 < 1 and 0 < p2 < 1):
         return None
     g2 = g1 * math.log(p1) / math.log(p2)
-    return _generic_result(_nearest(choices, g2, rel_tol=0.15), 'decay_survival_lorentz_scaling', g2)
+    return _一般結果(_nearest(choices, g2, rel_tol=0.15), 'decay_survival_lorentz_scaling', g2)
 
 def solve_memoryless(q, choices):
     s = q.casefold()
@@ -43,7 +43,7 @@ def solve_memoryless(q, choices):
     if base_hours <= 0:
         return None
     target = 100 * (1 - (1 - p) ** (target_hours / base_hours))
-    return _generic_result(_nearest(choices, target, rel_tol=0.1), 'memoryless_decay', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.1), 'memoryless_decay', target)
 
 def solve_fission(q, choices):
     s = q.casefold()
@@ -73,7 +73,7 @@ def solve_fission(q, choices):
     E0 = float(em.group(1))
     Q = (1 - pct / 100) * E0
     target = Q / (ratio + 1)
-    return _generic_result(_nearest(choices, target, rel_tol=0.13), 'fission_energy_partition', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.13), 'fission_energy_partition', target)
 
 def solve_boltzmann(q, choices):
     s = q.casefold()
@@ -86,7 +86,7 @@ def solve_boltzmann(q, choices):
         T1, T2 = temps[:2]
         k = 1.380649e-23
         target = math.exp(dE / k * (1 / T2 - 1 / T1))
-        return _generic_result(_nearest(choices, target, rel_tol=0.2), 'boltzmann_population_ratio', target)
+        return _一般結果(_nearest(choices, target, rel_tol=0.2), 'boltzmann_population_ratio', target)
     if 'twice as excited' in s:
         hits = []
         for i, c in enumerate(choices):
@@ -98,7 +98,7 @@ def solve_boltzmann(q, choices):
             if has_log and has_difference and has_product and not squared_temperature:
                 hits.append(i)
         if len(hits) == 1:
-            return _generic_result(hits[0], 'boltzmann_temperature_relation', 'ln2=ΔE/k(1/T2-1/T1)')
+            return _一般結果(hits[0], 'boltzmann_temperature_relation', 'ln2=ΔE/k(1/T2-1/T1)')
     return None
 
 def solve_mean_free_path_added_scattering(q, choices):
@@ -108,7 +108,7 @@ def solve_mean_free_path_added_scattering(q, choices):
     for i, c in enumerate(choices):
         cc = c.replace(' ', '')
         if 'λ2<λ1' in cc or 'lambda2<lambda1' in cc.casefold():
-            return _result(i, 'mean_free_path_parallel_rates', 'lambda2<lambda1')
+            return _結果(i, 'mean_free_path_parallel_rates', 'lambda2<lambda1')
     return None
 
 def solve_qpcr_curve(q, choices):
@@ -128,7 +128,7 @@ def solve_qpcr_curve(q, choices):
             best.append((err, i))
     if best:
         best.sort()
-        return _result(best[0][1], 'qpcr_log_linear_curve', -3.3)
+        return _結果(best[0][1], 'qpcr_log_linear_curve', -3.3)
     return None
 REGISTRY = (solve_decay_survival, solve_memoryless, solve_fission, solve_boltzmann, solve_mean_free_path_added_scattering, solve_qpcr_curve)
 

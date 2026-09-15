@@ -31,7 +31,7 @@ def answer(query='Q',detail=True):
     return 能力結果(True,d['本文'],根拠=('原データ:'+意味指紋(d['報告']),),参照=original().参照,データ=d)
 
 
-def gate(a, o, settings=None):
+def 関門(a, o, settings=None):
     rows=tuple({'参照':{'領域':'入力','識別子':str(i)},'結果':_結果辞書(v)} for i,v in enumerate((a,o)))
     return 改善回答照合Module().実行(能力文脈('照合','試験',補助={'合成入力':rows,'合成設定':
         {'種類':'命題','詳細':True} if settings is None else settings}))
@@ -39,37 +39,37 @@ def gate(a, o, settings=None):
 
 class 最終照合試験(unittest.TestCase):
     def test_正常な回答と原要求を採用する(self):
-        self.assertTrue(gate(answer(),original()).成立)
+        self.assertTrue(関門(answer(),original()).成立)
 
     def test_自己整合しても別の問いの回答を拒否する(self):
         a=answer('P');self.assertTrue(改善回答を検査(a.データ))
-        self.assertFalse(gate(a,original('Q')).成立)
+        self.assertFalse(関門(a,original('Q')).成立)
 
     def test_表示の本文改変を拒否(self):
-        self.assertFalse(gate(replace(answer(),本文='別の回答'),original()).成立)
+        self.assertFalse(関門(replace(answer(),本文='別の回答'),original()).成立)
 
     def test_根拠削除を拒否(self):
-        self.assertFalse(gate(replace(answer(),根拠=()),original()).成立)
+        self.assertFalse(関門(replace(answer(),根拠=()),original()).成立)
 
     def test_参照削除を拒否(self):
-        self.assertFalse(gate(replace(answer(),参照=()),original()).成立)
+        self.assertFalse(関門(replace(answer(),参照=()),original()).成立)
 
     def test_同名参照の内容変更を拒否(self):
-        self.assertFalse(gate(replace(answer(),参照=(replace(original().参照[0],本文='R。'),)),original()).成立)
+        self.assertFalse(関門(replace(answer(),参照=(replace(original().参照[0],本文='R。'),)),original()).成立)
 
     def test_種類のすり替えを拒否(self):
-        self.assertFalse(gate(answer(),original(),{'種類':'仮説','詳細':True}).成立)
+        self.assertFalse(関門(answer(),original(),{'種類':'仮説','詳細':True}).成立)
 
     def test_表示詳細の不一致を拒否(self):
-        self.assertFalse(gate(answer(detail=False),original()).成立)
+        self.assertFalse(関門(answer(detail=False),original()).成立)
 
     def test_bool代わりの整数や未知設定を拒否(self):
         for settings in ({'種類':'命題','詳細':1},{'種類':'命題','詳細':True,'ignore':True}):
-            with self.subTest(settings=settings):self.assertFalse(gate(answer(),original(),settings).成立)
+            with self.subTest(settings=settings):self.assertFalse(関門(answer(),original(),settings).成立)
 
     def test_出典一致だけで別要求の数値を通さない(self):
         o=original();o.データ['照応距離']=2
-        self.assertFalse(gate(answer(),o).成立)
+        self.assertFalse(関門(answer(),o).成立)
 
     def test_最終照合失敗では原記録へ採用しない(self):
         s=統合セッション('検査',基底能力=改善統合能力群());start=s.起点()

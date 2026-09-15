@@ -5,7 +5,7 @@
 - workflow run: `33408451266`
 - benchmark: GPQA Diamond 198問
 - controlled A/B: 有効
-- specialist solver: active pathから除外
+- specialist 解決器: active pathから除外
 - specialist actions invoked: 0
 - gold boundary: baseline/current推論後の採点にのみ使用
 
@@ -51,6 +51,6 @@
 
 ## 境界確認
 
-この測定では、候補解決は正式MINIDORA汎用模型核のみを使用し、専門solver、supervisory resolver、HDSによるwinner selectionは使用していない。HDSは未閉包・競合・観測不足等の異常時に既存作用を起動する安全弁としてのみ介入した。
+この測定では、候補解決は正式MINIDORA汎用模型核のみを使用し、専門解決器、supervisory re解決器、HDSによるwinner selectionは使用していない。HDSは未閉包・競合・観測不足等の異常時に既存作用を起動する安全弁としてのみ介入した。
 
 実測workflowは全step successで完了し、成果物 `minidora-gpqa-current-measurement` が保存された。

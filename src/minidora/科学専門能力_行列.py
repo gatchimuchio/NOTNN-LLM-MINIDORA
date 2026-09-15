@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Sequence
 
-from .科学専門能力_共通 import _result
+from .科学専門能力_共通 import _結果
 
 
 def _entry(raw: str) -> complex | None:
@@ -96,7 +96,7 @@ def 解決(question: str, choices: Sequence[str]):
         c = str(choice).casefold().replace(' ', '')
         if 'e^x' in c and 'y' in c and 'e^{-x}' in c and ('quantumstate' in c or 'state' in c):
             hits.append(i)
-    return _result(
+    return _結果(
         hits[0] if len(hits) == 1 else None,
         'quantum_matrix_unitary_similarity',
         'exp(X)Yexp(-X)',

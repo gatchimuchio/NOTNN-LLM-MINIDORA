@@ -17,7 +17,7 @@ K3ですでに得た作用は重複実装しない。
 K3で獲得済み
 - 選択的状態更新
 - 局所更新 ↔ 大域再照合
-- checkpoint再作用
+- 検査点再作用
 - 共通作用 + 専門作用
 - effort制御
 - 候補生成とJ/HDS採否権限の分離
@@ -44,7 +44,7 @@ M_ARCHIVE
 
 M_WORKING
   = request-local作業状態
-  = 未確定差・候補共同状態・checkpoint
+  = 未確定差・候補共同状態・検査点
 
 M_INDEX
   = M_ARCHIVEを探すためだけの粗い索引

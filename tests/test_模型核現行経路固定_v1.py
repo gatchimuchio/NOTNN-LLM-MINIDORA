@@ -1,0 +1,59 @@
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+import unittest
+
+import minidora.実行系 as 実行系
+
+
+class CoreActivePathLockV1Test(unittest.TestCase):
+    def test_実行系推移依存から実験統一経路を除外する(self) -> None:
+        root = Path(実行系.__file__).resolve().parent
+        forbidden = {
+            "hds統一実行",
+            "HDS統一状態循環",
+            "hds能力経路_v2",
+            "hds能力経路_v3",
+            "hds適応候補調停",
+            "hds統合判断主体",
+            "hds統合実行系",
+            "実行系_HDS_v1",
+            "hds既存能力resolver",
+        }
+        visited: set[str] = set()
+        stack = ["実行系"]
+        reached_forbidden: set[str] = set()
+
+        while stack:
+            module = stack.pop()
+            if module in visited:
+                continue
+            visited.add(module)
+            if module in forbidden:
+                reached_forbidden.add(module)
+                continue
+            path = root / f"{module}.py"
+            if not path.exists():
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ImportFrom) or node.level != 1 or not node.module:
+                    continue
+                child = node.module.split(".", 1)[0]
+                if (root / f"{child}.py").exists() and child not in visited:
+                    stack.append(child)
+
+        self.assertEqual(reached_forbidden, set(), f"active 実行系 reached experimental modules: {sorted(reached_forbidden)}")
+
+    def test_実行系選択経路は形式模型核とHDS監督介入である(self) -> None:
+        text = Path(実行系.__file__).read_text(encoding="utf-8")
+        self.assertIn("HDS選択推論実行", text)
+        self.assertIn("HDS監督選択実行", text)
+        self.assertNotIn("HDS統一選択評価", text)
+        self.assertNotIn("HDS統一状態Session", text)
+        self.assertNotIn("評価実行=_統一評価", text)
+
+
+if __name__ == "__main__":
+    unittest.main()

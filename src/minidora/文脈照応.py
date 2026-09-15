@@ -16,8 +16,8 @@ from threading import RLock
 import unicodedata
 from uuid import uuid4
 
-from .hds_adapter import HDS文脈
-from .hds_ir import HDSIR
+from .HDS適合器 import HDS文脈
+from .HDS中間表現 import HDSIR
 from .局所解釈 import 局所解釈キャッシュ, 局所解釈スナップショット
 from .能力合成 import _結果辞書, _参照結合
 from .製品版.型 import 能力結果

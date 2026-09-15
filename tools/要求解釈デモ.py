@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from minidora.hds_compiler import 公開HDSコンパイラ
+from minidora.HDS構文化器 import 公開HDSコンパイラ
 from minidora.要求解釈 import 要求計画器
 from minidora.要求解釈実行 import 要求計画を実行
 from minidora.能力合成 import 能力合成器

@@ -1,34 +1,34 @@
 # NOTNN-LLM-MINIDORA — MINIDORA
 
-> **A Japanese-first non-neural LLM research and implementation project that separates a minimal language-model Core from exchangeable capability Modules, without using neural networks or Transformers as the core architecture.**
+> **A Japanese-first non-neural LLM research and implementation project that separates a minimal language-model 模型核 from exchangeable capability 能力モジュールs, without using neural networks or Transformers as the core architecture.**
 
 [日本語正本](README.md) / [Product Prototype](製品版/README.en.md) / [Design canon](設計/README.md) / [Evaluation evidence](評価/README.md)
 
 > This file is an English translation for international access. The Japanese documents are the normative source of meaning and design.
 
 
-## Current GPQA canon — Core 30 / System with Modules 80
+## Current GPQA canon — 模型核 30 / System with 能力モジュールs 80
 
 Since 2026-09-09, canonical GPQA performance runs forbid frozen reference data and use newly retrieved `LIVE_ONLY` references.
 
 | Layer | Canon | GPQA Diamond | Meaning |
 |---|---|---:|---|
-| Core / HDS | **MINIDORA30** | **30 / 198 (15.15%)** | current general E2E Core savepoint |
-| Core + scientific Capability Modules | **MINIDORA80** | **80 / 198 (40.40%)** | current system-capability savepoint |
+| 模型核 / HDS | **MINIDORA30** | **30 / 198 (15.15%)** | current general E2E 模型核 savepoint |
+| 模型核 + scientific 能力モジュールs | **MINIDORA80** | **80 / 198 (40.40%)** | current system-capability savepoint |
 
 In the same-run LIVE controlled A/B that established MINIDORA80:
 
 ```text
-Module OFF = 29 / 198 (14.65%)
-Module ON  = 80 / 198 (40.40%)
+能力モジュール OFF = 29 / 198 (14.65%)
+能力モジュール ON  = 80 / 198 (40.40%)
 net correct gain = +51
-Module activations = 55
-correct Module activations = 55
+能力モジュール activations = 55
+correct 能力モジュール activations = 55
 improvements = 51
 regressions = 0
 ```
 
-> **On the limited axis of GPQA score, MINIDORA + scientific Capability Modules reached the same roughly-40% score range as the strongest GPT-4-based baseline reported by the original GPQA paper (39%).**
+> **On the limited axis of GPQA score, MINIDORA + scientific 能力モジュールs reached the same roughly-40% score range as the strongest GPT-4-based baseline reported by the original GPQA paper (39%).**
 
 MINIDORA80 is numerically above 39%, but the original GPT-4 result and this GPQA Diamond LIVE E2E run do not use identical subsets or execution conditions. This is therefore a **same-score-band statement, not a claim of overall GPT-4 capability equivalence**.
 
@@ -42,14 +42,14 @@ Cognitive Engineering Foundations
         ↓
 LLM Constitutive Specification
         ↓
-MINIDORA Core
-        ↓ exchangeable Capability Modules
+MINIDORA 模型核
+        ↓ exchangeable 能力モジュールs
 MINIDORA Product Prototype
 ```
 
 ## Product Prototype v1
 
-The hackathon demonstration is "today's news → summarize it", but the implementation is not a news-only demo. The product layer adds a common Capability contract and registry around the established MINIDORA Core.
+The hackathon demonstration is "today's news → summarize it", but the implementation is not a news-only demo. The product layer adds a common Capability contract and 登録簿 around the established MINIDORA 模型核.
 
 Implemented capabilities include:
 
@@ -61,8 +61,8 @@ Implemented capabilities include:
 - information extraction;
 - deterministic calculation;
 - Wikipedia knowledge reference;
-- delegation to the existing MINIDORA Core when no specialist Module applies;
-- session-scoped conversation state;
+- delegation to the existing MINIDORA 模型核 when no specialist 能力モジュール applies;
+- session-範囲d conversation state;
 - end-to-end execution tracing;
 - a browser UI and HTTP API.
 
@@ -86,11 +86,11 @@ GET  /health
 
 ## Capability growth
 
-Every capability Module follows a common contract: **name / version / priority / applicability decision / execution**. New capabilities can be registered without retraining the established Core.
+Every capability 能力モジュール follows a common contract: **name / version / priority / applicability decision / execution**. New capabilities can be registered without retraining the established 模型核.
 
-The current LIVE GPQA Diamond same-run controlled A/B measured Module OFF **29/198 (14.65%)** → Module ON **80/198 (40.40%)**, with 55 Module activations, 55 correct activations, 51 net improvements, and 0 regressions. The earlier 8/198 → 63/198 frozen replay remains historical evidence only. This is **not claimed as Core-only performance**; it is evidence that external capability Modules can create measurable system-level capability gains without retraining the established Core.
+The current LIVE GPQA Diamond same-run controlled A/B measured 能力モジュール OFF **29/198 (14.65%)** → 能力モジュール ON **80/198 (40.40%)**, with 55 能力モジュール activations, 55 correct activations, 51 net improvements, and 0 regressions. The earlier 8/198 → 63/198 frozen replay remains historical evidence only. This is **not claimed as 模型核-only performance**; it is evidence that external capability 能力モジュールs can create measurable system-level capability gains without retraining the established 模型核.
 
-The Product Prototype adds `tools/製品能力Module実証.py` so the same OFF/ON structure can also be measured on everyday, non-benchmark-specific tasks. Formal values should be taken from execution on the actual current MINIDORA Core.
+The Product Prototype adds `tools/製品能力モジュール実証.py` so the same OFF/ON structure can also be measured on everyday, non-benchmark-specific tasks. Formal values should be taken from execution on the actual current MINIDORA 模型核.
 
 ## Governance
 
@@ -99,9 +99,9 @@ MINIDORA records the actual execution path rather than asking a generative model
 ```text
 input
 → capability candidates
-→ Module selection
-→ Module I/O and references
-→ optional Core fallback
+→ 能力モジュール selection
+→ 能力モジュール I/O and references
+→ optional 模型核 代替経路
 → response composition
 → conversation-state update
 → root hash
@@ -112,13 +112,13 @@ Audit events are chained with SHA-256. This provides tamper detection, not immut
 
 ## Performance target
 
-A **GPT-4-class general chat experience** remains a development target. MINIDORA80 has reached the same roughly-40% GPQA score band as the original GPT-4-based baseline, but this is not a general capability equivalence claim. Progress should be measured through real-use capabilities such as conversation continuity, summarization, knowledge reference, comparison, reasoning, calculation, transformation, search, and coding as Modules are added.
+A **GPT-4-class general chat experience** remains a development target. MINIDORA80 has reached the same roughly-40% GPQA score band as the original GPT-4-based baseline, but this is not a general capability equivalence claim. Progress should be measured through real-use capabilities such as conversation continuity, summarization, knowledge reference, comparison, reasoning, calculation, transformation, search, and coding as 能力モジュールs are added.
 
 Current canonical GPQA savepoints:
 
 ```text
-MINIDORA30 Core E2E LIVE              = 30 / 198 (15.15%)
-MINIDORA80 Core + scientific Modules  = 80 / 198 (40.40%)
+MINIDORA30 模型核 E2E LIVE              = 30 / 198 (15.15%)
+MINIDORA80 模型核 + scientific 能力モジュールs  = 80 / 198 (40.40%)
 ```
 
 The v0.5 **Large** classification remains subject to **re-audit**; older scale judgments are not automatically inherited.
@@ -135,9 +135,9 @@ MINIDORA treats Japanese as its normative language, base language, and internal 
 
 ```text
 strict language-model conformance
-!= Core general capability
+!= 模型核 general capability
 != GPQA score
-!= system performance with Modules
+!= system performance with 能力モジュールs
 != Product Prototype maturity
 != Large classification
 GPQA same score band as GPT-4 baseline

@@ -4,7 +4,7 @@ from dataclasses import replace
 import unicodedata
 from typing import Sequence
 
-from .hds_ir import HDSIR
+from .HDS中間表現 import HDSIR
 from .hds局所再照合 import HDS局所Window候補
 from .参照 import 参照記録
 

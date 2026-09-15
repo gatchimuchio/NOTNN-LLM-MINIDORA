@@ -4,8 +4,8 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from hashlib import sha256
 
-from .hds_choice_runtime import HDS選択実行結果, HDS選択問題
-from .hds_ir import HDSIR, 値状態
+from .HDS選択実行系 import HDS選択実行結果, HDS選択問題
+from .HDS中間表現 import HDSIR, 値状態
 
 
 class HDS作用種別(StrEnum):
@@ -42,7 +42,7 @@ class MINIDORA認知世界:
     評価回答内容: str | None = None
     残差: tuple[str, ...] = ()
     作用履歴: tuple[tuple[str, tuple[str, ...]], ...] = ()
-    暫定性: str = "PROVISIONAL_BY_DEFAULT"
+    暫定性: str = "原則暫定"
     再開放条件: tuple[str, ...] = ("新観測", "未解残差", "評価非承認", "委任境界変更")
 
 
