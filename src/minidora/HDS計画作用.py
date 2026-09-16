@@ -13,6 +13,7 @@ class HDS目的計画作用:
 
     計画成功は実行成功・最終採用ではない。計画と資料をHDS成果へ帰還し、次作用へ渡す。
     同一性は要求・禁止作用・計画器契約だけで決め、無関係なHDS状態変化で再計画しない。
+    計画器objectのreprは入力署名へ使わない。契約差がある計画器は版または明示契約署名で区別する。
     """
 
     def __init__(
@@ -25,12 +26,17 @@ class HDS目的計画作用:
         解消対象: Sequence[str] = ("計画未形成",),
         禁止作用: Sequence[str] = (),
         作用ID: str = "目的計画",
+        計画器契約署名: str | None = None,
         資源負荷: int = 1,
     ) -> None:
         if not callable(getattr(計画器, "計画する", None)):
             raise TypeError("HDS目的計画作用には計画する()を持つ計画器が必要")
         if not isinstance(作用ID, str) or not 作用ID.strip():
             raise ValueError("目的計画作用IDは空にできない")
+        if 計画器契約署名 is not None and (
+            not isinstance(計画器契約署名, str) or not 計画器契約署名.strip()
+        ):
+            raise ValueError("計画器契約署名は空でない文字列またはNoneである必要がある")
         self.計画器 = 計画器
         self.要求 = 要求
         self.入力状態 = frozenset(str(x) for x in 入力状態)
@@ -39,13 +45,17 @@ class HDS目的計画作用:
         self.禁止作用 = tuple(str(x) for x in 禁止作用)
         self.資源負荷 = max(0, int(資源負荷))
         self.作用ID = 作用ID.strip()
+        版 = str(getattr(計画器, "版", "") or getattr(計画器, "契約版", "")).strip()
+        self.計画器契約署名 = (
+            計画器契約署名.strip()
+            if 計画器契約署名 is not None
+            else f"{type(計画器).__module__}.{type(計画器).__qualname__}:{版}"
+        )
         材料 = repr((
             self.作用ID,
             self.要求,
             self.禁止作用,
-            type(self.計画器).__module__,
-            type(self.計画器).__qualname__,
-            repr(self.計画器),
+            self.計画器契約署名,
         )).encode("utf-8")
         self._入力署名 = sha256(材料).hexdigest()
 
