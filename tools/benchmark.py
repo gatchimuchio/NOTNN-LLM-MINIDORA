@@ -1,6 +1,6 @@
-"""旧英字名の互換入口。日本語正本へ委譲する。"""
-"""旧英字名の互換起動器。現行正本は `評価.py`。"""
-from pathlib import Path
-import runpy
+"""旧英字名の互換入口。日本語正本 `評価.py` の公開属性と正本内部フックを再公開する。"""
+from 評価 import *  # noqa: F401,F403
+from 評価 import _result_payload, main
+
 if __name__ == "__main__":
-    runpy.run_path(str(Path(__file__).with_name("評価.py")), run_name="__main__")
+    raise SystemExit(main())
