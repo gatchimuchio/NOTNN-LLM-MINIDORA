@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
 from typing import Callable, Sequence
 
 from .HDS実行主体 import (
@@ -29,8 +30,8 @@ class HDS能力モジュール作用:
     判定値は作用候補内の優先度情報としてのみ扱う。最終採用・回答正しさ・
     HDS最終判断には読み替えない。COMMITはHDS実行主体だけが行う。
 
-    固定文脈だけでなく、現在のHDS実行状態から能力文脈を生成できる。これにより
-    前作用が作った成果・主体状態・残差を、次作用の実入力へ因果的に接続できる。
+    固定文脈だけでなく、現在のHDS実行状態から能力文脈を生成できる。作用入力署名は
+    HDS全状態ではなく、実際に能力が受け取る能力文脈と能力版から作る。
     """
 
     def __init__(
@@ -98,7 +99,13 @@ class HDS能力モジュール作用:
         判定値 = self._判定値(文脈値)
         if 判定値 < self.設定.最低判定:
             return None
-        入力署名 = f"{状態.状態署名}:{self.作用ID}:{判定値:.12f}"
+        署名材料 = repr((
+            self.作用ID,
+            str(getattr(self.モジュール, "版", "")),
+            文脈値,
+            判定値,
+        )).encode("utf-8")
+        入力署名 = sha256(署名材料).hexdigest()
         return HDS作用機会(
             self.作用ID,
             入力署名,
