@@ -367,7 +367,7 @@ def _query_pools(
         pools = []
         for future in futures:
             try:
-                pools.append(tuple(future.結果()))
+                pools.append(tuple(future.result()))
             except Exception:
                 pools.append(())
         return pools

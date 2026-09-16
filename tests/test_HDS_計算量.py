@@ -10,7 +10,7 @@ from minidora.k3_hds_native import HDSIRネイティブ適合器
 def _ir(*, choices: int = 2, relations: int = 0, residuals: int = 0) -> HDSIR:
     coords = [HDS座標("target", "対象.実体", "Alpha")]
     for index in range(choices):
-        coords.append(HDS座標(f"choice:{chr(65 + index)}", "目的.候補", f"option{index}"))
+        coords.append(HDS座標(f"選択肢:{chr(65 + index)}", "目的.候補", f"option{index}"))
     rels = tuple(
         HDS関係(f"r{index}", ("target",), ("target",), "関連")
         for index in range(relations)

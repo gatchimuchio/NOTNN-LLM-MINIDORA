@@ -19,7 +19,7 @@ _比較 = {ast.Eq: operator.eq, ast.NotEq: operator.ne, ast.Lt: operator.lt,
          ast.LtE: operator.le, ast.Gt: operator.gt, ast.GtE: operator.ge,
          ast.In: lambda a, b: a in b, ast.NotIn: lambda a, b: a not in b}
 _呼出名 = {"abs", "len", "min", "max", "sum", "range", "sorted", "list", "all", "any"}
-_許可型 = {ast.モジュール, ast.FunctionDef, ast.arguments, ast.arg, ast.Return,
+_許可型 = {ast.Module, ast.FunctionDef, ast.arguments, ast.arg, ast.Return,
            ast.Assign, ast.AugAssign, ast.If, ast.For, ast.Break, ast.Continue,
            ast.Pass, ast.Expr, ast.Name, ast.Constant, ast.List, ast.Dict,
            ast.Subscript, ast.BinOp, ast.UnaryOp, ast.BoolOp, ast.Compare,

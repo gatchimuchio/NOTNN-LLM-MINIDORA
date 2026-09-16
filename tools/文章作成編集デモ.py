@@ -44,7 +44,7 @@ def main():
     if hasattr(sys.stdout,'reconfigure'): sys.stdout.reconfigure(encoding='utf-8')
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--値',type=int,default=120)
-    parser.add_argument('--保護違反',作用='store_true')
+    parser.add_argument('--保護違反',action='store_true')
     args=parser.parse_args()
     if not 0<=args.値<=1000000: parser.error('--値は0〜1000000')
     plan,資料=用意(args.値,args.保護違反)

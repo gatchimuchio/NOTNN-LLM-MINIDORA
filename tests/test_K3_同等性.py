@@ -1,13 +1,13 @@
 import json
 import unittest
 
-from minidora.k3_benchmark import run_k3_equivalence_外部評価
+from minidora.k3_benchmark import K3同等性評価を実行
 from minidora.実行系 import ミニドラ
 
 
 class K3機能相当試験(unittest.TestCase):
     def test_K3公開構造47項目を全通過する(self):
-        結果 = run_k3_equivalence_外部評価()
+        結果 = K3同等性評価を実行()
         print("K3_EQUIVALENCE_JSON=" + json.dumps({
             "status": 結果["status"],
             "pass_count": 結果["pass_count"],

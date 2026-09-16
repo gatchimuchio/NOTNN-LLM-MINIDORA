@@ -45,7 +45,6 @@ def 互換入口か(対象: Path) -> bool:
 
 def 現役Python一覧() -> list[Path]:
     結果: list[Path] = []
-    一時移行道具 = {"日本語基底正規化_一時.py", "日本語基底正規化_実行.py", "日本語基底正規化_仕上げ.py"}
     for 基点 in (根 / "src/minidora", 根 / "tests", 根 / "tools", 根 / "aistudio"):
         if not 基点.exists():
             continue
@@ -53,7 +52,7 @@ def 現役Python一覧() -> list[Path]:
             相対 = 対象.relative_to(根).as_posix()
             if 相対.startswith(("docs/", "artifacts/")):
                 continue
-            if 対象.name == "日本語基底詳細監査.py" or 対象.name in 一時移行道具 or 互換入口か(対象):
+            if 対象.name == "日本語基底詳細監査.py" or 互換入口か(対象):
                 continue
             結果.append(対象)
     return sorted(結果)
@@ -113,9 +112,58 @@ def 識別子監査(誤り: list[str]) -> None:
             誤り.append(f"Python構文解析失敗: {相対}:{例外}")
             continue
 
+        # 規定3.4: 実際に標準HTMLParserを継承するクラスの固定フックだけを除外する。
+        # 同名の自作関数や、引数・自己属性までは除外しない。
+        HTML解析器名 = {
+            項目.asname or 項目.name
+            for 節 in ast.walk(木)
+            if isinstance(節, ast.ImportFrom) and 節.module == "html.parser"
+            for 項目 in 節.names if 項目.name == "HTMLParser"
+        }
+        外部定義 = {
+            (関数.lineno, 関数.name)
+            for 型 in ast.walk(木) if isinstance(型, ast.ClassDef)
+            and any(isinstance(基底, ast.Name) and 基底.id in HTML解析器名 for 基底 in 型.bases)
+            for 関数 in 型.body if isinstance(関数, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and 関数.name == "handle_data"
+        }
+        # 規定3.7/3.8: 依頼対訳の原語表層。内部の意味鍵を英語にする例外ではない。
+        外部対訳鍵 = set()
+        if 相対 == "src/minidora/多言語変換.py":
+            for 関数 in 木.body:
+                if not isinstance(関数, ast.FunctionDef) or 関数.name != "_依頼を読む":
+                    continue
+                for 代入 in ast.walk(関数):
+                    if not isinstance(代入, ast.Assign) or not isinstance(代入.value, ast.Dict):
+                        continue
+                    if not any(isinstance(先, ast.Name) and 先.id == "英語対象語対応" for 先 in 代入.targets):
+                        continue
+                    for 鍵, 値 in zip(代入.value.keys, 代入.value.values):
+                        if isinstance(鍵, ast.Constant) and 鍵.value == "the result" and isinstance(値, ast.Constant) and 値.value == "その結果":
+                            外部対訳鍵.add(id(鍵))
+
+        # 公開済みv1監査記録との交換鍵。内部の任意辞書には適用しない。
+        if 相対 == "tools/GLM重み流監査.py":
+            for 関数 in 木.body:
+                if not isinstance(関数, ast.FunctionDef) or 関数.name != "断片を監査":
+                    continue
+                for 返却 in ast.walk(関数):
+                    if not isinstance(返却, ast.Return) or not isinstance(返却.value, ast.Dict):
+                        continue
+                    対応 = list(zip(返却.value.keys, 返却.value.values))
+                    if not any(isinstance(鍵, ast.Constant) and 鍵.value == "schema"
+                               and isinstance(値, ast.Constant) and 値.value == "minidora.glm.weight_payload_audit.v1"
+                               for 鍵, 値 in 対応):
+                        continue
+                    for 鍵, _ in 対応:
+                        if isinstance(鍵, ast.Constant) and 鍵.value == "source_url":
+                            外部対訳鍵.add(id(鍵))
+
         検査済み: set[tuple[int, str, str]] = set()
         def 検査(名前: str, 行: int, 種別: str) -> None:
             if not 名前 or 名前 in 外部固定識別子:
+                return
+            if 種別 == "定義識別子" and (行, 名前) in 外部定義:
                 return
             if 名前.startswith("__") and 名前.endswith("__"):
                 return
@@ -154,6 +202,8 @@ def 識別子監査(誤り: list[str]) -> None:
             if isinstance(節, ast.Dict):
                 for 鍵節 in 節.keys:
                     if not isinstance(鍵節, ast.Constant) or not isinstance(鍵節.value, str):
+                        continue
+                    if id(鍵節) in 外部対訳鍵:
                         continue
                     値 = 鍵節.value
                     if 値 in 外部固定文字列:

@@ -379,8 +379,8 @@ class ミニドラ:
             主体 = self._非主体結果("参照不足のため主体更新未実行") if self.主体主幹 is None else self.主体主幹.非適用結果("参照不足のため主体更新未実行")
             状態 = dict(要求_.初期状態)
             状態["局所解釈起点"] = 起点.辞書化()
-            結果 = 結果(None, 状態, (), (), decision, self.主体状態, 主体, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, HDS中間表現)
-            return self._帰還(結果, 要求_.問合せ)
+            実行結果 = 結果(None, 状態, (), (), decision, self.主体状態, 主体, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, HDS中間表現)
+            return self._帰還(実行結果, 要求_.問合せ)
 
         initial = dict(要求_.初期状態)
         initial.update(initial_from_plan)
@@ -395,8 +395,8 @@ class ミニドラ:
             if not 自動計画:
                 raise
             主体 = self._非主体結果("自動計画の実行失敗") if self.主体主幹 is None else self.主体主幹.非適用結果("自動計画の実行失敗")
-            結果 = 結果(None, initial, (), (), 採否結果(実行状態.失敗, ("自動計画実行失敗", str(exc))), self.主体状態, 主体, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, HDS中間表現)
-            return self._帰還(結果, 要求_.問合せ)
+            実行結果 = 結果(None, initial, (), (), 採否結果(実行状態.失敗, ("自動計画実行失敗", str(exc))), self.主体状態, 主体, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, HDS中間表現)
+            return self._帰還(実行結果, 要求_.問合せ)
 
         value = 文脈.状態.get("結果")
         証拠_count = (len(references) if value is not None else 0) if 参照_required else (1 if value is not None else 0)
@@ -406,8 +406,8 @@ class ミニドラ:
         if decision.状態 in {実行状態.保留, 実行状態.失敗}:
             value = None
             状態["結果"] = None
-        結果 = 結果(value, 状態, references, tuple(文脈.履歴), decision, self.主体状態, 主体, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, HDS中間表現)
-        return self._帰還(結果, 要求_.問合せ)
+        実行結果 = 結果(value, 状態, references, tuple(文脈.履歴), decision, self.主体状態, 主体, tuple(getattr(self.主体主幹, "履歴", ())), plan_name, HDS中間表現)
+        return self._帰還(実行結果, 要求_.問合せ)
 
     def 応答(self, 問合せ: str) -> str:
         結果 = self.実行(要求(問合せ))

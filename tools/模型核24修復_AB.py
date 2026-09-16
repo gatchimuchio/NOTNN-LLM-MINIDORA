@@ -26,7 +26,7 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--cache-dir", type=Path, default=Path(".cache/minidora-core-ab"))
     p.add_argument("--start-index", type=int, default=0)
     p.add_argument("--limit", type=int, default=None)
-    p.add_argument("--no-openalex", 作用="store_true")
+    p.add_argument("--no-openalex", action="store_true")
     return p
 
 

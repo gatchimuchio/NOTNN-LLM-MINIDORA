@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location('射影_audit', ROOT / "tools/audit_projection_chain.py")
+SPEC = importlib.util.spec_from_file_location('射影_audit', ROOT / "tools/射影連鎖監査.py")
 assert SPEC is not None and SPEC.loader is not None
 audit = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(audit)

@@ -12,7 +12,7 @@ from http.server import ThreadingHTTPServer
 
 class Fake模型核:
     def 応答(self, text: str) -> str:
-        return f"CORE:{text}"
+        return f"模型核:{text}"
 
 KNOW=(参照資料("k1","富士山","Wikipedia","https://example.com/fuji",None,"富士山は日本にある山で、標高3776メートル。日本最高峰である。"),)
 

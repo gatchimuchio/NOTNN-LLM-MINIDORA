@@ -19,7 +19,7 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--値", type=int, default=120)
-    parser.add_argument("--競合", 作用="store_true")
+    parser.add_argument("--競合", action="store_true")
     args = parser.parse_args()
     if not 0 <= args.値 <= 1_000_000:
         parser.error("--値は0〜1000000")

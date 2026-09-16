@@ -60,7 +60,7 @@ def _状態印(状態: 値状態) -> str:
 
 
 def _情報源印(value: float) -> str:
-    return f"source_confidence:{_情報源信頼度(value):.6f}"
+    return f"情報源_信頼度:{_情報源信頼度(value):.6f}"
 
 
 def _関係条件(関係: HDS関係, key: str) -> str:
@@ -103,7 +103,7 @@ def _極性_marker(value: bool) -> str:
 
 
 def _修飾_markers(values: tuple[tuple[str, str], ...]) -> tuple[str, ...]:
-    return tuple(f"relation_qualifier:{key}={value}" for key, value in values)
+    return tuple(f"関係_修飾:{key}={value}" for key, value in values)
 
 
 def _qualified_fact_id(

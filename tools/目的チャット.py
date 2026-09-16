@@ -14,9 +14,9 @@ def main():
         if hasattr(stream, 'reconfigure'): stream.reconfigure(encoding='utf-8', errors='strict')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('依頼', nargs='?')
-    parser.add_argument('--資料', 作用='append', default=[], metavar='名前=パス')
-    parser.add_argument('--json', 作用='store_true', help='追跡情報もJSONで表示')
-    parser.add_argument('--一覧', 作用='store_true')
+    parser.add_argument('--資料', action='append', default=[], metavar='名前=パス')
+    parser.add_argument('--json', action='store_true', help='追跡情報もJSONで表示')
+    parser.add_argument('--一覧', action='store_true')
     options = parser.parse_args()
     session = 目的会話セッション('目的チャット')
     if options.一覧:

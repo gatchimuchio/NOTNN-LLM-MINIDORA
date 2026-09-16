@@ -10,7 +10,7 @@ from minidora.参照 import 参照記録
 def _ir(選択肢_count: int, 関係_count: int = 0) -> HDSIR:
     coords = [HDS座標("alpha", "対象.実体", "Alpha")]
     for index in range(選択肢_count):
-        coords.append(HDS座標(f"choice:{index}", "目的.候補", f"option{index}"))
+        coords.append(HDS座標(f"選択肢:{index}", "目的.候補", f"option{index}"))
     relations = tuple(
         HDS関係(f"r{index}", ("alpha",), ("alpha",), f"relation{index}")
         for index in range(関係_count)

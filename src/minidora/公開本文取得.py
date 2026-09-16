@@ -67,7 +67,7 @@ class _本文抽出(HTMLParser):
     _除外 = {"head", "script", "style", "noscript", "template", "svg", "canvas", "table"}
     _非文字 = {"img", "iframe", "object", "embed", "audio", "video"}
     _区切 = {"p", "div", "section", "article", "main", "h1", "h2", "h3", "h4", "li", "ul", "ol", "pre", "blockquote", "br", "hr"}
-    _空要素 = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", '情報源', "track", "wbr"}
+    _空要素 = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -107,7 +107,7 @@ class _本文抽出(HTMLParser):
         elif tag in self._区切:
             self.断片.append("\n")
 
-    def handle_資料(self, 資料):
+    def handle_data(self, 資料):
         if self._題名内:
             self.題名.append(資料)
         elif not self.抑止:
@@ -197,7 +197,7 @@ class 公開本文取得器:
         host = urlsplit(url).hostname
         ip = _公開アドレス(host)
         文脈 = ssl.create_default_context()
-        conn = HTTPSConnection(host, 443, timeout=self.timeout, 文脈=文脈)
+        conn = HTTPSConnection(host, 443, timeout=self.timeout, context=文脈)
         raw_socket = socket.create_connection((ip, 443), timeout=self.timeout)
         try:
             tls_socket = 文脈.wrap_socket(raw_socket, server_hostname=host)

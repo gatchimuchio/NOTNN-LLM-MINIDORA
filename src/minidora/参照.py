@@ -148,7 +148,7 @@ class 複合参照供給器:
                 futures = [executor.submit(self._取得, provider, 問合せ, 上限) for provider in self._供給器群]
                 for provider, future in zip(self._供給器群, futures):
                     try:
-                        pools.append(future.結果())
+                        pools.append(future.result())
                     except Exception as exc:
                         pools.append(())
                         errors.append((str(getattr(provider, "名称", type(provider).__name__)), f"{type(exc).__name__}: {exc}"))

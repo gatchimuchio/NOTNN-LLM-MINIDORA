@@ -19,7 +19,7 @@ def main() -> int:
         if hasattr(stream, 'reconfigure'):
             stream.reconfigure(encoding='utf-8', errors='strict')
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--json',作用='store_true',help='会話と実行記録をJSONで表示する')
+    parser.add_argument('--json',action='store_true',help='会話と実行記録をJSONで表示する')
     args=parser.parse_args()
     session=汎用会話セッション('集合会話デモ')
     # Cだけ入れ子にし、直下取得の失敗が共通の回復契約へ戻ることも表示する。

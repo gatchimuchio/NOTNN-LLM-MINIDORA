@@ -54,7 +54,7 @@ def K3同等性評価を実行() -> dict[str, Any]:
         tree = ast.parse((Path(__file__).with_name(filename)).read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import): imports.update(alias.name.split(".")[0] for alias in node.names)
-            elif isinstance(node, ast.ImportFrom) and node.モジュール: imports.add(node.モジュール.split(".")[0])
+            elif isinstance(node, ast.ImportFrom) and node.module: imports.add(node.module.split(".")[0])
     banned = {"torch","tensorflow","jax","numpy","sklearn","keras","transformers","paddle"}
     check('non_neural_依存_audit', not (imports & banned), {"banned_present": sorted(imports & banned)})
 
@@ -72,9 +72,9 @@ def K3同等性評価を実行() -> dict[str, Any]:
     check("L0_conditional_surface_normalized", abs(sum(dist_a.values())-1) < 1e-9, sum(dist_a.values()))
     generated, gen_追跡 = generator.generate(approve)
     check("L0_decoder_emits_observable_text", bool(generated) and "selective update" in generated.lower(), {"text": generated, "steps": len(gen_追跡)})
-    unseen = GenerationPlan("APPROVE","knowledge_query",'novel-字句-77','unseen_関係',True)
+    unseen = GenerationPlan("APPROVE","knowledge_query",'novel-token-77','unseen_関係',True)
     unseen_text,_ = generator.generate(unseen)
-    check('G_composes_unseen_answer_欄', 'novel-字句-77' in unseen_text.lower(), {"text": unseen_text})
+    check('G_composes_unseen_answer_欄', 'novel-token-77' in unseen_text.lower(), {"text": unseen_text})
     start_allowed = sorted({path[0] for path in NonNeuralDecoder.APPROVE_PATHS})
     learned_start = generator.surface.next_distribution([], approve, start_allowed)
     check("G_learned_transform_is_nonuniform", max(learned_start.values())-min(learned_start.values()) > .02, learned_start)

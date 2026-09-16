@@ -13,8 +13,8 @@ def main() -> int:
         sys.stdout.reconfigure(encoding='utf-8')
     parser=argparse.ArgumentParser(description=__doc__)
     group=parser.add_mutually_exclusive_group()
-    group.add_argument('--関係欠落',作用='store_true')
-    group.add_argument('--矛盾',作用='store_true')
+    group.add_argument('--関係欠落',action='store_true')
+    group.add_argument('--矛盾',action='store_true')
     args=parser.parse_args()
     facts=[関係式('関係1','A','以上','B','3')]
     if not args.関係欠落:

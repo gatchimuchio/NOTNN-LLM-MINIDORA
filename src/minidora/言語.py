@@ -278,7 +278,7 @@ class 自然言語器:
 
     def _式計画(self, expression: str) -> 言語計画 | None:
         try:
-            tree = ast.parse(expression, mode='評価')
+            tree = ast.parse(expression, mode="eval")
         except SyntaxError:
             return None
 

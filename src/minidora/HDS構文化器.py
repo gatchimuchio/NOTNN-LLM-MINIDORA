@@ -477,7 +477,7 @@ class 公開HDSコンパイラ:
         base = self.コンパイル(question)
         選択肢_coords = tuple(
             HDS座標(
-                f"choice:{chr(ord('A') + index)}",
+                f"選択肢:{chr(ord('A') + index)}",
                 "目的.候補",
                 str(text),
                 値状態.確定,

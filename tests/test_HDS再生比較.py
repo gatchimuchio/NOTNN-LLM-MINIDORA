@@ -8,12 +8,12 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
     'HDS再生_比較_tool',
-    ROOT / "tools" / 'HDS再生_比較.py',
+    ROOT / "tools" / 'HDS再生比較.py',
 )
 assert SPEC and SPEC.loader
 モジュール = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(モジュール)
-比較 = モジュール.compare
+比較 = モジュール.比較
 
 
 def _結果(details, correct, answered):
@@ -50,8 +50,8 @@ class HDS再生比較試験(unittest.TestCase):
         self.assertEqual(結果["transitions"]["SUSPEND_TO_WRONG"], 1)
         self.assertEqual(結果["delta"]["correct"], 1)
         self.assertEqual(結果["delta"]["answered"], 2)
-        self.assertEqual(結果["reason_delta"]["-NO_KNOWLEDGE_EVIDENCE"], 2)
-        self.assertEqual(結果["reason_delta"]["+EVIDENCE_PRESENT"], 2)
+        self.assertEqual(結果["reason_delta"]["-NO_KNOWLEDGE_証拠"], 2)
+        self.assertEqual(結果["reason_delta"]["+証拠_PRESENT"], 2)
 
     def test_正答退行を明示分類する(self) -> None:
         before = _結果(

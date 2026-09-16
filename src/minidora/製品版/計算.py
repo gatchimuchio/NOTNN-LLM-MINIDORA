@@ -49,7 +49,7 @@ class 計算モジュール:
         if len(expr) > 120:
             return 能力結果(False, "", 保留理由="式が長すぎる")
         try:
-            value = _評価(ast.parse(expr, mode='評価'))
+            value = _評価(ast.parse(expr, mode="eval"))
         except Exception as exc:
             return 能力結果(False, "", 保留理由=f"計算不能:{exc}")
         return 能力結果(True, f"{expr} = {value}", 根拠=("決定論的算術実行",), データ={"式":expr,"値":value})

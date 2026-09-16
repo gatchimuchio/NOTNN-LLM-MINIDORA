@@ -85,15 +85,15 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     entry = ap.add_mutually_exclusive_group()
     entry.add_argument('--入力', dest='input', type=Path, help='UTF-8 JSONL。省略時は標準入力')
-    entry.add_argument('--発話', dest='utterances', 作用='append', help='日本語発話を直接指定。順に複数回指定できる')
-    entry.add_argument('--契約', dest='契約', 作用='store_true', help='対応入口・上限・日本語入力例をJSON表示')
+    entry.add_argument('--発話', dest='utterances', action='append', help='日本語発話を直接指定。順に複数回指定できる')
+    entry.add_argument('--契約', dest='契約', action='store_true', help='対応入口・上限・日本語入力例をJSON表示')
     ap.add_argument('--出力', dest='output', type=Path, help='UTF-8 JSONL。省略時は標準出力')
     ap.add_argument('--復元', dest='restore', type=Path)
     ap.add_argument('--保存', dest='save', type=Path)
     ap.add_argument('--セッション', dest='session')
-    ap.add_argument('--上書き', dest='overwrite', 作用='store_true')
+    ap.add_argument('--上書き', dest='overwrite', action='store_true')
     args = ap.parse_args(argv)
-    if args.contract:
+    if args.契約:
         if any(p is not None for p in (args.output, args.restore, args.save, args.session)) or args.overwrite:
             ap.error('--契約は出力先・状態操作・セッション指定と併用しない')
         print(_符号化({

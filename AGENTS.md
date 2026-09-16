@@ -155,7 +155,7 @@ K3はこのv3再構文化対象外。
 - 候補ID・正解ラベル・benchmark固有名を厳密言語模型法則へ埋め込まない。
 - 世界知識を最小言語模型の初期資産へ埋め込まない。
 - 根拠差がない能力経路で勝手な候補確定をしない。
-- PへDataを埋め込まない。
+- Pへ資料を埋め込まない。
 - HDS型を厳密言語模型核へ逆流させない。
 - 発火数・非ゼロ計数を目的化しない。
 - 実装都合だけを理由に理論正本を曲げない。
@@ -166,8 +166,9 @@ K3はこのv3再構文化対象外。
 `main` を現行正本とする。完成差分だけmainへ還元する。
 
 ```bash
-python tools/repository_consistency_check.py
+python tools/リポジトリ整合性監査.py
 python tools/日本語基底監査.py
+python tools/日本語基底詳細監査.py
 python -m compileall -q src tests tools
 python -m unittest discover -s tests -v
 python -m minidora "2+3"
@@ -177,9 +178,9 @@ CIはUbuntu / Windows × Python 3.11–3.14を確認する。
 
 ## 12. GPQA正本Benchmark運用
 
-GPQA Diamondの現行性能評価は [`評価/BENCHMARK_CONTRACT_v2.md`](評価/BENCHMARK_CONTRACT_v2.md) を正本とする。
+GPQA Diamondの現行性能評価は [`評価/評価契約_v2.md`](評価/評価契約_v2.md) を正本とする。
 
-2026-09-09以後、**GPQA正本では固定参照Dataを禁止する。**
+2026-09-09以後、**GPQA正本では固定参照資料を禁止する。**
 
 禁止対象:
 
@@ -187,15 +188,15 @@ GPQA Diamondの現行性能評価は [`評価/BENCHMARK_CONTRACT_v2.md`](評価/
 - 保存済み検索結果・参照結果
 - 問題別Reference/Data bundle
 - Replay fixture
-- 過去runの参照Data再投入
-- goldを使って選別・整形した参照Data
+- 過去runの参照資料再投入
+- goldを使って選別・整形した参照資料
 
 過去の固定Replay資産は履歴として削除しないが、現行GPQA性能、将来GPQA正本、正本性能比較の入力へ再利用しない。
 
 GPQA正本入口は次だけとする。
 
 ```bash
-python tools/benchmark_strict.py gpqa-e2e --out gpqa_e2e.json
+python tools/正本評価.py gpqa-e2e --out gpqa_e2e.json
 ```
 
 この入口は次を固定する。
@@ -213,4 +214,4 @@ fixed reference Data = forbidden
 
 `benchmark.py` / `benchmark_formal.py` の部分実行・任意条件は診断用途であり、直接の出力を正本性能値として引用しない。
 
-現行GPQA正本セーブポイントは `MINIDORA30 / 30/198`。詳細は `CURRENT_CANONICAL.md` と `docs/SAVEPOINT_2026-09-09_MINIDORA30.md` を参照する。
+現行GPQA正本セーブポイントは `MINIDORA30 / 30/198`。詳細は `現行正本.md` と `docs/SAVEPOINT_2026-09-09_MINIDORA30.md` を参照する。

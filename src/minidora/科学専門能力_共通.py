@@ -242,4 +242,4 @@ def 問合せ正規化(text: str) -> str:
             out = re.sub(re.escape(src), dst, out, flags=re.I)
     return re.sub('\\s+', ' ', out).strip()
 
-__all__ = ['科学専門能力結果', '_選択肢_contains', '_選択肢_numeric', '_coefficient_hbar', '_first', '_generic_結果', '_lyman_threshold_support', '_nearest', '_norm', '_num_expr', '_numbers', '_nums', '_parse_complex_coeff', '_qpcr_support', '_rel', '_結果', '_tuple_support', '問合せ正規化', '候補支持成立']
+__all__ = ['科学専門能力結果', '_選択肢包含', '_選択肢数値', '_coefficient_hbar', '_first', '_一般結果', '_lyman_threshold_support', '_nearest', '_norm', '_num_expr', '_numbers', '_nums', '_parse_complex_coeff', '_qpcr_support', '_rel', '_結果', '_tuple_support', '問合せ正規化', '候補支持成立']

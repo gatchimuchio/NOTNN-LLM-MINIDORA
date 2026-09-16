@@ -60,7 +60,7 @@ class _HTMLTextExtractor(HTMLParser):
         elif self._skip_depth == 0 and tag.casefold() in {"p", "h1", "h2", "h3", "li"}:
             self.parts.append("\n")
 
-    def handle_資料(self, 資料: str) -> None:
+    def handle_data(self, 資料: str) -> None:
         if self._skip_depth == 0:
             self.parts.append(資料)
 

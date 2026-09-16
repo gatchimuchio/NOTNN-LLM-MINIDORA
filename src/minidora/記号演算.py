@@ -129,7 +129,7 @@ class _多項式処理:
         if any(c in 情報源 for c in "#\n\r;\\"):
             raise 数学境界違反("単一の数式のみを指定する")
         text = 情報源.strip()
-        tree = ast.parse(text, mode='評価', feature_version=(3, 11))
+        tree = ast.parse(text, mode="eval", feature_version=(3, 11))
         allowed = {ast.Expression, ast.BinOp, ast.UnaryOp, ast.Name, ast.Load, ast.Constant,
                    ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.UAdd, ast.USub}
         pending = [(tree, 0)]

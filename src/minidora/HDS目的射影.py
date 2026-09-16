@@ -59,7 +59,7 @@ def _節(text):
 def _変数(expr):
     # 構文のみを読む。式の計算・能力実行をここで行わない。
     if len(expr) > 4096: raise ValueError('式が長すぎる')
-    node = ast.parse(expr, mode='評価')
+    node = ast.parse(expr, mode="eval")
     allowed = (ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant, ast.Name,
                ast.Load, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.USub, ast.UAdd)
     rows = list(ast.walk(node))

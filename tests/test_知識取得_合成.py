@@ -17,7 +17,7 @@ from minidora.能力合成_局所接続 import 局所能力群
 from minidora.製品版.検索 import SearXNG検索供給器
 from minidora.製品版.型 import 能力結果
 from minidora.製品版.能力契約 import 能力文脈
-from test_知識取得 import 試験検索, 試験本文, candidate, document, BASE
+from test_知識取得 import 試験検索, 試験本文, 候補, document, BASE
 
 
 def 計画と資料(terms=("電圧",), extra=None):
@@ -31,7 +31,7 @@ def 計画と資料(terms=("電圧",), extra=None):
 
 class 知識能力接続試験(unittest.TestCase):
     def setUp(self):
-        self.search = 試験検索((candidate(),))
+        self.search = 試験検索((候補(),))
         self.fetch = 試験本文({BASE + "a": document()})
         self.モジュール = 知識取得モジュール(知識取得器(self.search, self.fetch), 外部読取許可=True)
         self.runner = 能力合成器((self.モジュール.登録(), *局所能力群()))
@@ -158,7 +158,7 @@ class 知識取得HTTP結合試験(unittest.TestCase):
             return original(address, *args, **kwargs)
         with patch("minidora.公開本文取得._公開アドレス", return_value="8.8.8.8"), \
              patch("minidora.公開本文取得.socket.create_connection", side_effect=connect), \
-             patch('minidora.公開本文取得.ssl.create_default_文脈', return_value=ctx):
+             patch('minidora.公開本文取得.ssl.create_default_context', return_value=ctx):
             return runner.実行(plan, 資料, 外部読取許可=True)
 
     def test_実検索供給器から再検索と最終抽出まで(self):

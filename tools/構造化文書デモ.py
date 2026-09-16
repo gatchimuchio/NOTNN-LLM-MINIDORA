@@ -37,7 +37,7 @@ def main():
     if hasattr(sys.stdout,'reconfigure'): sys.stdout.reconfigure(encoding='utf-8')
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--値',type=int,default=120)
-    p.add_argument('--欠落列',作用='store_true')
+    p.add_argument('--欠落列',action='store_true')
     args=p.parse_args()
     if not 0<=args.値<=1000000: p.error('--値は0〜1000000')
     plan,資料=用意(args.値,'存在しない列' if args.欠落列 else '金額')

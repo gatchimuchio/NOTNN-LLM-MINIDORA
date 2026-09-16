@@ -47,7 +47,7 @@ def _ir(
 
 
 def _question_ir(text: str, choices: tuple[str, ...]) -> HDSIR:
-    coords = tuple(HDS座標(f"choice:{chr(65 + index)}", "候補.選択肢", 選択肢) for index, 選択肢 in enumerate(choices))
+    coords = tuple(HDS座標(f"選択肢:{chr(65 + index)}", "候補.選択肢", 選択肢) for index, 選択肢 in enumerate(choices))
     return HDS英日意味射影(_ir(text, coords, kind="knowledge_query"))
 
 

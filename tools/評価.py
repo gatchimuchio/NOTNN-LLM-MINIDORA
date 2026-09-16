@@ -40,21 +40,21 @@ def _parser() -> argparse.ArgumentParser:
         prog="python tools/benchmark.py",
         description="MINIDORA リポジトリ標準ベンチランナー",
     )
-    parser.add_argument("--list", 作用="store_true", dest="list_mode", help="利用可能なベンチを表示する")
+    parser.add_argument("--list", action="store_true", dest="list_mode", help="利用可能なベンチを表示する")
     sub = parser.add_subparsers(dest='外部評価')
 
     gpqa_parser = sub.add_parser("gpqa-diamond", help=BENCHMARKS["gpqa-diamond"]["description"])
     gpqa_parser.add_argument("--out", type=Path, default=Path("gpqa_current_measurement.json"), help="結果JSON出力先")
     gpqa_parser.add_argument("--cache-dir", type=Path, default=Path(".cache/minidora-bench"), help="ベンチデータのキャッシュ先")
-    gpqa_parser.add_argument("--refresh-dataset", 作用="store_true", help="GPQA dataset.zipを再取得する")
+    gpqa_parser.add_argument("--refresh-dataset", action="store_true", help="GPQA dataset.zipを再取得する")
     gpqa_parser.add_argument("--start-index", type=int, default=0, help="0始まりの開始問題番号")
     gpqa_parser.add_argument("--limit", type=int, default=None, help="実行問題数。省略時は末尾まで")
-    gpqa_parser.add_argument("--resume", 作用="store_true", help="同一commit・同一条件の既存outから続行する")
+    gpqa_parser.add_argument("--resume", action="store_true", help="同一commit・同一条件の既存outから続行する")
     gpqa_parser.add_argument("--checkpoint-every", type=int, default=1, help="何問ごとに途中結果JSONを書き出すか")
-    gpqa_parser.add_argument("--no-openalex", 作用="store_true", help="OPENALEX_API_KEYが存在してもOpenAlexを使わない")
+    gpqa_parser.add_argument("--no-openalex", action="store_true", help="OPENALEX_API_KEYが存在してもOpenAlexを使わない")
     gpqa_parser.add_argument(
         "--controlled-ab",
-        作用="store_true",
+        action="store_true",
         help="同じ取得資料を旧経路(P0/P1無効)と現行経路へ流し、検索揺れを除いたA/B差を保存する",
     )
     return parser
@@ -513,7 +513,7 @@ def main() -> int:
         for name, meta in BENCHMARKS.items():
             print(f"{name}\t{meta['description']}")
         return 0
-    if args.benchmark == "gpqa-diamond":
+    if args.外部評価 == "gpqa-diamond":
         return _run_gpqa(args)
     parser.print_help()
     return 2

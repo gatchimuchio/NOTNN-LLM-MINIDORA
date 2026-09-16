@@ -30,7 +30,7 @@ class _MarkupText(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
 
-    def handle_資料(self, 資料: str) -> None:
+    def handle_data(self, 資料: str) -> None:
         self.parts.append(資料)
 
     def text(self) -> str:

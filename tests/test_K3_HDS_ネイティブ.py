@@ -6,7 +6,7 @@ from minidora.k3_hds_native import HDSIRネイティブ適合器
 
 
 def _ir(question: str, choices: dict[str, str]) -> HDSIR:
-    coords = tuple(HDS座標(f"choice:{label}", "目的.候補", text) for label, text in choices.items())
+    coords = tuple(HDS座標(f"選択肢:{label}", "目的.候補", text) for label, text in choices.items())
     return HDSIR(
         原文=question,
         正規化文=question,

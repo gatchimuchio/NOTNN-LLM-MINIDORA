@@ -25,7 +25,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("query", nargs="?", help="MINIDORAへ渡す言語入力")
     parser.add_argument(
         "--json",
-        作用="store_true",
+        action="store_true",
         dest="json_mode",
         help="値・採否・理由・計画をJSONで出力する",
     )

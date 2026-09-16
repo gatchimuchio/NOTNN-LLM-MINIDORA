@@ -41,7 +41,7 @@ def main():
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, 'reconfigure'): stream.reconfigure(encoding='utf-8', errors='strict')
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--json', 作用='store_true')
+    parser.add_argument('--json', action='store_true')
     args = parser.parse_args()
     結果 = 実演()
     if args.json:

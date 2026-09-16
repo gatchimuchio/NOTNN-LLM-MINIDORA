@@ -64,7 +64,7 @@ def main():
     parser.add_argument('--参照ソース',type=Path)
     parser.add_argument('--変更ソース',type=Path)
     parser.add_argument('--出力',type=Path)
-    parser.add_argument('--子実行',作用='store_true')
+    parser.add_argument('--子実行',action='store_true')
     args=parser.parse_args()
     if args.子実行:
         print(json.dumps(観測(),ensure_ascii=False));return 0

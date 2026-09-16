@@ -38,9 +38,9 @@ class 模型核ActivePathLockV1Test(unittest.TestCase):
                 continue
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for node in ast.walk(tree):
-                if not isinstance(node, ast.ImportFrom) or node.level != 1 or not node.モジュール:
+                if not isinstance(node, ast.ImportFrom) or node.level != 1 or not node.module:
                     continue
-                child = node.モジュール.split(".", 1)[0]
+                child = node.module.split(".", 1)[0]
                 if (root / f"{child}.py").exists() and child not in visited:
                     stack.append(child)
 

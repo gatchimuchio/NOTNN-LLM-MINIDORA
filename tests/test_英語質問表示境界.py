@@ -221,7 +221,7 @@ class 英語質問表示境界試験(unittest.TestCase):
                     ir = self.コンパイラ.意味コンパイル(本文)
                     関係群 = [関係 for 関係 in ir.関係 if "英日意味射影=v0.5" in 関係.条件]
                     self.assertEqual(len(関係群), 1)
-                    self.assertIn(f"条件scope={条件}", 関係群[0].条件)
+                    self.assertIn(f"条件範囲={条件}", 関係群[0].条件)
 
     def test_倒置疑問の認定で条件節と埋込と引用を主節へ昇格しない(self) -> None:
         for 本文 in (

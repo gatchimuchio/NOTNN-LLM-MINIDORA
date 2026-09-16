@@ -432,9 +432,9 @@ def _例外消去候補(
     proof_ids: list[str] = []
     confidences: list[float] = []
     for label in supported:
-        候補 = 候補_by_label[label]
-        confidences.append(候補.信頼度)
-        for fid in 候補.proof_fact_ids:
+        候補値 = 候補_by_label[label]
+        confidences.append(候補値.信頼度)
+        for fid in 候補値.proof_fact_ids:
             if fid and fid not in proof_ids:
                 proof_ids.append(fid)
     if not proof_ids or not confidences:

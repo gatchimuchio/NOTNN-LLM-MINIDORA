@@ -73,7 +73,7 @@ def 人工取得実演():
 def main():
     for stream in (sys.stdout,sys.stderr):
         if hasattr(stream,'reconfigure'):stream.reconfigure(encoding='utf-8',errors='strict')
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--json',作用='store_true')
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--json',action='store_true')
     args=parser.parse_args()
     output={'種類':'人工資料・人工検索・人工本文。実HDSと実取得器、計画・採用・会話を使用。公開Webには通信しない。',
             '会話':実演(),'人工取得':人工取得実演()}

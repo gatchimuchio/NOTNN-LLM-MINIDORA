@@ -155,17 +155,17 @@ def _反転(text: str) -> bool:
     return bool(_判定反転.search(text))
 
 
-def _predicate_from_字句(字句: list[str], start: int) -> tuple[str, list[str]] | None:
-    for index in range(start, len(字句)):
-        字句 = 字句[index].casefold().strip("?,.;:")
+def _predicate_from_字句(字句列: list[str], start: int) -> tuple[str, list[str]] | None:
+    for index in range(start, len(字句列)):
+        字句 = 字句列[index].casefold().strip("?,.;:")
         if 字句 in _補助語 or 字句 in _機能語 or 字句 == "never":
             continue
         if 英語関係概念(字句) is not None or re.fullmatch(r"[a-z][a-z-]{2,}", 字句):
-            predicate = [字句[index]]
-            if index + 1 < len(字句) and 字句[index + 1].casefold().strip("?,.;:") in _前置詞:
-                predicate.append(字句[index + 1])
-                return " ".join(predicate), 字句[index + 2:]
-            return " ".join(predicate), 字句[index + 1:]
+            predicate = [字句列[index]]
+            if index + 1 < len(字句列) and 字句列[index + 1].casefold().strip("?,.;:") in _前置詞:
+                predicate.append(字句列[index + 1])
+                return " ".join(predicate), 字句列[index + 2:]
+            return " ".join(predicate), 字句列[index + 1:]
     return None
 
 

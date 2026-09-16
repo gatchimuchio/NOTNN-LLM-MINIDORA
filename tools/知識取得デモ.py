@@ -29,9 +29,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--検索語", required=True)
     parser.add_argument("--必要語", nargs="+", required=True)
-    parser.add_argument("--url", 作用="append", default=[])
+    parser.add_argument("--url", action="append", default=[])
     parser.add_argument("--searxng", default=None)
-    parser.add_argument("--外部読取許可", 作用="store_true")
+    parser.add_argument("--外部読取許可", action="store_true")
     args = parser.parse_args()
     try:
         request = 知識取得要求(args.検索語, tuple(args.必要語))

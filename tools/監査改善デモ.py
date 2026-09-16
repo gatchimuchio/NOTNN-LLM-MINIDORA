@@ -14,7 +14,7 @@ def main():
     parser=argparse.ArgumentParser(description='明示IRから既存能力合成器で検討→回答を実行する')
     parser.add_argument('--種類',choices=('命題','仮説','介入'),required=True)
     parser.add_argument('--入力',type=Path,required=True)
-    parser.add_argument('--簡略',作用='store_true')
+    parser.add_argument('--簡略',action='store_true')
     args=parser.parse_args()
     try:
         if args.入力.stat().st_size>300000:raise ValueError('入力サイズ上限')

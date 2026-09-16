@@ -96,7 +96,7 @@ def 関数を生成(仕様: dict, 定数: dict) -> 能力結果:
         args = [name(n) for n in 仕様["引数"]]
         if len(set(args)) != len(args):
             raise ValueError("引数重複")
-        tree = ast.モジュール(body=[ast.FunctionDef(name=name(仕様["名前"]), args=ast.arguments(
+        tree = ast.Module(body=[ast.FunctionDef(name=name(仕様["名前"]), args=ast.arguments(
             posonlyargs=[], args=[ast.arg(arg=n) for n in args+["定数"]], vararg=None,
             kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]), body=block(仕様["手順"]),
             decorator_list=[], returns=None, type_comment=None)], type_ignores=[])

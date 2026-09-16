@@ -97,7 +97,7 @@ class 最小汎用模型核改善Round2試験(unittest.TestCase):
         self.assertIsInstance(構文化器.kwargs["文脈"], HDS文脈)
 
     def test_plain_importではlegacy_submoduleを起動しない(self) -> None:
-        script = r'\nimport json, sys\nimport minidora\nblocked = [\n    "minidora.実行系_v03",\n    "minidora.トリニティ文脈",\n    "minidora.k3_functional",\n    "minidora.http_参照",\n    "minidora.europe_pmc_参照",\n    "minidora.crossref_参照",\n]\nprint(json.dumps([name for name in blocked if name in sys.modules]))\n'
+        script = '\nimport json, sys\nimport minidora\nblocked = [\n    "minidora.実行系_v03",\n    "minidora.トリニティ文脈",\n    "minidora.k3_functional",\n    "minidora.http_参照",\n    "minidora.europe_pmc_参照",\n    "minidora.crossref_参照",\n]\nprint(json.dumps([name for name in blocked if name in sys.modules]))\n'
         proc = subprocess.run([sys.executable, "-c", script], check=True, capture_output=True, text=True)
         self.assertEqual(json.loads(proc.stdout), [])
 

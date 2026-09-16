@@ -12,8 +12,8 @@ from minidora.能力合成_局所接続 import 局所能力群
 from minidora.長文脈管理 import 文脈選択要求
 from minidora.知識取得 import 知識取得器
 from minidora.製品版.型 import 能力結果, 参照資料
-from test_知識取得 import 試験検索, 試験本文, candidate, document, BASE
-from test_知識取得_合成 import 計画とData
+from test_知識取得 import 試験検索, 試験本文, 候補, document, BASE
+from test_知識取得_合成 import 計画と資料
 from test_多言語_合成 import 入力 as 翻訳入力
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -280,29 +280,29 @@ class 再利用調整試験(unittest.TestCase):
 
 class 統合外部境界試験(unittest.TestCase):
     def setUp(self):
-        self.search=試験検索((candidate(),))
+        self.search=試験検索((候補(),))
         self.fetch=試験本文({BASE+'a':document()})
         self.provider=知識取得器(self.search,self.fetch)
 
     def test_同一要求でも外部取得自体は毎回実行(self):
         s=統合セッション('取得',外部読取許可=True,取得器=self.provider)
         for _ in range(2):
-            r=s.計画実行(*計画とData(),外部読取許可=True)
+            r=s.計画実行(*計画と資料(),外部読取許可=True)
             self.assertTrue(r.成立,(r.理由,r.実行))
         self.assertEqual(len(self.search.calls),2)
         self.assertNotIn('知識取得',s.再利用統計()['能力別'])
 
     def test_変更した新規取得本文を使う(self):
         s=統合セッション('取得',外部読取許可=True,取得器=self.provider)
-        a=s.計画実行(*計画とData(),外部読取許可=True)
+        a=s.計画実行(*計画と資料(),外部読取許可=True)
         self.fetch.values[BASE+'a']=document(text='電圧は731 V。')
-        b=s.計画実行(*計画とData(),外部読取許可=True)
+        b=s.計画実行(*計画と資料(),外部読取許可=True)
         self.assertEqual((a.本文,b.本文),('120','731'))
 
     def test_構築時と要求時の両方に許可が必要(self):
         for enabled,requested in ((False,True),(True,False),(False,False)):
             s=統合セッション('権限',外部読取許可=enabled,取得器=self.provider)
-            r=s.計画実行(*計画とData(),外部読取許可=requested)
+            r=s.計画実行(*計画と資料(),外部読取許可=requested)
             self.assertFalse(r.成立);self.assertEqual(r.起点,r.更新後)
         self.assertEqual(self.search.calls,[])
 

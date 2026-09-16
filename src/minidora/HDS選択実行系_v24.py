@@ -138,7 +138,7 @@ def _一括コンパイル(
         out: list[object | Exception] = []
         for future in futures:
             try:
-                out.append(future.結果())
+                out.append(future.result())
             except Exception as exc:
                 out.append(exc)
         return tuple(out)
@@ -382,7 +382,7 @@ def HDS選択推論実行(
         reasons = list(formal.理由)
         reasons.append('FORMAL_模型_模型核_WITH_HDS_J')
         if 資料_failed:
-            reasons.append(f"DATA_COMPILE_PARTIAL:{資料_failed}")
+            reasons.append(f"資料_COMPILE_PARTIAL:{資料_failed}")
         if 作用_failed:
             reasons.append(f"ACTION_DELTA_COMPILE_PARTIAL:{作用_failed}")
         stats = formal.模型結果.統計
@@ -421,9 +421,9 @@ def HDS選択推論実行(
     from .K3_HDSネイティブ import HDSIRネイティブ適合器
 
     verification_候補_irs = evaluation_候補_irs
-    作業 = 基礎能力核.clone()
-    HDS証拠状態複製(基礎能力核, 作業)
-    ingest = HDSIR知識適合器(作業)
+    作業模型核 = 基礎能力核.clone()
+    HDS証拠状態複製(基礎能力核, 作業模型核)
+    ingest = HDSIR知識適合器(作業模型核)
     added = 0
     証拠 = 0
     blocked = 0
@@ -435,9 +435,9 @@ def HDS選択推論実行(
         証拠 += 結果.証拠事実数
         blocked += 結果.証拠阻害事実数
 
-    作業 = HDS作業状態構築(作業)
-    initial = HDSIRネイティブ適合器(作業).実行(k_question_ir, 候補IR=verification_候補_irs, 努力=努力)
-    initial = _直接関係で再判定(question_ir, verification_候補_irs, 作業, initial)
+    作業 = HDS作業状態構築(作業模型核)
+    initial = HDSIRネイティブ適合器(作業模型核).実行(k_question_ir, 候補IR=verification_候補_irs, 努力=努力)
+    initial = _直接関係で再判定(question_ir, verification_候補_irs, 作業模型核, initial)
     HDS候補共同状態更新(作業, initial.候補診断, 段階='候補_INITIAL')
 
     temporary = HDS寄与関門再照合(作業) if 作業再作用 else ()
@@ -454,8 +454,8 @@ def HDS選択推論実行(
     legacy_rechecked_override = False
 
     if temporary or local_windows:
-        rechecked_模型核 = 作業.clone()
-        HDS証拠状態複製(作業, rechecked_模型核)
+        rechecked_模型核 = 作業模型核.clone()
+        HDS証拠状態複製(作業模型核, rechecked_模型核)
         changed = 0
         if temporary:
             changed += HDS一時証拠統合(rechecked_模型核, temporary)
@@ -504,7 +504,7 @@ def HDS選択推論実行(
     if legacy_rechecked_override:
         reasons.append("LEGACY_RECHECK_OVERRIDE")
     if 資料_failed:
-        reasons.append(f"DATA_COMPILE_PARTIAL:{資料_failed}")
+        reasons.append(f"資料_COMPILE_PARTIAL:{資料_failed}")
     if local_failed:
         reasons.append(f"LOCAL_WINDOW_COMPILE_PARTIAL:{local_failed}")
 

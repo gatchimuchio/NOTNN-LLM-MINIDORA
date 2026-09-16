@@ -14,9 +14,9 @@ def main():
         sys.stdin.reconfigure(encoding='utf-8')
         sys.stdout.reconfigure(encoding='utf-8')
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--一覧', 作用='store_true')
-    parser.add_argument('--外部読取許可', 作用='store_true')
-    parser.add_argument('--再利用無効', 作用='store_true')
+    parser.add_argument('--一覧', action='store_true')
+    parser.add_argument('--外部読取許可', action='store_true')
+    parser.add_argument('--再利用無効', action='store_true')
     args = parser.parse_args()
     session = 統合セッション('統合CLI', 外部読取許可=args.外部読取許可, 再利用=not args.再利用無効)
     if args.一覧:

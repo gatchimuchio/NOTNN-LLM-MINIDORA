@@ -7,7 +7,7 @@ from minidora.hds判断主体 import HDS判断主体, MINIDORA出力, MINIDORA�
 from minidora.模型 import 成立差, 模型検査点, 模型結果, 模型統計, 文脈付き言語状態, 内部言語状態, 関係寄与
 
 
-def 模型結果(*, ref_winner="A", ref_ties=(), ref_a=2, ref_b=0, total_a=2, total_b=0):
+def 模型結果を作る(*, ref_winner="A", ref_ties=(), ref_a=2, ref_b=0, total_a=2, total_b=0):
     ctx=文脈付き言語状態(内部言語状態("q","自然言語:en",frozenset()))
     diffs=(
         成立差("A",total_a,(関係寄与("参照関係寄与",ref_a),) if ref_a else ()),
@@ -26,7 +26,7 @@ class HDS判断主体試験(unittest.TestCase):
         self.assertEqual(params,("self","出力"))
 
     def test_MINIDORAの一意な正出力だけをAPPROVEする(self):
-        output=MINIDORA出力化(模型結果())
+        output=MINIDORA出力化(模型結果を作る())
         decision=HDS判断主体().判断(output)
         self.assertEqual(decision.状態,"APPROVE")
         self.assertEqual(decision.選択候補ID,"A")
@@ -35,7 +35,7 @@ class HDS判断主体試験(unittest.TestCase):
         self.assertIn("HDS_OUTPUT_APPROVED",decision.理由)
 
     def test_MINIDORAが出力しなければHOLDして沈黙する(self):
-        output=MINIDORA出力化(模型結果(ref_winner=None,ref_ties=("A","B"),ref_a=0,ref_b=0,total_a=0,total_b=0))
+        output=MINIDORA出力化(模型結果を作る(ref_winner=None,ref_ties=("A","B"),ref_a=0,ref_b=0,total_a=0,total_b=0))
         decision=HDS判断主体().判断(output)
         self.assertEqual(decision.状態,"HOLD")
         self.assertIsNone(decision.選択候補ID)
@@ -57,7 +57,7 @@ class HDS判断主体試験(unittest.TestCase):
         self.assertIn("NO_FEEDBACK_LOOP",decision.理由)
 
     def test_一般表層winnerは正式MINIDORA出力を上書きしない(self):
-        結果=模型結果(ref_winner="B",ref_a=0,ref_b=2,total_a=10,total_b=2)
+        結果=模型結果を作る(ref_winner="B",ref_a=0,ref_b=2,total_a=10,total_b=2)
         output=MINIDORA出力化(結果)
         self.assertEqual(結果.最有力候補ID,"A")
         self.assertEqual(output.候補ID,"B")
@@ -70,7 +70,7 @@ class HDS判断主体試験(unittest.TestCase):
         self.assertTrue({"question_ir","候補群","参照群",'資料','参照'}.isdisjoint(names))
 
     def test_HDS判断結果に差し戻し状態を持たない(self):
-        fields=set(HDS判断主体().判断(MINIDORA出力化(模型結果())).__dataclass_fields__)
+        fields=set(HDS判断主体().判断(MINIDORA出力化(模型結果を作る())).__dataclass_fields__)
         self.assertTrue({"再試行","差し戻し","再検索","再計算"}.isdisjoint(fields))
 
 

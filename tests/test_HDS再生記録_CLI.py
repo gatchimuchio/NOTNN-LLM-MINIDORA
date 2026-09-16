@@ -41,7 +41,7 @@ class HDS再生収録CLI試験(unittest.TestCase):
             completed = subprocess.run(
                 [
                     sys.executable,
-                    str(ROOT / "tools" / 'HDS再生_記録.py'),
+                    str(ROOT / "tools" / 'HDS再生記録.py'),
                     str(dataset),
                     str(bundle),
                     "--plugin-path",

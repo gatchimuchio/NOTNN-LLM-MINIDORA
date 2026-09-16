@@ -85,7 +85,7 @@ class HDS再生試験(unittest.TestCase):
             input_path = Path(tmp) / "fixture.jsonl"
             input_path.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
             completed = subprocess.run(
-                [sys.executable, str(ROOT / "tools" / 'hds_選択肢_再生_外部評価.py'), str(input_path)],
+                [sys.executable, str(ROOT / "tools" / 'HDS選択再生評価.py'), str(input_path)],
                 cwd=ROOT,
                 text=True,
                 encoding="utf-8",
@@ -106,7 +106,7 @@ class HDS再生試験(unittest.TestCase):
             input_path = Path(tmp) / "gpqa.jsonl"
             input_path.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
             completed = subprocess.run(
-                [sys.executable, str(ROOT / "tools" / 'hds_選択肢_再生_外部評価.py'), str(input_path)],
+                [sys.executable, str(ROOT / "tools" / 'HDS選択再生評価.py'), str(input_path)],
                 cwd=ROOT,
                 text=True,
                 encoding="utf-8",

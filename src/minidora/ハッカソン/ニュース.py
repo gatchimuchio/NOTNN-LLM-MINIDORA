@@ -28,7 +28,7 @@ class _本文抽出器(HTMLParser):
         super().__init__()
         self.parts: list[str] = []
 
-    def handle_資料(self, 資料: str) -> None:
+    def handle_data(self, 資料: str) -> None:
         text = 資料.strip()
         if text:
             self.parts.append(text)

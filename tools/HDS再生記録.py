@@ -71,11 +71,11 @@ def main() -> int:
     )
     parser.add_argument("input", type=Path, help="question/choices/goldを持つJSONL")
     parser.add_argument("output", type=Path, help='minidora.hds-選択肢-再生.v1 JSONL出力')
-    parser.add_argument("--compiler", required=True, help="private Compiler factory: module:object")
+    parser.add_argument("--compiler", dest="構文化器", required=True, help="private Compiler factory: module:object")
     parser.add_argument("--provider", help="private/public R Provider factory: module:object")
     parser.add_argument(
         "--plugin-path",
-        作用="append",
+        action="append",
         default=[],
         help="private pluginをimportする追加sys.path。複数指定可。",
     )

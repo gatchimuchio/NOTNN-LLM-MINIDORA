@@ -8,9 +8,9 @@ from ..標準構成 import 標準ミニドラ
 def main() -> int:
     import sys
     p = argparse.ArgumentParser()
-    p.add_argument("--serve", 作用="store_true")
-    p.add_argument("--汎用", 作用="store_true", help="目的・複数資料・確認継続の会話入口を利用")
-    p.add_argument("--外部読取", 作用="store_true", help="汎用入口で要求された公開資料取得を許可")
+    p.add_argument("--serve", action="store_true")
+    p.add_argument("--汎用", action="store_true", help="目的・複数資料・確認継続の会話入口を利用")
+    p.add_argument("--外部読取", action="store_true", help="汎用入口で要求された公開資料取得を許可")
     p.add_argument("--session", default="cli")
     p.add_argument("message", nargs="*")
     a = p.parse_args()

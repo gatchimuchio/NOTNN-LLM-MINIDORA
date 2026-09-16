@@ -8,7 +8,7 @@
 
 | Tool | 役割 | 追加依存 |
 |---|---|---|
-| `benchmark_strict.py` | **正本GPQA入口**。198/198全数・LIVE_ONLY・固定参照Data禁止を機械固定する | なし |
+| `正本評価.py` | **正本GPQA入口**。198/198全数・LIVE_ONLY・固定参照資料禁止を機械固定する | なし |
 | `評価契約.py` | Benchmark Contract v2。正本GPQA条件・fingerprint・主張可能範囲を生成する | なし |
 | `benchmark.py` | 低水準GPQA runner。部分実行・診断用。単独出力を正本性能値として引用しない | なし |
 | `benchmark_formal.py` | HDS監督介入を含む低水準GPQA runner。正本入口から呼ばれる | なし |
@@ -19,24 +19,24 @@
 
 ## Benchmark Contract v2
 
-評価の正本は [`../評価/BENCHMARK_CONTRACT_v2.md`](../評価/BENCHMARK_CONTRACT_v2.md) とする。
+評価の正本は [`../評価/評価契約_v2.md`](../評価/評価契約_v2.md) とする。
 
 2026-09-09以後、GPQA Diamondの正本性能評価は次だけを認める。
 
 ```text
 GPQA-E2E-LIVE
-= 問題 + 選択肢 + 実行時に新規取得する参照Data
+= 問題 + 選択肢 + 実行時に新規取得する参照資料
 = 汎用E2E性能スナップショット
 ```
 
-GPQAでは、C2、保存済み検索結果、固定Reference/Data bundle、Replay fixture等の**固定参照Dataを正本性能評価へ使用しない**。
+GPQAでは、C2、保存済み検索結果、固定Reference/Data bundle、Replay fixture等の**固定参照資料を正本性能評価へ使用しない**。
 
 過去の固定Replay資産は履歴として保持するが、現行性能・将来正本・GPQA性能比較の入力へ再利用しない。
 
 ## 正本GPQA入口
 
 ```bash
-python tools/benchmark_strict.py gpqa-e2e --out gpqa_e2e.json
+python tools/正本評価.py gpqa-e2e --out gpqa_e2e.json
 ```
 
 正本入口は内部で次を固定する。
@@ -52,7 +52,7 @@ controlled A/B = required
 fixed reference Data = forbidden
 ```
 
-部分実行用の `--start-index` / `--limit` は低水準runner側にのみ残し、`benchmark_strict.py` の正本GPQA入口では受け付けない。
+部分実行用の `--start-index` / `--limit` は低水準runner側にのみ残し、`正本評価.py` の正本GPQA入口では受け付けない。
 
 結果JSONの `評価契約` には最低限次が入る。
 
@@ -91,10 +91,10 @@ GPQA-E2E-LIVE
 
 同じ正本運用規則で得た別runの得点は、時系列のE2E性能セーブポイントとして並べてよい。
 
-ただし参照Dataは毎run新規取得されるため、別runの得点差をコード変更だけの純粋因果差とは扱わない。
+ただし参照資料は毎run新規取得されるため、別runの得点差をコード変更だけの純粋因果差とは扱わない。
 
 ```bash
-python tools/benchmark_strict.py compare before.json after.json
+python tools/正本評価.py compare before.json after.json
 ```
 
 `compare` は得点差を表示するが、`correct_delta_is_code_only_causal=false` を明示する。
@@ -138,7 +138,7 @@ python tools/benchmark.py gpqa-diamond --start-index 50 --limit 25 --out gpqa_05
 ## リポジトリ整合性監査
 
 ```bash
-python tools/repository_consistency_check.py
+python tools/リポジトリ整合性監査.py
 ```
 
 CIでも同じ監査をLinux / Windows × Python 3.11–3.14で実行する。

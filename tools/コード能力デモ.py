@@ -46,7 +46,7 @@ def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--代替なし", 作用="store_true")
+    parser.add_argument("--代替なし", action="store_true")
     args = parser.parse_args()
     p, 資料 = 問題を用意(not args.代替なし)
     結果 = 多段解決器(コード能力群(), 純粋作用確認=True).実行(p, 資料)

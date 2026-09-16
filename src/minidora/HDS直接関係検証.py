@@ -81,7 +81,7 @@ def _否定候補(ir: HDSIR) -> bool:
     return any(str(coord.種別) == "状態.否定" for coord in ir.座標)
 
 
-def _候補辺(ir: HDSIR) -> tuple[_候補辺, ...]:
+def _候補辺群(ir: HDSIR) -> tuple[_候補辺, ...]:
     'K射影後の候補IRから直接検証可能な有向辺だけを読む。\n\n    共有言語基底Pの関係は構文化器と同じ意味正本資産から生じるため、K射影で範囲安全性を\n    通過した後は公開構文化器関係と同じ assertion として扱う。実行系/J専用由来はここへ\n    許可しない。\n    '
     coords = ir.座標辞書()
     out: list[_候補辺] = []
@@ -155,7 +155,7 @@ def HDS直接関係検証(
     diagnostics: list[HDS直接関係診断] = []
     eligible: dict[str, bool] = {}
     for label, 候補_ir in sorted(candidates.items()):
-        候補_edges = _候補辺(候補_ir)
+        候補_edges = _候補辺群(候補_ir)
         per_情報源: dict[str, tuple[float, str, str]] = {}
         for expected in 候補_edges:
             for fact, fact_関係, actual_start, actual_end in fact_edges:
@@ -200,7 +200,7 @@ def HDS直接関係検証(
         return None, tuple(diagnostics)
 
     信頼度 = min(0.995, 0.80 + min(0.19, top.得点 * 0.10))
-    候補 = 候補(
+    確定候補 = 候補(
         answer=top.候補,
         関係='HDS_directed_関係_verification',
         信頼度=信頼度,
@@ -216,7 +216,7 @@ def HDS直接関係検証(
             "assertion_sources:" + str(top.命題一致出典数),
         ),
     )
-    return 候補, tuple(diagnostics)
+    return 確定候補, tuple(diagnostics)
 
 
 __all__ = ["HDS直接関係診断", "HDS直接関係検証"]

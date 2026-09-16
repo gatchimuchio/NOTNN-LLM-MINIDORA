@@ -171,10 +171,10 @@ def _依頼を読む(text, lang, lex):
             continue
         fields = match.groupdict()
         target = fields["対象"]
-        targets = {"the text": "本文", "the original text": "元の本文", "the previous answer": "前の回答",
-                   '結果': "その結果", "it": "それ"}
+        英語対象語対応 = {"the text": "本文", "the original text": "元の本文", "the previous answer": "前の回答",
+                   "the result": "その結果", "it": "それ"}
         if lang == "en":
-            target = targets.get(target, target)
+            target = 英語対象語対応.get(target, target)
             if target.startswith('document "'):
                 target = '資料「' + target[10:-1] + '」'
         if target.startswith("資料「"):
@@ -205,7 +205,7 @@ def _依頼を書く(value, lang, lex):
             return target + "から" + value["抽出"] + "を抽出して"
         return target + "を箇条書きにして"
     names = {"本文": "the text", "元の本文": "the original text", "前の回答": "the previous answer",
-             "その結果": '結果', "それ": "it"}
+             "その結果": "the result", "それ": "it"}
     target = names.get(target, 'document "' + target[3:-1] + '"')
     if 作用 == "要約":
         if value["行数"] is None:
