@@ -1,22 +1,19 @@
 # -*- coding: utf-8 -*-
 """日本語基底の詳細監査。
 
-単に日本語文字を含むかではなく、現役実装・試験・道具の自己定義意味に
-旧英語語彙が残っていないかを AST とパスの両方から検査する。
-外部仕様・Python予約名・薄い互換入口は対象外とする。
+現役実装・試験・道具について、自己定義した識別子・内部辞書鍵・公開APIに
+旧英語意味語が残っていないかを AST とパスから検査する。
+外部仕様、Python/標準ライブラリ名、import された外部名、薄い互換入口は対象外。
 """
 from __future__ import annotations
 
 import ast
 from pathlib import Path
 import re
-import sys
-
 
 根 = Path(__file__).resolve().parents[1]
 日本語文字 = re.compile(r"[ぁ-んァ-ヶ一-龠々]")
 
-# 設計/01_日本語正本語彙_v1.md と既知の移行残存語を正本化する。
 旧英語意味語 = {
     "core", "module", "capability", "compiler", "architecture", "pipeline",
     "runtime", "gate", "scope", "solver", "helper", "benchmark", "fallback",
@@ -24,11 +21,11 @@ import sys
     "relation", "state", "action", "result", "source", "summary", "choice",
     "context", "reference", "projection", "semantic", "reasoning", "effort",
     "adapter", "model", "language", "roundtrip", "dependency", "normalization",
-    "budget", "priority", "roles", "graph", "data", "verifier", "evidence",
+    "budget", "priority", "roles", "role", "graph", "data", "verifier", "evidence",
     "quality", "replay", "capture", "compare", "eval", "residual", "retrieval",
-    "route", "confidence", "integration", "unknown", "slots", "working",
-    "subject", "boundary", "chain", "fidelity", "qualifiers", "polarity",
-    "preservation", "standard", "tokens", "contract",
+    "route", "confidence", "integration", "unknown", "slots", "slot", "working",
+    "subject", "boundary", "chain", "fidelity", "qualifiers", "qualifier", "polarity",
+    "preservation", "standard", "tokens", "token", "contract",
 }
 外部固定識別子 = {
     "main", "setUp", "tearDown", "setUpClass", "tearDownClass",
@@ -48,6 +45,7 @@ def 互換入口か(対象: Path) -> bool:
 
 def 現役Python一覧() -> list[Path]:
     結果: list[Path] = []
+    一時移行道具 = {"日本語基底正規化_一時.py", "日本語基底正規化_実行.py", "日本語基底正規化_仕上げ.py"}
     for 基点 in (根 / "src/minidora", 根 / "tests", 根 / "tools", 根 / "aistudio"):
         if not 基点.exists():
             continue
@@ -55,7 +53,7 @@ def 現役Python一覧() -> list[Path]:
             相対 = 対象.relative_to(根).as_posix()
             if 相対.startswith(("docs/", "artifacts/")):
                 continue
-            if 対象.name in {"日本語基底詳細監査.py"} or 互換入口か(対象):
+            if 対象.name == "日本語基底詳細監査.py" or 対象.name in 一時移行道具 or 互換入口か(対象):
                 continue
             結果.append(対象)
     return sorted(結果)
@@ -64,7 +62,6 @@ def 現役Python一覧() -> list[Path]:
 def 英字部分群(名前: str) -> list[str]:
     部分群: list[str] = []
     for 英字列 in re.findall(r"[A-Za-z][A-Za-z0-9]*", 名前):
-        # snake_case は正規表現で既に分離済み。CamelCase も意味語単位へ分ける。
         小片 = re.findall(r"[A-Z]+(?=[A-Z][a-z]|\d|$)|[A-Z]?[a-z]+|[A-Z]+|\d+", 英字列)
         部分群.extend(小片 or [英字列])
     return 部分群
@@ -84,9 +81,7 @@ def 旧意味語を含む(名前: str) -> list[str]:
 def パス監査(誤り: list[str]) -> None:
     for 対象 in 現役Python一覧():
         相対 = 対象.relative_to(根).as_posix()
-        幹 = 対象.stem
-        if 幹.startswith("test_"):
-            幹 = 幹[5:]
+        幹 = 対象.stem[5:] if 対象.stem.startswith("test_") else 対象.stem
         残存 = 旧意味語を含む(幹)
         if 残存:
             誤り.append(f"現役パスに旧英語意味語: {相対}: {','.join(残存)}")
@@ -94,18 +89,19 @@ def パス監査(誤り: list[str]) -> None:
             誤り.append(f"現役Pythonファイル名が日本語正本ではない: {相対}")
 
 
-def 文字列鍵監査(節: ast.AST, 相対: str, 誤り: list[str]) -> None:
-    if not isinstance(節, ast.Dict):
-        return
-    for 鍵 in 節.keys:
-        if not isinstance(鍵, ast.Constant) or not isinstance(鍵.value, str):
-            continue
-        値 = 鍵.value
-        if 値 in 外部固定文字列:
-            continue
-        小文字 = 値.lower()
-        if 小文字 in 旧英語意味語:
-            誤り.append(f"内部辞書鍵が旧英語正本: {相対}:{getattr(鍵, 'lineno', '?')}:{値}")
+def _対象識別子群(対象: ast.AST) -> list[tuple[str, int, str]]:
+    結果: list[tuple[str, int, str]] = []
+    def 追加(節: ast.AST, 種別: str) -> None:
+        行 = int(getattr(節, "lineno", 0) or 0)
+        if isinstance(節, ast.Name):
+            結果.append((節.id, 行, 種別))
+        elif isinstance(節, (ast.Tuple, ast.List)):
+            for 要素 in 節.elts:
+                追加(要素, 種別)
+        elif isinstance(節, ast.Attribute) and isinstance(節.value, ast.Name) and 節.value.id in {"self", "cls"}:
+            結果.append((節.attr, 行, "自己属性識別子"))
+    追加(対象, "代入識別子")
+    return 結果
 
 
 def 識別子監査(誤り: list[str]) -> None:
@@ -118,7 +114,6 @@ def 識別子監査(誤り: list[str]) -> None:
             continue
 
         検査済み: set[tuple[int, str, str]] = set()
-
         def 検査(名前: str, 行: int, 種別: str) -> None:
             if not 名前 or 名前 in 外部固定識別子:
                 return
@@ -138,13 +133,47 @@ def 識別子監査(誤り: list[str]) -> None:
             行 = int(getattr(節, "lineno", 0) or 0)
             if isinstance(節, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 検査(節.name, 行, "定義識別子")
-            elif isinstance(節, ast.arg):
+            if isinstance(節, ast.arg):
                 検査(節.arg, 行, "引数識別子")
-            elif isinstance(節, ast.Name):
-                検査(節.id, 行, "変数識別子")
-            elif isinstance(節, ast.Attribute):
-                検査(節.attr, 行, "属性識別子")
-            文字列鍵監査(節, 相対, 誤り)
+            if isinstance(節, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
+                対象群 = 節.targets if isinstance(節, ast.Assign) else [節.target]
+                for 代入先 in 対象群:
+                    for 名前, 行2, 種別 in _対象識別子群(代入先):
+                        検査(名前, 行2, 種別)
+            elif isinstance(節, (ast.For, ast.AsyncFor, ast.comprehension)):
+                for 名前, 行2, 種別 in _対象識別子群(節.target):
+                    検査(名前, 行2, 種別)
+            elif isinstance(節, (ast.With, ast.AsyncWith)):
+                for 項目 in 節.items:
+                    if 項目.optional_vars:
+                        for 名前, 行2, 種別 in _対象識別子群(項目.optional_vars):
+                            検査(名前, 行2, 種別)
+            elif isinstance(節, ast.ExceptHandler) and 節.name:
+                検査(節.name, 行, "例外識別子")
+
+            if isinstance(節, ast.Dict):
+                for 鍵節 in 節.keys:
+                    if not isinstance(鍵節, ast.Constant) or not isinstance(鍵節.value, str):
+                        continue
+                    値 = 鍵節.value
+                    if 値 in 外部固定文字列:
+                        continue
+                    残存 = 旧意味語を含む(値)
+                    if 残存:
+                        誤り.append(f"内部辞書鍵に旧英語意味語: {相対}:{getattr(鍵節, 'lineno', '?')}:{値}:{','.join(残存)}")
+
+        for 節 in 木.body:
+            if isinstance(節, (ast.Assign, ast.AnnAssign)):
+                targets = 節.targets if isinstance(節, ast.Assign) else [節.target]
+                if not any(isinstance(t, ast.Name) and t.id == "__all__" for t in targets):
+                    continue
+                値節 = 節.value
+                if isinstance(値節, (ast.List, ast.Tuple, ast.Set)):
+                    for 要素 in 値節.elts:
+                        if isinstance(要素, ast.Constant) and isinstance(要素.value, str):
+                            残存 = 旧意味語を含む(要素.value)
+                            if 残存:
+                                誤り.append(f"公開API名に旧英語意味語: {相対}:{要素.lineno}:{要素.value}:{','.join(残存)}")
 
 
 def main() -> int:
@@ -159,7 +188,6 @@ def main() -> int:
         return 1
     print("日本語基底詳細監査: 合格")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
