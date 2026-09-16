@@ -105,6 +105,8 @@ HDS実行主体が所有する責任:
 COMMIT
 ```
 
+`目的` は説明であり完了条件ではない。公開 `HDS駆動コア` は、利用者目的の閉包条件として `要求状態` または `初期残差` の明示を要求する。構文化器接続によって内部追加される `入力未構文化` を利用者目的の完了条件へ読み替えない。
+
 同一作用・同一作用入力署名は反復しない。実状態差により新しい入力署名が成立した場合だけ同じ作用を再利用できる。
 
 能力レジストリはHDS-firstでは道具箱であり、最終routerではない。旧 `能力レジストリ.選択()` は製品ABI互換として保持する。
@@ -254,7 +256,8 @@ python -m minidora "2+3"
 HDS-first差分では最低限次も確認する。
 
 ```bash
-python -m unittest discover -s tests -p 'test_HDS_first_core_v1.py' -v
+python -m unittest discover -s tests -p 'test_HDS実行主体_v1.py' -v
+python -m unittest discover -s tests -p 'test_HDS汎用作用_v1.py' -v
 ```
 
 CIはUbuntu / Windows × Python 3.11–3.14を確認する。
