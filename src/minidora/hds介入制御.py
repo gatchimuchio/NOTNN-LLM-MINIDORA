@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol
+from typing import Protocol, Sequence
+
+from .HDS実行主体 import (
+    HDS作用機会 as HDS一般作用機会,
+    HDS作用記録 as HDS一般作用記録,
+    HDS実行状態 as HDS一般実行状態,
+    標準HDS作用選択器,
+)
 
 
 class 既存作用(StrEnum):
@@ -40,7 +47,7 @@ class HDS指令種別(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class HDS監督状態:
-    """HDSへ渡す最小観測面。回答ラベル・候補本文・候補得点は含めない。"""
+    """旧選択問題互換の最小観測面。回答ラベル・候補本文・候補得点は含めない。"""
 
     既存判定: 既存判定
     出力存在: bool
@@ -53,7 +60,7 @@ class HDS監督状態:
 
 @dataclass(frozen=True, slots=True)
 class 既存作用機会:
-    '既存MINIDORA側がHDSへ公開する作用能力 metadata。'
+    """旧選択問題互換でMINIDORA側が公開する作用能力metadata。"""
 
     作用: 既存作用
     解消対象: frozenset[残差種別]
@@ -92,7 +99,11 @@ class HDS介入制御(Protocol):
 
 
 class 標準HDS介入制御:
-    '既存MINIDORAを横から監督する有限Domain 射影。\n\n    HDSは回答を生成・採用しない。現在残差と既存側が公開した作用機会だけを見て、\n    次に起動する既存作用を選ぶ。同一作用・同一作用入力署名は反復しない。\n    '
+    """MINIDORA30互換の旧HDS監督制御。
+
+    新しいHDS-first coreの主体ではない。GPQA正本・旧実行系互換のため、従来の
+    `NO_INTERVENTION / RUN_EXISTING_ACTION / REQUEST_STOP` 契約を保持する。
+    """
 
     def 判定(self, 観測: 介入観測) -> HDS指令:
         状態 = 観測.状態
@@ -132,6 +143,25 @@ class 標準HDS介入制御:
         )
 
 
+class 標準HDS一般作用制御:
+    """HDS-first core用の常時作用選択境界。
+
+    異常時だけではなく、目的未達・残差・中間状態を見て任意の登録作用から次作用を選ぶ。
+    COMMIT自体は`HDS実行主体`が要求状態と残差を検査して行う。
+    """
+
+    def __init__(self) -> None:
+        self._selector = 標準HDS作用選択器()
+
+    def 選択(
+        self,
+        状態: HDS一般実行状態,
+        作用機会: Sequence[HDS一般作用機会],
+        履歴: Sequence[HDS一般作用記録] = (),
+    ) -> HDS一般作用機会 | None:
+        return self._selector.選択(状態, 作用機会, 履歴)
+
+
 __all__ = [
     "既存作用",
     "既存判定",
@@ -144,4 +174,8 @@ __all__ = [
     "介入観測",
     "HDS介入制御",
     "標準HDS介入制御",
+    "HDS一般作用機会",
+    "HDS一般作用記録",
+    "HDS一般実行状態",
+    "標準HDS一般作用制御",
 ]
