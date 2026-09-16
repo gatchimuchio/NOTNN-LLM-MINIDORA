@@ -2,6 +2,9 @@ name: MINIDORA GPQA 正本実測
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - benchmark/current-core-vs-minidora30-20260916
 
 permissions:
   contents: read
