@@ -15,7 +15,7 @@ class K3機能相当試験(unittest.TestCase):
             "failed_tests": [item["name"] for item in 結果["failed_tests"]],
             "実行系": 結果["実行系"],
             "fit_metrics": 結果["fit_metrics"],
-        }, ensure_ascii=False, default=str))
+        }, ensure_ascii=True, default=str))
         self.assertEqual(結果["total_count"], 47)
         self.assertEqual(結果["status"], "PASS", 結果["failed_tests"])
         self.assertEqual(結果["pass_count"], 47)

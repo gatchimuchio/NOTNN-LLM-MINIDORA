@@ -66,6 +66,9 @@ def _load_dataset(path: Path) -> tuple[再生入力問題, ...]:
 
 
 def main() -> int:
+    from 標準入出力 import 標準出力をUTF8化
+
+    標準出力をUTF8化()
     parser = argparse.ArgumentParser(
         description='private HDS 構文化器/Rを公開せず、固定HDS 再生 bundleだけ生成する。'
     )

@@ -205,3 +205,35 @@ __all__ = _遅延公開名()
 
 def __dir__():
     return sorted(set(globals()) | set(_公開経路))
+
+
+# 大小文字だけ異なる旧入口は二重配置せず、要求時だけ正本へ接続する。
+# importプロトコルの固定メソッド名は外部境界であり、内部概念名ではない。
+class _旧名接続:
+    _ミニドラ旧名接続 = True
+    _対応 = {
+        __name__ + ".hds作業状態": "HDS作業状態",
+        __name__ + ".hds統一状態循環": "HDS統一状態循環",
+    }
+
+    def find_spec(self, 名前, 経路=None, 対象=None):
+        if 名前 not in self._対応:
+            return None
+        from importlib.util import spec_from_loader
+        from types import SimpleNamespace
+        # 標準importlibの固定フックへ、日本語名の処理を局所的に接続する。
+        接続 = SimpleNamespace(create_module=self._正本読込, exec_module=self._読込済み)
+        return spec_from_loader(名前, 接続)
+
+    def _正本読込(self, 仕様):
+        正本 = import_module("." + self._対応[仕様.name], __name__)
+        _ロード済み公開名を正規化()
+        return 正本
+
+    def _読込済み(self, モジュール):
+        # 正本は読込済み。旧名で二重実行しない。
+        pass
+
+
+if not any(getattr(接続, "_ミニドラ旧名接続", False) for 接続 in sys.meta_path):
+    sys.meta_path.insert(0, _旧名接続())

@@ -172,6 +172,9 @@ def run(path: Path, *, 計算量: str | None = None) -> dict[str, Any]:
 
 
 def main() -> int:
+    from 標準入出力 import 標準出力をUTF8化
+
+    標準出力をUTF8化()
     parser = argparse.ArgumentParser(
         description='固定済みHDS-IRだけでMINIDORA 選択肢 推論を再評価する。GPQA識別子は方針により拒否する。'
     )
