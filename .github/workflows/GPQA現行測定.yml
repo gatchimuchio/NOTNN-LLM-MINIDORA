@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: gpqa-canonical-${{ github.ref }}
-  cancel-in-progress: true
+  group: gpqa-canonical-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   measure:
@@ -43,6 +43,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: minidora-gpqa-e2e-canonical
+          name: minidora-gpqa-e2e-canonical-${{ github.sha }}
           path: gpqa_e2e.json
           if-no-files-found: warn
