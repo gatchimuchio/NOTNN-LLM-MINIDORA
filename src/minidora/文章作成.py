@@ -1,7 +1,4 @@
-"""指定素材を見出し・段落・引用へ構成する。自由文からの内容発明ではない。
-
-素材の採用・同伴・構成は明示Data。後段の差分編集は文章編集へ分離する。
-"""
+'指定素材を見出し・段落・引用へ構成する。自由文からの内容発明ではない。\n\n素材の採用・同伴・構成は明示資料。後段の差分編集は文章編集へ分離する。\n'
 from __future__ import annotations
 
 from copy import deepcopy
@@ -92,13 +89,13 @@ def _上限(n):
 
 def _項目(raw, cls):
     if type(raw) is not dict or set(raw) != set(cls.__dataclass_fields__):
-        raise 文章境界違反("構成Dataの項目不一致")
+        raise 文章境界違反('構成資料の項目不一致')
 
 
 def 文章仕様を復元(raw: dict) -> 文章仕様:
     _項目(raw, 文章仕様)
     if type(raw["単位群"]) not in (list, tuple) or type(raw["採用順序"]) not in (list, tuple):
-        raise 文章境界違反("構成Dataの列型不正")
+        raise 文章境界違反('構成資料の列型不正')
     units = []
     for row in raw["単位群"]:
         _項目(row, 文章単位)
@@ -220,8 +217,8 @@ def _初期構成(root):
         start = len(text)
         content, local = "", []
         for part in unit.断片:
-            source = materials[part.素材ID].本文
-            literal = source[part.開始:part.終了]
+            情報源 = materials[part.素材ID].本文
+            literal = 情報源[part.開始:part.終了]
             local.append({"開始": len(content), "終了": len(content)+len(literal),
                 "由来": {"種別": "素材", "ID": part.素材ID, "開始": part.開始, "終了": part.終了}})
             content += literal; used[part.素材ID].append((part.開始, part.終了))
@@ -268,35 +265,35 @@ def _由来原文(origin, root, history):
     raise 文章境界違反("未知の文章由来")
 
 
-def _結果(root, history, state):
-    text = state["本文"]
+def _結果(root, history, 状態):
+    text = 状態["本文"]
     limit = root["最大文字数"] if root["種別"] == "本文" else root["仕様"]["最大文字数"]
     _文字(text, limit, 空可=False)
-    _保護確認(state["保護"], text)
+    _保護確認(状態["保護"], text)
     pos = 0
-    if len(state["対応"]) > 8192:
+    if len(状態["対応"]) > 8192:
         raise 文章境界違反("文章対応数上限")
-    for span in state["対応"]:
+    for span in 状態["対応"]:
         origin = span["由来"]
-        source = _由来原文(origin, root, history)
+        情報源 = _由来原文(origin, root, history)
         if (span["開始"] != pos or not span["開始"] < span["終了"] <= len(text)
-                or source[origin["開始"]:origin["終了"]] != text[span["開始"]:span["終了"]]):
+                or 情報源[origin["開始"]:origin["終了"]] != text[span["開始"]:span["終了"]]):
             raise 文章境界違反("文章の連続対応・由来原文が不一致")
         pos = span["終了"]
     if pos != len(text):
         raise 文章境界違反("対応のない文章が残る")
-    keys = {s["由来"]["ID"] for s in state["対応"] if s["由来"]["種別"] == "素材"}
+    keys = {s["由来"]["ID"] for s in 状態["対応"] if s["由来"]["種別"] == "素材"}
     refs = _参照結合(r for key in sorted(keys) for r in 能力結果を復元(root["素材"][key]).参照) if keys else ()
-    data = {"版": 文章版, "原本": deepcopy(root), "編集履歴": deepcopy(history),
+    資料 = {"版": 文章版, "原本": deepcopy(root), "編集履歴": deepcopy(history),
             "改訂": len(history), "本文SHA256": sha256(text.encode()).hexdigest(),
-            **{k: deepcopy(v) for k, v in state.items() if k != "本文"},
+            **{k: deepcopy(v) for k, v in 状態.items() if k != "本文"},
             "初期構成情報の範囲": "初期単位位置と未使用素材範囲は編集前。現行の文字由来は対応を参照",
             "保証範囲": "指定構成・文字対応・保護範囲。意味同値性、事実性、引用選択の適切さは未判定"}
-    data["記録SHA256"] = _指紋({"本文": text, "データ": data})
-    result = 能力結果(True, text, 参照=refs, データ=data)
-    if len(_符号(_結果辞書(result))) > 2000000:
+    資料["記録SHA256"] = _指紋({"本文": text, "データ": 資料})
+    結果 = 能力結果(True, text, 参照=refs, データ=資料)
+    if len(_符号(_結果辞書(結果))) > 2000000:
         raise 文章境界違反("文章記録サイズ上限")
-    return result
+    return 結果
 
 
 def _失敗(exc):

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_choice_runtime import HDS選択推論実行
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
-from minidora.hds_model_projection import HDSMINIDORA模型評価
-from minidora.k3_functional import K3相当能力核
+from minidora.HDS選択実行系 import HDS選択推論実行
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
+from minidora.HDS模型射影 import HDSMINIDORA模型評価
+from minidora.K3機能 import K3相当能力核
 from minidora.参照 import 参照記録
 from minidora.能力状態差循環 import (
     MINIDORA能力状態差模型核,
@@ -20,8 +20,8 @@ from minidora.模型 import 成立候補, 言語状態
 
 class 能力状態差循環V1試験(unittest.TestCase):
     def test_状態差がなければ再作用しない(self) -> None:
-        core = 標準能力模型核()
-        result = core.評価言語状態(
+        模型核 = 標準能力模型核()
+        結果 = 模型核.評価言語状態(
             言語状態("which"),
             (
                 成立候補("A", 言語状態("alpha")),
@@ -30,15 +30,15 @@ class 能力状態差循環V1試験(unittest.TestCase):
             ),
             参照状態=(言語状態("common", 識別子="r0"),),
         )
-        self.assertEqual(result.統計.checkpoint再活性数, 0)
-        self.assertEqual(result.統計.大域再照合数, 0)
-        self.assertEqual(result.統計.候補横断更新数, 0)
-        self.assertEqual(result.統計.再作用回数, 0)
-        self.assertFalse(any(cp.段階.startswith("RECONCILE_") for cp in result.checkpoint))
+        self.assertEqual(結果.統計.検査点再活性数, 0)
+        self.assertEqual(結果.統計.大域再照合数, 0)
+        self.assertEqual(結果.統計.候補横断更新数, 0)
+        self.assertEqual(結果.統計.再作用回数, 0)
+        self.assertFalse(any(cp.段階.startswith("RECONCILE_") for cp in 結果.検査点))
 
     def test_状態差が次作用を開き新しい候補差を作る(self) -> None:
-        core = 標準能力模型核()
-        result = core.評価言語状態(
+        模型核 = 標準能力模型核()
+        結果 = 模型核.評価言語状態(
             言語状態("which"),
             (
                 成立候補("A", 言語状態("alpha common x")),
@@ -51,13 +51,13 @@ class 能力状態差循環V1試験(unittest.TestCase):
             ),
         )
 
-        self.assertGreaterEqual(result.統計.checkpoint再活性数, 1)
-        self.assertGreaterEqual(result.統計.大域再照合数, 1)
-        self.assertGreaterEqual(result.統計.候補横断更新数, 1)
-        self.assertGreaterEqual(result.統計.寄与状態再利用数, 1)
-        self.assertTrue(any(cp.段階 == "RECONCILE_1" for cp in result.checkpoint))
+        self.assertGreaterEqual(結果.統計.検査点再活性数, 1)
+        self.assertGreaterEqual(結果.統計.大域再照合数, 1)
+        self.assertGreaterEqual(結果.統計.候補横断更新数, 1)
+        self.assertGreaterEqual(結果.統計.寄与状態再利用数, 1)
+        self.assertTrue(any(cp.段階 == "RECONCILE_1" for cp in 結果.検査点))
 
-        rows = {row.候補ID: row for row in result.候補差}
+        rows = {row.候補ID: row for row in 結果.候補差}
         self.assertTrue(
             any(
                 item.関係名.startswith("候補共同再照合") and any("r2" in str(x) for x in item.根拠)
@@ -73,63 +73,63 @@ class 能力状態差循環V1試験(unittest.TestCase):
         )
         self.assertEqual(a_r1, 1)
 
-    def test_Compiler作用差分を能力系が消費する(self) -> None:
-        compiler = 公開HDSコンパイラ()
-        question = compiler.問題IR("最終状態はどれか？", ("S1", "S2"))
+    def test_構文化器作用差分を能力系が消費する(self) -> None:
+        構文化器 = 公開HDSコンパイラ()
+        question = 構文化器.問題IR("最終状態はどれか？", ("S1", "S2"))
         candidates = {
-            "A": compiler.意味コンパイル("S1"),
-            "B": compiler.意味コンパイル("S2"),
+            "A": 構文化器.意味コンパイル("S1"),
+            "B": 構文化器.意味コンパイル("S2"),
         }
-        detail = compiler.詳細コンパイル("S0からS1へ遷移し、S1からS2へ遷移する。")
+        detail = 構文化器.詳細コンパイル("S0からS1へ遷移し、S1からS2へ遷移する。")
         self.assertGreaterEqual(detail.作用差分構造.後続利用数, 1)
 
-        core = MINIDORA能力状態差模型核((), 能力作用群=(), 最大再作用回数=0)
-        result = HDSMINIDORA模型評価(
+        模型核 = MINIDORA能力状態差模型核((), 能力作用群=(), 最大再作用回数=0)
+        結果 = HDSMINIDORA模型評価(
             question,
             candidates,
             (detail.IR,),
-            模型核=core,
+            模型核=模型核,
             参照識別子=("状態遷移資料",),
             作用差分構造群=(detail.作用差分構造,),
         )
-        self.assertEqual(result.状態, "APPROVE")
-        self.assertEqual(result.回答ラベル, "B")
-        self.assertIn("HDS_ACTION_DELTA_ATTACHED", result.理由)
-        self.assertIn("HDS_ACTION_DELTA_CONSUMED", result.理由)
+        self.assertEqual(結果.状態, "APPROVE")
+        self.assertEqual(結果.回答ラベル, "B")
+        self.assertIn('HDS_作用_DELTA_ATTACHED', 結果.理由)
+        self.assertIn('HDS_作用_DELTA_CONSUMED', 結果.理由)
         self.assertTrue(
             any(
                 item.関係名.startswith("候補共同参照:状態差連結")
-                for row in result.模型結果.候補差
+                for row in 結果.模型結果.候補差
                 for item in row.寄与
             )
         )
 
     def test_正式実行経路が作用差分消費を実測値として返す(self) -> None:
-        compiler = 公開HDSコンパイラ()
-        question = compiler.問題IR("最終状態はどれか？", ("S1", "S2"))
-        reference = 参照記録(
-            "r-state-chain",
+        構文化器 = 公開HDSコンパイラ()
+        question = 構文化器.問題IR("最終状態はどれか？", ("S1", "S2"))
+        参照 = 参照記録(
+            'r-状態-連鎖',
             "状態遷移",
             "S0からS1へ遷移し、S1からS2へ遷移する。",
             "fixture",
             "固定資料",
             1.0,
         )
-        core = MINIDORA能力状態差模型核((), 能力作用群=(), 最大再作用回数=0)
-        result = HDS選択推論実行(
+        模型核 = MINIDORA能力状態差模型核((), 能力作用群=(), 最大再作用回数=0)
+        結果 = HDS選択推論実行(
             question,
-            (reference,),
-            コンパイル=compiler.コンパイル,
+            (参照,),
+            コンパイル=構文化器.コンパイル,
             基礎能力核=K3相当能力核(),
-            模型核=core,
+            模型核=模型核,
             正式模型評価=True,
         )
-        self.assertEqual(result.状態, "APPROVE")
-        self.assertEqual(result.回答ラベル, "B")
-        self.assertGreaterEqual(result.専門作用起動数, 1)
-        self.assertIn("HDS_ACTION_DELTA_ATTACHED", result.理由)
-        self.assertIn("HDS_ACTION_DELTA_CONSUMED", result.理由)
-        self.assertIsNotNone(result.MINIDORA模型結果)
+        self.assertEqual(結果.状態, "APPROVE")
+        self.assertEqual(結果.回答ラベル, "B")
+        self.assertGreaterEqual(結果.専門作用起動数, 1)
+        self.assertIn('HDS_作用_DELTA_ATTACHED', 結果.理由)
+        self.assertIn('HDS_作用_DELTA_CONSUMED', 結果.理由)
+        self.assertIsNotNone(結果.MINIDORA模型結果)
 
     def test_追加条件未確認なら後続作用を発火させない(self) -> None:
         structure = 能力作用構造(
@@ -140,8 +140,8 @@ class 能力状態差循環V1試験(unittest.TestCase):
             状態差=(能力状態差記録("D", "A", "S0", "S1", True),),
             後続利用=(能力後続利用記録("D", "S1", "B", ("条件C",), True),),
         )
-        core = MINIDORA能力状態差模型核((), 能力作用群=(), 最大再作用回数=0)
-        result = core.評価言語状態(
+        模型核 = MINIDORA能力状態差模型核((), 能力作用群=(), 最大再作用回数=0)
+        結果 = 模型核.評価言語状態(
             言語状態("最終状態"),
             (
                 成立候補("A", 言語状態("S1")),
@@ -149,11 +149,11 @@ class 能力状態差循環V1試験(unittest.TestCase):
             ),
             作用構造群=(structure,),
         )
-        self.assertIsNone(result.参照最有力候補ID)
+        self.assertIsNone(結果.参照最有力候補ID)
         self.assertFalse(
             any(
                 item.関係名.startswith("候補共同参照:状態差連結")
-                for row in result.候補差
+                for row in 結果.候補差
                 for item in row.寄与
             )
         )

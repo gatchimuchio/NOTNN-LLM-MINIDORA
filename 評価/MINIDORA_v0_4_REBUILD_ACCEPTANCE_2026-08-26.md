@@ -34,14 +34,14 @@ LLM模型中核は新たに次へ分離した。
 
 - `src/minidora/模型.py` — LLM模型中核
 - `src/minidora/計算実行器.py` — 汎用計算実行
-- `src/minidora/layer0.py` — 旧公開API互換窓口
-- `src/minidora/runtime.py` — v0.4統合Runtime
-- `src/minidora/runtime_v03.py` — v0.3運用経路の履歴互換
-- `src/minidora/旧_layer0_v03.py` — v0.3命令器の履歴実装
+- `src/minidora/第0層.py` — 旧公開API互換窓口
+- `src/minidora/実行系.py` — v0.4統合実行系
+- `src/minidora/実行系_v03.py` — v0.3運用経路の履歴互換
+- `src/minidora/旧_第0層_v03.py` — v0.3命令器の履歴実装
 
 ## 3. HDS境界
 
-今回の再構成ではHDS Compiler本体を先回り改造していない。
+今回の再構成ではHDS 構文化器本体を先回り改造していない。
 
 現行境界:
 
@@ -49,12 +49,12 @@ LLM模型中核は新たに次へ分離した。
 HDS-IR != LLM模型中核
 HDS-IR != 成立差
 HDS-IR != Compute IR
-HDS Compiler != LLM成立条件
+HDS 構文化器 != LLM成立条件
 ```
 
 HDS-IRは意味Projection・運用入力・監査履歴として保持する。
 
-次段でCompute IR / ABIを確定し、その後にHDS semantic IRからCompute IRへのloweringとHDS Compiler側の責任を再設計する。
+次段でCompute IR / ABIを確定し、その後にHDS semantic IRからCompute IRへのloweringとHDS 構文化器側の責任を再設計する。
 
 ## 4. v0.3履歴
 
@@ -63,8 +63,8 @@ HDS-IRは意味Projection・運用入力・監査履歴として保持する。
 - `PROTOTYPE COMPLETE — 2026-08-22`
 - 過去GPQA実測
 - K3横断構文化・相対化資産
-- HDS Compiler既存実装・試験
-- v0.3 Runtime
+- HDS 構文化器既存実装・試験
+- v0.3 実行系
 - 旧Layer-0契約
 
 ただし、v0.3の性能値をv0.4模型核の大規模性証拠へ自動転用しない。
@@ -111,12 +111,12 @@ v0.4新規模型核試験:
 - 同じ関係を複数文脈へ再利用する — PASS
 - 根拠差なしでは一候補へ勝手に確定しない — PASS
 - 明示したプログラム言語体系を扱える — PASS
-- Runtimeから模型核入口へ到達できる — PASS
+- 実行系から模型核入口へ到達できる — PASS
 
 旧運用回帰:
 
 - K3相当構造試験 `47 / 47` — PASS
-- 公開HDS Compiler v1.2試験 — PASS
+- 公開HDS 構文化器 v1.2試験 — PASS
 - 主体主幹 — PASS
 - 外部参照R — PASS
 - HDS-IR replay / K / J経路 — PASS
@@ -142,7 +142,7 @@ v0.4新規模型核試験:
 - v0.4の共有適用規模再測定
 - Compute IR / ABI
 - HDS semantic IR → Compute IR lowering
-- HDS Compilerの新境界への再設計
+- HDS 構文化器の新境界への再設計
 
 ## 8. 結論
 
@@ -152,4 +152,4 @@ v0.4新規模型核試験:
 
 一方で、**v0.4が「大規模」であることの再測定は未完**である。旧GPQA等を無言転用せず、別評価として扱う。
 
-次の設計工程は **Compute IR / ABIの確定** とする。HDS Compiler更新はその後に行う。
+次の設計工程は **Compute IR / ABIの確定** とする。HDS 構文化器更新はその後に行う。

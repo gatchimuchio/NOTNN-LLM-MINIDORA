@@ -12,7 +12,7 @@
 
 ## R2
 - 発火条件: OpenAI GPT-5.6 / Claude Fable-Mythos
-- 更新: A1/A8。モデル本体・推論runtime・agent harness・classifier/fallbackを分離。
+- 更新: A1/A8。モデル本体・推論実行系・agent harness・classifier/代替経路を分離。
 
 ## R3
 - 発火条件: OLMo3 vs Qwen3.6

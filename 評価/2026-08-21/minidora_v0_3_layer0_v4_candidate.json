@@ -7,17 +7,17 @@
   "operational_profile": ["interactive_chat", "structured_output", "text_api"],
   "source_material_digest": "f58f6a1b6a359d0b2d8b16973ff878fc894d7da04547712ac2d7b823185c109f",
   "mechanisms": [
-    {"mechanism_id": "runtime-address-reference", "responsibilities": ["LINGUISTIC_ADDRESSABILITY", "CONTEXT_BOUND_STATE"]},
-    {"mechanism_id": "layer0-japanese-p-core", "responsibilities": ["TRANSFORMATION_OR_COMPOSITION_CORE"]},
+    {"mechanism_id": "実行系-address-reference", "responsibilities": ["LINGUISTIC_ADDRESSABILITY", "CONTEXT_BOUND_STATE"]},
+    {"mechanism_id": "第0層-japanese-p-core", "responsibilities": ["TRANSFORMATION_OR_COMPOSITION_CORE"]},
     {"mechanism_id": "subject-trunk-gate", "responsibilities": ["CONTEXT_BOUND_STATE", "CONTEXT_DEPENDENT_RESULT_FORMATION"]},
     {"mechanism_id": "result-contract", "responsibilities": ["RESULT_SURFACE"]}
   ],
   "functional_evidence": {
-    "LINGUISTIC_ADDRESSABILITY": {"status": "PASS", "evidence": ["tests/test_reference.py", "tests/test_runtime.py"]},
+    "LINGUISTIC_ADDRESSABILITY": {"status": "PASS", "evidence": ["tests/test_reference.py", "tests/test_実行系.py"]},
     "CONTEXT_BOUND_STATE": {"status": "PASS", "evidence": ["tests/test_subject_trunk.py"]},
-    "TRANSFORMATION_OR_COMPOSITION_CORE": {"status": "PASS", "evidence": ["tests/test_layer0.py"]},
-    "CONTEXT_DEPENDENT_RESULT_FORMATION": {"status": "PASS", "evidence": ["tests/test_runtime.py", "tests/test_subject_trunk.py"]},
-    "RESULT_SURFACE": {"status": "PASS", "evidence": ["tests/test_runtime.py"]}
+    "TRANSFORMATION_OR_COMPOSITION_CORE": {"status": "PASS", "evidence": ["tests/test_第0層.py"]},
+    "CONTEXT_DEPENDENT_RESULT_FORMATION": {"status": "PASS", "evidence": ["tests/test_実行系.py", "tests/test_subject_trunk.py"]},
+    "RESULT_SURFACE": {"status": "PASS", "evidence": ["tests/test_実行系.py"]}
   },
   "execution_trace": [
     {"event": "input_addressed"},
@@ -48,7 +48,7 @@
     "K3/Llama3追加観測で現在の主体主幹境界が崩れた場合"
   ],
   "source_materials": {
-    "layer0_commit": "4adf86d13d7beb99fe5eaa9e240b22996ba3d3bc",
+    "第0層_commit": "4adf86d13d7beb99fe5eaa9e240b22996ba3d3bc",
     "k3_fullweight_sha256": "2c6b2f88bb47780f964d3b11b69a5271497b913f1407a9c9a2e388ee12155bf9",
     "cross_benchmark_sha256": "d732760cb3541c19a79f68e29b6af9c682b1d1446882779ce5a06bf2a784559b",
     "llama_self_hds_sha256": "e9b674c92c5bf99513569ea36462d76948922adba25a58a10b5c0ce2d3d75de5",

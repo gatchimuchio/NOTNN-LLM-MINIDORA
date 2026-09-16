@@ -41,18 +41,18 @@ class 決定論的要約器:
         if len(sentences) <= 文数:
             return _切詰め(" ".join(sentences), 最大文字数)
 
-        frequency = Counter(token for sentence in sentences for token in _二文字列(sentence))
+        frequency = Counter(字句 for sentence in sentences for 字句 in _二文字列(sentence))
         scored: list[tuple[float, int]] = []
         for index, sentence in enumerate(sentences):
-            tokens = _二文字列(sentence)
-            repeated = sum(max(0, frequency[token] - 1) for token in tokens)
+            字句 = _二文字列(sentence)
+            repeated = sum(max(0, frequency[字句] - 1) for 字句 in 字句)
             content = sum(1 for char in sentence if not char.isspace())
             score = repeated / sqrt(max(1, content))
             score += 1.0 / (index + 1)  # 同点時に文脈先頭を優先する決定論的tie-break
             scored.append((score, index))
         selected = sorted(index for _, index in sorted(scored, key=lambda item: (-item[0], item[1]))[: max(1, 文数)])
-        summary = " ".join(sentences[index] for index in selected)
-        return _切詰め(summary, 最大文字数)
+        要約 = " ".join(sentences[index] for index in selected)
+        return _切詰め(要約, 最大文字数)
 
     def ニュース要約(self, items: tuple[ニュース項目, ...], *, 最大件数: int = 3, 一件最大文字数: int = 150) -> str:
         if not items:

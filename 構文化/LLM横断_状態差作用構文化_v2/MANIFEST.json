@@ -1,5 +1,5 @@
 {
-  "schema": "minidora.cross_llm.state_delta_action_structuring.manifest.v2",
+  "契約形式": "minidora.cross_llm.state_delta_action_structuring.manifest.v2",
   "date_jst": "2026-08-28",
   "model_count": 10,
   "ledger_records": 35,

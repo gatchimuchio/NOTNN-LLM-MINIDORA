@@ -1,5 +1,5 @@
 {
-  "schema": "minidora.cross_llm.capability_action_structuring.v1",
+  "契約形式": "minidora.cross_llm.capability_action_structuring.v1",
   "date_jst": "2026-08-26",
   "language": "ja",
   "license": "CC-BY-4.0",
@@ -65,7 +65,7 @@
       "formation": "版依存/posttrainingは観測、recipe全量は未観測",
       "deployment_control": "multimodal / tools / App/API/Vertex等をcore内部topologyから分離",
       "key_action": "同一model familyでもtest-time computeと外部tool条件で可観測能力が変化",
-      "minidora_projection": ["effort controllerをruntime制御として分離", "modality adapterを共通内部状態へ接続"]
+      "minidora_projection": ["effort controllerを実行系制御として分離", "modality adapterを共通内部状態へ接続"]
     },
     {
       "name": "DeepSeek V4",
@@ -119,7 +119,7 @@
       "width_selection": "Dense FFN",
       "future_aux": "主config上独立MTPなし",
       "formation": "pretraining/posttrainingが同じgeometryへ具体的関係を形成",
-      "deployment_control": "runtime guard/toolsはcore外",
+      "deployment_control": "実行系 guard/toolsはcore外",
       "key_action": "前状態を早期離散化せず、全層で再参照・再作用できるDense基準点",
       "minidora_projection": ["未確定working stateを保持", "同一Dataへ複数作用から再アクセス"]
     },
@@ -133,7 +133,7 @@
       "width_selection": "Dense FFN",
       "future_aux": "variant/training差から分離",
       "formation": "Base/Instruct/Think等で形成履歴差",
-      "deployment_control": "open checkpoint/runtimeはcore外",
+      "deployment_control": "open checkpoint/実行系はcore外",
       "key_action": "局所で数段構成した差を周期的にglobal contextへ再接続",
       "minidora_projection": ["局所作業域", "大域再照合", "不一致時に局所状態を再検討可能に保持"]
     },
@@ -147,7 +147,7 @@
       "width_selection": "Dense FFN",
       "future_aux": "thinking modeはposttraining/servingと分離。内部機構未観測",
       "formation": "continued pretraining + multimodal mix + posttraining",
-      "deployment_control": "tool/thinking modeはruntime条件として分離",
+      "deployment_control": "tool/thinking modeは実行系条件として分離",
       "key_action": "中央geometryを維持しながら入力前段と形成履歴で能力範囲を拡張",
       "minidora_projection": ["modality adapter", "architecture変更と関係獲得を分離"]
     },

@@ -15,7 +15,7 @@ class 文章HDS接続試験(unittest.TestCase):
         proposal=編集箇所を特定(raw,'旧名','新名')
         return 文章を編集(raw,proposal['起点SHA256'],tuple(文章修正(**x) for x in proposal['修正']))
 
-    def test_編集後の本文を実Compilerへ渡す(self):
+    def test_編集後の本文を実構文化器へ渡す(self):
         material=self.material();self.assertTrue(material.成立)
         r=self.session.応答('本文から数字を抽出して',{'本文':material})
         self.assertTrue(r.成立,r.理由);self.assertEqual(r.出力[0][1].本文,'731、75')

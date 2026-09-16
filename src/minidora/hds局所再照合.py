@@ -5,8 +5,8 @@ import re
 import unicodedata
 from typing import Iterable, Sequence
 
-from .hds_ir import HDSIR
-from .semantic_tokens import 意味語
+from .HDS中間表現 import HDSIR
+from .意味字句 import 意味語
 from .参照 import 参照記録
 
 
@@ -30,7 +30,7 @@ def _normalize(text: object) -> str:
 def _choices(ir: HDSIR) -> tuple[tuple[str, str], ...]:
     out: list[tuple[str, str]] = []
     for coord in ir.座標:
-        if coord.座標ID.startswith("choice:"):
+        if coord.座標ID.startswith('選択肢:'):
             out.append((coord.座標ID.split(":", 1)[1], str(coord.内容)))
     return tuple(sorted(out))
 
@@ -77,12 +77,7 @@ def HDS局所Window候補(
     *,
     上限: int = 12,
 ) -> tuple[HDS局所Window, ...]:
-    """問題語と候補差分語が同じ局所窓に残る箇所を、候補対称に選ぶ。
-
-    ここでは真偽を決めない。window選択にgold・候補ラベルの優劣・domain規則を使わず、
-    全候補の差分語集合を対称に扱う。元source identityは参照記録をそのまま保持する。
-    全文そのものと同一のwindowは再解析対象にしない。
-    """
+    '問題語と候補差分語が同じ局所窓に残る箇所を、候補対称に選ぶ。\n\n    ここでは真偽を決めない。window選択にgold・候補ラベルの優劣・domain規則を使わず、\n    全候補の差分語集合を対称に扱う。元情報源 identityは参照記録をそのまま保持する。\n    全文そのものと同一のwindowは再解析対象にしない。\n    '
     if 上限 <= 0:
         return ()
     choices = _choices(question_ir)
@@ -107,7 +102,7 @@ def HDS局所Window候補(
                 continue
             label_hits: list[tuple[str, int]] = []
             total_distinctive = 0
-            for label, _choice in choices:
+            for label, _選択肢 in choices:
                 count = len(distinctive[label] & terms)
                 if count > 0:
                     label_hits.append((label, count))
@@ -116,8 +111,8 @@ def HDS局所Window候補(
                 continue
 
             # 一候補だけへ局所化するwindowを優先するが、多候補windowも捨てず大域再照合へ残す。
-            candidate_count = len(label_hits)
-            specificity = 2 if candidate_count == 1 else 1
+            候補_count = len(label_hits)
+            specificity = 2 if 候補_count == 1 else 1
             rank = (
                 specificity,
                 total_distinctive,
@@ -131,7 +126,7 @@ def HDS局所Window候補(
                     segment,
                     q_hits,
                     total_distinctive,
-                    candidate_count,
+                    候補_count,
                     rank,
                 )
             )
@@ -140,22 +135,22 @@ def HDS局所Window候補(
     rows.sort(key=lambda item: (-item.順位値[0], -item.順位値[1], -item.順位値[2], -item.順位値[3], item.順位値[4], item.内容))
     selected: list[HDS局所Window] = []
     used_text: set[tuple[str, str]] = set()
-    used_source: set[str] = set()
+    used_情報源: set[str] = set()
     for pass_no in (0, 1):
         for row in rows:
             if len(selected) >= 上限:
                 break
-            source = str(row.参照.識別子)
-            key = (source, row.内容.casefold())
+            情報源 = str(row.参照.識別子)
+            key = (情報源, row.内容.casefold())
             if key in used_text:
                 continue
-            if pass_no == 0 and source in used_source:
+            if pass_no == 0 and 情報源 in used_情報源:
                 continue
-            if pass_no == 1 and source not in used_source:
+            if pass_no == 1 and 情報源 not in used_情報源:
                 continue
             selected.append(row)
             used_text.add(key)
-            used_source.add(source)
+            used_情報源.add(情報源)
         if len(selected) >= 上限:
             break
     return tuple(selected)

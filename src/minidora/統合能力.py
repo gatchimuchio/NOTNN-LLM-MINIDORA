@@ -38,33 +38,33 @@ from .純粋再利用 import 純粋再利用能力 as _再利用能力
 
 
 def 統合能力群(庫, 再利用庫, *, 外部読取許可=False, 取得器=None, 閲覧器=None):
-    """全15領域の制御器と部品を接続する。領域数とModule数は別。"""
-    from .証拠統合接続 import 証拠統合Module, 記載値採用Module
-    from .応答構成接続 import 応答構成Module
-    from .関係制約接続 import 関係制約Module, 数値関係化Module, 関係判定採用Module
+    '全15領域の制御器と部品を接続する。領域数とモジュール数は別。'
+    from .証拠統合接続 import 証拠統合モジュール, 記載値採用モジュール
+    from .応答構成接続 import 応答構成モジュール
+    from .関係制約接続 import 関係制約モジュール, 数値関係化モジュール, 関係判定採用モジュール
     from .コード能力接続 import コード能力群
     from .数学能力接続 import 数学能力群
-    from .多言語接続 import 多言語変換Module
+    from .多言語接続 import 多言語変換モジュール
     from .構造化文書接続 import 構造化文書能力群
     from .文章能力接続 import 文章能力群
-    from .多段解決接続 import 解決補助能力群, 多段解決Module
-    from .長文脈接続 import 長文脈選択Module
-    from .知識取得接続 import 知識取得Module
+    from .多段解決接続 import 解決補助能力群, 多段解決モジュール
+    from .長文脈接続 import 長文脈選択モジュール
+    from .知識取得接続 import 知識取得モジュール
     from .知識取得 import 知識取得器
     from .製品版.検索 import SearXNG検索供給器
     from .ブラウザ閲覧 import ブラウザ閲覧器
-    from .ブラウザ接続 import ブラウザ閲覧Module
+    from .ブラウザ接続 import ブラウザ閲覧モジュール
     if type(外部読取許可) is not bool or not isinstance(再利用庫, 純粋結果庫):
         raise ValueError("登録条件不正")
-    local = tuple(replace(r, Module=完全文脈変換()) if r.Module.名前 == "文脈変換" else r for r in 局所能力群())
-    pure = (*local, *(m.登録() for m in (証拠統合Module(), 記載値採用Module(), 応答構成Module(),
-            関係制約Module(), 数値関係化Module(), 関係判定採用Module())),
-            *コード能力群(), *数学能力群(), 多言語変換Module().登録(),
+    local = tuple(replace(r, モジュール=完全文脈変換()) if r.モジュール.名前 == "文脈変換" else r for r in 局所能力群())
+    pure = (*local, *(m.登録() for m in (証拠統合モジュール(), 記載値採用モジュール(), 応答構成モジュール(),
+            関係制約モジュール(), 数値関係化モジュール(), 関係判定採用モジュール())),
+            *コード能力群(), *数学能力群(), 多言語変換モジュール().登録(),
             *構造化文書能力群(), *文章能力群(), *解決補助能力群())
     # 再利用はこの明示した純粋部品だけ。外部取得・可変文脈・探索全体は含めない。
-    cached = tuple(登録能力(_再利用能力(r.Module, 再利用庫)) for r in pure)
+    cached = tuple(登録能力(_再利用能力(r.モジュール, 再利用庫)) for r in pure)
     search = 取得器 if 取得器 is not None else 知識取得器(SearXNG検索供給器())
     browser = 閲覧器 if 閲覧器 is not None else ブラウザ閲覧器()
-    return (*cached, 多段解決Module(cached, 純粋作用確認=True).登録(), 長文脈選択Module(庫).登録(),
-            知識取得Module(search, 外部読取許可=外部読取許可).登録(),
-            ブラウザ閲覧Module(browser, 外部読取許可=外部読取許可).登録())
+    return (*cached, 多段解決モジュール(cached, 純粋作用確認=True).登録(), 長文脈選択モジュール(庫).登録(),
+            知識取得モジュール(search, 外部読取許可=外部読取許可).登録(),
+            ブラウザ閲覧モジュール(browser, 外部読取許可=外部読取許可).登録())

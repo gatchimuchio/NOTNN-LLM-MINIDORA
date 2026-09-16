@@ -37,5 +37,5 @@ def 外部言語要求を実行(セッション: 文脈付き要求セッショ�
     from .文脈要求 import 文脈付き要求セッション
     if not isinstance(セッション, 文脈付き要求セッション):
         return 多言語要求結果(translated, None, "既存の文脈付き要求セッションが必要")
-    result = セッション.応答(translated.本文, deepcopy(資料), 停止要求=停止要求)
-    return 多言語要求結果(translated, result)
+    結果 = セッション.応答(translated.本文, deepcopy(資料), 停止要求=停止要求)
+    return 多言語要求結果(translated, 結果)

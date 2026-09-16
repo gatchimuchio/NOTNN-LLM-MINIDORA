@@ -6,7 +6,7 @@
 
 ## B0 観測境界
 
-公開config/code/checkpoint構造を観測。7B / 32B系列の中央scheduleを確認。weight全量意味解析とvariant間posttraining因果の完全分解は未実施。
+公開config/code/検査点構造を観測。7B / 32B系列の中央scheduleを確認。weight全量意味解析とvariant間posttraining因果の完全分解は未実施。
 
 ## 観測事実
 
@@ -71,7 +71,7 @@ Base / Instruct / Think等のvariantは中央scheduleが近くても形成履歴
 
 ## B9 展開後制御
 
-open code/checkpoint。serving engineやproduct harnessはcore外。
+open code/検査点。serving engineやproduct harnessはcore外。
 
 ## MINIDORAへの作用射影候補
 
@@ -88,5 +88,5 @@ open code/checkpoint。serving engineやproduct harnessはcore外。
 
 ## 出典
 
-- AllenAI OLMo 3 public configs/checkpoints
+- AllenAI OLMo 3 public configs/検査点s
 - 第一巡HDS固定観測

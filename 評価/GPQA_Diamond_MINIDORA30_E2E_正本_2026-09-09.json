@@ -1,23 +1,23 @@
 {
-  "schema": "minidora.gpqa.canonical-savepoint.v1",
+  "契約形式": "minidora.gpqa.canonical-savepoint.v1",
   "canonical_name": "MINIDORA30",
   "date_jst": "2026-09-09",
-  "benchmark_id": "gpqa-diamond-e2e-live-v2",
-  "evaluation_class": "GENERIC_E2E_CANONICAL",
-  "task": "GPQA Diamond",
+  "外部評価識別子": "gpqa-diamond-e2e-live-v2",
+  "評価種別": "GENERIC_E2E_CANONICAL",
+  "課題": "GPQA Diamond",
   "canonical": true,
   "protocol": {
     "full_total": 198,
-    "selected_indices": "0..197",
-    "dataset_csv_sha256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
-    "choice_shuffle_seed": 0,
-    "openalex_enabled": false,
-    "wikipedia_languages": [
+    "選択番号群": "0..197",
+    "資料集合CSV_SHA256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+    "選択肢シャッフル種": 0,
+    "OpenAlex有効": false,
+    "Wikipedia言語群": [
       "en"
     ],
-    "retrieval_mode": "LIVE_ONLY",
-    "controlled_ab": true,
-    "fixed_reference_data_allowed": false
+    "参照方式": "LIVE_ONLY",
+    "統制AB": true,
+    "固定参照資料許可": false
   },
   "result": {
     "current": {

@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from minidora.HDS計算降下 import HDS計算降下
-from minidora.hds_ir import HDSIR, HDS実行核, HDS座標, 値状態
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, 値状態
 from minidora.命令 import 手順, 作用, 命令
 from minidora.命令計算降下 import 命令計算降下
 from minidora.計算中間表現 import (
@@ -73,9 +73,9 @@ class 計算IR_ABI試験(unittest.TestCase):
         )
         ir = 命令計算降下(plan)
         self.assertTrue(all(item.種別 == 計算値種別.状態住所 for item in ir.命令列[0].入力))
-        result = 計算実行器().計算実行(ir, {"a": 1, "b": 2})
-        self.assertEqual(result.状態["a"], 2)
-        self.assertEqual(result.状態["b"], 1)
+        結果 = 計算実行器().計算実行(ir, {"a": 1, "b": 2})
+        self.assertEqual(結果.状態["a"], 2)
+        self.assertEqual(結果.状態["b"], 1)
 
     def test_HDS降下は自然言語を再解析せず閉包済み構造だけを使う(self) -> None:
         plan = 手順(

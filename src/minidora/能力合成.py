@@ -1,8 +1,4 @@
-"""明示された能力計画を、Data参照と依存関係を保って実行する。
-
-自然言語解釈、HDSの採否、Core、永続会話状態の代替ではない。
-登録したPythonコードの隔離実行器でもない。公開契約は設計/37を参照。
-"""
+'明示された能力計画を、資料参照と依存関係を保って実行する。\n\n自然言語解釈、HDSの採否、模型核、永続会話状態の代替ではない。\n登録したPythonコードの隔離実行器でもない。公開契約は設計/37を参照。\n'
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
@@ -16,7 +12,7 @@ import math
 from typing import Literal
 
 from .製品版.型 import 能力結果, 参照資料
-from .製品版.能力契約 import 能力Module, 能力文脈
+from .製品版.能力契約 import 能力モジュール, 能力文脈
 
 能力合成版 = "MINIDORA-能力合成-v0.1"
 
@@ -44,7 +40,7 @@ class 合成計画:
 
 @dataclass(frozen=True, slots=True)
 class 登録能力:
-    Module: 能力Module
+    モジュール: 能力モジュール
     外部読取: bool = False
 
 
@@ -110,7 +106,7 @@ def _識別子検証(値: object) -> None:
 
 def _JSON検証(値: object, 深さ: int = 0) -> None:
     if 深さ > 32:
-        raise ValueError("Data入れ子上限")
+        raise ValueError('資料入れ子上限')
     if 値 is None or type(値) in (str, bool, int):
         return
     if type(値) is float and math.isfinite(値):
@@ -123,7 +119,7 @@ def _JSON検証(値: object, 深さ: int = 0) -> None:
         for 要素 in 値.values():
             _JSON検証(要素, 深さ + 1)
         return
-    raise ValueError("Dataは有限数・文字列キーを持つJSON互換値に限定")
+    raise ValueError('資料は有限数・文字列キーを持つJSON互換値に限定')
 
 
 def _符号化(値: object) -> bytes:
@@ -146,7 +142,7 @@ def _結果辞書(結果: 能力結果) -> dict:
     if type(結果.根拠) is not tuple or not all(isinstance(s, str) for s in 結果.根拠):
         raise ValueError("能力結果根拠型不正")
     if type(結果.参照) is not tuple or type(結果.データ) is not dict:
-        raise ValueError("能力結果Data型不正")
+        raise ValueError('能力結果資料型不正')
     参照 = []
     for 資料 in 結果.参照:
         if not isinstance(資料, 参照資料):
@@ -217,7 +213,7 @@ class 能力合成器:
         for 登録 in 能力:
             if not isinstance(登録, 登録能力) or type(登録.外部読取) is not bool:
                 raise ValueError("能力登録型不正")
-            本体 = 登録.Module
+            本体 = 登録.モジュール
             _識別子検証(本体.名前)
             _識別子検証(本体.版)
             if 本体.名前 in self._能力:
@@ -230,7 +226,7 @@ class 能力合成器:
         if len(_符号化(値)) > self._上限[2]:
             raise ValueError("資料バイト上限")
 
-    def _準備(self, 計画: 合成計画, Data: Mapping[str, 能力結果],
+    def _準備(self, 計画: 合成計画, 資料: Mapping[str, 能力結果],
               外部読取許可: bool) -> tuple[dict[str, 合成工程], tuple[str, ...]]:
         if not isinstance(計画, 合成計画) or type(計画.工程) is not tuple:
             raise ValueError("合成計画型不正")
@@ -257,9 +253,9 @@ class 能力合成器:
 
         def 入力検証(識別子: str) -> None:
             _識別子検証(識別子)
-            if 識別子 not in Data:
+            if 識別子 not in 資料:
                 raise _打切り("保留", f"入力Data欠落:{識別子}")
-            if not Data[識別子].成立:
+            if not 資料[識別子].成立:
                 raise _打切り("保留", f"入力Data未成立:{識別子}")
 
         依存 = {}
@@ -271,7 +267,7 @@ class 能力合成器:
                 if 名前 not in self._能力:
                     raise _打切り("保留", f"未登録能力:{名前}")
                 登録, 版 = self._能力[名前]
-                if 登録.Module.名前 != 名前 or 登録.Module.版 != 版:
+                if 登録.モジュール.名前 != 名前 or 登録.モジュール.版 != 版:
                     raise ValueError("登録後能力名版変更")
                 if 登録.外部読取 and not 外部読取許可:
                     raise _打切り("保留", f"外部読取未許可:{名前}")
@@ -308,7 +304,7 @@ class 能力合成器:
             raise ValueError("出力に寄与しない工程")
         return 工程, 順序
 
-    def 実行(self, 計画: 合成計画, 初期Data: Mapping[str, 能力結果], *,
+    def 実行(self, 計画: 合成計画, 初期資料: Mapping[str, 能力結果], *,
              文脈: 能力文脈 | None = None, 外部読取許可: bool = False,
              停止要求: Callable[[], bool] | None = None) -> 合成結果:
         完了: dict[str, 能力結果] = {}
@@ -334,18 +330,18 @@ class 能力合成器:
                     raise _打切り("中止", "停止要求")
 
         try:
-            if not isinstance(初期Data, Mapping):
-                raise ValueError("初期Data型不正")
-            for ID, 値 in 初期Data.items():
+            if not isinstance(初期資料, Mapping):
+                raise ValueError('初期資料型不正')
+            for ID, 値 in 初期資料.items():
                 _識別子検証(ID)
                 _結果辞書(値)
                 _参照結合(値.参照)
-            Data = deepcopy(dict(初期Data))
+            資料 = deepcopy(dict(初期資料))
             基点 = deepcopy(文脈 if 文脈 is not None else 能力文脈("", "能力合成"))
             self._サイズ検証(_文脈辞書(基点))
-            工程, 順序 = self._準備(計画, Data, 外部読取許可)
+            工程, 順序 = self._準備(計画, 資料, 外部読取許可)
             宣言 = {"版": 能力合成版, "計画": asdict(計画), "文脈": _文脈辞書(基点),
-                    "初期Data": {k: _結果辞書(v) for k, v in Data.items()},
+                    '初期資料': {k: _結果辞書(v) for k, v in 資料.items()},
                     "能力": [(k, v, r.外部読取) for k, (r, v) in sorted(self._能力.items())],
                     "外部読取許可": 外部読取許可, "上限": self._上限}
             self._サイズ検証(宣言)
@@ -353,12 +349,12 @@ class 能力合成器:
             for ID in 順序:
                 停止確認()
                 項 = 工程[ID]
-                素材 = [(r, Data[r.識別子] if r.領域 == "入力" else 完了[r.識別子]) for r in 項.入力]
+                素材 = [(r, 資料[r.識別子] if r.領域 == "入力" else 完了[r.識別子]) for r in 項.入力]
                 参照 = _参照結合(r for _, 値 in 素材 for r in 値.参照)
                 補助 = deepcopy(基点.補助 or {})
                 補助["合成入力"] = tuple({"参照": asdict(r), "結果": _結果辞書(v)} for r, v in 素材)
-                補助["合成設定"] = deepcopy(Data[項.設定参照].データ) if 項.設定参照 else {}
-                局所 = replace(基点, 入力文=Data[項.指示参照].本文,
+                補助["合成設定"] = deepcopy(資料[項.設定参照].データ) if 項.設定参照 else {}
+                局所 = replace(基点, 入力文=資料[項.指示参照].本文,
                                直前応答="\n\n".join(v.本文 for _, v in 素材),
                                直前参照=参照, 補助=補助)
                 self._サイズ検証(_文脈辞書(局所))
@@ -372,16 +368,16 @@ class 能力合成器:
                     状態, 理由, 実行済, 出力hash, 採用 = "非該当", "", False, "", None
                     制御停止 = False
                     try:
-                        if 登録.Module.名前 != 名前 or 登録.Module.版 != 版:
+                        if 登録.モジュール.名前 != 名前 or 登録.モジュール.版 != 版:
                             raise ValueError("登録後能力名版変更")
-                        信頼 = 登録.Module.判定(deepcopy(局所))
+                        信頼 = 登録.モジュール.判定(deepcopy(局所))
                         if type(信頼) not in (int, float) or not math.isfinite(信頼) or not 0 <= 信頼 <= 1:
                             raise ValueError("能力判定値不正")
                         停止確認()
                         if 信頼 > 0:
                             実行済 = True
-                            候補 = deepcopy(登録.Module.実行(deepcopy(局所)))
-                            if 登録.Module.名前 != 名前 or 登録.Module.版 != 版:
+                            候補 = deepcopy(登録.モジュール.実行(deepcopy(局所)))
+                            if 登録.モジュール.名前 != 名前 or 登録.モジュール.版 != 版:
                                 raise ValueError("実行中能力名版変更")
                             self._サイズ検証(_結果辞書(候補))
                             出力hash = _ハッシュ(_結果辞書(候補))
@@ -392,7 +388,7 @@ class 能力合成器:
                                 出力hash = _ハッシュ(_結果辞書(採用))
                                 状態 = "合格"
                             else:
-                                状態, 理由 = "保留", 候補.保留理由 or "Module不成立"
+                                状態, 理由 = "保留", 候補.保留理由 or 'モジュール不成立'
                     except _打切り as exc:
                         状態, 理由 = exc.状態, str(exc)
                         制御停止 = True

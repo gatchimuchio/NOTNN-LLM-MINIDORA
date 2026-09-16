@@ -14,8 +14,8 @@ class 会話状態:
     直前追跡ID: str = ""
     直前監査ハッシュ: str = ""
     現在話題: str = ""
-    def 追加(self, role: str, text: str, limit: int = 24) -> None:
-        self.履歴.append((role,text))
+    def 追加(self, 役割: str, text: str, limit: int = 24) -> None:
+        self.履歴.append((役割,text))
         if len(self.履歴)>limit: del self.履歴[:-limit]
 
 class 会話状態庫:

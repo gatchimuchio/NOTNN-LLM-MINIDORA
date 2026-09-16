@@ -17,14 +17,14 @@ from .役割計画 import 役割作用
 def 命題資料を構成(value, name):
     _結果辞書(value)
     if not value.成立 or value.保留理由: raise ValueError('不成立の命題原資料')
-    if value.データ: raise ValueError('未知の構造Dataを本文だけの命題資料へ読み替えない')
+    if value.データ: raise ValueError('未知の構造資料を本文だけの命題資料へ読み替えない')
     rows = 命題資料を読む(value.本文, name)
-    data = {'版': 命題版, '種別': '命題資料', '資料': name,
+    資料 = {'版': 命題版, '種別': '命題資料', '資料': name,
             '記載': [asdict(r) for r in rows], '原資料': _結果辞書(value)}
-    data = json.loads(_符号化(data))
-    data['記録SHA256'] = 意味指紋(data)
+    資料 = json.loads(_符号化(資料))
+    資料['記録SHA256'] = 意味指紋(資料)
     return 能力結果(True, f'資料「{name}」の命題記載{len(rows)}件',
-                     根拠=tuple(r.識別子 for r in rows), 参照=value.参照, データ=data)
+                     根拠=tuple(r.識別子 for r in rows), 参照=value.参照, データ=資料)
 
 
 def _必須一致(value, rebuilt):
@@ -59,15 +59,15 @@ def 命題を検討(values: tuple[能力結果, ...], settings: dict):
         rows.extend(命題資料を読む(d['原資料']['本文'], d['資料']))
     if len(set(names)) != len(names): raise ValueError('同じ資料の重複役割')
     answer = 命題推論器(tuple(rows)).判定(candidates[index - 1].式)
-    data = {'版': 命題版, '種別': '命題判定', '設定': dict(settings),
+    資料 = {'版': 命題版, '種別': '命題判定', '設定': dict(settings),
             '候補': [asdict(c) for c in candidates], '原入力': [_結果辞書(v) for v in values],
             '記載': [asdict(r) for r in rows], '判定結果': answer}
-    data = json.loads(_符号化(data))
-    data['記録SHA256'] = 意味指紋(data)
+    資料 = json.loads(_符号化(資料))
+    資料['記録SHA256'] = 意味指紋(資料)
     # 報告生成の成功であり、問いの真偽の採用ではない。
     return 能力結果(True, '資料命題の判定：' + answer['判定'],
                      根拠=tuple(r.識別子 for r in rows),
-                     参照=_参照結合(r for v in values for r in v.参照), データ=data)
+                     参照=_参照結合(r for v in values for r in v.参照), データ=資料)
 
 
 def 命題判定整合(value):
@@ -79,7 +79,7 @@ def 命題判定整合(value):
         return False
 
 
-class 命題能力Module:
+class 命題能力モジュール:
     優先度 = 0
     版 = 命題版
 
@@ -88,11 +88,11 @@ class 命題能力Module:
             raise ValueError('命題能力が未登録')
         self.名前 = 名前
 
-    def 判定(self, context): return 1.0
+    def 判定(self, 文脈): return 1.0
 
-    def 実行(self, context):
+    def 実行(self, 文脈):
         try:
-            values, settings = _入力(context)
+            values, settings = _入力(文脈)
             if self.名前 == '命題資料解釈':
                 if len(values) != 1 or set(settings) != {'資料'}:
                     raise ValueError('命題資料解釈の役割・設定不正')
@@ -105,7 +105,7 @@ class 命題能力Module:
 
 
 def 命題能力群():
-    return tuple(命題能力Module(n).登録() for n in ('命題資料解釈', '命題関係判定'))
+    return tuple(命題能力モジュール(n).登録() for n in ('命題資料解釈', '命題関係判定'))
 
 
 def 命題作用群():

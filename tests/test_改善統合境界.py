@@ -9,7 +9,7 @@ from minidora.統合実行 import 統合セッション
 from minidora.能力合成 import _結果辞書, _符号化, 合成計画, 合成工程, 素材参照
 from minidora.製品版.型 import 能力結果, 参照資料
 from minidora.製品版.能力契約 import 能力文脈
-from minidora.監査改善計画 import 改善目的を計画, 改善統合能力群, 改善回答照合Module
+from minidora.監査改善計画 import 改善目的を計画, 改善統合能力群, 改善回答照合モジュール
 from minidora.監査改善接続 import 拡張命題を検討, 改善回答を構成, 改善回答を検査
 from minidora.会話意味 import 意味指紋
 from minidora.能力結果復元 import 能力結果を復元
@@ -31,45 +31,45 @@ def answer(query='Q',detail=True):
     return 能力結果(True,d['本文'],根拠=('原データ:'+意味指紋(d['報告']),),参照=original().参照,データ=d)
 
 
-def gate(a, o, settings=None):
+def 関門(a, o, settings=None):
     rows=tuple({'参照':{'領域':'入力','識別子':str(i)},'結果':_結果辞書(v)} for i,v in enumerate((a,o)))
-    return 改善回答照合Module().実行(能力文脈('照合','試験',補助={'合成入力':rows,'合成設定':
+    return 改善回答照合モジュール().実行(能力文脈('照合','試験',補助={'合成入力':rows,'合成設定':
         {'種類':'命題','詳細':True} if settings is None else settings}))
 
 
 class 最終照合試験(unittest.TestCase):
     def test_正常な回答と原要求を採用する(self):
-        self.assertTrue(gate(answer(),original()).成立)
+        self.assertTrue(関門(answer(),original()).成立)
 
     def test_自己整合しても別の問いの回答を拒否する(self):
         a=answer('P');self.assertTrue(改善回答を検査(a.データ))
-        self.assertFalse(gate(a,original('Q')).成立)
+        self.assertFalse(関門(a,original('Q')).成立)
 
     def test_表示の本文改変を拒否(self):
-        self.assertFalse(gate(replace(answer(),本文='別の回答'),original()).成立)
+        self.assertFalse(関門(replace(answer(),本文='別の回答'),original()).成立)
 
     def test_根拠削除を拒否(self):
-        self.assertFalse(gate(replace(answer(),根拠=()),original()).成立)
+        self.assertFalse(関門(replace(answer(),根拠=()),original()).成立)
 
     def test_参照削除を拒否(self):
-        self.assertFalse(gate(replace(answer(),参照=()),original()).成立)
+        self.assertFalse(関門(replace(answer(),参照=()),original()).成立)
 
     def test_同名参照の内容変更を拒否(self):
-        self.assertFalse(gate(replace(answer(),参照=(replace(original().参照[0],本文='R。'),)),original()).成立)
+        self.assertFalse(関門(replace(answer(),参照=(replace(original().参照[0],本文='R。'),)),original()).成立)
 
     def test_種類のすり替えを拒否(self):
-        self.assertFalse(gate(answer(),original(),{'種類':'仮説','詳細':True}).成立)
+        self.assertFalse(関門(answer(),original(),{'種類':'仮説','詳細':True}).成立)
 
     def test_表示詳細の不一致を拒否(self):
-        self.assertFalse(gate(answer(detail=False),original()).成立)
+        self.assertFalse(関門(answer(detail=False),original()).成立)
 
     def test_bool代わりの整数や未知設定を拒否(self):
         for settings in ({'種類':'命題','詳細':1},{'種類':'命題','詳細':True,'ignore':True}):
-            with self.subTest(settings=settings):self.assertFalse(gate(answer(),original(),settings).成立)
+            with self.subTest(settings=settings):self.assertFalse(関門(answer(),original(),settings).成立)
 
     def test_出典一致だけで別要求の数値を通さない(self):
         o=original();o.データ['照応距離']=2
-        self.assertFalse(gate(answer(),o).成立)
+        self.assertFalse(関門(answer(),o).成立)
 
     def test_最終照合失敗では原記録へ採用しない(self):
         s=統合セッション('検査',基底能力=改善統合能力群());start=s.起点()
@@ -89,7 +89,7 @@ class 統合採用試験(unittest.TestCase):
 
     def plan(self,**kwargs):
         p=改善目的を計画('命題',original(),self.s.能力一覧())
-        return self.s.準備(p.計画,p.Data,**kwargs)
+        return self.s.準備(p.計画,p.資料,**kwargs)
 
     def test_三工程を実行し採用IDを返す(self):
         p=self.plan();r=self.s.実行(p)
@@ -98,8 +98,8 @@ class 統合採用試験(unittest.TestCase):
         self.assertEqual(r.辞書化()['採用記録ID'],['応答:1:出力:0'])
         self.assertEqual(len(self.s.採用履歴スナップショット()[1]),1)
 
-    def test_準備後のData改変を拒否(self):
-        p=self.plan();p.Data['素材:原要求'].データ['問い']='P'
+    def test_準備後の資料改変を拒否(self):
+        p=self.plan();p.資料['素材:原要求'].データ['問い']='P'
         before=self.s.起点();self.assertFalse(self.s.実行(p).成立)
         self.assertEqual(before,self.s.起点())
 
@@ -152,12 +152,12 @@ class 統合採用試験(unittest.TestCase):
     def test_最終回答上限で採用しない(self):
         s=統合セッション('small',基底能力=改善統合能力群(),最大回答文字数=1)
         p=改善目的を計画('命題',original(),s.能力一覧());start=s.起点()
-        r=s.計画実行(p.計画,p.Data)
+        r=s.計画実行(p.計画,p.資料)
         self.assertFalse(r.成立);self.assertEqual(start,s.起点())
 
     def test_能力版変更で旧計画を止める(self):
-        p=self.plan();module=self.s._能力[-1].Module
-        module.版='changed'
+        p=self.plan();モジュール=self.s._能力[-1].モジュール
+        モジュール.版='changed'
         self.assertFalse(self.s.実行(p).成立)
 
     def test_停止で採用を行わない(self):
@@ -203,7 +203,7 @@ class 長文脈と復元試験(unittest.TestCase):
         self.assertEqual(v,能力結果を復元(json.loads(_符号化(_結果辞書(v)))))
 
     def test_不正な結果を復元時に拒否する(self):
-        for updates in ({'成立':1},{'保留理由':'未確定'},{'unknown':1}):
+        for updates in ({'成立':1},{'保留理由':'未確定'},{'未知':1}):
             with self.subTest(updates=updates),self.assertRaises(ValueError):能力結果を復元({**_結果辞書(original()),**updates})
 
     def test_純粋結果庫は複製とLRU上限を保つ(self):
@@ -214,13 +214,13 @@ class 長文脈と復元試験(unittest.TestCase):
 
     def test_標準接続は明示有効化で既定経路を変えない(self):
         # 構文検査のみ。未取得の通常HDS/製品依存を偽実装して動的合格にはしない。
-        source=(Path(__file__).parents[1]/'src/minidora/汎用会話.py').read_text(encoding='utf-8')
-        tree=ast.parse(source)
+        情報源=(Path(__file__).parents[1]/'src/minidora/汎用会話.py').read_text(encoding='utf-8')
+        tree=ast.parse(情報源)
         cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='汎用会話セッション')
         init=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='__init__')
         argmap={a.arg:v for a,v in zip(init.args.kwonlyargs,init.args.kw_defaults)}
         self.assertIs(argmap['監査改善'].value,False)
-        self.assertIn('統合=self.統合',source);self.assertIn('公開HDSコンパイラ().コンパイル(原文)',source)
-        self.assertIn('継続許可=self._監査改善焦点',source)
+        self.assertIn('統合=self.統合',情報源);self.assertIn('公開HDSコンパイラ().コンパイル(原文)',情報源)
+        self.assertIn('継続許可=self._監査改善焦点',情報源)
 
 if __name__=='__main__':unittest.main()

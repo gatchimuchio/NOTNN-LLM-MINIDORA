@@ -19,10 +19,10 @@ class 会話入口試験(unittest.TestCase):
             self.assertEqual(r.状態,'合格')
         r=app.応答('資料「A」と資料「B」の売上を比較して',セッションID='a');self.assertEqual(r.状態,'確認待ち')
         r=app.応答('単位は円です',セッションID='a');self.assertEqual(r.状態,'合格');self.assertIn('-15円',r.本文)
-    def test_失敗や保留をCoreへ透過させない(self):
-        class 禁止Core:
-            def 応答(self,text):raise AssertionError('Coreへ透過した')
-        app=製品ミニドラ(汎用会話=True,基礎ミニドラ=禁止Core())
+    def test_失敗や保留を模型核へ透過させない(self):
+        class 禁止模型核:
+            def 応答(self,text):raise AssertionError('模型核へ透過した')
+        app=製品ミニドラ(汎用会話=True,基礎ミニドラ=禁止模型核())
         r=app.応答('架空の答えを作って');self.assertEqual(r.状態,'保留');self.assertEqual(r.経路,'汎用会話')
     def test_既定の製品入口は旧経路を維持する(self):
         app=製品ミニドラ();r=app.応答('2+3');self.assertNotEqual(r.経路,'汎用会話');self.assertIn('5',r.本文)

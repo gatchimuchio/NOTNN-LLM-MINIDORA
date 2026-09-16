@@ -57,33 +57,33 @@ class ハッカソンチャット試験(unittest.TestCase):
         self.assertEqual(record.イベント[0].出力["直前監査ハッシュ"], first.監査ハッシュ)
 
     def test_一般質問は基礎ミニドラへ委譲する(self) -> None:
-        result = self.chat.応答("2+3は？", セッションID="general")
-        self.assertEqual(result.経路, "基礎ミニドラ")
-        self.assertEqual(result.本文, "基礎応答:2+3は？")
-        self.assertTrue(self.chat.監査台帳.検証(result.追跡ID))
-        record = self.chat.監査台帳.取得(result.追跡ID)
-        core_event = next(event for event in record.イベント if event.モジュール == "MINIDORA Core")
-        self.assertEqual(core_event.出力["実行記録"]["追跡範囲"], "モジュール境界")
+        結果 = self.chat.応答("2+3は？", セッションID="general")
+        self.assertEqual(結果.経路, "基礎ミニドラ")
+        self.assertEqual(結果.本文, "基礎応答:2+3は？")
+        self.assertTrue(self.chat.監査台帳.検証(結果.追跡ID))
+        record = self.chat.監査台帳.取得(結果.追跡ID)
+        模型核_event = next(event for event in record.イベント if event.モジュール == "MINIDORA Core")
+        self.assertEqual(模型核_event.出力["実行記録"]["追跡範囲"], "モジュール境界")
 
     def test_明示文章を要約できる(self) -> None:
-        result = self.chat.応答(
+        結果 = self.chat.応答(
             "要約: 第一文です。第二文には共通する情報があります。第三文にも共通する情報があります。第四文です。",
-            セッションID="summary",
+            セッションID='要約',
         )
-        self.assertEqual(result.経路, "要約")
-        self.assertTrue(result.本文)
-        self.assertTrue(self.chat.監査台帳.検証(result.追跡ID))
+        self.assertEqual(結果.経路, "要約")
+        self.assertTrue(結果.本文)
+        self.assertTrue(self.chat.監査台帳.検証(結果.追跡ID))
 
     def test_基本会話が成立する(self) -> None:
-        result = self.chat.応答("こんにちは", セッションID="basic")
-        self.assertEqual(result.経路, "基本会話")
-        self.assertIn("ミニドラ", result.本文)
+        結果 = self.chat.応答("こんにちは", セッションID="basic")
+        self.assertEqual(結果.経路, "基本会話")
+        self.assertIn("ミニドラ", 結果.本文)
 
     def test_別経路へ移った後は古いニュースを要約しない(self) -> None:
         self.chat.応答("今日のニュースは？", セッションID="stale")
         hello = self.chat.応答("こんにちは", セッションID="stale")
-        result = self.chat.応答("要約して", セッションID="stale")
-        self.assertNotIn("半導体企業が新製品を発表", result.本文)
+        結果 = self.chat.応答("要約して", セッションID="stale")
+        self.assertNotIn("半導体企業が新製品を発表", 結果.本文)
         self.assertIn("ミニドラ", hello.本文)
 
     def test_JSONL監査保存先へ追記できる(self) -> None:
@@ -95,13 +95,13 @@ class ハッカソンチャット試験(unittest.TestCase):
                 基礎ミニドラ=_基礎ミニドラ(),
                 監査台帳_=ledger,
             )
-            result = chat.応答("こんにちは", セッションID="persist")
+            結果 = chat.応答("こんにちは", セッションID="persist")
             lines = path.read_text(encoding="utf-8").splitlines()
             self.assertEqual(len(lines), 1)
             stored = json.loads(lines[0])
-            self.assertEqual(stored["追跡ID"], result.追跡ID)
-            self.assertEqual(stored["ルートハッシュ"], result.監査ハッシュ)
-            self.assertTrue(ledger.検証(result.追跡ID))
+            self.assertEqual(stored["追跡ID"], 結果.追跡ID)
+            self.assertEqual(stored["ルートハッシュ"], 結果.監査ハッシュ)
+            self.assertTrue(ledger.検証(結果.追跡ID))
 
 
 if __name__ == "__main__":

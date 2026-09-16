@@ -9,8 +9,8 @@ from minidora.コード能力 import コードを読む, コードを評価, コ
 
 
 class コード契約試験(unittest.TestCase):
-    def value(self, source, args=None):
-        r = コードを評価(source, args or {})
+    def value(self, 情報源, args=None):
+        r = コードを評価(情報源, args or {})
         self.assertTrue(r.成立, (r.保留理由, r.データ))
         return r.データ["値"]
 
@@ -165,7 +165,7 @@ class コード契約試験(unittest.TestCase):
         self.assertTrue(a.成立 and b.成立)
         self.assertNotEqual(a.データ["試験SHA256"],b.データ["試験SHA256"])
 
-    def test_評価中にexec_evalを呼ばない(self):
+    def test_評価中にexec_評価を呼ばない(self):
         with patch('builtins.exec',side_effect=AssertionError()),patch('builtins.eval',side_effect=AssertionError()):
             self.assertEqual(self.value("def f(x):\n return x*2",{"x":3}),6)
 
@@ -185,10 +185,10 @@ class CPython独立対照試験(unittest.TestCase):
         expressions=("x+y","x-y","x*y","x//y","x%y","x<y","x<=y","x==y","x!=y","x>y","x>=y", "x if x>y else y", "x and y", "x or y")
         count=0
         for expression in expressions:
-            source="def f(x,y):\n return "+expression
-            env={};exec(source,env)
+            情報源="def f(x,y):\n return "+expression
+            env={};exec(情報源,env)
             for x,y in product(range(-3,4),(-3,-1,1,3)):
-                r=コードを評価(source,{"x":x,"y":y})
+                r=コードを評価(情報源,{"x":x,"y":y})
                 self.assertTrue(r.成立,(expression,r.保留理由))
                 self.assertEqual(r.データ["値"],env["f"](x,y))
                 self.assertIs(type(r.データ["値"]),type(env["f"](x,y)))
@@ -204,11 +204,11 @@ class CPython独立対照試験(unittest.TestCase):
             "def f(xs):\n return sum(xs)",
             "def f(xs):\n return len(xs)",
         ]
-        for source in sources:
-            env={};exec(source,env)
+        for 情報源 in sources:
+            env={};exec(情報源,env)
             for n in range(4):
                 for xs in product((-2,0,3),repeat=n):
                     args={"xs":list(xs)}
-                    r=コードを評価(source,args)
+                    r=コードを評価(情報源,args)
                     self.assertTrue(r.成立,r.保留理由)
                     self.assertEqual(r.データ["値"],env["f"](list(xs)))

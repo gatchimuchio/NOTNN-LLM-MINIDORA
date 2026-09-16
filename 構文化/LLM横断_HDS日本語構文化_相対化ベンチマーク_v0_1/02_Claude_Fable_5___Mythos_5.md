@@ -14,7 +14,7 @@ AnthropicがFable 5とMythos 5を同じunderlying modelと明示。
 - 未来方向/予測補助: 未確定
 - 入力表象・モダリティ: 公開サービス能力としてvision等あり。内部統合方式は未確定。
 - 形成過程: 内部詳細は限定公開。
-- 展開後制御: Fableは外部classifier/safeguardを伴い、flagged queryをOpusへfallback/reroute。Mythosは同じunderlying modelで一部safeguardを外す。
+- 展開後制御: Fableは外部classifier/safeguardを伴い、flagged queryをOpusへ代替経路/reroute。Mythosは同じunderlying modelで一部safeguardを外す。
 
 ## 相対化上の意味
 同一core modelでも展開後制御だけで「別名サービス」「別の可観測挙動」が成立する自然実験。A1/A8を強く確定。

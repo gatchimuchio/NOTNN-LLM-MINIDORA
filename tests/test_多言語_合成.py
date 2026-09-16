@@ -1,4 +1,4 @@
-"""翻訳Dataと既存能力合成の接続。HDSは別ファイルで実Compilerを試験する。"""
+'翻訳資料と既存能力合成の接続。HDSは別ファイルで実構文化器を試験する。'
 from dataclasses import asdict, replace
 import json
 from pathlib import Path
@@ -7,7 +7,7 @@ import sys
 import unittest
 
 from minidora.多言語変換 import 翻訳記録整合
-from minidora.多言語接続 import 多言語変換Module
+from minidora.多言語接続 import 多言語変換モジュール
 from minidora.多言語要求接続 import 外部言語要求を実行
 from minidora.能力合成 import 能力合成器, 合成計画, 合成工程, 素材参照
 from minidora.能力合成_局所接続 import 局所能力群
@@ -23,17 +23,17 @@ def 入力(value="120"):
         合成工程("翻訳", ("多言語変換",), "指示", (素材参照("入力", "本文"),), "設定"),
         合成工程("抽出", ("情報抽出",), "指示", (素材参照("工程", "翻訳"),), "抽出設定")), ("抽出",))
     text = f"the voltage of device A is {value} V."
-    data = {"本文": 能力結果(True, text, 参照=(参照資料("原典", "人工原文", "試験", 本文=text),)),
+    資料 = {"本文": 能力結果(True, text, 参照=(参照資料("原典", "人工原文", "試験", 本文=text),)),
             "指示": 能力結果(True, "明示した処理だけを行う"),
             "設定": 能力結果(True, "", データ={"入力言語": "en", "出力言語": "ja", "種別": "数値記載",
                                                 "対訳": [asdict(w) for w in 辞書()]}),
             "抽出設定": 能力結果(True, "", データ={"種別": "数字"})}
-    return plan, data
+    return plan, 資料
 
 
 class 多言語合成試験(unittest.TestCase):
     def setUp(self):
-        self.runner = 能力合成器((多言語変換Module().登録(), *局所能力群()))
+        self.runner = 能力合成器((多言語変換モジュール().登録(), *局所能力群()))
 
     def test_翻訳から既存抽出へ実本文を渡す(self):
         p, d = 入力()
@@ -80,11 +80,11 @@ class 多言語合成試験(unittest.TestCase):
         self.assertTrue(r.成立)
         self.assertEqual(r.出力[0][1].本文, "120")
 
-    def test_明示素材のない会話はModuleが処理しない(self):
-        module = 多言語変換Module()
-        context = 能力文脈("Translate everything", "s")
-        self.assertEqual(module.判定(context), 0)
-        self.assertFalse(module.実行(context).成立)
+    def test_明示素材のない会話はモジュールが処理しない(self):
+        モジュール = 多言語変換モジュール()
+        文脈 = 能力文脈("Translate everything", "s")
+        self.assertEqual(モジュール.判定(文脈), 0)
+        self.assertFalse(モジュール.実行(文脈).成立)
 
     def test_不成立の上流は翻訳しない(self):
         p, d = 入力()

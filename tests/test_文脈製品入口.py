@@ -41,15 +41,15 @@ class 文脈製品入口試験(unittest.TestCase):
         try:
             steps=(('資料「A」を登録:PまたはQかつR。','合格'),
                    ('資料「A」から「R」は言える？','確認待ち'),('資料解釈は2です','合格'),('根拠を説明して','合格'))
-            for text,state in steps:
+            for text,状態 in steps:
                 conn=HTTPConnection('127.0.0.1',server.server_address[1],timeout=10)
                 try:
                     conn.request('POST','/api/chat',body=json.dumps({'message':text,'session_id':'ctx-http'},ensure_ascii=False).encode())
-                    response=conn.getresponse();data=json.loads(response.read())
-                    self.assertEqual(response.status,200);self.assertEqual(data['status'],state,data)
+                    response=conn.getresponse();資料=json.loads(response.read())
+                    self.assertEqual(response.status,200);self.assertEqual(資料['status'],状態,資料)
                     self.assertIsNone(response.getheader('Access-Control-Allow-Origin'))
                 finally:conn.close()
-            self.assertIn('指定した資料解釈2',data['response']);self.assertIn('支持されます',data['response'])
+            self.assertIn('指定した資料解釈2',資料['response']);self.assertIn('支持されます',資料['response'])
         finally:server.shutdown();server.server_close();thread.join(timeout=5)
 
 if __name__=='__main__':unittest.main()

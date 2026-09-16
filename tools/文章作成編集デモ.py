@@ -21,11 +21,11 @@ def 用意(値=120, 保護違反=False):
         "記載": 能力結果(True, f'装置Aの電圧は{値} Vです。', 参照=(参照資料('人工資料', '試験入力', '局所デモ', 本文=f'装置Aの電圧は{値} Vです。'),)),
         "条件": 能力結果(True, '測定条件は試験時のみです。'),
         "留保": 能力結果(True, '本番環境への適用は未確認です。')}
-    def unit(key, role, companions=()):
-        return 文章単位(key, role, (文章断片(key, 0, len(materials[key].本文)),), companions)
+    def unit(key, 役割, companions=()):
+        return 文章単位(key, 役割, (文章断片(key, 0, len(materials[key].本文)),), companions)
     spec = 文章仕様((unit('題','見出し'),unit('記載','段落',('条件','留保')),
                     unit('条件','条件'),unit('留保','留保')), ('題','記載'))
-    data = {'入力':能力結果(True,'',データ={'素材':{k:_結果辞書(v) for k,v in materials.items()},'仕様':asdict(spec)}),
+    資料 = {'入力':能力結果(True,'',データ={'素材':{k:_結果辞書(v) for k,v in materials.items()},'仕様':asdict(spec)}),
         '指示':能力結果(True,'指定した文章処理を実行'),
         '置換設定':能力結果(True,'',データ={
             '検索文':'本番環境への適用は未確認です。' if 保護違反 else '草案',
@@ -37,7 +37,7 @@ def 用意(値=120, 保護違反=False):
         合成工程('編集',('文章編集',),'指示',(素材参照('工程','箇所'),)),
         合成工程('抽出',('情報抽出',),'指示',(素材参照('工程','編集'),),'抽出設定'),
     ),('編集','抽出'))
-    return plan, data
+    return plan, 資料
 
 
 def main():
@@ -47,20 +47,20 @@ def main():
     parser.add_argument('--保護違反',action='store_true')
     args=parser.parse_args()
     if not 0<=args.値<=1000000: parser.error('--値は0〜1000000')
-    plan,data=用意(args.値,args.保護違反)
-    result=能力合成器((*文章能力群(),*局所能力群())).実行(plan,data)
-    middle=dict(result.中間結果)
+    plan,資料=用意(args.値,args.保護違反)
+    結果=能力合成器((*文章能力群(),*局所能力群())).実行(plan,資料)
+    middle=dict(結果.中間結果)
     draft=middle.get('編集')
     reports=[v for v in middle.values() if v.データ.get('版')=='MINIDORA-文章作成編集-v0.1']
-    ok=(not result.成立 and result.出力==()) if args.保護違反 else (
-        result.成立 and dict(result.出力)['抽出'].本文==str(args.値) and '確認版' in draft.本文)
+    ok=(not 結果.成立 and 結果.出力==()) if args.保護違反 else (
+        結果.成立 and dict(結果.出力)['抽出'].本文==str(args.値) and '確認版' in draft.本文)
     out={'範囲':'人工素材と明示構成・修正文の局所試験。未知文章の生成や意味同値性の評価ではない。',
-        '成立':result.成立,'理由':result.理由,'初稿':middle['作成'].本文 if '作成' in middle else '',
+        '成立':結果.成立,'理由':結果.理由,'初稿':middle['作成'].本文 if '作成' in middle else '',
         '改稿':draft.本文 if draft else '', '差分':draft.データ['直近差分'] if draft else [],
-        '後続抽出':dict(result.出力)['抽出'].本文 if result.成立 else '',
-        '実行能力':[h.能力 for h in result.履歴],
+        '後続抽出':dict(結果.出力)['抽出'].本文 if 結果.成立 else '',
+        '実行能力':[h.能力 for h in 結果.履歴],
         '文章監査':bool(reports) and all(文章記録整合(r) for r in reports),
-        '合成監査':result.監査整合(),'対照成立':bool(ok)}
+        '合成監査':結果.監査整合(),'対照成立':bool(ok)}
     print(json.dumps(out,ensure_ascii=False,indent=2))
     return 0 if ok and out['文章監査'] and out['合成監査'] else 1
 

@@ -28,8 +28,8 @@ class _本文抽出器(HTMLParser):
         super().__init__()
         self.parts: list[str] = []
 
-    def handle_data(self, data: str) -> None:
-        text = data.strip()
+    def handle_data(self, 資料: str) -> None:
+        text = 資料.strip()
         if text:
             self.parts.append(text)
 
@@ -78,11 +78,11 @@ class RSSニュース供給器:
             link = (node.findtext("link") or "").strip()
             guid = (node.findtext("guid") or "").strip()
             description = _HTML除去(node.findtext("description") or "")
-            source = (node.findtext("source") or "").strip() or "RSS"
+            情報源 = (node.findtext('情報源') or "").strip() or "RSS"
             published = _時刻((node.findtext("pubDate") or "").strip())
             if not title or not link:
                 continue
-            items.append(ニュース項目(_識別子(title, link, guid), title, description, source, link, published))
+            items.append(ニュース項目(_識別子(title, link, guid), title, description, 情報源, link, published))
         return tuple(items)
 
     def 取得(self, 問合せ: str, *, 上限: int = 8) -> tuple[ニュース項目, ...]:

@@ -81,45 +81,45 @@ class HDS形成台帳:
             grouped.setdefault(row.形成キー, []).append(row)
 
         out: list[HDS形成候補] = []
-        for (residuals, action), rows in sorted(grouped.items(), key=lambda x: repr(x[0])):
+        for (residuals, 作用), rows in sorted(grouped.items(), key=lambda x: repr(x[0])):
             observed = len(rows)
             progressed = sum(1 for row in rows if row.進展 and row.前状態署名 != row.後状態署名)
             inputs = len({row.入力署名 for row in rows})
             rate = progressed / observed if observed else 0.0
-            state = "ELIGIBLE" if (
+            状態 = "ELIGIBLE" if (
                 observed >= max(1, int(最小観測数))
                 and inputs >= max(1, int(最小独立入力数))
                 and rate >= float(最小進展率)
             ) else "PROVISIONAL"
-            cid = _stable("FORM-", (residuals, action))
+            cid = _stable("FORM-", (residuals, 作用))
             approved = self._承認.get(cid)
             if approved is not None:
-                state = "APPROVED"
+                状態 = "APPROVED"
             out.append(HDS形成候補(
                 cid,
                 residuals,
-                action,
+                作用,
                 observed,
                 progressed,
                 observed - progressed,
                 rate,
                 inputs,
-                state,
+                状態,
                 approved.承認理由 if approved is not None else (),
                 approved.再開放条件 if approved is not None else HDS形成候補.__dataclass_fields__["再開放条件"].default,
             ))
         return tuple(out)
 
     def 承認(self, 候補ID: str, *, 理由: Iterable[str]) -> HDS形成候補:
-        candidate = next((row for row in self.候補群() if row.候補ID == str(候補ID)), None)
-        if candidate is None:
+        候補 = next((row for row in self.候補群() if row.候補ID == str(候補ID)), None)
+        if 候補 is None:
             raise KeyError("形成候補が存在しない")
-        if candidate.状態 not in {"ELIGIBLE", "APPROVED"}:
+        if 候補.状態 not in {"ELIGIBLE", "APPROVED"}:
             raise ValueError("十分な実測がない形成候補は承認できない")
         reasons = tuple(dict.fromkeys(str(x) for x in 理由 if str(x)))
         if not reasons:
             raise ValueError("形成候補の承認には理由が必要")
-        approved = replace(candidate, 状態="APPROVED", 承認理由=reasons)
+        approved = replace(候補, 状態="APPROVED", 承認理由=reasons)
         self._承認[approved.候補ID] = approved
         return approved
 

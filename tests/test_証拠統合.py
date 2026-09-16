@@ -12,7 +12,7 @@ from minidora.証拠統合 import (
 from minidora.製品版.型 import 能力結果, 参照資料
 
 
-def source(name, text, url="", published=None):
+def 情報源(name, text, url="", published=None):
     return 参照資料(name, "人工資料" + name, "契約入力", url, published, text)
 
 
@@ -22,7 +22,7 @@ class 証拠統合契約試験(unittest.TestCase):
         self.request = 証拠照合要求("装置A", "電圧", "V")
 
     def analyze(self, *texts, request=None):
-        r = self.engine.実行(request or self.request, tuple(source(str(i), t) for i, t in enumerate(texts)))
+        r = self.engine.実行(request or self.request, tuple(情報源(str(i), t) for i, t in enumerate(texts)))
         self.assertTrue(r.成立, r.保留理由)
         self.assertTrue(証拠記録整合(r))
         return r
@@ -197,37 +197,37 @@ class 証拠統合契約試験(unittest.TestCase):
         self.assertIn("資料系統数不足", r.データ["理由"])
 
     def test_同じURLの異なる本文は残し系統を分けない(self):
-        refs = (source("a", "装置Aの電圧は120 Vです。", "https://example.test/a"),
-                source("b", "装置Aの電圧は240 Vです。", "https://example.test/a#section"))
+        refs = (情報源("a", "装置Aの電圧は120 Vです。", "https://example.test/a"),
+                情報源("b", "装置Aの電圧は240 Vです。", "https://example.test/a#section"))
         r = self.engine.実行(self.request, refs)
         self.assertEqual(r.データ["群"][0]["資料系統数"], 1)
         self.assertIn("記載競合", r.データ["理由"])
 
     def test_URLと本文の連結で間接重複をまとめる(self):
-        refs = (source("a", "装置Aの電圧は120 Vです。", "https://example.test/1"),
-                source("b", "装置Aの電圧は120 Vです。", "https://example.test/2"),
-                source("c", "装置Aの電圧は0.12 kVです。", "https://example.test/2"))
+        refs = (情報源("a", "装置Aの電圧は120 Vです。", "https://example.test/1"),
+                情報源("b", "装置Aの電圧は120 Vです。", "https://example.test/2"),
+                情報源("c", "装置Aの電圧は0.12 kVです。", "https://example.test/2"))
         r = self.engine.実行(self.request, refs)
         self.assertEqual(r.データ["群"][0]["資料系統数"], 1)
 
     def test_資料識別子衝突は不成立(self):
-        refs = (source("a", "装置Aの電圧は120 Vです。"), source("a", "装置Aの電圧は240 Vです。"))
+        refs = (情報源("a", "装置Aの電圧は120 Vです。"), 情報源("a", "装置Aの電圧は240 Vです。"))
         self.assertFalse(self.engine.実行(self.request, refs).成立)
 
     def test_公開日時を主張の時点へ昇格しない(self):
-        ref = source("a", "装置Aの電圧は120 Vです。", published=datetime(2026, 1, 1, tzinfo=timezone.utc))
+        ref = 情報源("a", "装置Aの電圧は120 Vです。", published=datetime(2026, 1, 1, tzinfo=timezone.utc))
         r = self.engine.実行(replace(self.request, 時点="2026-01-01"), (ref,))
         self.assertIsNone(r.データ["主張"][0]["時点"])
         self.assertFalse(記載値を採用(r).成立)
 
     def test_全証拠順序で同じ記録(self):
-        refs = (source("a", "装置Aの電圧は120 Vです。"), source("b", "装置Aの電圧は0.12 kVです。"))
+        refs = (情報源("a", "装置Aの電圧は120 Vです。"), 情報源("b", "装置Aの電圧は0.12 kVです。"))
         a = self.engine.実行(self.request, refs)
         b = self.engine.実行(self.request, refs[::-1])
         self.assertEqual(a, b)
 
     def test_元資料と結果の記録を分離(self):
-        refs = (source("a", "装置Aの電圧は120 Vです。"),)
+        refs = (情報源("a", "装置Aの電圧は120 Vです。"),)
         before = deepcopy(refs)
         r = self.engine.実行(self.request, refs)
         r.データ["資料原本"][0]["本文"] = "改変"
@@ -237,7 +237,7 @@ class 証拠統合契約試験(unittest.TestCase):
     def test_本文根拠データ参照改変を検出(self):
         r = self.analyze("装置Aの電圧は120 Vです。")
         for changed in (replace(r, 本文="999"), replace(r, 根拠=("偽",)),
-                        replace(r, 参照=(source("a", "改変"),)), replace(r, 成立=False)):
+                        replace(r, 参照=(情報源("a", "改変"),)), replace(r, 成立=False)):
             with self.subTest():
                 self.assertFalse(証拠記録整合(changed))
                 self.assertFalse(記載値を採用(changed).成立)
@@ -258,16 +258,16 @@ class 証拠統合契約試験(unittest.TestCase):
 
     def test_不正要求または資料型は不成立(self):
         for req, refs in ((None, ()), (self.request, []), (self.request, ("text",)),
-                          (replace(self.request, 単位="?"), (source("a", "x"),)),
-                          (replace(self.request, 最低資料系統数=True), (source("a", "x"),)),
-                          (replace(self.request, 時点="tomorrow"), (source("a", "x"),))):
+                          (replace(self.request, 単位="?"), (情報源("a", "x"),)),
+                          (replace(self.request, 最低資料系統数=True), (情報源("a", "x"),)),
+                          (replace(self.request, 時点="tomorrow"), (情報源("a", "x"),))):
             with self.subTest():
                 self.assertFalse(self.engine.実行(req, refs).成立)
 
     def test_資料数記載数サイズ上限を黙って剪定しない(self):
-        for refs in (tuple(source(str(i), "x") for i in range(33)),
-                     (source("a", "あ" * 500001),),
-                     (source("a", "装置Aの電圧は120 Vです。" * 513),)):
+        for refs in (tuple(情報源(str(i), "x") for i in range(33)),
+                     (情報源("a", "あ" * 500001),),
+                     (情報源("a", "装置Aの電圧は120 Vです。" * 513),)):
             with self.subTest():
                 self.assertFalse(self.engine.実行(self.request, refs).成立)
 

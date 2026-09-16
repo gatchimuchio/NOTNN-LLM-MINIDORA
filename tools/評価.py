@@ -1,0 +1,523 @@
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import urllib.request
+import zipfile
+from collections import Counter
+from pathlib import Path
+from typing import Any
+
+import gpqa_measure_current as gpqa
+
+
+BENCHMARKS = {
+    "gpqa-diamond": {
+        "description": 'GPQA Diamond 198問。現行MINIDORAのR→HDS→K/作業→Jを実測する。',
+        "full_total": 198,
+        "comparison": {
+            '模型': "Kimi K3",
+            "score_percent": 93.5,
+            '情報源': "https://huggingface.co/moonshotai/Kimi-K3/blob/main/.eval_results/gpqa.yaml",
+            "verified_date_jst": "2026-08-23",
+        },
+    },
+}
+
+
+def _標準入出力をUTF8化() -> None:
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="strict")
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="python tools/benchmark.py",
+        description="MINIDORA リポジトリ標準ベンチランナー",
+    )
+    parser.add_argument("--list", action="store_true", dest="list_mode", help="利用可能なベンチを表示する")
+    sub = parser.add_subparsers(dest='外部評価')
+
+    gpqa_parser = sub.add_parser("gpqa-diamond", help=BENCHMARKS["gpqa-diamond"]["description"])
+    gpqa_parser.add_argument("--out", type=Path, default=Path("gpqa_current_measurement.json"), help="結果JSON出力先")
+    gpqa_parser.add_argument("--cache-dir", type=Path, default=Path(".cache/minidora-bench"), help="ベンチデータのキャッシュ先")
+    gpqa_parser.add_argument("--refresh-dataset", action="store_true", help="GPQA dataset.zipを再取得する")
+    gpqa_parser.add_argument("--start-index", type=int, default=0, help="0始まりの開始問題番号")
+    gpqa_parser.add_argument("--limit", type=int, default=None, help="実行問題数。省略時は末尾まで")
+    gpqa_parser.add_argument("--resume", action="store_true", help="同一commit・同一条件の既存outから続行する")
+    gpqa_parser.add_argument("--checkpoint-every", type=int, default=1, help="何問ごとに途中結果JSONを書き出すか")
+    gpqa_parser.add_argument("--no-openalex", action="store_true", help="OPENALEX_API_KEYが存在してもOpenAlexを使わない")
+    gpqa_parser.add_argument(
+        "--controlled-ab",
+        action="store_true",
+        help="同じ取得資料を旧経路(P0/P1無効)と現行経路へ流し、検索揺れを除いたA/B差を保存する",
+    )
+    return parser
+
+
+def _git_head() -> str:
+    completed = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return '未知'
+    return completed.stdout.strip() or '未知'
+
+
+def _atomic_write(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(path)
+
+
+def _prepare_gpqa_dataset(cache_dir: Path, *, refresh: bool) -> tuple[Path, str, str]:
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    archive = cache_dir / "gpqa_dataset.zip"
+    if refresh or not archive.exists():
+        request = urllib.request.Request(
+            gpqa.DATASET_URL,
+            headers={"User-Agent": "MINIDORA-Repository-Benchmark/1.0"},
+        )
+        with urllib.request.urlopen(request, timeout=60) as response, archive.open("wb") as out:
+            out.write(response.read())
+
+    zip_hash = gpqa._sha256(archive)
+    extract_dir = cache_dir / f"gpqa-{zip_hash[:16]}"
+    extract_dir.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(archive) as zf:
+        matches = [name for name in zf.namelist() if name.endswith("gpqa_diamond.csv")]
+        if len(matches) != 1:
+            raise RuntimeError(f"gpqa_diamond.csv not uniquely found: {matches}")
+        csv_path = extract_dir / matches[0]
+        if not csv_path.exists():
+            zf.extract(matches[0], path=extract_dir, pwd=gpqa.DATASET_PASSWORD)
+    return csv_path, zip_hash, gpqa._sha256(csv_path)
+
+
+def _selected_range(total: int, start: int, limit: int | None) -> range:
+    if start < 0 or start >= total:
+        raise SystemExit(f"--start-index は 0..{total - 1} の範囲で指定してください。")
+    if limit is not None and limit <= 0:
+        raise SystemExit("--limit は1以上で指定してください。")
+    stop = total if limit is None else min(total, start + limit)
+    return range(start, stop)
+
+
+def _load_resume(
+    path: Path,
+    *,
+    selected: range,
+    csv_hash: str,
+    repository_commit: str,
+    openalex_enabled: bool,
+    controlled_ab: bool,
+) -> dict[int, dict[str, Any]]:
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    protocol = payload.get("protocol", {})
+    if protocol.get("資料集合CSV_SHA256") != csv_hash:
+        raise SystemExit("--resume対象のdataset hashが現行GPQAと一致しません。")
+    if protocol.get("repository_commit") != repository_commit:
+        raise SystemExit("--resume対象のrepository commitが現在のcheckoutと一致しません。")
+    if bool(protocol.get("OpenAlex有効")) != openalex_enabled:
+        raise SystemExit("--resume対象のOpenAlex条件が今回の実行条件と一致しません。")
+    if bool(protocol.get("統制AB")) != bool(controlled_ab):
+        raise SystemExit("--resume対象のcontrolled A/B条件が今回と一致しません。")
+    expected = list(selected)
+    if protocol.get("選択番号群") != expected:
+        raise SystemExit("--resume対象の実行範囲が今回の --start-index/--limit と一致しません。")
+    結果: dict[int, dict[str, Any]] = {}
+    for detail in payload.get("details", []):
+        index = int(detail["index"])
+        if index in selected:
+            結果[index] = detail
+    return 結果
+
+
+def _metrics(details: list[dict[str, Any]], *, selected_total: int) -> dict[str, Any]:
+    correct = sum(bool(d.get("correct")) for d in details)
+    answered = sum(bool(d.get("answered")) for d in details)
+    suspended = len(details) - answered
+    wrong = answered - correct
+    取得_empty = sum(int(d.get("retrieved", 0)) == 0 for d in details)
+    documents_retrieved = sum(int(d.get("retrieved", 0)) for d in details)
+    資料_compiled = sum(int(d.get('資料_compiled', 0)) for d in details)
+    資料_failed = sum(int(d.get('資料_compile_failed', 0)) for d in details)
+    k_facts_added = sum(int(d.get("k_facts_added", 0)) for d in details)
+    証拠_facts = sum(int(d.get('証拠_facts', 0)) for d in details)
+    blocked_証拠 = sum(int(d.get('blocked_証拠_facts', 0)) for d in details)
+    作業_created = sum(int(d.get('作業_relations_created', 0)) for d in details)
+    作業_reused = sum(int(d.get('作業_relations_reused', 0)) for d in details)
+    作業_promoted = sum(int(d.get('作業_relations_promoted_to_k', 0)) for d in details)
+    作業_discarded = sum(int(d.get('作業_relations_discarded_after_recheck', 0)) for d in details)
+    検査点_count = sum(int(d.get('検査点_count', 0)) for d in details)
+    検査点_reactivations = sum(int(d.get('検査点_reactivations', 0)) for d in details)
+    global_reconciliations = sum(int(d.get("global_reconciliations", 0)) for d in details)
+    候補_cross_updates = sum(int(d.get('候補_cross_updates', 0)) for d in details)
+    specialist_actions = sum(int(d.get("specialist_actions_invoked", 0)) for d in details)
+    suspend_after_exhaustion = sum(int(d.get("suspend_after_exhaustion", 0)) for d in details)
+    temporary_証拠 = sum(int(d.get('temporary_作業_証拠', 0)) for d in details)
+    local_windows = sum(int(d.get("local_windows", 0)) for d in details)
+    local_compiled = sum(int(d.get("local_windows_compiled", 0)) for d in details)
+    local_failed = sum(int(d.get("local_windows_compile_failed", 0)) for d in details)
+    local_added = sum(int(d.get("local_window_facts_added", 0)) for d in details)
+    local_reconciliations = sum(int(d.get("local_reconciliations", 0)) for d in details)
+    reason_counts: Counter[str] = Counter()
+    計算量_counts: Counter[str] = Counter()
+    情報源_counts: Counter[str] = Counter()
+    for detail in details:
+        reason_counts.update(str(x) for x in detail.get("reasons", []))
+        計算量 = detail.get('計算量')
+        if 計算量:
+            計算量_counts[str(計算量)] += 1
+        情報源_counts.update(str(x) for x in detail.get("sources", []))
+
+    measured = len(details)
+    accuracy = 100.0 * correct / measured if measured else 0.0
+    answer_rate = 100.0 * answered / measured if measured else 0.0
+    answered_accuracy = 100.0 * correct / answered if answered else 0.0
+    取得_empty_rate = 100.0 * 取得_empty / measured if measured else 0.0
+    return {
+        "completed": measured,
+        "selected_total": selected_total,
+        "correct": correct,
+        "wrong": wrong,
+        "accuracy_percent": accuracy,
+        "answered": answered,
+        "answer_rate_percent": answer_rate,
+        "answered_accuracy_percent": answered_accuracy,
+        "suspended": suspended,
+        '取得_empty': 取得_empty,
+        '取得_empty_rate_percent': 取得_empty_rate,
+        "documents_retrieved": documents_retrieved,
+        '資料_compiled': 資料_compiled,
+        '資料_compile_failed': 資料_failed,
+        "k_facts_added": k_facts_added,
+        '証拠_facts': 証拠_facts,
+        'blocked_証拠_facts': blocked_証拠,
+        '作業_relations_created': 作業_created,
+        '作業_relations_reused': 作業_reused,
+        '作業_relations_promoted_to_k': 作業_promoted,
+        '作業_relations_discarded_after_recheck': 作業_discarded,
+        '検査点_count': 検査点_count,
+        '検査点_reactivations': 検査点_reactivations,
+        "global_reconciliations": global_reconciliations,
+        '候補_cross_updates': 候補_cross_updates,
+        "specialist_actions_invoked": specialist_actions,
+        "suspend_after_exhaustion": suspend_after_exhaustion,
+        'temporary_作業_証拠': temporary_証拠,
+        "local_windows": local_windows,
+        "local_windows_compiled": local_compiled,
+        "local_windows_compile_failed": local_failed,
+        "local_window_facts_added": local_added,
+        "local_reconciliations": local_reconciliations,
+        '情報源_counts': dict(sorted(情報源_counts.items())),
+        "reason_counts": dict(sorted(reason_counts.items())),
+        '計算量_counts': dict(sorted(計算量_counts.items())),
+    }
+
+
+def _controlled_metrics(details: list[dict[str, Any]], *, selected_total: int) -> dict[str, Any] | None:
+    if not details or not any("baseline_correct" in row for row in details):
+        return None
+    rows = [row for row in details if "baseline_correct" in row]
+    correct = sum(bool(row.get("baseline_correct")) for row in rows)
+    answered = sum(bool(row.get("baseline_answered")) for row in rows)
+    measured = len(rows)
+    accuracy = 100.0 * correct / measured if measured else 0.0
+    answer_rate = 100.0 * answered / measured if measured else 0.0
+    answered_accuracy = 100.0 * correct / answered if answered else 0.0
+    return {
+        "completed": measured,
+        "selected_total": selected_total,
+        "correct": correct,
+        "wrong": answered - correct,
+        "accuracy_percent": accuracy,
+        "answered": answered,
+        "answer_rate_percent": answer_rate,
+        "answered_accuracy_percent": answered_accuracy,
+        "suspended": measured - answered,
+    }
+
+
+def _controlled_delta(current: dict[str, Any], baseline: dict[str, Any] | None, details: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if baseline is None:
+        return None
+    changed_answers = sum(
+        row.get("predicted") != row.get("baseline_predicted")
+        for row in details
+        if "baseline_predicted" in row
+    )
+    improved_cases = sum(
+        bool(row.get("correct")) and not bool(row.get("baseline_correct"))
+        for row in details
+        if "baseline_correct" in row
+    )
+    regressed_cases = sum(
+        not bool(row.get("correct")) and bool(row.get("baseline_correct"))
+        for row in details
+        if "baseline_correct" in row
+    )
+    return {
+        "correct_delta": int(current["correct"]) - int(baseline["correct"]),
+        "accuracy_points": float(current["accuracy_percent"]) - float(baseline["accuracy_percent"]),
+        "answered_delta": int(current["answered"]) - int(baseline["answered"]),
+        "answer_rate_points": float(current["answer_rate_percent"]) - float(baseline["answer_rate_percent"]),
+        "answered_accuracy_points": float(current["answered_accuracy_percent"]) - float(baseline["answered_accuracy_percent"]),
+        "changed_answers": changed_answers,
+        "improved_cases": improved_cases,
+        "regressed_cases": regressed_cases,
+        "net_improved_cases": improved_cases - regressed_cases,
+    }
+
+
+def _結果構造(
+    *,
+    details: list[dict[str, Any]],
+    selected: range,
+    zip_hash: str,
+    csv_hash: str,
+    repository_commit: str,
+    openalex_enabled: bool,
+    controlled_ab: bool,
+) -> dict[str, Any]:
+    selected_total = len(selected)
+    metrics = _metrics(details, selected_total=selected_total)
+    baseline = _controlled_metrics(details, selected_total=selected_total) if controlled_ab else None
+    controlled_delta = _controlled_delta(metrics, baseline, details) if controlled_ab else None
+    full_run = selected.start == 0 and selected.stop == BENCHMARKS["gpqa-diamond"]["full_total"]
+    k3_score = float(BENCHMARKS["gpqa-diamond"]["comparison"]["score_percent"])
+    comparison = dict(BENCHMARKS["gpqa-diamond"]["comparison"])
+    comparison["directly_comparable"] = full_run and metrics["completed"] == selected_total
+    comparison["minidora_score_percent"] = metrics["accuracy_percent"] if comparison["directly_comparable"] else None
+    comparison["score_gap_points"] = k3_score - metrics["accuracy_percent"] if comparison["directly_comparable"] else None
+    comparison["k3_score_ratio_percent"] = (
+        100.0 * metrics["accuracy_percent"] / k3_score
+        if comparison["directly_comparable"] and k3_score
+        else None
+    )
+    return {
+        "契約形式": 'minidora.外部評価.repository-runner.v3',
+        "protocol": {
+            '外部評価': "GPQA Diamond",
+            "dataset": "official idavidrein/gpqa dataset.zip / gpqa_diamond.csv",
+            "dataset_url": gpqa.DATASET_URL,
+            "dataset_zip_sha256": zip_hash,
+            "資料集合CSV_SHA256": csv_hash,
+            "全問題数": BENCHMARKS["gpqa-diamond"]["full_total"],
+            "選択番号群": list(selected),
+            "選択肢シャッフル種": gpqa.SEED,
+            '構文化器': "MINIDORA public standard HDS Compiler; Japanese-base role projection; benchmark-agnostic",
+            'gold_境界': "gold used only after both inferences for scoring",
+            "repository_commit": repository_commit,
+            "OpenAlex有効": openalex_enabled,
+            "Wikipedia言語群": ["en"],
+            "実行系": "current repository checkout; HDS choice native R->HDS->K/Working->J",
+            '作業_状態_境界': "working/local relations are request-local and never auto-promoted to persistent canonical K",
+            "統制AB": bool(controlled_ab),
+            "controlled_ab_definition": "same question IR + same retrieved reference records; baseline disables working/local re-action; current enables them",
+            '検査点_resume': "same dataset + selected range + repository commit + OpenAlex + controlled-ab condition only",
+        },
+        "metrics": metrics,
+        "controlled_baseline": baseline,
+        "controlled_delta": controlled_delta,
+        'comparison_参照': comparison,
+        'baseline_参照_only_not_directly_comparable': {
+            "correct": 8,
+            "total": 198,
+            "accuracy_percent": 4.040404040404041,
+            "reason": "prototype baseline used a different private HDS Compiler whose exact executable implementation is unavailable",
+        },
+        "details": details,
+    }
+
+
+def _run_gpqa(args: argparse.Namespace) -> int:
+    csv_path, zip_hash, csv_hash = _prepare_gpqa_dataset(args.cache_dir, refresh=args.refresh_dataset)
+    cases = gpqa._load_cases(csv_path)
+    if len(cases) != 198:
+        raise RuntimeError(f"GPQA Diamond expected 198 rows, got {len(cases)}")
+    selected = _selected_range(len(cases), args.start_index, args.limit)
+    if args.checkpoint_every <= 0:
+        raise SystemExit('--検査点-every は1以上で指定してください。')
+
+    repository_commit = _git_head()
+    api_key = None if args.no_openalex else (os.getenv("OPENALEX_API_KEY", "").strip() or None)
+    completed = (
+        _load_resume(
+            args.out,
+            selected=selected,
+            csv_hash=csv_hash,
+            repository_commit=repository_commit,
+            openalex_enabled=api_key is not None,
+            controlled_ab=bool(args.controlled_ab),
+        )
+        if args.resume
+        else {}
+    )
+    provider = gpqa.一般知識参照供給器(
+        OpenAlex_API_key=api_key,
+        Wikipedia言語=("en",),
+        timeout=8.0,
+        最大本文文字数=6000,
+        並列=True,
+        最大並列=4,
+    )
+    構文化器 = gpqa.汎用意味射影Compiler()
+    base_模型核 = gpqa.K3相当能力核()
+
+    processed_since_検査点 = 0
+    for index in selected:
+        if index in completed:
+            print(f"CASE {index + 1:03d}/198 resume=skip", flush=True)
+            continue
+        question, choices, gold = cases[index]
+        question_ir = 構文化器.問題IR(question, choices)
+        references = gpqa.HDS参照検索(provider, question_ir)
+
+        baseline = None
+        if args.controlled_ab:
+            baseline = gpqa.HDS選択推論実行(
+                question_ir,
+                tuple(references),
+                コンパイル=構文化器.コンパイル,
+                基礎能力核=base_模型核,
+                作業再作用=False,
+                局所再照合=False,
+            )
+
+        inference = gpqa.HDS選択推論実行(
+            question_ir,
+            tuple(references),
+            コンパイル=構文化器.コンパイル,
+            基礎能力核=base_模型核,
+            作業再作用=True,
+            局所再照合=True,
+        )
+        predicted = inference.回答ラベル
+        answered = inference.状態 == "APPROVE" and predicted is not None
+        correct = bool(answered and predicted == gold)
+        detail: dict[str, Any] = {
+            "index": index,
+            "predicted": predicted,
+            "gold": gold,
+            "correct": correct,
+            "answered": answered,
+            "status": inference.状態,
+            "reasons": list(inference.理由),
+            "retrieved": len(references),
+            "sources": [r.供給器 for r in references],
+            '資料_compiled': inference.資料コンパイル数,
+            '資料_compile_failed': inference.資料コンパイル失敗数,
+            "k_facts_added": inference.K追加事実数,
+            '証拠_facts': inference.K証拠事実数,
+            'blocked_証拠_facts': inference.K証拠阻害事実数,
+            '作業_relations_created': inference.作業関係生成数,
+            '作業_relations_reused': inference.作業関係再利用数,
+            '作業_relations_promoted_to_k': inference.作業関係K昇格数,
+            '作業_relations_discarded_after_recheck': inference.作業関係再検証後破棄数,
+            '検査点_count': inference.検査点数,
+            '検査点_reactivations': inference.検査点再活性数,
+            "global_reconciliations": inference.大域再照合数,
+            '候補_cross_updates': inference.候補横断更新数,
+            "specialist_actions_invoked": inference.専門作用起動数,
+            "suspend_after_exhaustion": inference.遍歴後SUSPEND数,
+            'temporary_作業_証拠': inference.一時証拠数,
+            "local_windows": inference.局所Window数,
+            "local_windows_compiled": inference.局所Windowコンパイル数,
+            "local_windows_compile_failed": inference.局所Windowコンパイル失敗数,
+            "local_window_facts_added": inference.局所Window追加事実数,
+            "local_reconciliations": inference.局所再照合数,
+            '計算量': inference.K3結果.努力水準 if inference.K3結果 else None,
+            '候補_diagnostics': [
+                {
+                    "label": d.候補,
+                    "score": d.合計得点,
+                    '証拠_score': d.証拠得点,
+                    '関係図_score': d.関係図得点,
+                    "independent_sources": d.独立出典数,
+                }
+                for d in (inference.K3結果.候補診断 if inference.K3結果 else ())
+            ],
+        }
+        if baseline is not None:
+            base_pred = baseline.回答ラベル
+            base_answered = baseline.状態 == "APPROVE" and base_pred is not None
+            detail.update({
+                "baseline_predicted": base_pred,
+                "baseline_correct": bool(base_answered and base_pred == gold),
+                "baseline_answered": base_answered,
+                "baseline_status": baseline.状態,
+                "baseline_reasons": list(baseline.理由),
+            })
+        completed[index] = detail
+        processed_since_検査点 += 1
+        baseline_text = f" baseline={detail.get('baseline_predicted')}" if args.controlled_ab else ""
+        print(
+            f"CASE {index + 1:03d}/198 status={inference.状態} pred={predicted} "
+            f"correct={correct} retrieved={len(references)} local={inference.局所Windowコンパイル数}{baseline_text}",
+            flush=True,
+        )
+        if processed_since_検査点 >= args.checkpoint_every:
+            details = [completed[i] for i in sorted(completed) if i in selected]
+            _atomic_write(
+                args.out,
+                _結果構造(
+                    details=details,
+                    selected=selected,
+                    zip_hash=zip_hash,
+                    csv_hash=csv_hash,
+                    repository_commit=repository_commit,
+                    openalex_enabled=api_key is not None,
+                    controlled_ab=bool(args.controlled_ab),
+                ),
+            )
+            processed_since_検査点 = 0
+
+    details = [completed[i] for i in sorted(completed) if i in selected]
+    結果 = _結果構造(
+        details=details,
+        selected=selected,
+        zip_hash=zip_hash,
+        csv_hash=csv_hash,
+        repository_commit=repository_commit,
+        openalex_enabled=api_key is not None,
+        controlled_ab=bool(args.controlled_ab),
+    )
+    _atomic_write(args.out, 結果)
+    print("MINIDORA_BENCHMARK_RESULT=" + json.dumps(結果["metrics"], ensure_ascii=False), flush=True)
+    if 結果["controlled_baseline"] is not None:
+        print("CONTROLLED_BASELINE=" + json.dumps(結果["controlled_baseline"], ensure_ascii=False), flush=True)
+        print("CONTROLLED_DELTA=" + json.dumps(結果["controlled_delta"], ensure_ascii=False), flush=True)
+    print("K3_COMPARISON=" + json.dumps(結果['comparison_参照'], ensure_ascii=False), flush=True)
+    print(f"RESULT_FILE={args.out}", flush=True)
+    return 0
+
+
+def main() -> int:
+    _標準入出力をUTF8化()
+    parser = _parser()
+    args = parser.parse_args()
+    if args.list_mode:
+        for name, meta in BENCHMARKS.items():
+            print(f"{name}\t{meta['description']}")
+        return 0
+    if args.外部評価 == "gpqa-diamond":
+        return _run_gpqa(args)
+    parser.print_help()
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+import unittest
+
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from minidora.実行系_HDS_v1 import HDS駆動ミニドラ
+from minidora.実行系_v03 import 要求
+from minidora.参照 import 参照記録
+from minidora.採否 import 実行状態
+
+
+def _ir(text, coords, relations=(), *, required=False):
+    return HDSIR(
+        原文=text, 正規化文=text, 認知世界ID='hds-v1-統合',
+        座標=coords, 関係=relations, 残差=(), 意味作用履歴=(),
+        実行核=HDS実行核("意味構造転送"), 参照必須=required,
+        種別='knowledge_選択肢', 閉包状態='CLOSED_FOR_意味_TRANSFER',
+        入力言語="en", 手順=None,
+    )
+
+
+def _question():
+    return _ir(
+        "What does Alpha use?",
+        (
+            HDS座標("alpha", "対象.実体", "Alpha", 原文範囲=(10, 15)),
+            HDS座標("use", "関係.述語表層", "use", 原文範囲=(16, 19)),
+            HDS座標('選択肢:A', "目的.候補", "engine"),
+            HDS座標('選択肢:B', "目的.候補", "stone"),
+            HDS座標('未知', "目的.未知終点", "entity", 値状態.未観測),
+        ),
+        (HDS関係(
+            "question-use", ("alpha",), ('未知',), "使用",
+            条件=("検索述語=use", "不足位置=終点", "英日意味射影=v0.5"),
+            値状態=値状態.未観測,
+        ),),
+        required=True,
+    )
+
+
+def _候補(text):
+    return _ir(text, (HDS座標('候補', "対象.実体", text, 原文範囲=(0, len(text))),))
+
+
+def _資料():
+    return _ir(
+        "Alpha uses engine.",
+        (
+            HDS座標("alpha", "対象.実体", "Alpha", 原文範囲=(0, 5)),
+            HDS座標("engine", "対象.実体", "engine", 原文範囲=(11, 17)),
+        ),
+        (HDS関係("use", ("alpha",), ("engine",), "使用", 条件=("検索述語=use",)),),
+    )
+
+
+class 構文化器:
+    def コンパイル(self, 入力: str, **kwargs):
+        if 入力 == "What does Alpha use?":
+            return _question()
+        if 入力 in {"engine", "stone"}:
+            return _候補(入力)
+        if 入力 == "Alpha uses engine.":
+            return _資料()
+        raise ValueError(入力)
+
+
+class Provider:
+    名称 = "fixture-R"
+
+    def 検索(self, 問合せ: str, 上限: int = 8):
+        return (参照記録("doc:1", "Alpha", "Alpha uses engine.", "fixture://doc1", "fixture"),)
+
+
+class 実行系HDSV1試験(unittest.TestCase):
+    def test_実実行系で参照_EVALUATE_COMMITが成立する(self):
+        実行系 = HDS駆動ミニドラ(Provider(), HDSコンパイラ_=構文化器())
+        結果 = 実行系.実行(要求("What does Alpha use?"))
+
+        self.assertEqual(結果.採否.状態, 実行状態.合格, 結果.採否.理由)
+        self.assertEqual(結果.値, "engine")
+        run = 結果.状態["HDS判断主体Run"]
+        self.assertEqual(run["状態"], "COMMITTED")
+        self.assertEqual(
+            tuple(作用 for 作用, _ in run["作用履歴"]),
+            ('参照', "EVALUATE", "COMMIT"),
+        )
+        self.assertEqual(run["評価状態"], "PROPOSE")
+        self.assertIn('HDS_JUDGEMENT_主体_COMMIT', 結果.採否.理由)
+        # このfixtureには専門作用・local viewの実観測変化が無いので、能力v2は無理にoverrideしない。
+        # 閉じた基礎workerをPROPOSEへ落とし、最終COMMITは統合HDS判断主体だけが行う。
+        self.assertIn("HDS_ADAPTIVE_BASE_SELECTED", 結果.採否.理由)
+        self.assertIn('候補_GENERATION_HAS_NO_COMMIT_AUTHORITY', 結果.採否.理由)
+        self.assertNotIn("HDS_ADAPTIVE_PRIMARY_SELECTED", 結果.採否.理由)
+
+
+if __name__ == "__main__":
+    unittest.main()

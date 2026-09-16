@@ -131,17 +131,17 @@ def 仮説を検討(要求: dict) -> dict:
             facts[key] = proof_id
             return True
 
-        for name, key, source in 事実:
-            加える(key, '提供事実', 出典=source, 入力ID=name)
+        for name, key, 情報源 in 事実:
+            加える(key, '提供事実', 出典=情報源, 入力ID=name)
         for key in 候補:
             加える(key, '仮説導入', 入力ID=key)
         changed = True
         while changed:
             changed = False
-            for name, left, right, source in 規則:
+            for name, left, right, 情報源 in 規則:
                 刻む()
                 if all(k in facts for k in left):
-                    changed |= 加える(right, '規則適用', tuple(facts[k] for k in left), source, name)
+                    changed |= 加える(right, '規則適用', tuple(facts[k] for k in left), 情報源, name)
         conflicts = sorted(k for k in facts if 反転[k] in facts)
         return facts, nodes, conflicts
 
@@ -177,7 +177,7 @@ def 仮説を検討(要求: dict) -> dict:
                 if 件数['評価'] >= 最大試行数:
                     raise ValueError('指定仮説範囲の探索予算不足。部分候補を採用しない')
                 件数['評価'] += 1
-                closure, graph, conflicts = 閉包(combo)
+                closure, 関係図, conflicts = 閉包(combo)
                 if conflicts or any(反転[k] in closure for k in 観測):
                     件数['不整合'] += 1
                     continue
@@ -192,10 +192,10 @@ def 仮説を検討(要求: dict) -> dict:
                     if pid in keep:
                         continue
                     keep.add(pid)
-                    pending.extend(graph[pid]['親'])
+                    pending.extend(関係図[pid]['親'])
                 解.append({'仮説': [命題を表現(表現[k]) for k in combo],
                            '観測の根拠': {命題を表現(表現[k]): closure[k] for k in 観測},
-                           '導出': {k: graph[k] for k in sorted(keep)}})
+                           '導出': {k: 関係図[k] for k in sorted(keep)}})
     status = ('背景不整合' if 背景不整合 else '説明候補あり' if 解 else '指定範囲に説明なし')
     report = {'版': 仮説探索版, '状態': status, '要求': 要求, '候補': 解,
               '探索範囲': {'候補命題数': len(仮説), '最大仮説数': 上限数,

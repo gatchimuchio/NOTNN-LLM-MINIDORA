@@ -17,7 +17,7 @@ def solve_pair_threshold(q, choices):
     eps = min((abs(x) for x in vals if x != 0))
     target_ev = 510998.95 ** 2 / eps
     target = target_ev / 1000000000.0 if any(('gev' in c.casefold() for c in choices)) else target_ev
-    return _generic_result(_nearest(choices, target, log=True), 'gamma_gamma_pair_threshold', target)
+    return _一般結果(_nearest(choices, target, log=True), 'gamma_gamma_pair_threshold', target)
 
 def solve_two_body_decay(q, choices):
     s = q.casefold()
@@ -47,7 +47,7 @@ def solve_two_body_decay(q, choices):
     if not best:
         return None
     best.sort()
-    return _generic_result(best[0][1], 'two_body_decay_kinematics', (ke, p))
+    return _一般結果(best[0][1], 'two_body_decay_kinematics', (ke, p))
 
 def solve_relativistic_total_energy(q, choices):
     s = q.casefold()
@@ -62,7 +62,7 @@ def solve_relativistic_total_energy(q, choices):
     if not 0 < beta < 1:
         return None
     target = 1 / math.sqrt(1 - beta * beta) * A * 0.9315
-    return _generic_result(_nearest(choices, target, rel_tol=0.22), 'relativistic_total_energy', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.22), 'relativistic_total_energy', target)
 
 def solve_velocity_energy(q, choices):
     s = q.casefold()
@@ -88,7 +88,7 @@ def solve_velocity_energy(q, choices):
     if not best:
         return None
     best.sort()
-    return _generic_result(best[0][1], 'relativistic_velocity_energy', (vr, E))
+    return _一般結果(best[0][1], 'relativistic_velocity_energy', (vr, E))
 
 def solve_equal_annihilation(q, choices):
     s = q.casefold()
@@ -99,7 +99,7 @@ def solve_equal_annihilation(q, choices):
         return None
     gamma = float(gm.group(1))
     val = math.sqrt(gamma * gamma - 1) / (gamma + 1)
-    return _generic_result(_nearest(choices, val, rel_tol=0.18), 'annihilation_equal_photons', val)
+    return _一般結果(_nearest(choices, val, rel_tol=0.18), 'annihilation_equal_photons', val)
 
 def solve_proper_distance(q, choices):
     s = q.casefold()
@@ -116,7 +116,7 @@ def solve_proper_distance(q, choices):
         return None
     gamma = 1 / math.sqrt(1 - (v / c) ** 2)
     target = v * gamma * tau
-    return _generic_result(_nearest(choices, target, rel_tol=0.07), 'proper_time_distance', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.07), 'proper_time_distance', target)
 
 def solve_width_decay(q, choices):
     s = q.casefold()
@@ -129,7 +129,7 @@ def solve_width_decay(q, choices):
         return None
     bg = math.sqrt(E * E - m * m) / m
     target = bg * (1.973269804e-16 / (w / 1000))
-    return _generic_result(_nearest(choices, target, log=True), 'resonance_width_decay_length', target)
+    return _一般結果(_nearest(choices, target, log=True), 'resonance_width_decay_length', target)
 
 def solve_decay_resolution_generic(q, choices):
     s = q.casefold()
@@ -152,7 +152,7 @@ def solve_decay_resolution_generic(q, choices):
     bg = math.sqrt(E * E - m * m) / m
     mean = bg * 299792458.0 * tau
     target = -mean * math.log(pfrac)
-    return _generic_result(_nearest(choices, target, log=True), 'decay_resolution', target)
+    return _一般結果(_nearest(choices, target, log=True), 'decay_resolution', target)
 
 def solve_relativistic_oscillator(q, choices):
     s = q.casefold()
@@ -161,7 +161,7 @@ def solve_relativistic_oscillator(q, choices):
     for i, c in enumerate(choices):
         cc = c.casefold().replace(' ', '')
         if 'sqrt{1-' in cc and '(1+' in cc and ('ka^2' in cc):
-            return _result(i, 'relativistic_oscillator_energy_conservation', 'gamma=1+kA^2/(2mc^2)')
+            return _結果(i, 'relativistic_oscillator_energy_conservation', 'gamma=1+kA^2/(2mc^2)')
     return None
 
 def solve_lienard_wiechert(q, choices):
@@ -171,19 +171,19 @@ def solve_lienard_wiechert(q, choices):
     for i, c in enumerate(choices):
         cc = c.replace(' ', '').casefold()
         if 'dc-' in cc and 'vec{d}.' in cc and ('vec{v}' in cc) and ('mu' in cc):
-            return _result(i, 'lienard_wiechert_potentials', 'dc-d·v')
+            return _結果(i, 'lienard_wiechert_potentials', 'dc-d·v')
     return None
-REGISTRY = (solve_pair_threshold, solve_two_body_decay, solve_relativistic_total_energy, solve_velocity_energy, solve_equal_annihilation, solve_proper_distance, solve_width_decay, solve_decay_resolution_generic, solve_relativistic_oscillator, solve_lienard_wiechert)
+登録簿 = (solve_pair_threshold, solve_two_body_decay, solve_relativistic_total_energy, solve_velocity_energy, solve_equal_annihilation, solve_proper_distance, solve_width_decay, solve_decay_resolution_generic, solve_relativistic_oscillator, solve_lienard_wiechert)
 
 def 解決(question: str, choices: Sequence[str]):
     hits = []
-    for solver in REGISTRY:
+    for 解決器 in 登録簿:
         try:
-            row = solver(question, choices)
+            row = 解決器(question, choices)
         except Exception:
             row = None
         if row is not None:
             hits.append(row)
     if not hits or len({row.index for row in hits}) != 1:
         return None
-    return max(hits, key=lambda row: row.confidence)
+    return max(hits, key=lambda row: row.信頼度)

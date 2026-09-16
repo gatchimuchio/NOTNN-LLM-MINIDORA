@@ -35,22 +35,22 @@ class CLI試験(unittest.TestCase):
 
     def test_ファイル保存後の別プロセス復元から再説明(self):
         with tempfile.TemporaryDirectory() as d:
-            state=Path(d)/'state.json'
-            a=run(encode(REGISTER,QUERY),'--保存',state,'--セッション','sample')
+            状態=Path(d)/'状態.json'
+            a=run(encode(REGISTER,QUERY),'--保存',状態,'--セッション','sample')
             self.assertEqual(a.returncode,0,a.stderr)
-            b=run(encode('短く説明して'),'--復元',state,'--セッション','sample')
+            b=run(encode('短く説明して'),'--復元',状態,'--セッション','sample')
             self.assertEqual(b.returncode,0,b.stderr)
             self.assertEqual(json.loads(b.stdout)['状態'],'合格')
 
     def test_既存保存ファイルを無断上書きしない(self):
         with tempfile.TemporaryDirectory() as d:
-            p=Path(d)/'state';p.write_text('保持',encoding='utf-8')
+            p=Path(d)/'状態';p.write_text('保持',encoding='utf-8')
             r=run(encode(REGISTER),'--保存',p)
             self.assertEqual(r.returncode,2);self.assertEqual(p.read_text(encoding='utf-8'),'保持')
 
     def test_明示上書きで状態を更新する(self):
         with tempfile.TemporaryDirectory() as d:
-            p=Path(d)/'state';p.write_text('旧値',encoding='utf-8')
+            p=Path(d)/'状態';p.write_text('旧値',encoding='utf-8')
             r=run(encode(REGISTER),'--保存',p,'--上書き')
             self.assertEqual(r.returncode,0,r.stderr)
             restored=監査改善会話セッション.復元(p.read_text(encoding='utf-8'))
@@ -76,13 +76,13 @@ class CLI試験(unittest.TestCase):
 
     def test_別セッションの復元を拒否する(self):
         with tempfile.TemporaryDirectory() as d:
-            path=Path(d)/'state'
+            path=Path(d)/'状態'
             self.assertEqual(run(encode(REGISTER),'--保存',path,'--セッション','a').returncode,0)
             self.assertEqual(run('','--復元',path,'--セッション','b').returncode,2)
 
     def test_破損状態を読み飛ばして新規開始しない(self):
         with tempfile.TemporaryDirectory() as d:
-            p=Path(d)/'state';p.write_text('{"状態":"破損"}',encoding='utf-8')
+            p=Path(d)/'状態';p.write_text('{"状態":"破損"}',encoding='utf-8')
             r=run(encode(REGISTER),'--復元',p)
             self.assertEqual(r.returncode,2);self.assertEqual(r.stdout,'')
 

@@ -11,7 +11,7 @@ from minidora.製品版.型 import 参照資料
 BASE = "https://example.test/"
 
 
-def candidate(path="a", snippet="スニペットの誤った電圧999", title="資料候補"):
+def 候補(path="a", snippet="スニペットの誤った電圧999", title="資料候補"):
     return 参照資料(path, title, "試験検索", BASE + path, 本文=snippet)
 
 
@@ -27,10 +27,10 @@ class 試験検索:
 
     def 検索(self, query, limit=5):
         self.calls.append((query, limit))
-        result = self.results(query) if callable(self.results) else self.results
-        if isinstance(result, Exception):
-            raise result
-        return result
+        結果 = self.results(query) if callable(self.results) else self.results
+        if isinstance(結果, Exception):
+            raise 結果
+        return 結果
 
 
 class 試験本文:
@@ -39,15 +39,15 @@ class 試験本文:
 
     def 取得(self, url):
         self.calls.append(url)
-        result = self.values[url]
-        if isinstance(result, Exception):
-            raise result
-        return result
+        結果 = self.values[url]
+        if isinstance(結果, Exception):
+            raise 結果
+        return 結果
 
 
 class 知識取得契約試験(unittest.TestCase):
     def setUp(self):
-        self.search = 試験検索((candidate(),))
+        self.search = 試験検索((候補(),))
         self.fetch = 試験本文({BASE + "a": document()})
         self.runner = 知識取得器(self.search, self.fetch)
         self.request = 知識取得要求("試験機器", ("電圧",))
@@ -80,7 +80,7 @@ class 知識取得契約試験(unittest.TestCase):
         self.assertEqual(len(self.fetch.calls), 1)
 
     def test_不足語が次の検索語を変える(self):
-        self.search.results = lambda q: (candidate("b"),) if "電流" in q else (candidate(),)
+        self.search.results = lambda q: (候補("b"),) if "電流" in q else (候補(),)
         self.fetch.values[BASE + "b"] = document("b", "電流は5 A。")
         r = self.run_request(replace(self.request, 必要語=("電圧", "電流")))
         self.assertTrue(r.成立, r.保留理由)
@@ -89,7 +89,7 @@ class 知識取得契約試験(unittest.TestCase):
         self.assertEqual(r.データ["不足語"], [])
 
     def test_必要語の変更で再検索の経路も変わる(self):
-        self.search.results = lambda q: (candidate("b"),) if "電流" in q else (candidate(),)
+        self.search.results = lambda q: (候補("b"),) if "電流" in q else (候補(),)
         self.fetch.values[BASE + "b"] = document("b", "電流は5 A。")
         r = self.run_request(replace(self.request, 必要語=("電流",)))
         self.assertTrue(r.成立)
@@ -109,7 +109,7 @@ class 知識取得契約試験(unittest.TestCase):
         self.assertEqual(len(self.search.calls), 1)
 
     def test_取得数上限(self):
-        self.search.results = tuple(candidate(str(i)) for i in range(5))
+        self.search.results = tuple(候補(str(i)) for i in range(5))
         self.fetch.values = {BASE + str(i): document(str(i), "無関係") for i in range(5)}
         r = self.run_request(replace(self.request, 最大取得数=2, 最大資料数=2))
         self.assertFalse(r.成立)
@@ -138,13 +138,13 @@ class 知識取得契約試験(unittest.TestCase):
 
     def test_記録hashの再計算(self):
         r = self.run_request()
-        data = dict(r.データ)
-        expected = data.pop("記録SHA256")
-        raw = json.dumps(data, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()
+        資料 = dict(r.データ)
+        expected = 資料.pop("記録SHA256")
+        raw = json.dumps(資料, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()
         self.assertEqual(sha256(raw).hexdigest(), expected)
 
     def test_同じURLや同一本文で最低資料数を水増ししない(self):
-        self.search.results = (candidate(), candidate("a#part"), candidate("b"))
+        self.search.results = (候補(), 候補("a#part"), 候補("b"))
         self.fetch.values[BASE + "b"] = document("b", "電圧は120 V。")
         r = self.run_request(replace(self.request, 最低資料数=2))
         self.assertFalse(r.成立)
@@ -152,7 +152,7 @@ class 知識取得契約試験(unittest.TestCase):
         self.assertEqual(self.fetch.calls.count(BASE + "a"), 1)
 
     def test_二資料の異なる値を勝手に一つへ確定しない(self):
-        self.search.results = (candidate(), candidate("b"))
+        self.search.results = (候補(), 候補("b"))
         self.fetch.values[BASE + "b"] = document("b", "電圧は240 V。")
         r = self.run_request(replace(self.request, 最低資料数=2))
         self.assertTrue(r.成立)
@@ -162,14 +162,14 @@ class 知識取得契約試験(unittest.TestCase):
         self.assertEqual(r.データ["意味的事実検証"], "未実施")
 
     def test_明示優先ホストを先に取得する(self):
-        self.search.results = (replace(candidate(), URL="https://other.test/a"), candidate("b"))
+        self.search.results = (replace(候補(), URL="https://other.test/a"), 候補("b"))
         self.fetch.values[BASE + "b"] = document("b", "電圧は240 V。")
         r = self.run_request(replace(self.request, 優先ホスト=("example.test",)))
         self.assertTrue(r.成立)
         self.assertEqual(self.fetch.calls, [BASE + "b"])
         self.assertTrue(r.データ["資料"][0]["優先元一致"])
 
-    def test_取得故障は検索スニペットにfallbackしない(self):
+    def test_取得故障は検索スニペットに代替経路しない(self):
         self.fetch.values[BASE + "a"] = RuntimeError("secret server text")
         r = self.run_request()
         self.assertFalse(r.成立)
@@ -185,7 +185,7 @@ class 知識取得契約試験(unittest.TestCase):
         self.assertEqual(self.fetch.calls, [])
 
     def test_不正URLは本文取得器へ渡さない(self):
-        self.search.results = tuple(replace(candidate(), URL=u) for u in ("file:///x", "http://x.test", "https://127.0.0.1/"))
+        self.search.results = tuple(replace(候補(), URL=u) for u in ("file:///x", "http://x.test", "https://127.0.0.1/"))
         r = self.run_request()
         self.assertFalse(r.成立)
         self.assertEqual(self.fetch.calls, [])

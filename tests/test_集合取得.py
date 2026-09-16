@@ -1,4 +1,4 @@
-"""複数主題の取得目的を実取得処理へ接続。供給Dataは人工、外部通信は行わない。"""
+'複数主題の取得目的を実取得処理へ接続。供給資料は人工、外部通信は行わない。'
 import unittest
 from urllib.parse import unquote
 from minidora.汎用会話 import 汎用会話セッション

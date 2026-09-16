@@ -88,14 +88,14 @@ class 会話実行監督:
             return len(previous.要求被覆)
         target = policy.対象目的
         old_map, new_map = _被覆地図(previous), _被覆地図(current)
-        old_scope = _被覆子孫(previous, target)
-        new_scope = _被覆子孫(current, target)
-        protected = {k:v for k,v in old_map.items() if k not in old_scope}
+        old_範囲 = _被覆子孫(previous, target)
+        new_範囲 = _被覆子孫(current, target)
+        protected = {k:v for k,v in old_map.items() if k not in old_範囲}
         for key, row in protected.items():
             if new_map.get(key) != row:
                 raise ValueError('局所再計画が回復対象外の被覆を変更した')
         for key, row in new_map.items():
-            if key not in new_scope and old_map.get(key) != row:
+            if key not in new_範囲 and old_map.get(key) != row:
                 raise ValueError('局所再計画が回復対象外へ新しい経路を広げた')
         return len(protected)
 
@@ -114,43 +114,43 @@ class 会話実行監督:
               '実行環境' if last.状態=='失敗' else
               kinds[1] if len(kinds)==3 and kinds[0]=='会話失敗' else '能力不成立')
         classification=失敗を分類(kind)
-        info={sid:(key,action) for sid,key,action in plan.工程作用}
+        info={sid:(key,作用) for sid,key,作用 in plan.工程作用}
         if last.工程 not in info:
             policy=回復方針を決定(種別='実行環境',分類='実行環境',発生目的='',発生作用='',
                                  規則=None,再開放=None)
             return 失敗署名('実行環境',plan.目的印,last.工程,'',last.入力ハッシュ,
                             '実行履歴と計画の対応欠落',分類='実行環境',回復方針=policy.動作),policy
-        key,action=info[last.工程]
+        key,作用=info[last.工程]
         covered={x.目的鍵:x for x in plan.要求被覆 if x.解決=='作用'}
-        contract=covered.get(key)
-        if contract is None or contract.作用!=action or not contract.契約印:
-            policy=回復方針を決定(種別='実行環境',分類='実行環境',発生目的=key,発生作用=action,
+        契約=covered.get(key)
+        if 契約 is None or 契約.作用!=作用 or not 契約.契約印:
+            policy=回復方針を決定(種別='実行環境',分類='実行環境',発生目的=key,発生作用=作用,
                                  規則=None,再開放=None)
-            return 失敗署名('実行環境',plan.目的印,last.工程,action,last.入力ハッシュ,
+            return 失敗署名('実行環境',plan.目的印,last.工程,作用,last.入力ハッシュ,
                             '実行履歴と作用契約被覆の対応欠落',分類='実行環境',発生目的=key,
                             回復方針=policy.動作),policy
-        reopen=None; rule_match=None; contract_name=''
-        rule=next(r for r in self.計画器.作用 if r.識別子==action)
+        reopen=None; rule_match=None; 契約_name=''
+        rule=next(r for r in self.計画器.作用 if r.識別子==作用)
         for recovery in rule.回復:
             if kind!=recovery.失敗種別: continue
             rule_match=recovery
             if recovery.動作()=='同一作用再試行':
-                reopen=(key,action)
+                reopen=(key,作用)
             elif recovery.対象=='自己':
-                reopen=(key,action)
+                reopen=(key,作用)
             else:
-                roles=dict(dict(plan.入力役割).get(last.工程,()))
-                parent=roles.get(recovery.入力役割)
+                役割=dict(dict(plan.入力役割).get(last.工程,()))
+                parent=役割.get(recovery.入力役割)
                 if parent is not None and parent.領域=='工程' and parent.識別子 in info:
                     pair=info[parent.識別子]
                     if pair[1] in recovery.対象作用: reopen=pair
-            contract_name=':'.join((action,recovery.失敗種別,recovery.対象,recovery.動作(),str(recovery.最大再試行)))
+            契約_name=':'.join((作用,recovery.失敗種別,recovery.対象,recovery.動作(),str(recovery.最大再試行)))
             break
-        retry_key=(key,action,kind)
-        policy=回復方針を決定(種別=kind,分類=classification,発生目的=key,発生作用=action,
-            規則=rule_match,再開放=reopen,契約=contract_name,再試行済=retries.get(retry_key,0))
+        retry_key=(key,作用,kind)
+        policy=回復方針を決定(種別=kind,分類=classification,発生目的=key,発生作用=作用,
+            規則=rule_match,再開放=reopen,契約=契約_name,再試行済=retries.get(retry_key,0))
         exposed=(policy.対象目的,policy.対象作用) if policy.対象目的 and policy.対象作用 else None
-        return 失敗署名(kind,plan.目的印,last.工程,action,last.入力ハッシュ,last.理由,
+        return 失敗署名(kind,plan.目的印,last.工程,作用,last.入力ハッシュ,last.理由,
                         exposed,classification,key,policy.契約,policy.動作,policy.再試行番号),policy
 
     def 実行(self, goal, materials, *, 原文, 外部許可=False, 停止要求=None, 要求起点=None):
@@ -158,11 +158,11 @@ class 会話実行監督:
         goal_seal=fixed_goal.鍵()
         material_seal=意味指紋({k:_結果辞書(v) for k,v in fixed_materials.items()})
         rules=self.計画器.作用
-        static_contract=getattr(self.計画器,'契約印','')
-        if type(static_contract) is not str or not static_contract:
+        static_契約=getattr(self.計画器,'契約印','')
+        if type(static_契約) is not str or not static_契約:
             raise ValueError('作用契約印がない')
-        recovery_contract=self._回復契約印()
-        if type(recovery_contract) is not str or not recovery_contract:
+        recovery_契約=self._回復契約印()
+        if type(recovery_契約) is not str or not recovery_契約:
             raise ValueError('回復方針契約印がない')
         start=self.統合.起点()
         if 要求起点 is not None and start!=要求起点: raise ValueError("解釈中に会話状態が変わった")
@@ -173,9 +173,9 @@ class 会話実行監督:
             if start!=self.統合.起点(): raise ValueError('再計画中に採用状態が変わった')
             if 意味指紋(list(self.統合.能力一覧()))!=self.計画器.登録印:
                 raise ValueError('作用能力の版・登録が変わった')
-            if self.計画器.作用!=rules or getattr(self.計画器,'契約印','')!=static_contract:
+            if self.計画器.作用!=rules or getattr(self.計画器,'契約印','')!=static_契約:
                 raise ValueError('回復中に作用契約が変わった')
-            if self._回復契約印()!=recovery_contract:
+            if self._回復契約印()!=recovery_契約:
                 raise ValueError('回復中に回復方針契約が変わった')
             if (fixed_goal.鍵()!=goal_seal or
                     意味指紋({k:_結果辞書(v) for k,v in fixed_materials.items()})!=material_seal):
@@ -188,7 +188,7 @@ class 会話実行監督:
             except ValueError as exc:
                 if response is None: raise
                 attempts.append({'状態':'計画保留','理由':str(exc),'目的印':goal_seal,
-                                 '素材印':material_seal,'外部工程':(),'作用契約印':'','回復方針契約印':recovery_contract,'要求被覆印':'',
+                                 '素材印':material_seal,'外部工程':(),'作用契約印':'','回復方針契約印':recovery_契約,'要求被覆印':'',
                                  '要求境界契約印':'','回復方針':pending.動作 if pending else '初回','再開放':()})
                 break
             if plan.目的印!=goal_seal: raise ValueError('再計画が目的を変更した')
@@ -210,15 +210,15 @@ class 会話実行監督:
             fixed_coverage=0
             if pending is not None and previous_plan is not None:
                 fixed_coverage=self._局所再計画監査(previous_plan,plan,pending)
-            packed=self.統合.準備(plan.計画,plan.Data,依頼文=原文)
+            packed=self.統合.準備(plan.計画,plan.資料,依頼文=原文)
             if packed.起点!=start: raise ValueError('計画準備中に起点が変わった')
-            boundary_seal=要求境界契約印(原文=原文,計画印=packed.ハッシュ,
+            境界_seal=要求境界契約印(原文=原文,計画印=packed.ハッシュ,
                 要求被覆印=coverage_seal,目的印=plan.目的印,素材印=material_seal)
             response=self.統合.実行(packed,外部読取許可=外部許可,停止要求=停止要求)
             attempts.append({'計画印':packed.ハッシュ,'素材印':material_seal,'目的印':plan.目的印,'工程作用':plan.工程作用,
                 '状態':response.状態,'外部工程':plan.外部作用,'作用契約印':plan.作用契約印,
-                '回復方針契約印':recovery_contract,'要求被覆印':coverage_seal,'要求被覆数':len(plan.要求被覆),
-                '要求境界契約印':boundary_seal,
+                '回復方針契約印':recovery_契約,'要求被覆印':coverage_seal,'要求被覆数':len(plan.要求被覆),
+                '要求境界契約印':境界_seal,
                 '回復方針':pending.動作 if pending else '初回',
                 '再開放':(pending.対象目的,pending.対象作用) if pending else (),
                 '固定被覆数':fixed_coverage,

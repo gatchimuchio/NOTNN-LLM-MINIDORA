@@ -50,9 +50,9 @@ def _計画(raw):
         if type(row['入力']) is not list or type(row['能力候補']) is not list:
             raise ValueError('工程の配列型不正')
         inputs = []
-        for source in row['入力']:
-            _項目(source, ('領域', '識別子'))
-            inputs.append(素材参照(**source))
+        for 情報源 in row['入力']:
+            _項目(情報源, ('領域', '識別子'))
+            inputs.append(素材参照(**情報源))
         rows.append(合成工程(row['識別子'], tuple(row['能力候補']), row['指示参照'], tuple(inputs), row['設定参照']))
     return 合成計画(tuple(rows), tuple(raw['出力工程']))
 
@@ -75,23 +75,23 @@ def 統合要求を実行(session, request):
             materials = request.get('資料', {})
             if type(materials) is not dict:
                 raise ValueError('資料は名前付き対象')
-            result = session.応答(request['依頼'], {k:_素材(v) for k,v in materials.items()},
+            結果 = session.応答(request['依頼'], {k:_素材(v) for k,v in materials.items()},
                                   入力言語=request.get('入力言語', 'ja'))
         elif kind == '能力':
             _項目(request, ('種別', '能力', '入力'), ('設定', '外部読取許可'))
-            data = {'指示': 能力結果(True, '明示した能力処理'), '入力': _素材(request['入力'])}
+            資料 = {'指示': 能力結果(True, '明示した能力処理'), '入力': _素材(request['入力'])}
             config = None
             if '設定' in request:
                 if type(request['設定']) is not dict:
                     raise ValueError('設定は対象型')
-                data['設定'] = 能力結果(True, '', データ=request['設定'])
+                資料['設定'] = 能力結果(True, '', データ=request['設定'])
                 config = '設定'
             plan = 合成計画((合成工程('結果',(request['能力'],),'指示',(素材参照('入力','入力'),),config),),('結果',))
-            result = session.計画実行(plan, data, 外部読取許可=request.get('外部読取許可', False))
+            結果 = session.計画実行(plan, 資料, 外部読取許可=request.get('外部読取許可', False))
         elif kind == '計画':
-            _項目(request, ('種別', '計画', 'Data'), ('条件', '外部読取許可', '依頼文'))
-            if type(request['Data']) is not dict or type(request.get('条件', [])) is not list:
-                raise ValueError('Data・条件の型不正')
+            _項目(request, ('種別', '計画', '資料'), ('条件', '外部読取許可', '依頼文'))
+            if type(request['資料']) is not dict or type(request.get('条件', [])) is not list:
+                raise ValueError('資料・条件の型不正')
             conditions = []
             for condition in request.get('条件', []):
                 _項目(condition, ('対象出力', '検査能力'), ('設定参照', '基準資料'))
@@ -99,11 +99,11 @@ def 統合要求を実行(session, request):
                     raise ValueError('基準資料は配列')
                 conditions.append(受入条件(condition['対象出力'], condition['検査能力'],
                                           condition.get('設定参照'), tuple(condition.get('基準資料', []))))
-            result = session.計画実行(_計画(request['計画']), {k:_素材(v) for k,v in request['Data'].items()},
+            結果 = session.計画実行(_計画(request['計画']), {k:_素材(v) for k,v in request['資料'].items()},
                 条件=tuple(conditions), 外部読取許可=request.get('外部読取許可',False),
                 依頼文=request.get('依頼文','明示された能力計画を実行'))
         else:
             raise ValueError('未対応の要求種別')
-        return result.辞書化()
+        return 結果.辞書化()
     except Exception as exc:
         return {'状態': '失敗', '本文': '', '理由': '統合通信契約不成立:'+type(exc).__name__}

@@ -19,12 +19,12 @@ MINIDORAの能力作用を増やすのではなく、**どの作用を次に要�
 ≠ 能力主体
 ```
 
-HDSはLLM構成定義から生成しない。HDS側で既に定義されているJudgement Subject / Runtime境界をMINIDORA領域へ有限射影する。
+HDSはLLM構成定義から生成しない。HDS側で既に定義されているJudgement Subject / 実行系境界をMINIDORA領域へ有限射影する。
 
 ## 3. 三責任
 
 ```text
-C_exec = 既存MINIDORA能力模型核 / 参照 / Compiler / 計算
+C_exec = 既存MINIDORA能力模型核 / 参照 / 構文化器 / 計算
 J_hds  = MINIDORAHDS判断主体
 M_mem  = MINIDORA認知世界 + 既存主体/Trinity記憶
 ```
@@ -38,7 +38,7 @@ C_exec: REFERENCE結果 / EVALUATE結果 / PROPOSE
 J_hds : 次作用要求 / COMMIT / SUSPEND / STOP / REOPEN
 ```
 
-旧 `hds判断主体.py` のoutput-only Gateはv0.5互換資産として残すが、v1経路では通さない。
+旧 `hds判断主体.py` のoutput-only 関門はv0.5互換資産として残すが、v1経路では通さない。
 
 候補計算が正の一意候補を形成しても、状態は `PROPOSE` であり採用ではない。別のJ_hds COMMITを通って初めて外部結果へ昇格する。
 
@@ -90,10 +90,10 @@ Runは作用予算を持ち、超過時は精度を落として完遂扱いせ�
 
 - 厳密言語模型核
 - 能力模型核
-- HDS Compiler
+- HDS 構文化器
 - 参照供給器
 - 主体主幹 / Trinity記憶
-- v0.5 Runtime（比較基準）
+- v0.5 実行系（比較基準）
 
 v1では、既存 `能力状態差循環` はworker内部の局所能力作用とし、全体の次作用決定権を持たない。
 

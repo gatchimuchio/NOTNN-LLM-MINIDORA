@@ -189,8 +189,8 @@ class 文書操作試験(unittest.TestCase):
             self.assertFalse(文書を処理(self.j,op,opts).成立)
 
     def test_ヘッダーの変換損失も別途明示(self):
-        source=構造化文書を読む('a,b\n','CSV')
-        r=self.op(source,'形式変換',{'出力':'JSON','行表現':'配列'})
+        情報源=構造化文書を読む('a,b\n','CSV')
+        r=self.op(情報源,'形式変換',{'出力':'JSON','行表現':'配列'})
         self.assertEqual(r.データ['未選択見出し'],['a','b'])
         r=self.op(self.c,'CSV選択',{'列':['金額'],'行':[0]})
         self.assertEqual(r.データ['未選択見出し'],['品目','備考'])
@@ -198,8 +198,8 @@ class 文書操作試験(unittest.TestCase):
         self.assertEqual(r.データ['未選択見出し'],['品目','備考'])
 
     def test_見出しなし空表の非可逆な出力を保留(self):
-        source=構造化文書を読む('1,2','CSV',見出し=False)
-        r=文書を処理(source,'CSV選択',{'列':[0],'行':[]})
+        情報源=構造化文書を読む('1,2','CSV',見出し=False)
+        r=文書を処理(情報源,'CSV選択',{'列':[0],'行':[]})
         self.assertFalse(r.成立)
         self.assertEqual(r.本文,'')
 

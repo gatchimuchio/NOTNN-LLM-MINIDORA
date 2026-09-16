@@ -5,7 +5,7 @@ import os
 import unittest
 
 from minidora.ブラウザ閲覧 import ブラウザ閲覧器, ブラウザ要求, ブラウザ工程, ブラウザ記録整合
-from minidora.ブラウザ接続 import ブラウザ閲覧Module
+from minidora.ブラウザ接続 import ブラウザ閲覧モジュール
 from minidora.構造化文書接続 import 構造化文書能力群
 from minidora.能力合成_局所接続 import 局所能力群
 from minidora.能力合成 import 能力合成器, 合成計画, 合成工程, 素材参照
@@ -39,7 +39,7 @@ class 実ブラウザ移動試験(unittest.TestCase):
         p=供給器(initial=html);req=replace(表要求(),工程=(ブラウザ工程('表示操作','x','表示'),ブラウザ工程('本文取得','ok')))
         r=self.run_browser(req,p);self.assertFalse(r.成立);self.assertNotIn(数値,p.calls);self.assertEqual(r.本文,'')
     def test_未許可の追加資源を供給しない(self):
-        html='<div id="x">準備中</div><script>fetch("/unknown").catch(()=>document.getElementById("x").textContent="失敗")</script>'
+        html='<div id="x">準備中</div><script>fetch("/未知").catch(()=>document.getElementById("x").textContent="失敗")</script>'
         p=供給器(initial=html);req=replace(表要求(),工程=(ブラウザ工程('表示待機','x','失敗'),ブラウザ工程('本文取得','x')))
         r=self.run_browser(req,p);self.assertFalse(r.成立);self.assertEqual(p.calls,[起点])
     def test_存在しない対象の待機は有限(self):
@@ -54,18 +54,18 @@ class 実ブラウザ移動試験(unittest.TestCase):
         self.assertFalse(ブラウザ記録整合(replace(r,本文='999')))
     def test_ブラウザ表から既存文書処理と数値抽出まで(self):
         engine=ブラウザ閲覧器(実行ファイル=os.environ.get('MINIDORA_BROWSER_EXECUTABLE'),試験供給器=供給器())
-        runner=能力合成器((ブラウザ閲覧Module(engine,外部読取許可=True).登録(),*構造化文書能力群(),*局所能力群()))
+        runner=能力合成器((ブラウザ閲覧モジュール(engine,外部読取許可=True).登録(),*構造化文書能力群(),*局所能力群()))
         plan=合成計画((合成工程('閲覧',('ブラウザ閲覧',),'i',(素材参照('入力','r'),)),
             合成工程('読取',('文書読取',),'i',(素材参照('工程','閲覧'),),'形式'),
             合成工程('選択',('文書操作',),'i',(素材参照('工程','読取'),),'位置'),
             合成工程('値',('文書操作',),'i',(素材参照('工程','選択'),),'取出'),
             合成工程('抽出',('情報抽出',),'i',(素材参照('工程','値'),),'抽出設定')),('抽出',))
-        data={'r':能力結果(True,'',データ={'要求':asdict(表要求())}),'i':能力結果(True,'指定した処理'),
+        資料={'r':能力結果(True,'',データ={'要求':asdict(表要求())}),'i':能力結果(True,'指定した処理'),
               '形式':能力結果(True,'',データ={'形式':'JSON'}),
               '位置':能力結果(True,'',データ={'操作':'JSON選択','設定':{'位置':'/1/1'}}),
               '取出':能力結果(True,'',データ={'操作':'値取出','設定':{'型':'文字列'}}),
               '抽出設定':能力結果(True,'',データ={'種別':'数字'})}
-        r=runner.実行(plan,data,外部読取許可=True)
+        r=runner.実行(plan,資料,外部読取許可=True)
         self.assertTrue(r.成立,r.理由);self.assertEqual(r.出力[0][1].本文,'731');self.assertTrue(r.監査整合())
     def test_ページ描画値を実HDSへ渡す(self):
         from minidora.文脈要求 import 文脈付き要求セッション

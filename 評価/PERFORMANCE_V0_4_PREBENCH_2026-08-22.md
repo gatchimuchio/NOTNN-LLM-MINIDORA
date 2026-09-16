@@ -9,11 +9,11 @@
 現行性能候補では、K3機能相当47/47を維持したまま、実タスク経路で観測された次の損失源を修正した。
 
 1. 問い・候補・graphで意味語正規化が一致していなかった。
-2. HDS Compiler導出座標が `原文範囲` 不在だけで意味署名から落ちていた。
+2. HDS 構文化器導出座標が `原文範囲` 不在だけで意味署名から落ちていた。
 3. 同一HDS文書内に分散した意味がFact単位採点で接続できなかった。
 4. 同一意味Factを複数sourceが支持してもcanonical Kでprovenanceが1件へ潰れていた。
 5. graph探索深さが固定的で、問いの構造量と連動していなかった。
-6. HDS Runtimeの外部参照が問題文1 queryに固定されていた。
+6. HDS 実行系の外部参照が問題文1 queryに固定されていた。
 7. 複合参照Rで先頭Providerが上限を埋めると後続Providerが使われなかった。
 
 ## 2. 実装した性能改善
@@ -22,7 +22,7 @@
 
 - 問い / 候補 / graphで共通 `意味語` 正規化を使用する。
 - 単純な英語屈折差を吸収する。
-- 確定・推定されたCompiler導出座標を意味署名へ含める。
+- 確定・推定された構文化器導出座標を意味署名へ含める。
 - 未確定 / 未観測 / 矛盾 / 留保は確定署名へ昇格しない。
 
 ### K / 証拠保持
@@ -66,7 +66,7 @@ HDS構造量から `low / high / max` を決定論的に選び、K3の `Distille
 - provenance proofを持たないknowledge candidateをAPPROVEしない。
 - 未確定関係を確定根拠へ昇格させない。
 - GPQA固有ルールを追加していない。
-- HDS Compiler内部方式を変更していない。
+- HDS 構文化器内部方式を変更していない。
 - Layer-0上位契約を変更していない。
 
 ## 4. 内部検証
@@ -103,7 +103,7 @@ retrieval empty 98 / 198
 
 このbaselineは履歴固定値として上書きしない。
 
-本性能候補について、**公開リポジトリ内には完成runで使用したGPQA入力・HDS Compiler実装・OpenAlex/Wikipedia取得Data/HDS-IR一式が保存されていないため、同条件の外部GPQA再実行はこのリポジトリ単体では再現できない。**
+本性能候補について、**公開リポジトリ内には完成runで使用したGPQA入力・HDS 構文化器実装・OpenAlex/Wikipedia取得Data/HDS-IR一式が保存されていないため、同条件の外部GPQA再実行はこのリポジトリ単体では再現できない。**
 
 したがって、この文書から「GPQAスコアが8/198より上がった」とは主張しない。
 
@@ -112,11 +112,11 @@ retrieval empty 98 / 198
 新しいGPQA値を正式記録するには、少なくとも次を揃える。
 
 1. 同一GPQA Diamond 198問。
-2. 問題・4候補を全件HDS Compilerへ通す。
-3. 外部取得Dataを全件HDS Compilerへ通す。
+2. 問題・4候補を全件HDS 構文化器へ通す。
+3. 外部取得Dataを全件HDS 構文化器へ通す。
 4. 生文字列DataをKへ直入れしない。
 5. OpenAlex / Wikipedia等のProvider条件を記録する。
-6. gold labelをCompiler / R / K / P / Jへ渡さない。
+6. gold labelを構文化器 / R / K / P / Jへ渡さない。
 7. gold labelは採点時だけ使用する。
 8. answered / SUSPEND / correct / retrieval empty / Data件数 / HDS座標 / HDS関係 / K Factを記録する。
 9. 旧8/198 baselineは保持し、新しい日付baselineを追加する。

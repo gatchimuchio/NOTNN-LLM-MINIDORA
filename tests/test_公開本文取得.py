@@ -191,10 +191,10 @@ class 本文HTTP配線試験(unittest.TestCase):
             return original(self.server.server_address, timeout=timeout)
         with patch("minidora.公開本文取得._公開アドレス", return_value="8.8.8.8"), \
              patch("minidora.公開本文取得.socket.create_connection", side_effect=connect), \
-             patch("minidora.公開本文取得.ssl.create_default_context", return_value=ctx):
-            result = 公開本文取得器(timeout=2, 最大バイト数=size).取得("https://example.test" + path)
+             patch('minidora.公開本文取得.ssl.create_default_context', return_value=ctx):
+            結果 = 公開本文取得器(timeout=2, 最大バイト数=size).取得("https://example.test" + path)
             self.assertEqual(ctx.wrap_socket.call_args.kwargs["server_hostname"], "example.test")
-            return result
+            return 結果
 
     def test_実HTTP受信から本文まで(self):
         self.assertEqual(self.fetch().本文, "電圧は120 V。")
@@ -213,7 +213,7 @@ class 本文HTTP配線試験(unittest.TestCase):
         ctx.wrap_socket.side_effect = ssl.SSLError("test certificate failure")
         with patch("minidora.公開本文取得._公開アドレス", return_value="8.8.8.8"), \
              patch("minidora.公開本文取得.socket.create_connection", return_value=sock), \
-             patch("minidora.公開本文取得.ssl.create_default_context", return_value=ctx):
+             patch('minidora.公開本文取得.ssl.create_default_context', return_value=ctx):
             with self.assertRaises(ssl.SSLError):
                 公開本文取得器().取得(BASE)
             sock.close.assert_called()

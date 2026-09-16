@@ -1,7 +1,4 @@
-"""日本語の構造化アルゴリズムからPython ASTを構成する。自由文や試験値からの推測ではない。
-
-数値等の実値は定数Dataとして分離し、生成コードは定数辞書の参照だけを持つ。
-"""
+'日本語の構造化アルゴリズムからPython ASTを構成する。自由文や試験値からの推測ではない。\n\n数値等の実値は定数資料として分離し、生成コードは定数辞書の参照だけを持つ。\n'
 from __future__ import annotations
 
 import ast
@@ -42,7 +39,7 @@ def 関数を生成(仕様: dict, 定数: dict) -> 能力結果:
         if kind == "定数参照":
             shape(node, ("種別", "キー"))
             if type(node["キー"]) is not str or node["キー"] not in 定数:
-                raise ValueError("必要な定数Dataがない")
+                raise ValueError('必要な定数資料がない')
             return ast.Subscript(value=ast.Name(id="定数", ctx=ast.Load()), slice=ast.Constant(value=node["キー"]), ctx=ast.Load())
         if kind in ("算術", "比較"):
             shape(node, ("種別", "演算", "左", "右"))
@@ -71,26 +68,26 @@ def 関数を生成(仕様: dict, 定数: dict) -> 能力結果:
     def block(rows, depth=0):
         if type(rows) is not list or depth > 16 or len(rows) > 128:
             raise ValueError("手順の型・深さ・数不正")
-        result = []
+        結果 = []
         for node in rows:
             if type(node) is not dict:
                 raise ValueError("手順型不正")
             kind = node.get("種別")
             if kind == "代入":
                 shape(node, ("種別", "名前", "式"))
-                result.append(ast.Assign(targets=[ast.Name(id=name(node["名前"]), ctx=ast.Store())], value=expr(node["式"])))
+                結果.append(ast.Assign(targets=[ast.Name(id=name(node["名前"]), ctx=ast.Store())], value=expr(node["式"])))
             elif kind == "返却":
                 shape(node, ("種別", "式"))
-                result.append(ast.Return(value=expr(node["式"])))
+                結果.append(ast.Return(value=expr(node["式"])))
             elif kind == "分岐":
                 shape(node, ("種別", "条件", "真", "偽"))
-                result.append(ast.If(test=expr(node["条件"]), body=block(node["真"], depth+1), orelse=block(node["偽"], depth+1)))
+                結果.append(ast.If(test=expr(node["条件"]), body=block(node["真"], depth+1), orelse=block(node["偽"], depth+1)))
             elif kind == "反復":
                 shape(node, ("種別", "変数", "対象", "手順"))
-                result.append(ast.For(target=ast.Name(id=name(node["変数"]), ctx=ast.Store()), iter=expr(node["対象"]), body=block(node["手順"], depth+1), orelse=[]))
+                結果.append(ast.For(target=ast.Name(id=name(node["変数"]), ctx=ast.Store()), iter=expr(node["対象"]), body=block(node["手順"], depth+1), orelse=[]))
             else:
                 raise ValueError("未対応のアルゴリズム手順")
-        return result or [ast.Pass()]
+        return 結果 or [ast.Pass()]
     try:
         shape(仕様, ("名前", "引数", "手順"))
         値を確認(定数)
@@ -104,12 +101,12 @@ def 関数を生成(仕様: dict, 定数: dict) -> 能力結果:
             kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]), body=block(仕様["手順"]),
             decorator_list=[], returns=None, type_comment=None)], type_ignores=[])
         tree = ast.fix_missing_locations(tree)
-        source = ast.unparse(tree) + "\n"
-        _解析(source)
-        return 能力結果(True, source, データ={"版": コード能力版, "用途": "生成した限定Python関数",
+        情報源 = ast.unparse(tree) + "\n"
+        _解析(情報源)
+        return 能力結果(True, 情報源, データ={"版": コード能力版, "用途": "生成した限定Python関数",
             "仕様": deepcopy(仕様), "定数": deepcopy(定数),
             "仕様SHA256": sha256(json.dumps(仕様, ensure_ascii=False, sort_keys=True).encode()).hexdigest(),
-            "ソースSHA256": sha256(source.encode()).hexdigest(),
-            "検証": "構文境界のみ。入出力試験は別Module"})
+            "ソースSHA256": sha256(情報源.encode()).hexdigest(),
+            "検証": '構文境界のみ。入出力試験は別モジュール'})
     except (ValueError, TypeError, KeyError, SyntaxError, RecursionError, OverflowError) as exc:
         return 能力結果(False, "", 保留理由="コード生成不成立:" + type(exc).__name__)

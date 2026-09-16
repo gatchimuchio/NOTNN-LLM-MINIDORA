@@ -6,12 +6,12 @@
 
 ## B0 観測境界
 
-underlying modelのweight/config/内部architectureは非公開。Fable 5とMythos 5が同一underlying modelを共有するという公開情報と、外部classifier / safeguard / fallbackの差を観測対象とする。
+underlying modelのweight/config/内部architectureは非公開。Fable 5とMythos 5が同一underlying modelを共有するという公開情報と、外部classifier / safeguard / 代替経路の差を観測対象とする。
 
 ## 観測事実
 
 - Fable 5 / Mythos 5は同一underlying modelを共有する。
-- Fable系では外部classifier / safeguardがqueryを判定し、条件に応じて別modelへfallback / rerouteする。
+- Fable系では外部classifier / safeguardがqueryを判定し、条件に応じて別modelへ代替経路 / rerouteする。
 - Mythos系では同じunderlying modelを使いつつ一部の外部制御が異なる。
 
 ## B1〜B7 core内部作用
@@ -31,7 +31,7 @@ underlying modelのweight/config/内部architectureは非公開。Fable 5とMyth
 ↓
 外部分類・安全判定
 ├─ coreへ通す
-└─ fallback / reroute
+└─ 代替経路 / reroute
      ↓
    別model / 別経路
 ```
@@ -39,7 +39,7 @@ underlying modelのweight/config/内部architectureは非公開。Fable 5とMyth
 ### 直接作用
 
 - queryの一部はunderlying modelへ到達する前に別経路へ送られる。
-- 同一coreでも外部Gateの条件が違えば可観測出力分布・拒否・fallback率が変わる。
+- 同一coreでも外部関門の条件が違えば可観測出力分布・拒否・代替経路率が変わる。
 - したがって、製品挙動からcore能力を直接測ると外部制御が混入する。
 
 ## 比較推定
@@ -50,8 +50,8 @@ MINIDORAでも、未知停止・安全停止・外部参照不足・model側関�
 
 ## MINIDORAへの作用射影候補
 
-- model coreの成立差と外部Gateの採否を別ログへ残す。
-- fallback / routingで得た結果をmodel core自身の知識として加算しない。
+- model coreの成立差と外部関門の採否を別ログへ残す。
+- 代替経路 / routingで得た結果をmodel core自身の知識として加算しない。
 - 「答えなかった」を「知らなかった」へ自動変換しない。
 - 安全・policy・authority controlをK/Jの意味能力と分離する。
 
@@ -61,7 +61,7 @@ MINIDORAでも、未知停止・安全停止・外部参照不足・model側関�
 - state retention mechanism
 - internal hypothesis competition
 - classifier全構造
-- fallback条件全量
+- 代替経路条件全量
 
 ## 出典
 

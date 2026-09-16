@@ -1,4 +1,4 @@
-"""Core外周で、要求被覆と実行計画印を同一監査契約へ結合する。"""
+'模型核外周で、要求被覆と実行計画印を同一監査契約へ結合する。'
 from __future__ import annotations
 from dataclasses import fields, is_dataclass
 from datetime import datetime

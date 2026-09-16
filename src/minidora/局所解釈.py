@@ -6,7 +6,7 @@ from typing import Any
 
 @dataclass(frozen=True, slots=True)
 class 局所解釈スナップショット:
-    """一つのMINIDORA Runtime内だけで保持する現在解釈の作業状態。"""
+    '一つのMINIDORA 実行系内だけで保持する現在解釈の作業状態。'
 
     版: int = 0
     直前入力: str | None = None
@@ -30,11 +30,7 @@ class 局所解釈スナップショット:
 
 
 class 局所解釈キャッシュ:
-    """LLM Runtimeの寿命にだけ従う局所作業キャッシュ。
-
-    永続化・端末間同期・人格同一性を担わない。各turnは更新前スナップショットを
-    意思決定の起点とし、turn完了後にだけ次状態へ更新する。
-    """
+    'LLM 実行系の寿命にだけ従う局所作業キャッシュ。\n\n    永続化・端末間同期・人格同一性を担わない。各turnは更新前スナップショットを\n    意思決定の起点とし、turn完了後にだけ次状態へ更新する。\n    '
 
     def __init__(self) -> None:
         self._現在 = 局所解釈スナップショット()
@@ -67,12 +63,12 @@ class 局所解釈キャッシュ:
         history = before.IR履歴 + ((ir,) if ir is not None else ())
         last_ir = ir if ir is not None else before.直前IR
         focus = before.現在焦点
-        last_result = before.直前結果
+        last_結果 = before.直前結果
         unresolved = before.未解残差
 
         if status == "合格" and 値 is not None:
             focus = 値
-            last_result = 値
+            last_結果 = 値
             unresolved = ()
         elif status == "保留" and ir is not None:
             residuals = self._残差(ir)
@@ -84,7 +80,7 @@ class 局所解釈キャッシュ:
             版=before.版 + 1,
             直前入力=str(入力),
             現在焦点=focus,
-            直前結果=last_result,
+            直前結果=last_結果,
             直前IR=last_ir,
             直前採否=status,
             未解残差=unresolved,

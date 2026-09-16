@@ -1,5 +1,5 @@
 {
-  "schema": "minidora.k3.capability_action_structuring.manifest.v1",
+  "契約形式": "minidora.k3.capability_action_structuring.manifest.v1",
   "date_jst": "2026-08-26",
   "title": "K3 能力成立作用構文化 v1",
   "license": "CC-BY-4.0",
@@ -21,7 +21,7 @@
   ],
   "scope": {
     "included": [
-      "K3 runtime architecture action analysis",
+      "K3 実行系 architecture action analysis",
       "D4 full-weight observation reconciliation",
       "B0-B9 action axes",
       "comparison with K3-excluded 10-model second pass",

@@ -15,7 +15,7 @@ from minidora.製品版.型 import 能力結果
 
 
 def 記号計画(値='2'):
-    data={'式':能力結果(True,'',データ={'式':'(x+1)**3','変数':['x']}),
+    資料={'式':能力結果(True,'',データ={'式':'(x+1)**3','変数':['x']}),
           '指示':能力結果(True,'宣言した数学操作を実行'),
           '微分設定':能力結果(True,'',データ={'操作':'微分','対象変数':'x'}),
           '代入設定':能力結果(True,'',データ={'操作':'代入','代入値':{'x':値}}),
@@ -27,7 +27,7 @@ def 記号計画(値='2'):
         合成工程('採用',('数学結果採用',),'指示',(素材参照('工程','代入'),),'採用設定'),
         合成工程('整形',('文脈変換',),'指示',(素材参照('工程','採用'),),'整形設定'),
     ),('整形',))
-    return plan,data
+    return plan,資料
 
 
 def main():
@@ -37,23 +37,23 @@ def main():
     parser.add_argument('--モード',choices=('記号','一意解','自由解','解なし'),default='記号')
     args=parser.parse_args()
     if args.モード=='記号':
-        plan,data=記号計画(args.値)
-        result=能力合成器((*数学能力群(),*局所能力群())).実行(plan,data)
-        mids=dict(result.中間結果)
+        plan,資料=記号計画(args.値)
+        結果=能力合成器((*数学能力群(),*局所能力群())).実行(plan,資料)
+        mids=dict(結果.中間結果)
         audits=[数学記録整合(mids[k]) for k in ('微分','代入') if k in mids]
         out={'範囲':'形式数式の局所接続。自由文や汎用性能の評価ではない。',
-             '成立':result.成立,'理由':result.理由,
-             '中間結果':{k:v.本文 for k,v in result.中間結果},
-             '最終結果':{k:v.本文 for k,v in result.出力},
-             '合成監査':result.監査整合(),'数学監査':len(audits)==2 and all(audits)}
-        ok=result.成立 and out['合成監査'] and out['数学監査']
+             '成立':結果.成立,'理由':結果.理由,
+             '中間結果':{k:v.本文 for k,v in 結果.中間結果},
+             '最終結果':{k:v.本文 for k,v in 結果.出力},
+             '合成監査':結果.監査整合(),'数学監査':len(audits)==2 and all(audits)}
+        ok=結果.成立 and out['合成監査'] and out['数学監査']
     else:
         equations=[{'左辺':'x+y','右辺':'5'}]
         if args.モード=='一意解':equations.append({'左辺':'x-y','右辺':'1'})
         if args.モード=='解なし':equations.append({'左辺':'2*x+2*y','右辺':'11'})
-        result=線形を解く(('x','y'),tuple(equations))
-        out={'成立':result.成立,'本文':result.本文,'結果':result.データ,'数学監査':数学記録整合(result)}
-        ok=result.成立 and out['数学監査'] and result.データ['判定']==args.モード
+        結果=線形を解く(('x','y'),tuple(equations))
+        out={'成立':結果.成立,'本文':結果.本文,'結果':結果.データ,'数学監査':数学記録整合(結果)}
+        ok=結果.成立 and out['数学監査'] and 結果.データ['判定']==args.モード
     print(json.dumps(out,ensure_ascii=False,indent=2))
     return 0 if ok else 2
 

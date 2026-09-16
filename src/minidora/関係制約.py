@@ -224,37 +224,37 @@ class 関係制約器:
             answers = []
             for query in p.問い:
                 tick()
-                state, proof = "未確定", {}
+                状態, proof = "未確定", {}
                 if not ok:
-                    state, proof = "前提矛盾", conflict
+                    状態, proof = "前提矛盾", conflict
                 elif p.未解釈:
-                    state = "保留"
+                    状態 = "保留"
                 else:
                     neg = replace(query, 識別子="@否定:" + query.識別子, 比較=_反転[query.比較])
                     pos = replace(query, 識別子="@肯定:" + query.識別子)
                     neg_ok, no, _, _ = _閉包(p.変数, p.制約 + (neg,), tick)
                     if not neg_ok:
-                        state, proof = "導出", {**no, "仮定": asdict(neg)}
+                        状態, proof = "導出", {**no, "仮定": asdict(neg)}
                     else:
                         pos_ok, no, _, _ = _閉包(p.変数, p.制約 + (pos,), tick)
                         if not pos_ok:
-                            state, proof = "反証", {**no, "仮定": asdict(pos)}
+                            状態, proof = "反証", {**no, "仮定": asdict(pos)}
                 used = [x for x in proof.get("使用制約", []) if not x.startswith("@")]
                 links = []
                 for link in p.根拠:
                     if link.制約ID in used:
-                        source = next(s for s in refs if s.識別子 == link.参照ID)
-                        links.append({**asdict(link), "原文": source.本文[link.開始:link.終了]})
-                answers.append({"問い": asdict(query), "判定": state, "根拠制約": used,
+                        情報源 = next(s for s in refs if s.識別子 == link.参照ID)
+                        links.append({**asdict(link), "原文": 情報源.本文[link.開始:link.終了]})
+                answers.append({"問い": asdict(query), "判定": 状態, "根拠制約": used,
                                 "反証検査": proof, "原文対応": links})
             body = "\n".join(f'{json.dumps(a["問い"]["識別子"], ensure_ascii=True)}: {a["判定"]}' for a in answers)
             body += "\n宣言された同一尺度・条件・時点の制約からの判定。事実認定ではありません。"
-            data = {"版": 関係制約版, "問題": asdict(p), "前提整合": ok, "競合": conflict,
+            資料 = {"版": 関係制約版, "問題": asdict(p), "前提整合": ok, "競合": conflict,
                     "回答": answers, "演算数": count, "最大演算数": 最大演算数,
                     "事実認定": "未実施", "入力意味": "構造化制約の意味・適用範囲は呼出側の宣言"}
-            result = 能力結果(True, body, 根拠=tuple(sorted({x for a in answers for x in a["根拠制約"]})), 参照=refs, データ=data)
-            data["記録SHA256"] = sha256(_符号(_結果辞書(result))).hexdigest()
-            if len(_符号(_結果辞書(result))) > 1500000:
+            結果 = 能力結果(True, body, 根拠=tuple(sorted({x for a in answers for x in a["根拠制約"]})), 参照=refs, データ=資料)
+            資料["記録SHA256"] = sha256(_符号(_結果辞書(結果))).hexdigest()
+            if len(_符号(_結果辞書(結果))) > 1500000:
                 raise ValueError("関係記録サイズ上限")
             # 小さい計算も返却直前の中止を観測する。
             if 停止要求 is not None:
@@ -263,32 +263,32 @@ class 関係制約器:
                     raise ValueError("停止要求型不正")
                 if value:
                     raise _中断("停止要求")
-            return result
+            return 結果
         except _中断 as exc:
             return 能力結果(False, "", 保留理由=str(exc), データ={"演算数": count})
         except Exception as exc:
             return 能力結果(False, "", 保留理由=f"関係制約契約・制御違反:{type(exc).__name__}")
 
 
-def 関係記録整合(result: 能力結果) -> bool:
+def 関係記録整合(結果: 能力結果) -> bool:
     try:
-        if not isinstance(result, 能力結果) or not result.成立:
+        if not isinstance(結果, 能力結果) or not 結果.成立:
             return False
-        p = 関係問題を復元(result.データ["問題"])
-        expected = 関係制約器().実行(p, result.参照, 最大演算数=result.データ["最大演算数"])
-        value = {**_結果辞書(result), "参照": [s.辞書化() for s in sorted(_参照結合(result.参照), key=lambda s: s.識別子)]}
+        p = 関係問題を復元(結果.データ["問題"])
+        expected = 関係制約器().実行(p, 結果.参照, 最大演算数=結果.データ["最大演算数"])
+        value = {**_結果辞書(結果), "参照": [s.辞書化() for s in sorted(_参照結合(結果.参照), key=lambda s: s.識別子)]}
         return expected.成立 and _符号(value) == _符号(_結果辞書(expected))
     except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
         return False
 
 
-def 関係判定を採用(result: 能力結果, 問いID: str, 期待: str = "導出") -> 能力結果:
-    if 期待 not in ("導出", "反証") or not 関係記録整合(result):
+def 関係判定を採用(結果: 能力結果, 問いID: str, 期待: str = "導出") -> 能力結果:
+    if 期待 not in ("導出", "反証") or not 関係記録整合(結果):
         return 能力結果(False, "", 保留理由="関係報告の整合違反または採用条件不正")
-    row = next((a for a in result.データ["回答"] if a["問い"]["識別子"] == 問いID), None)
+    row = next((a for a in 結果.データ["回答"] if a["問い"]["識別子"] == 問いID), None)
     if row is None or row["判定"] != 期待:
         return 能力結果(False, "", 保留理由="問いの確定判定が採用条件を満たさない")
-    return 能力結果(True, 期待, 根拠=tuple(row["根拠制約"]), 参照=result.参照,
-        データ={"判定": 期待, "問い": deepcopy(row["問い"]), "属性": result.データ["問題"]["属性"],
-                "単位": result.データ["問題"]["単位"], "条件": result.データ["問題"]["条件"],
-                "時点": result.データ["問題"]["時点"], "関係記録SHA256": result.データ["記録SHA256"]})
+    return 能力結果(True, 期待, 根拠=tuple(row["根拠制約"]), 参照=結果.参照,
+        データ={"判定": 期待, "問い": deepcopy(row["問い"]), "属性": 結果.データ["問題"]["属性"],
+                "単位": 結果.データ["問題"]["単位"], "条件": 結果.データ["問題"]["条件"],
+                "時点": 結果.データ["問題"]["時点"], "関係記録SHA256": 結果.データ["記録SHA256"]})

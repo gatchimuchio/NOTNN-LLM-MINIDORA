@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Callable, TYPE_CHECKING
 
-from .hds_choice_runtime import HDS選択実行結果, HDS選択推論実行
-from .hds_ir import HDSIR
+from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
+from .HDS中間表現 import HDSIR
 from .hds能力経路_v3 import HDS能力経路V3候補提案実行
-from .hds統一状態循環 import HDS統一状態Session, HDS統一状態政策
+from .HDS統一状態循環 import HDS統一状態Session, HDS統一状態政策
 if TYPE_CHECKING:
-    from .k3_functional import K3相当能力核
+    from .K3機能 import K3相当能力核
 from .模型 import MINIDORA模型核
 from .参照 import 参照記録
 
@@ -16,30 +16,30 @@ from .参照 import 参照記録
 HDS候補worker = Callable[[HDSIR, tuple[参照記録, ...]], HDS選択実行結果]
 
 
-def _基礎提案化(result: HDS選択実行結果) -> HDS選択実行結果:
+def _基礎提案化(結果: HDS選択実行結果) -> HDS選択実行結果:
     """既存workerのAPPROVEを採用権限なしのPROPOSEへ落とす。"""
-    if result.状態 != "APPROVE" or result.回答ラベル is None or result.回答内容 is None:
-        return result
+    if 結果.状態 != "APPROVE" or 結果.回答ラベル is None or 結果.回答内容 is None:
+        return 結果
     return replace(
-        result,
+        結果,
         状態="PROPOSE",
-        理由=tuple(dict.fromkeys(tuple(result.理由) + (
+        理由=tuple(dict.fromkeys(tuple(結果.理由) + (
             "HDS_ADAPTIVE_BASE_SELECTED",
-            "CANDIDATE_GENERATION_HAS_NO_COMMIT_AUTHORITY",
+            '候補_GENERATION_HAS_NO_COMMIT_AUTHORITY',
         ))),
     )
 
 
-def _能力経路優先可能(result: HDS選択実行結果) -> bool:
+def _能力経路優先可能(結果: HDS選択実行結果) -> bool:
     """raw候補横断更新ではなく、実観測変化または専門作用消費だけを根拠にする。"""
-    if result.状態 != "PROPOSE" or result.回答ラベル is None or result.回答内容 is None:
+    if 結果.状態 != "PROPOSE" or 結果.回答ラベル is None or 結果.回答内容 is None:
         return False
-    reasons = set(result.理由)
+    reasons = set(結果.理由)
     return bool(
-        result.専門作用起動数 > 0
-        or "HDS_ACTION_DELTA_CONSUMED" in reasons
+        結果.専門作用起動数 > 0
+        or 'HDS_作用_DELTA_CONSUMED' in reasons
         or "C_LOCAL_VIEW_RECHECK_SELECTED" in reasons
-        or "NEW_REFERENCE_STATE_CONSUMED" in reasons
+        or 'NEW_参照_状態_CONSUMED' in reasons
         or any(str(x).startswith("UNIFIED_EVALUATION_ATTEMPTS:") and not str(x).endswith(":1") for x in reasons)
     )
 
@@ -58,7 +58,7 @@ def HDS適応候補調停(
             能力提案,
             理由=tuple(dict.fromkeys(tuple(能力提案.理由) + (
                 "HDS_ADAPTIVE_PRIMARY_SELECTED",
-                "OBSERVATION_STATE_CHANGE_SUPPORTED",
+                'OBSERVATION_状態_CHANGE_SUPPORTED',
             ))),
         )
 
@@ -95,10 +95,7 @@ def HDS適応候補提案実行(
     統一政策: HDS統一状態政策 | None = None,
     主体状態: object | None = None,
 ) -> HDS選択実行結果:
-    """同一HDS-IR・同一Dataで能力v3 workerと基礎workerを生成し、一般規則で調停する。
-
-    正式MINIDORA模型核が与えられる場合、旧K3 helperは必須ではない。
-    """
+    '同一HDS-IR・同一資料で能力v3 workerと基礎workerを生成し、一般規則で調停する。\n\n    正式MINIDORA模型核が与えられる場合、旧K3 補助器は必須ではない。\n    '
     primary = HDS能力経路V3候補提案実行(
         question_ir,
         references,

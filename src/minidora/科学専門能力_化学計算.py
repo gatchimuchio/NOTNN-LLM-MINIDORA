@@ -18,7 +18,7 @@ def solve_complex(q, choices):
         if not K:
             return None
         x = math.sqrt(C / K)
-        return _generic_result(_nearest(choices, x, log=True), 'complex_dissociation', x)
+        return _一般結果(_nearest(choices, x, log=True), 'complex_dissociation', x)
     lm = re.search('(?:ligand|scn|thiocyan\\w*)[^0-9]{0,30}([0-9.]+)\\s*m', q, re.I)
     betas = []
     for _i, val in re.findall('(?:beta|β)\\s*_?\\s*(\\d+)\\s*=\\s*([0-9.eE+\\-*x^]+)', q, re.I):
@@ -32,7 +32,7 @@ def solve_complex(q, choices):
         n = int(nm.group(1)) if nm else min(2, len(betas))
         if 1 <= n <= len(betas):
             frac = 100 * terms[n] / sum(terms)
-            return _generic_result(_nearest(choices, frac, rel_tol=0.08), 'cumulative_complex_fraction', frac)
+            return _一般結果(_nearest(choices, frac, rel_tol=0.08), 'cumulative_complex_fraction', frac)
     return None
 
 def solve_weak_acid(q, choices):
@@ -69,7 +69,7 @@ def solve_weak_acid(q, choices):
     if not best:
         return None
     best.sort()
-    return _generic_result(best[0][1], 'weak_acid_titration', (pH1, pH2))
+    return _一般結果(best[0][1], 'weak_acid_titration', (pH1, pH2))
 
 def solve_phosphate(q, choices):
     s = q.casefold()
@@ -79,9 +79,9 @@ def solve_phosphate(q, choices):
     vm = re.search('(?:volume(?:\\s+of)?|solution(?:\\s+which)?\\s+has\\s+the\\s+volume\\s+of)[^0-9]{0,30}([0-9.]+)\\s*(l|ml|cm3)', q, re.I)
     if len(salts) < 2 or not vm:
         return None
-    ka_tokens = re.findall('(?:[0-9.]+\\s*[x*]\\s*10\\s*\\^?\\s*[+-]?\\d+|[0-9.]+e[+-]?\\d+)', q, re.I)
+    ka_字句 = re.findall('(?:[0-9.]+\\s*[x*]\\s*10\\s*\\^?\\s*[+-]?\\d+|[0-9.]+e[+-]?\\d+)', q, re.I)
     kas = []
-    for tok in ka_tokens:
+    for tok in ka_字句:
         v = _num_expr(tok)
         if v is not None and 0 < v < 1:
             kas.append(v)
@@ -97,7 +97,7 @@ def solve_phosphate(q, choices):
     V = float(vm.group(1)) * (0.001 if vm.group(2).casefold() in {'ml', 'cm3'} else 1)
     H = Ka2 * n_acid / n_base
     po4 = Ka3 * (n_base / V) / H
-    return _generic_result(_nearest(choices, po4, log=True), 'phosphate_speciation', po4)
+    return _一般結果(_nearest(choices, po4, log=True), 'phosphate_speciation', po4)
 
 def solve_neutralization(q, choices):
     s = q.casefold()
@@ -133,7 +133,7 @@ def solve_neutralization(q, choices):
     if not best:
         return None
     best.sort()
-    return _generic_result(best[0][1], 'neutralization_enthalpy', (kj, kj / 4.184))
+    return _一般結果(best[0][1], 'neutralization_enthalpy', (kj, kj / 4.184))
 
 def solve_ksp(q, choices):
     s = q.casefold()
@@ -165,18 +165,18 @@ def solve_ksp(q, choices):
     if not best:
         return None
     best.sort()
-    return _generic_result(best[0][1], 'ksp_acid_dissolution', (pH, acid_vol))
-REGISTRY = (solve_complex, solve_weak_acid, solve_phosphate, solve_neutralization, solve_ksp)
+    return _一般結果(best[0][1], 'ksp_acid_dissolution', (pH, acid_vol))
+登録簿 = (solve_complex, solve_weak_acid, solve_phosphate, solve_neutralization, solve_ksp)
 
 def 解決(question: str, choices: Sequence[str]):
     hits = []
-    for solver in REGISTRY:
+    for 解決器 in 登録簿:
         try:
-            row = solver(question, choices)
+            row = 解決器(question, choices)
         except Exception:
             row = None
         if row is not None:
             hits.append(row)
     if not hits or len({row.index for row in hits}) != 1:
         return None
-    return max(hits, key=lambda row: row.confidence)
+    return max(hits, key=lambda row: row.信頼度)

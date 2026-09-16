@@ -30,7 +30,7 @@ class 汎用要求IR:
     素材: dict[str, 能力結果]
     素材種別: dict[str, str]
     目的: tuple[目的指定, ...]
-    引数Data: dict[str, dict]
+    引数資料: dict[str, dict]
     出力目的: tuple[str, ...]
     残差: tuple[str, ...] = ()
 
@@ -52,16 +52,16 @@ class 汎用要求IR:
             名前(name); 名前(self.素材種別[name]); _結果辞書(value)
             if not value.成立:
                 raise ValueError('不成立の素材')
-        if type(self.引数Data) is not dict or any(type(v) is not dict for v in self.引数Data.values()):
-            raise ValueError('引数Data不正')
+        if type(self.引数資料) is not dict or any(type(v) is not dict for v in self.引数資料.values()):
+            raise ValueError('引数資料不正')
         names = set(self.素材)
         seen_goals = set()
         for goal in self.目的:
             if type(goal) is not 目的指定:
                 raise ValueError('目的型不正')
             for x in (goal.識別子, goal.対象, goal.成果種別, goal.引数参照): 名前(x)
-            if goal.識別子 in names or goal.識別子 in seen_goals or goal.引数参照 not in self.引数Data:
-                raise ValueError('目的重複又は引数Data欠落')
+            if goal.識別子 in names or goal.識別子 in seen_goals or goal.引数参照 not in self.引数資料:
+                raise ValueError('目的重複又は引数資料欠落')
             seen_goals.add(goal.識別子); names.add(goal.識別子)
             span = goal.原文範囲
             if (type(span) is not tuple or len(span) != 2 or any(type(x) is not int for x in span)
@@ -74,8 +74,8 @@ class 汎用要求IR:
                 or any(type(x) is not str or x not in goals for x in self.出力目的)
                 or len(set(self.出力目的)) != len(self.出力目的)):
             raise ValueError('出力目的不正')
-        if set(self.引数Data) != {g.引数参照 for g in self.目的}:
-            raise ValueError('未使用の引数Data')
+        if set(self.引数資料) != {g.引数参照 for g in self.目的}:
+            raise ValueError('未使用の引数資料')
 
         # 要求IR自身で依存閉包を確認する。計画器に入る前に、出力へ接続しない
         # 目的や循環を「存在はするが無視された要求」にしない。
@@ -91,9 +91,9 @@ class 汎用要求IR:
         if needed != goals:
             raise ValueError('出力に接続していない目的')
 
-        raw = {'素材': {k: _結果辞書(v) for k, v in self.素材.items()}, '引数': self.引数Data}
+        raw = {'素材': {k: _結果辞書(v) for k, v in self.素材.items()}, '引数': self.引数資料}
         if len(_符号化(raw)) > 2000000:
-            raise ValueError('要求Dataのサイズ上限')
+            raise ValueError('要求資料のサイズ上限')
         return order
 
     def 固定複製(self):
@@ -110,7 +110,7 @@ class 汎用要求IR:
             items.append(要求被覆項('素材', name, users))
         for goal in self.目的:
             items.append(要求被覆項('目的', goal.識別子, (goal.対象, goal.引数参照), goal.原文範囲))
-        for name in self.引数Data:
+        for name in self.引数資料:
             users = tuple(g.識別子 for g in self.目的 if g.引数参照 == name)
             items.append(要求被覆項('引数', name, users))
         for name in self.出力目的:

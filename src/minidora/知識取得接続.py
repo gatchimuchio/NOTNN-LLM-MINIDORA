@@ -1,4 +1,4 @@
-"""知識取得を既存Capability契約へ接続する。検索の実値は合成設定Dataから受け取る。"""
+'知識取得を既存能力契約へ接続する。検索の実値は合成設定資料から受け取る。'
 from __future__ import annotations
 
 from .知識取得 import 知識取得器, 知識取得要求, 知識取得版
@@ -7,7 +7,7 @@ from .製品版.能力契約 import 能力文脈
 from .製品版.型 import 能力結果
 
 
-class 知識取得Module:
+class 知識取得モジュール:
     名前 = "知識取得"
     版 = 知識取得版
     優先度 = 0

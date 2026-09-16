@@ -23,11 +23,11 @@ def main() -> int:
         facts.append(関係式('反対関係','C','以上','A'))
     p=関係問題(('A','B','C'),tuple(facts),(関係式('比較','A','以上','C','5'),))
     r=関係制約器().実行(p)
-    state=r.データ['回答'][0]['判定'] if r.成立 else None
+    状態=r.データ['回答'][0]['判定'] if r.成立 else None
     print(json.dumps({'範囲':'明示された実数差分関係。自由文理解や汎用性能の評価ではない。',
-        '判定':state,'監査整合':関係記録整合(r),'報告':r.データ,'保留理由':r.保留理由},ensure_ascii=False,indent=2))
+        '判定':状態,'監査整合':関係記録整合(r),'報告':r.データ,'保留理由':r.保留理由},ensure_ascii=False,indent=2))
     expected='前提矛盾' if args.矛盾 else '未確定' if args.関係欠落 else '導出'
-    return 0 if state==expected and 関係記録整合(r) else 1
+    return 0 if 状態==expected and 関係記録整合(r) else 1
 
 
 if __name__=='__main__':

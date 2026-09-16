@@ -12,8 +12,8 @@ from unittest.mock import patch
 from minidora.目的会話 import 目的会話セッション
 from minidora.統合実行 import 統合セッション
 from minidora.製品版.型 import 能力結果
-from minidora.hds_compiler import 公開HDSコンパイラ
-from minidora.hds_ir import HDS残差, HDS座標, 値状態
+from minidora.HDS構文化器 import 公開HDSコンパイラ
+from minidora.HDS中間表現 import HDS残差, HDS座標, 値状態
 from minidora.HDS目的射影 import HDSから目的要求
 
 class 目的会話試験(unittest.TestCase):
@@ -139,13 +139,13 @@ class 目的会話試験(unittest.TestCase):
             self.s.統合.初期化()
             return original(*args,**kwargs)
         with patch.object(self.s.統合,'準備',side_effect=prepare):
-            result=self.s.応答('「2+3」を計算して')
-        self.assertFalse(result.成立);self.assertEqual(result.理由,'解釈後に会話状態が変化')
+            結果=self.s.応答('「2+3」を計算して')
+        self.assertFalse(結果.成立);self.assertEqual(結果.理由,'解釈後に会話状態が変化')
         self.assertEqual(self.s.統合.採用履歴スナップショット()[1],())
 
     def test_未知HDS残差を無視しない(self):
         ir=公開HDSコンパイラ().コンパイル('「2+3」を計算して')
-        bad=replace(ir,残差=(HDS残差('r','semantic_loss','条件','未解釈'),))
+        bad=replace(ir,残差=(HDS残差('r','意味_loss','条件','未解釈'),))
         self.assertFalse(HDSから目的要求(bad,{}).成立)
 
     def test_HDS原文の不一致は拒否(self):
@@ -213,7 +213,7 @@ class 目的CLI試験(unittest.TestCase):
         self.assertNotIn('Traceback',r.stderr.decode('utf-8'))
     def test_明示ファイルの読取(self):
         with tempfile.TemporaryDirectory() as d:
-            p=Path(d)/'source.json';p.write_text('{"n":75}',encoding='utf-8')
+            p=Path(d)/'情報源.json';p.write_text('{"n":75}',encoding='utf-8')
             r=self.run_cli('--資料','設定='+str(p),'JSON資料「設定」の位置「/n」の数値を取り出して')
             self.assertEqual(r.returncode,0,r.stderr);self.assertEqual(r.stdout.strip(),'75')
 

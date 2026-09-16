@@ -31,11 +31,11 @@ def main():
             print(json.dumps({'状態':'失敗','本文':'','理由':'入力行上限'},ensure_ascii=False),flush=True)
             return 1  # 同じ巨大行の後半を独立した要求として読まない。
         try:
-            result = 統合要求を実行(session, JSON要求を読む(line))
+            結果 = 統合要求を実行(session, JSON要求を読む(line))
         except Exception as exc:
-            result = {'状態':'失敗','本文':'','理由':'JSON入力不成立:'+type(exc).__name__}
-        print(json.dumps(result, ensure_ascii=False), flush=True)
-        status = max(status, int(result['状態'] not in ('合格',)))
+            結果 = {'状態':'失敗','本文':'','理由':'JSON入力不成立:'+type(exc).__name__}
+        print(json.dumps(結果, ensure_ascii=False), flush=True)
+        status = max(status, int(結果['状態'] not in ('合格',)))
     return status
 
 

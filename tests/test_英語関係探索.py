@@ -8,8 +8,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
-from minidora.hds_language_relations import HDS英語基底関係射影
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
+from minidora.HDS言語関係 import HDS英語基底関係射影
 from minidora.言語基底_英語 import 英語明示関係構文, 英語関係一致, 英語関係構文
 from minidora.言語構造 import _英文一致, 言語関係抽出
 
@@ -124,15 +124,15 @@ class 英語関係探索試験(unittest.TestCase):
                 full.finditer.assert_called_once_with(text)
 
     def test_独自3引数構文と同値性と位置引数照合を維持する(self):
-        standard = 英語明示関係構文[1]
-        custom = 英語関係構文(standard.種別, standard.正規表現, True)
+        標準 = 英語明示関係構文[1]
+        custom = 英語関係構文(標準.種別, 標準.正規表現, True)
         self.assertIsNone(custom.述語必要条件)
-        self.assertEqual(custom, standard)
-        self.assertEqual(hash(custom), hash(standard))
-        self.assertEqual(repr(custom), repr(standard))
+        self.assertEqual(custom, 標準)
+        self.assertEqual(hash(custom), hash(標準))
+        self.assertEqual(repr(custom), repr(標準))
         self.assertEqual(英語関係構文.__match_args__, ("種別", "正規表現", "反転"))
         self.assertEqual(_一致署名(英語関係一致(custom, "Alpha is caused by Beta.")),
-                         _一致署名(standard.正規表現.finditer("Alpha is caused by Beta.")))
+                         _一致署名(標準.正規表現.finditer("Alpha is caused by Beta.")))
 
     def test_必要条件属性なしの独自構文もfinditerへ直通する(self):
         full = Mock(wraps=re.compile(r"(?P<s>Alpha) (?P<v>links) (?P<o>Beta)"))
@@ -142,7 +142,7 @@ class 英語関係探索試験(unittest.TestCase):
         self.assertIs(英語関係一致(custom, "neutral wording"), iterator)
         full.finditer.assert_called_once_with("neutral wording")
 
-    def test_Core入口の受動と比較と補助構文の順序を保持する(self):
+    def test_模型核入口の受動と比較と補助構文の順序を保持する(self):
         for text in _境界例:
             with self.subTest(text=text):
                 actual_matches = tuple((s.種別, _一致署名((m,))) for s, m in _英文一致(text))
@@ -152,12 +152,12 @@ class 英語関係探索試験(unittest.TestCase):
                     self.assertEqual(actual_relations, 言語関係抽出(text, "自然言語:en"))
 
     def test_HDS入口の関係と座標と順序を保持する(self):
-        compiler = 公開HDSコンパイラ()
+        構文化器 = 公開HDSコンパイラ()
         for text in _境界例[6:11]:
             with self.subTest(text=text):
-                ir = compiler._意味基礎.コンパイル(text)
+                ir = 構文化器._意味基礎.コンパイル(text)
                 actual = HDS英語基底関係射影(ir)
-                with patch("minidora.hds_language_relations.英語関係一致", _従来探索):
+                with patch("minidora.HDS言語関係.英語関係一致", _従来探索):
                     self.assertEqual(actual, HDS英語基底関係射影(ir))
 
 

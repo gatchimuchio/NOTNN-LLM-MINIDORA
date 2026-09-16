@@ -18,17 +18,17 @@ def edit(document,*mods):
 
 
 class 文章編集試験(unittest.TestCase):
-    def ok(self,result):
-        self.assertTrue(result.成立,(result.保留理由,result.データ))
-        self.assertTrue(文章記録整合(result))
+    def ok(self,結果):
+        self.assertTrue(結果.成立,(結果.保留理由,結果.データ))
+        self.assertTrue(文章記録整合(結果))
         pos=0
-        for span in result.データ['対応']:
+        for span in 結果.データ['対応']:
             self.assertEqual(pos,span['開始'])
-            origin=span['由来'];raw=_由来原文(origin,result.データ['原本'],result.データ['編集履歴'])
-            self.assertEqual(raw[origin['開始']:origin['終了']],result.本文[span['開始']:span['終了']])
+            origin=span['由来'];raw=_由来原文(origin,結果.データ['原本'],結果.データ['編集履歴'])
+            self.assertEqual(raw[origin['開始']:origin['終了']],結果.本文[span['開始']:span['終了']])
             pos=span['終了']
-        self.assertEqual(pos,len(result.本文))
-        return result
+        self.assertEqual(pos,len(結果.本文))
+        return 結果
 
     def test_指定された語だけを変更(self):
         d=文章を取り込む('草案\r\n値120、条件は未確認。')

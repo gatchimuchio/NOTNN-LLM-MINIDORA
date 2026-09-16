@@ -29,7 +29,7 @@
 
 training objectiveがtask successとefficiencyを同時に圧力として持つため、形成後modelには「同じ仕事をより直接的に完遂する」選択傾向が残る。
 
-これはruntimeの高速化とは別である。runtime最適化は同じmodel計算を安く速く実行する作用、training最適化はmodel側の出力経路自体を変える作用として分離する。
+これは実行系の高速化とは別である。実行系最適化は同じmodel計算を安く速く実行する作用、training最適化はmodel側の出力経路自体を変える作用として分離する。
 
 ## B9 展開後制御
 

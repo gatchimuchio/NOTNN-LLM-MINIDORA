@@ -90,7 +90,7 @@ class 固定参照供給器:
                 )
             )
             本文 = unicodedata.normalize("NFKC", 意味面).casefold()
-            点 = sum(1 for token in 語 if token in 本文)
+            点 = sum(1 for 字句 in 語 if 字句 in 本文)
             if 点:
                 採点済み.append((点, 記録))
         採点済み.sort(key=lambda x: (-x[0], x[1].識別子))
@@ -101,8 +101,8 @@ def _記録品質(record: 参照記録) -> tuple[int, float, int]:
     return (1 if record.意味確定 else 0, float(record.信頼), len(str(record.内容)))
 
 
-def _同一source統合(old: 参照記録, new: 参照記録) -> 参照記録:
-    """同一識別子の資料を独立sourceへ増やさず、より強い記録へ統合する。"""
+def _同一情報源統合(old: 参照記録, new: 参照記録) -> 参照記録:
+    '同一識別子の資料を独立情報源へ増やさず、より強い記録へ統合する。'
     best, other = (new, old) if _記録品質(new) > _記録品質(old) else (old, new)
     conditions = list(best.条件)
     for condition in other.条件:
@@ -116,10 +116,7 @@ def _同一source統合(old: 参照記録, new: 参照記録) -> 参照記録:
 
 
 class 複合参照供給器:
-    """複数Providerを並列取得し、Provider順を保ったround-robinで統合する。
-
-    同一識別子は独立資料として二重計上せず、confidence・本文量の高い記録へ品質統合する。
-    """
+    '複数Providerを並列取得し、Provider順を保ったround-robinで統合する。\n\n    同一識別子は独立資料として二重計上せず、信頼度・本文量の高い記録へ品質統合する。\n    '
 
     並列安全 = True
 
@@ -164,7 +161,7 @@ class 複合参照供給器:
                     errors.append((str(getattr(provider, "名称", type(provider).__name__)), f"{type(exc).__name__}: {exc}"))
         self.最後のエラー = tuple(errors)
 
-        result: list[参照記録] = []
+        結果: list[参照記録] = []
         index_by_id: dict[str, int] = {}
         depth = 0
         while True:
@@ -176,13 +173,13 @@ class 複合参照供給器:
                 record = pool[depth]
                 existing = index_by_id.get(record.識別子)
                 if existing is not None:
-                    result[existing] = _同一source統合(result[existing], record)
+                    結果[existing] = _同一情報源統合(結果[existing], record)
                     continue
-                if len(result) >= 上限:
+                if len(結果) >= 上限:
                     continue
-                index_by_id[record.識別子] = len(result)
-                result.append(record)
+                index_by_id[record.識別子] = len(結果)
+                結果.append(record)
             if not progressed:
                 break
             depth += 1
-        return tuple(result)
+        return tuple(結果)

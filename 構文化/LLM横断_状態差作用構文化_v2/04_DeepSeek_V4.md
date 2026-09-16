@@ -33,7 +33,7 @@ CSA indexer top-kとMoE routingは状態依存のreference/path selectionとし�
 
 ## R — 再参照・再利用の尺度
 
-long-range compressed representationの再参照経路を観測。mHCはdepth transportであって時間的runtime loopとは呼ばない。
+long-range compressed representationの再参照経路を観測。mHCはdepth transportであって時間的実行系 loopとは呼ばない。
 
 ## C — 再結合
 

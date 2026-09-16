@@ -86,7 +86,7 @@ def 集合会話を解釈(original: str, names: tuple[str,...]) -> 会話要求 
         raw=original[a:b]; leading=len(raw)-len(raw.lstrip())
         text=raw.strip().rstrip('？?！!').strip()
         if text: pieces.append((a+leading,a+leading+len(text),text))
-    core=None; options={}; excluded=[]; spans=[]; unknown=[]; conditional=False; modified=False
+    模型核=None; options={}; excluded=[]; spans=[]; 未知=[]; conditional=False; modified=False
     def put(key,value):
         if key in options and options[key]!=value: raise ValueError('要求条件が競合:'+key)
         options[key]=value
@@ -124,42 +124,42 @@ def 集合会話を解釈(original: str, names: tuple[str,...]) -> 会話要求 
         if field:
             spans.append((field,a,b));modified=True;continue
         # 句頭にある表示単位、年、条件も同じ役割へ組み込む。
-        working=text
-        prefix=re.match(r'([^「」\s、]+)で\s*(?=(?:(?:CSV|JSON)?資料「|この|全資料|すべての資料))',working)
-        if prefix: put('単位',prefix.group(1));working=working[prefix.end():];modified=True
-        source_kind='主題' if working.startswith('主題「') else '資料'
-        targets=_対象を分離(working,names,source_kind)
+        作業=text
+        prefix=re.match(r'([^「」\s、]+)で\s*(?=(?:(?:CSV|JSON)?資料「|この|全資料|すべての資料))',作業)
+        if prefix: put('単位',prefix.group(1));作業=作業[prefix.end():];modified=True
+        情報源_kind='主題' if 作業.startswith('主題「') else '資料'
+        targets=_対象を分離(作業,names,情報源_kind)
         if targets is None or constrained:
-            unknown.append((a,b,text));continue
+            未知.append((a,b,text));continue
         selected,rest,time_diff,refspan=targets
         y=re.match(r'([0-9]{4})年の',rest)
         if y: put('年',y.group(1));rest=rest[y.end():];modified=True
         c=re.match(r'条件「([^「」]+)」の',rest)
         if c: put('条件',c.group(1));rest=rest[c.end():];modified=True
-        if source_kind=='主題':
+        if 情報源_kind=='主題':
             if rest.endswith('調べて比較して'): rest=rest[:-len('調べて比較して')]+'比較して'
             elif rest.endswith('調べて'): rest=rest[:-len('調べて')]+'教えて'
             else:
-                unknown.append((a,b,text));continue
+                未知.append((a,b,text));continue
         goal=_目的を分離(rest)
         if goal is None:
-            unknown.append((a,b,text));continue
-        if core is not None: raise ValueError('独立した集合目的の複数句は未対応')
+            未知.append((a,b,text));continue
+        if 模型核 is not None: raise ValueError('独立した集合目的の複数句は未対応')
         attribute,operations,unit=goal
         if unit: put('単位',unit)
         ref=None
         if refspan is not None:
             p=original.find('この',a,b);ref=(p,p+2)
-        core=(selected,time_diff,attribute,operations,ref,source_kind)
+        模型核=(selected,time_diff,attribute,operations,ref,情報源_kind)
         spans.append(('集合目的',a,b))
-    if core is None: return None
-    selected,time_diff,attribute,operations,ref,source_kind=core
+    if 模型核 is None: return None
+    selected,time_diff,attribute,operations,ref,情報源_kind=模型核
     # 従来二資料・二時点比較の互換性を維持する。
-    if source_kind=='資料' and len(selected)==2 and operations==('比較',) and not modified and not unknown:
+    if 情報源_kind=='資料' and len(selected)==2 and operations==('比較',) and not modified and not 未知:
         return None
-    if source_kind=='主題' and (excluded or '年' in options or '条件' in options):
+    if 情報源_kind=='主題' and (excluded or '年' in options or '条件' in options):
         raise ValueError('取得主題の除外・年・条件指定は未対応')
-    if conditional or unknown: raise ValueError('未解釈の条件又は集合要求の尾部:'+str(unknown))
+    if conditional or 未知: raise ValueError('未解釈の条件又は集合要求の尾部:'+str(未知))
     all_names={x.資料 for x in selected}
     if any(x not in all_names for x in excluded): raise ValueError('除外対象が要求資料に存在しない')
     selected=tuple(x for x in selected if x.資料 not in excluded)
@@ -172,7 +172,7 @@ def 集合会話を解釈(original: str, names: tuple[str,...]) -> 会話要求 
     criterion=options.get('選別',{})
     if criterion.get('属性') and criterion['属性']!=attribute: raise ValueError('選別する属性と集計属性が異なる')
     criterion={k:v for k,v in criterion.items() if k!='属性'}
-    aux={'供給':'取得' if source_kind=='主題' else '資料','操作':operations,'形式':options.get('形式','文章'),'手順':options.get('手順',False),
+    aux={'供給':'取得' if 情報源_kind=='主題' else '資料','操作':operations,'形式':options.get('形式','文章'),'手順':options.get('手順',False),
          '選別':criterion,'除外資料':tuple(excluded),'資料参照解消':(ref,) if ref else ()}
     return 会話要求(original,'集合',selected,attribute,options.get('単位',''),
                     options.get('詳細',False),time_diff,options.get('外部禁止',False),aux,tuple(spans)).固定複製()

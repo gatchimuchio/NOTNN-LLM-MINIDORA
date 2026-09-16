@@ -7,7 +7,7 @@ from minidora.規定参照 import LLM成立規定版, 厳密LM中核, 能力作�
 
 
 class MINIDORAv05統合試験(unittest.TestCase):
-    def test_runtimeは厳密LM核と能力核を分離する(self):
+    def test_実行系は厳密LM核と能力核を分離する(self):
         body = ミニドラ()
         self.assertIsInstance(body.言語模型核, MINIDORA厳密言語模型)
         self.assertIs(body.模型核, body.能力模型核)
@@ -17,10 +17,10 @@ class MINIDORAv05統合試験(unittest.TestCase):
     def test_候補scoreはLM確率として流用されない(self):
         body = ミニドラ()
         probability = body.言語確率("任意")
-        ability_result = body.言語評価("未知", ("候補A", "候補B"))
+        ability_結果 = body.言語評価("未知", ("候補A", "候補B"))
         self.assertIsInstance(probability, Fraction)
         self.assertGreater(probability, 0)
-        self.assertTrue(hasattr(ability_result, "候補差"))
+        self.assertTrue(hasattr(ability_結果, "候補差"))
 
     def test_形成済み厳密LMを注入できる(self):
         lm = MINIDORA厳密言語模型.形成(("猫。",) * 10 + ("犬。",), 次数=2)

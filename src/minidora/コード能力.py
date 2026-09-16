@@ -1,8 +1,4 @@
-"""限定Python関数をASTとして読み、許可した操作だけを独自評価する。
-
-任意コードのexec/eval、import、属性アクセス、外部作用は実行しない。
-通常Pythonの完全な実行器でも、OSの隔離機構でもない。
-"""
+'限定Python関数をASTとして読み、許可した操作だけを独自評価する。\n\n任意コードのexec/評価、import、属性アクセス、外部作用は実行しない。\n通常Pythonの完全な実行器でも、OSの隔離機構でもない。\n'
 from __future__ import annotations
 
 import ast
@@ -70,7 +66,7 @@ def 値を確認(value, *, 内部: bool = False) -> None:
         if type(x) is str and len(x) <= 8192:
             text_size += len(x.encode("utf-8"))
             if text_size > 65536:
-                raise コード境界違反("文字Data合計上限")
+                raise コード境界違反('文字資料合計上限')
             return
         if 内部 and type(x) is range and len(x) <= 2048:
             return
@@ -87,10 +83,10 @@ def 値を確認(value, *, 内部: bool = False) -> None:
     visit(value, 0)
 
 
-def _解析(source: str):
-    if type(source) is not str or not source.strip() or len(source.encode("utf-8")) > 32768:
+def _解析(情報源: str):
+    if type(情報源) is not str or not 情報源.strip() or len(情報源.encode("utf-8")) > 32768:
         raise コード境界違反("ソース型・サイズ不正")
-    tree = ast.parse(source, mode="exec", feature_version=(3, 11))
+    tree = ast.parse(情報源, mode="exec", feature_version=(3, 11))
     if len(tree.body) != 1 or type(tree.body[0]) is not ast.FunctionDef:
         raise コード境界違反("単一関数だけを指定する")
     function = tree.body[0]
@@ -149,22 +145,22 @@ def _解析(source: str):
     return function, count
 
 
-def コードを読む(source: str) -> 能力結果:
+def コードを読む(情報源: str) -> 能力結果:
     try:
-        function, count = _解析(source)
+        function, count = _解析(情報源)
         nodes = []
         for node in ast.walk(function):
             if isinstance(node, (ast.stmt, ast.Call, ast.Compare)):
                 nodes.append({"構文": type(node).__name__, "行": node.lineno,
                     "UTF8列": node.col_offset, "終了行": node.end_lineno,
-                    "終了UTF8列": node.end_col_offset, "原文": ast.get_source_segment(source, node)})
-        data = {"版": コード能力版, "ソースSHA256": sha256(source.encode()).hexdigest(),
+                    "終了UTF8列": node.end_col_offset, "原文": ast.get_source_segment(情報源, node)})
+        資料 = {"版": コード能力版, "ソースSHA256": sha256(情報源.encode()).hexdigest(),
                 "関数": function.name, "引数": [a.arg for a in function.args.args],
                 "構文数": count, "構造": nodes,
                 "注意": "限定構文の構造読解。全経路の型・値・仕様適合は未検証"}
         text = f"関数{function.name}。引数は{len(function.args.args)}個。"
         text += f"分岐{sum(type(n) is ast.If for n in ast.walk(function))}、反復{sum(type(n) is ast.For for n in ast.walk(function))}。"
-        return 能力結果(True, text, データ=data)
+        return 能力結果(True, text, データ=資料)
     except (SyntaxError, ValueError, TypeError, RecursionError, OverflowError) as exc:
         return 能力結果(False, "", 保留理由="コード解析不成立:" + type(exc).__name__,
                         データ={"診断": str(exc) if isinstance(exc, コード境界違反) else type(exc).__name__,
@@ -172,8 +168,8 @@ def コードを読む(source: str) -> 能力結果:
 
 
 class _評価器:
-    def __init__(self, budget: int, stop, local_names):
-        self.budget, self.stop, self.steps = budget, stop, 0
+    def __init__(self, 予算: int, stop, local_names):
+        self.予算, self.stop, self.steps = 予算, stop, 0
         self.line = 0
         self.local_names = local_names
         self.branches = []
@@ -182,7 +178,7 @@ class _評価器:
         self.steps += 1
         if node is not None:
             self.line = node.lineno
-        if self.steps > self.budget:
+        if self.steps > self.予算:
             raise コード境界違反("評価手数上限")
         if self.stop is not None and (self.steps == 1 or self.steps % 32 == 0):
             self.check_stop()
@@ -333,13 +329,13 @@ class _評価器:
                 raise コード境界違反("未対応文")
 
 
-def コードを評価(source: str, arguments: dict, *, 最大手数: int = 50000,
+def コードを評価(情報源: str, arguments: dict, *, 最大手数: int = 50000,
                  停止要求: Callable[[], bool] | None = None) -> 能力結果:
     machine = None
     try:
         if type(最大手数) is not int or not 1 <= 最大手数 <= 200000:
             raise コード境界違反("評価予算不正")
-        function, _ = _解析(source)
+        function, _ = _解析(情報源)
         値を確認(arguments)
         if type(arguments) is not dict or set(arguments) != {a.arg for a in function.args.args}:
             raise コード境界違反("引数名が関数宣言と不一致")
@@ -356,7 +352,7 @@ def コードを評価(source: str, arguments: dict, *, 最大手数: int = 5000
         return 能力結果(True, json.dumps(value, ensure_ascii=False), データ={
             "版": コード能力版, "値": deepcopy(value), "手数": machine.steps, "最大手数": 最大手数,
             "入力SHA256": sha256(json.dumps(arguments, ensure_ascii=False, sort_keys=True).encode()).hexdigest(),
-            "分岐": machine.branches, "ソースSHA256": sha256(source.encode()).hexdigest(),
+            "分岐": machine.branches, "ソースSHA256": sha256(情報源.encode()).hexdigest(),
             "範囲": "限定Python AST評価。OS上で対象コードを実行していない"})
     except _停止:
         return 能力結果(False, "", 保留理由="コード評価中止")
@@ -367,9 +363,9 @@ def コードを評価(source: str, arguments: dict, *, 最大手数: int = 5000
             "手数": machine.steps if machine else 0})
 
 
-def コードを検証(source: str, cases: tuple[dict, ...], *, 最大手数: int = 50000) -> 能力結果:
+def コードを検証(情報源: str, cases: tuple[dict, ...], *, 最大手数: int = 50000) -> 能力結果:
     try:
-        _解析(source)
+        _解析(情報源)
         if type(cases) is not tuple or not 1 <= len(cases) <= 32:
             raise コード境界違反("試験数は1〜32")
         for case in cases:
@@ -378,7 +374,7 @@ def コードを検証(source: str, cases: tuple[dict, ...], *, 最大手数: in
             値を確認(case)
         rows = []
         for index, case in enumerate(cases):
-            value = コードを評価(source, case["引数"], 最大手数=最大手数)
+            value = コードを評価(情報源, case["引数"], 最大手数=最大手数)
             # boolとint、listと他の型を期待値判定で同一視しない。
             equal = value.成立 and json.dumps(value.データ["値"], sort_keys=True, ensure_ascii=False) == json.dumps(case["期待値"], sort_keys=True, ensure_ascii=False)
             rows.append({"番号": index, "一致": bool(equal), "評価成立": value.成立,
@@ -387,7 +383,7 @@ def コードを検証(source: str, cases: tuple[dict, ...], *, 最大手数: in
         ok = all(row["一致"] for row in rows)
         return 能力結果(ok, "指定試験は全件一致" if ok else "", データ={
             "版": コード能力版, "試験": rows, "試験数": len(rows),
-            "ソースSHA256": sha256(source.encode()).hexdigest(),
+            "ソースSHA256": sha256(情報源.encode()).hexdigest(),
             "試験SHA256": sha256(json.dumps(cases, sort_keys=True, ensure_ascii=False).encode()).hexdigest(),
             "保証範囲": "指定された有限入力の一致。全入力での正しさではない"},
             保留理由="" if ok else "コード試験不一致または評価未成立")

@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-Compilerが `A and B` を一つの関係端点として圧縮してしまう情報損失を、限定された明示ANDだけ解消する。
+構文化器が `A and B` を一つの関係端点として圧縮してしまう情報損失を、限定された明示ANDだけ解消する。
 
 ```text
 Protein A and Protein B inhibit Enzyme X

@@ -38,7 +38,7 @@ class 英日意味フレーム:
 class 英語質問境界:
     焦点: str
     本体: str
-    条件scope: tuple[str, ...]
+    条件範囲: tuple[str, ...]
     質問表示: bool
     表示根拠: str
     境界状態: str
@@ -133,7 +133,7 @@ _検索除外 = frozenset(
         "is", "are", "was", "were", "be", "been", "being", "which", "what", "who", "when", "where",
         "why", "how", "this", "that", "these", "those", "it", "its", "do", "does", "did", "has", "have",
         "had", "would", "could", "may", "might", "can", "must", "most", "least", "likely", "unlikely",
-        "following", "statement", "statements", "answer", "answers", "option", "options", "choice", "choices",
+        "following", "statement", "statements", "answer", "answers", "option", "options", '選択肢', "choices",
         "correct", "incorrect", "true", "false", "best", "select", "choose",
     }
 )
@@ -194,12 +194,12 @@ def _直接when疑問(visible: str) -> bool:
     if match is None:
         return False
     adjunct = match.group("adjunct").strip().casefold()
-    tokens = _語.findall(adjunct)
-    if " ".join(tokens) != adjunct:
+    字句 = _語.findall(adjunct)
+    if " ".join(字句) != adjunct:
         return False
-    while tokens and tokens[0] in _疑問時点修飾:
-        tokens.pop(0)
-    return not tokens
+    while 字句 and 字句[0] in _疑問時点修飾:
+        字句.pop(0)
+    return not 字句
 
 
 def _when前置句未確定(visible: str) -> bool:
@@ -233,36 +233,36 @@ def _文の質問境界(text: str) -> 英語質問境界:
                   if visible[index] in ",;"
                   and (_主節疑問表示(visible[index + 1:].lstrip())
                        or (explicit and _先頭助動詞.match(visible[index + 1:].lstrip())))] if conditional else []
-    body, conditions, state = raw, (), "主節"
+    body, conditions, 状態 = raw, (), "主節"
     if not balanced:
-        state = "括弧境界未確定"
+        状態 = "括弧境界未確定"
     elif len(boundaries) == 1 and boundaries[0] <= 220:
         index = boundaries[0]
         body, conditions = raw[index + 1:].strip(), (raw[:index].strip(),)
-        state = "先頭条件"
+        状態 = "先頭条件"
     elif conditional and boundaries:
-        state = "条件境界未確定"
+        状態 = "条件境界未確定"
     elif uncertain_when:
-        state = "when前置句境界未確定"
+        状態 = "when前置句境界未確定"
     elif conditional:
-        state = "条件主節未確認"
+        状態 = "条件主節未確認"
     elif direct_when:
-        state = "直接when疑問"
+        状態 = "直接when疑問"
     main_wh = _主節疑問表示(_引用外(body)) and not conditional
     if len(boundaries) == 1:
         main_wh = True
     displayed = explicit or (not exclamation and (main_wh or bool(boundaries)))
     # 後置条件は質問の主節が確認できた場合だけ分離する。直接when疑問は全文を保つ。
-    if displayed and state == "主節":
+    if displayed and 状態 == "主節":
         for match in _後置質問条件.finditer(visible):
             if match.start() > 0 and match.start() in outside:
                 body = raw[:match.start()].strip(" ,;:")
                 conditions = (raw[match.start():].rstrip(" .。?!？！"),)
-                state = "後置条件"
+                状態 = "後置条件"
                 break
     reason = "疑問符" if explicit else "主節疑問語" if displayed else "なし"
     return 英語質問境界(raw.rstrip(".。"), body.rstrip(" .。?!？！").strip(),
-                    conditions, displayed, reason, state)
+                    conditions, displayed, reason, 状態)
 
 
 def 英語質問境界解析(text: str) -> 英語質問境界:
@@ -275,13 +275,13 @@ def 英語質問境界解析(text: str) -> 英語質問境界:
     start = 0
     visible = _引用外(raw)
     outside = _括弧外位置(visible)
-    for boundary in _文分割.finditer(visible):
-        if outside is None or boundary.start() not in outside:
+    for 境界 in _文分割.finditer(visible):
+        if outside is None or 境界.start() not in outside:
             continue
-        part = _正規化(raw[start:boundary.start()])
+        part = _正規化(raw[start:境界.start()])
         if part:
             parts.append(part)
-        start = boundary.end()
+        start = 境界.end()
     tail = _正規化(raw[start:])
     if tail:
         parts.append(tail)
@@ -342,10 +342,10 @@ def _反転(match: re.Match[str] | None, raw: str) -> bool:
     return "least likely" in lowered or "most unlikely" in lowered or " except" in (" " + lowered)
 
 
-def _質問本体と条件scope(text: str) -> tuple[str, tuple[str, ...]]:
+def _質問本体と条件範囲(text: str) -> tuple[str, tuple[str, ...]]:
     """共有境界で確認した質問本体と局所条件を返す。"""
-    boundary = 英語質問境界解析(text)
-    return boundary.本体, boundary.条件scope
+    境界 = 英語質問境界解析(text)
+    return 境界.本体, 境界.条件範囲
 
 
 def _質問関係(text: str) -> 英日関係質問 | None:
@@ -353,44 +353,44 @@ def _質問関係(text: str) -> 英日関係質問 | None:
 
     match = _選択肢受動.fullmatch(raw)
     if match:
-        relation = _関係句意味(match.group("v"))
-        if relation is not None:
-            kind, predicate = relation
+        関係 = _関係句意味(match.group("v"))
+        if 関係 is not None:
+            kind, predicate = 関係
             return 英日関係質問(kind, "終点", "選択肢", _端点(match.group("s")), predicate, _反転(match, raw), True)
 
     match = _選択肢能動.fullmatch(raw)
     if match:
-        relation = _関係句意味(match.group("v"))
-        if relation is not None:
-            kind, predicate = relation
+        関係 = _関係句意味(match.group("v"))
+        if 関係 is not None:
+            kind, predicate = 関係
             return 英日関係質問(kind, "始点", "選択肢", _端点(match.group("o")), predicate, _反転(match, raw), False)
 
     match = _受動未知対象.fullmatch(raw)
     if match:
-        relation = _関係句意味(match.group("v"))
-        if relation is not None:
-            kind, predicate = relation
+        関係 = _関係句意味(match.group("v"))
+        if 関係 is not None:
+            kind, predicate = 関係
             return 英日関係質問(kind, "終点", _要求型(match.group("kind")), _端点(match.group("s")), predicate, _反転(match, raw), True)
 
     match = _能動未知終点.fullmatch(raw)
     if match:
-        relation = _関係句意味(match.group("v"))
-        if relation is not None:
-            kind, predicate = relation
+        関係 = _関係句意味(match.group("v"))
+        if 関係 is not None:
+            kind, predicate = 関係
             return 英日関係質問(kind, "終点", _要求型(match.group("kind")), _端点(match.group("s")), predicate, _反転(match, raw), False)
 
     match = _無型未知終点.fullmatch(raw)
     if match:
-        relation = _関係句意味(match.group("v"))
-        if relation is not None:
-            kind, predicate = relation
+        関係 = _関係句意味(match.group("v"))
+        if 関係 is not None:
+            kind, predicate = 関係
             return 英日関係質問(kind, "終点", "", _端点(match.group("s")), predicate, _反転(match, raw), False)
 
     match = _能動未知対象.fullmatch(raw)
     if match:
-        relation = _関係句意味(match.group("v"))
-        if relation is not None:
-            kind, predicate = relation
+        関係 = _関係句意味(match.group("v"))
+        if 関係 is not None:
+            kind, predicate = 関係
             return 英日関係質問(kind, "始点", _要求型(match.group("kind")), _端点(match.group("o")), predicate, _反転(match, raw), False)
     return None
 
@@ -412,7 +412,7 @@ def _関係質問修飾(
     controls: tuple[英日意味制御, ...],
     condition_scopes: tuple[str, ...],
 ) -> tuple[tuple[str, str], ...]:
-    """質問に明示された関係修飾だけをHDS relation identityへ射影する。"""
+    '質問に明示された関係修飾だけをHDS 関係 identityへ射影する。'
     out: list[tuple[str, str]] = []
     seen: set[tuple[str, str]] = set()
     for item in controls:
@@ -423,7 +423,7 @@ def _関係質問修飾(
             seen.add(pair)
             out.append(pair)
     for condition in condition_scopes:
-        pair = ("条件scope", condition)
+        pair = ('条件範囲', condition)
         if condition and pair not in seen:
             seen.add(pair)
             out.append(pair)
@@ -433,8 +433,8 @@ def _関係質問修飾(
 def _検索語(text: str) -> tuple[str, ...]:
     out: list[str] = []
     seen: set[str] = set()
-    for token in _語.findall(text):
-        value = token.casefold()
+    for 字句 in _語.findall(text):
+        value = 字句.casefold()
         if value in _検索除外:
             continue
         lemma = 英語基本形(value)
@@ -443,9 +443,9 @@ def _検索語(text: str) -> tuple[str, ...]:
         if lemma not in seen:
             seen.add(lemma)
             out.append(lemma)
-        relation = 英語関係概念(lemma)
-        if relation is not None:
-            marker = f"rel:{relation}"
+        関係 = 英語関係概念(lemma)
+        if 関係 is not None:
+            marker = f"rel:{関係}"
             if marker not in seen:
                 seen.add(marker)
                 out.append(marker)
@@ -453,17 +453,17 @@ def _検索語(text: str) -> tuple[str, ...]:
 
 
 def 英日意味フレーム抽出(text: str) -> 英日意味フレーム:
-    boundary = 英語質問境界解析(text)
-    focus = boundary.焦点
+    境界 = 英語質問境界解析(text)
+    focus = 境界.焦点
     controls = _制御(focus)
-    question_body, condition_scopes = boundary.本体, boundary.条件scope
-    question = _質問関係(question_body) if boundary.質問表示 and boundary.境界状態 != "括弧境界未確定" else None
+    question_body, condition_scopes = 境界.本体, 境界.条件範囲
+    question = _質問関係(question_body) if 境界.質問表示 and 境界.境界状態 != "括弧境界未確定" else None
     if question is not None:
         question = replace(question, 修飾=_関係質問修飾(controls, condition_scopes))
 
     canonical: list[str] = [f"{item.種別}:{item.正本}" for item in controls]
     if condition_scopes:
-        canonical.extend(f"条件scope:{scope}" for scope in condition_scopes)
+        canonical.extend(f"条件scope:{範囲}" for 範囲 in condition_scopes)
     if question is not None:
         canonical.extend((f"関係:{question.種別}", f"不足位置:{question.未知位置}", f"要求型:{question.要求型}" if question.要求型 else "要求型:未特定"))
         canonical.extend(f"関係修飾:{key}={value}" for key, value in question.修飾)

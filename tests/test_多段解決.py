@@ -1,4 +1,4 @@
-"""目的分解・後戻り・状態分離・予算の契約試験。試験能力をCore実証とは呼ばない。"""
+'目的分解・後戻り・状態分離・予算の契約試験。試験能力を模型核実証とは呼ばない。'
 from copy import deepcopy
 from dataclasses import asdict, replace
 from itertools import product
@@ -30,10 +30,10 @@ def 目的(name="g", check="成果検査", setting="非空"):
     return 解決目的(name, check, "指示", setting)
 
 
-def 手順(name="m", goal="g", children=(), module="素材引継ぎ", inputs=None, priority=0):
+def 手順(name="m", goal="g", children=(), モジュール="素材引継ぎ", inputs=None, 優先度=0):
     if inputs is None:
         inputs = tuple(問題素材("目的", key) for key in children) or (問題素材("入力", "素材"),)
-    return 解法(name, goal, children, module, "指示", inputs, 優先度=priority)
+    return 解法(name, goal, children, モジュール, "指示", inputs, 優先度=優先度)
 
 
 def 入力():
@@ -52,11 +52,11 @@ class 多段解決契約試験(unittest.TestCase):
         self.d = 入力()
         self.engine = 実行器()
 
-    def check(self, result, state):
-        self.assertEqual(result.状態, state, result.理由)
-        self.assertTrue(result.整合確認())
-        if state != "合格":
-            self.assertEqual((result.出力, result.中間結果, result.採用経路), ((), (), ()))
+    def check(self, 結果, 状態):
+        self.assertEqual(結果.状態, 状態, 結果.理由)
+        self.assertTrue(結果.整合確認())
+        if 状態 != "合格":
+            self.assertEqual((結果.出力, 結果.中間結果, 結果.採用経路), ((), (), ()))
 
     def test_一つの目的を検証まで通す(self):
         r = self.engine.実行(self.p, self.d)
@@ -74,13 +74,13 @@ class 多段解決契約試験(unittest.TestCase):
     def test_未参照目的や解法は実行しない(self):
         m = 試験能力()
         p = replace(self.p, 目的群=(目的(), 目的("other")),
-                    解法群=(手順(), 手順("unused", "other", module=m.名前)))
+                    解法群=(手順(), 手順("unused", "other", モジュール=m.名前)))
         self.check(実行器(m).実行(p, self.d), "合格")
         self.assertEqual(m.呼出, [])
 
     def test_失敗能力は明示した次の解法へ(self):
         bad = 試験能力(関数=lambda c: 能力結果(False, "仮の値", 保留理由="未成立"))
-        p = replace(self.p, 解法群=(手順("first", module=bad.名前), 手順("second", priority=1)))
+        p = replace(self.p, 解法群=(手順("first", モジュール=bad.名前), 手順("second", 優先度=1)))
         r = 実行器(bad).実行(p, self.d)
         self.check(r, "合格")
         self.assertEqual([s["解法"] for s in r.採用経路], ["second"])
@@ -90,7 +90,7 @@ class 多段解決契約試験(unittest.TestCase):
         def fail(c):
             raise RuntimeError("機密本文")
         bad = 試験能力(関数=fail)
-        p = replace(self.p, 解法群=(手順("first", module=bad.名前), 手順("second", priority=1)))
+        p = replace(self.p, 解法群=(手順("first", モジュール=bad.名前), 手順("second", 優先度=1)))
         r = 実行器(bad).実行(p, self.d)
         self.check(r, "合格")
         self.assertNotIn("機密本文", str(r))
@@ -98,7 +98,7 @@ class 多段解決契約試験(unittest.TestCase):
 
     def test_空の成功を検証で退ける(self):
         empty = 試験能力(関数=lambda c: 能力結果(True, ""))
-        p = replace(self.p, 解法群=(手順(module=empty.名前),))
+        p = replace(self.p, 解法群=(手順(モジュール=empty.名前),))
         r = 実行器(empty).実行(p, self.d)
         self.check(r, "保留")
         self.assertTrue(any(e["作用"] == "目的条件未達" for e in r.履歴))
@@ -106,9 +106,9 @@ class 多段解決契約試験(unittest.TestCase):
     def test_後続で失敗したら子の別解へ戻る(self):
         empty = 試験能力("空結果", lambda c: 能力結果(True, "" if c.直前応答 == "悪い" else c.直前応答))
         p = 多段問題(("g",), (目的(), 目的("child")),
-            (手順("root", children=("child",), module=empty.名前),
+            (手順("root", children=("child",), モジュール=empty.名前),
              手順("a", "child", inputs=(問題素材("入力", "bad"),)),
-             手順("b", "child", priority=1)))
+             手順("b", "child", 優先度=1)))
         self.d["bad"] = 能力結果(True, "悪い")
         r = 実行器(empty).実行(p, self.d)
         self.check(r, "合格")
@@ -118,7 +118,7 @@ class 多段解決契約試験(unittest.TestCase):
 
     def test_親の別解へ戻る(self):
         p = 多段問題(("g",), (目的(), 目的("missing")),
-                      (手順("a", children=("missing",)), 手順("b", priority=1)))
+                      (手順("a", children=("missing",)), 手順("b", 優先度=1)))
         r = self.engine.実行(p, self.d)
         self.check(r, "合格")
         self.assertEqual(r.採用経路[0]["解法"], "b")
@@ -126,7 +126,7 @@ class 多段解決契約試験(unittest.TestCase):
     def test_共有下位目的は同じ枝で再利用(self):
         merge = 試験能力("結合")
         p = 多段問題(("g",), tuple(目的(n) for n in ("g", "a", "b", "shared")),
-            (手順("root", children=("a", "b"), module=merge.名前),
+            (手順("root", children=("a", "b"), モジュール=merge.名前),
              手順("a", "a", ("shared",)), 手順("b", "b", ("shared",)), 手順("shared", "shared")))
         r = 実行器(merge).実行(p, self.d)
         self.check(r, "合格")
@@ -136,8 +136,8 @@ class 多段解決契約試験(unittest.TestCase):
     def test_失敗枝の成果は成功枝へ残らない(self):
         empty = 試験能力("空", lambda c: 能力結果(True, ""))
         p = 多段問題(("g",), (目的(), 目的("failed_child")),
-            (手順("first", children=("failed_child",), module=empty.名前),
-             手順("fc", "failed_child"), 手順("second", priority=1)))
+            (手順("first", children=("failed_child",), モジュール=empty.名前),
+             手順("fc", "failed_child"), 手順("second", 優先度=1)))
         r = 実行器(empty).実行(p, self.d)
         self.check(r, "合格")
         self.assertNotIn("failed_child", dict(r.中間結果))
@@ -157,15 +157,15 @@ class 多段解決契約試験(unittest.TestCase):
         filter_ = 試験能力("選別", lambda c: 能力結果(bool(c.直前応答 == "原資料"), c.直前応答))
         self.d["bad"] = 能力結果(True, "悪い")
         p = 多段問題(("a", "b"), (目的("a"), 目的("b")),
-            (手順("a0", "a", inputs=(問題素材("入力", "bad"),)), 手順("a1", "a", priority=1),
-             手順("b", "b", ("a",), module=filter_.名前)))
+            (手順("a0", "a", inputs=(問題素材("入力", "bad"),)), 手順("a1", "a", 優先度=1),
+             手順("b", "b", ("a",), モジュール=filter_.名前)))
         r = 実行器(filter_).実行(p, self.d)
         self.check(r, "合格")
         self.assertEqual([v.本文 for _, v in r.出力], ["原資料", "原資料"])
         self.assertNotIn("a0", [x["解法"] for x in r.採用経路])
 
     def test_循環する解法だけを除外し独立経路は使う(self):
-        p = replace(self.p, 解法群=(手順("cycle", children=("g",)), 手順("safe", priority=1)))
+        p = replace(self.p, 解法群=(手順("cycle", children=("g",)), 手順("safe", 優先度=1)))
         r = self.engine.実行(p, self.d)
         self.check(r, "合格")
         self.assertTrue(any(e["作用"] == "循環経路除外" for e in r.履歴))
@@ -197,7 +197,7 @@ class 多段解決契約試験(unittest.TestCase):
         m = 試験能力()
         engine = 実行器(m)
         for p in (replace(self.p, 目的群=(replace(目的(), 検証能力="missing"),)),
-                  replace(self.p, 解法群=(手順(module="missing"),))):
+                  replace(self.p, 解法群=(手順(モジュール="missing"),))):
             self.check(engine.実行(p, self.d), "失敗")
         self.assertEqual(m.呼出, [])
 
@@ -207,7 +207,7 @@ class 多段解決契約試験(unittest.TestCase):
                   replace(self.p, 解法群=(手順(), 手順())),
                   replace(self.p, 解法群=(手順(children=("missing",)),)),
                   replace(self.p, 解法群=(手順(inputs=(問題素材("工程", "g"),)),)),
-                  replace(self.p, 解法群=(手順(priority=True),)),
+                  replace(self.p, 解法群=(手順(優先度=True),)),
                   replace(self.p, 解法群=(replace(手順(), 下位目的=["g"]),))):
             with self.subTest(p=p):
                 self.check(self.engine.実行(p, self.d), "失敗")
@@ -216,7 +216,7 @@ class 多段解決契約試験(unittest.TestCase):
         p = replace(self.p, 解法群=(手順(children=("g",), inputs=(問題素材("入力", "素材"),)),))
         self.check(self.engine.実行(p, self.d), "失敗")
 
-    def test_不足Dataと不正Data(self):
+    def test_不足資料と不正資料(self):
         for d in (None, {}, {**self.d, "素材": "text"},
                   {**self.d, "素材": 能力結果(True, "x", データ={"n": float("nan")})}):
             with self.subTest():
@@ -226,7 +226,7 @@ class 多段解決契約試験(unittest.TestCase):
         self.d["素材"] = 能力結果(False, "仮値")
         self.check(self.engine.実行(self.p, self.d), "保留")
 
-    def test_名前とDataの領域を混同しない(self):
+    def test_名前と資料の領域を混同しない(self):
         self.d["g"] = 能力結果(True, "正解を偽装した文字列")
         r = self.engine.実行(self.p, self.d)
         self.check(r, "合格")
@@ -239,11 +239,11 @@ class 多段解決契約試験(unittest.TestCase):
 
     def test_能力内で停止した結果は採用しない(self):
         stop = [False]
-        def action(c):
+        def 作用(c):
             stop[0] = True
             return 能力結果(True, "未採用")
-        m = 試験能力(関数=action)
-        p = replace(self.p, 解法群=(手順(module=m.名前),))
+        m = 試験能力(関数=作用)
+        p = replace(self.p, 解法群=(手順(モジュール=m.名前),))
         r = 実行器(m).実行(p, self.d, 停止要求=lambda: stop[0])
         self.check(r, "中止")
 
@@ -278,7 +278,7 @@ class 多段解決契約試験(unittest.TestCase):
             c.補助["合成入力"][0]["結果"]["データ"]["配列"].append(999)
             return 能力結果(True, c.直前応答)
         m = 試験能力(関数=mutate)
-        p = replace(self.p, 解法群=(手順(module=m.名前),))
+        p = replace(self.p, 解法群=(手順(モジュール=m.名前),))
         before = deepcopy(self.d)
         r = 実行器(m).実行(p, self.d)
         self.check(r, "合格")
@@ -296,7 +296,7 @@ class 多段解決契約試験(unittest.TestCase):
             m.版 = "changed"
             return 能力結果(True, "x")
         m.関数 = mutate
-        p = replace(self.p, 解法群=(手順("first", module=m.名前), 手順("second", priority=1)))
+        p = replace(self.p, 解法群=(手順("first", モジュール=m.名前), 手順("second", 優先度=1)))
         r = 実行器(m).実行(p, self.d)
         self.check(r, "失敗")
         self.assertIn("版変更", r.理由)
@@ -305,13 +305,13 @@ class 多段解決契約試験(unittest.TestCase):
         m = 試験能力()
         engine = 実行器(m)
         m.版 = "changed"
-        p = replace(self.p, 解法群=(手順(module=m.名前),))
+        p = replace(self.p, 解法群=(手順(モジュール=m.名前),))
         self.check(engine.実行(p, self.d), "失敗")
         self.assertEqual(m.呼出, [])
 
     def test_不正能力結果を成功にしない(self):
         m = 試験能力(関数=lambda c: "回答だけ")
-        p = replace(self.p, 解法群=(手順(module=m.名前),))
+        p = replace(self.p, 解法群=(手順(モジュール=m.名前),))
         self.check(実行器(m).実行(p, self.d), "保留")
 
     def test_原典参照が最終成果へ残る(self):
@@ -342,7 +342,7 @@ class 多段解決契約試験(unittest.TestCase):
         raw = json.loads(json.dumps(asdict(self.p)))
         self.assertEqual(多段問題を復元(raw), self.p)
         with self.assertRaises(ValueError):
-            多段問題を復元({**raw, "unknown": True})
+            多段問題を復元({**raw, '未知': True})
         raw["解法群"][0]["入力"][0]["追加"] = True
         with self.assertRaises(ValueError):
             多段問題を復元(raw)
@@ -357,24 +357,24 @@ class 解法全列挙対照試験(unittest.TestCase):
             return 能力結果(c.直前応答 == c.補助["合成設定"]["期待値"], "検証")
         engine = 実行器(試験能力("加算", add), 試験能力("一致検査", eq))
         for xs, ys, target in product(((0,), (1, 2), (3, 1, 0)), ((0, 2), (1,)), range(6)):
-            data = 入力()
-            data["検査"] = 能力結果(True, "", データ={"期待値": str(target)})
+            資料 = 入力()
+            資料["検査"] = 能力結果(True, "", データ={"期待値": str(target)})
             methods = []
             for name, values in (("x", xs), ("y", ys)):
                 for i, value in enumerate(values):
                     key = name + str(i)
-                    data[key] = 能力結果(True, str(value))
-                    methods.append(手順(key, name, inputs=(問題素材("入力", key),), priority=i))
-            methods.append(手順("sum", children=("x", "y"), module="加算"))
+                    資料[key] = 能力結果(True, str(value))
+                    methods.append(手順(key, name, inputs=(問題素材("入力", key),), 優先度=i))
+            methods.append(手順("sum", children=("x", "y"), モジュール="加算"))
             p = 多段問題(("g",), (目的("x"), 目的("y"), 目的(check="一致検査", setting="検査")), tuple(methods))
-            result = engine.実行(p, data)
+            結果 = engine.実行(p, 資料)
             expected = any(x + y == target for x, y in product(xs, ys))
-            self.assertEqual(result.成立, expected, (xs, ys, target, result.理由))
-            self.assertTrue(result.整合確認())
+            self.assertEqual(結果.成立, expected, (xs, ys, target, 結果.理由))
+            self.assertTrue(結果.整合確認())
             if expected:
-                self.assertEqual(result.出力[0][1].本文, str(target))
+                self.assertEqual(結果.出力[0][1].本文, str(target))
             else:
-                self.assertEqual(result.出力, ())
+                self.assertEqual(結果.出力, ())
 
 
 if __name__ == "__main__":

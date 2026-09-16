@@ -1,24 +1,24 @@
 # MINIDORA Product Prototype v1
 
-This is not a thin hackathon mock. It is a product-oriented chat layer built by attaching everyday capability modules to the established MINIDORA Core without retraining the Core.
+This is not a thin hackathon mock. It is a product-oriented chat layer built by attaching everyday capability modules to the established MINIDORA 模型核 without retraining the 模型核.
 
 The Japanese document is the normative source. This English file is a translation for international access.
 
 ## Goals
 - provide a usable chat-AI product surface;
 - demonstrate news retrieval followed by grounded summarization;
-- demonstrate capability growth outside benchmark-specific tasks through pluggable Modules;
+- demonstrate capability growth outside benchmark-specific tasks through pluggable 能力モジュールs;
 - keep the actual response path traceable by construction;
 - aim toward a GPT-4-class general chat experience as a development target, not as a current equivalence claim.
 
-## Architecture
+## 構造
 
 ```text
 Browser / API Client
         ↓
 MINIDORA Product Chat
         ↓
-Capability Registry
+能力登録簿
  ├─ Basic Chat
  ├─ News Retrieval
  ├─ Summarization
@@ -26,12 +26,12 @@ Capability Registry
  ├─ Information Extraction
  ├─ Deterministic Calculation
  ├─ Knowledge Reference
- └─ Existing MINIDORA Core
+ └─ Existing MINIDORA 模型核
         ↓
 Governance Ledger
 ```
 
-Each capability Module exposes a common contract: name, version, priority, applicability decision, and execution. New capabilities can be registered without retraining the Core.
+Each capability 能力モジュール exposes a common contract: name, version, priority, applicability decision, and execution. New capabilities can be registered without retraining the 模型核.
 
 ## Run
 

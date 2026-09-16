@@ -19,10 +19,10 @@ def main():
     try:
         if args.入力.stat().st_size>300000:raise ValueError('入力サイズ上限')
         request=JSON読取(args.入力.read_text(encoding='utf-8-sig'))
-        result=改善計画を実行(args.種類,request,詳細=not args.簡略)
-        print(json.dumps({'状態':result.状態,'理由':result.理由,'実行数':result.実行数,
-            '監査整合':result.監査整合(),'回答':[value.本文 for _,value in result.出力]},ensure_ascii=False,indent=2))
-        return 0 if result.成立 else 2
+        結果=改善計画を実行(args.種類,request,詳細=not args.簡略)
+        print(json.dumps({'状態':結果.状態,'理由':結果.理由,'実行数':結果.実行数,
+            '監査整合':結果.監査整合(),'回答':[value.本文 for _,value in 結果.出力]},ensure_ascii=False,indent=2))
+        return 0 if 結果.成立 else 2
     except (OSError,ValueError,TypeError) as exc:
         print('デモ入力エラー：'+str(exc))
         return 2

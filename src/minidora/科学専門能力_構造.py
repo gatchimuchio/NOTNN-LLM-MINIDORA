@@ -4,7 +4,7 @@ import math
 import re
 from typing import Sequence
 
-from .科学専門能力_共通 import _result
+from .科学専門能力_共通 import _結果
 
 
 def _compact(text: object) -> str:
@@ -35,8 +35,8 @@ def _scalar(raw: str) -> complex | None:
     return value if math.isfinite(value.real) and math.isfinite(value.imag) else None
 
 
-def _choice_scalar(choice: str) -> float | None:
-    s = _compact(choice).replace('~', '').strip()
+def _選択肢スカラー(選択肢: str) -> float | None:
+    s = _compact(選択肢).replace('~', '').strip()
     pct = '%' in s
     m = re.search(
         r'(sqrt\s*\([^)]*\)|[+-]?\d+(?:\.\d+)?\s*/\s*\d+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?)',
@@ -53,8 +53,8 @@ def _choice_scalar(choice: str) -> float | None:
 
 def _nearest_scalar(choices: Sequence[str], target: float, tol: float = 0.08) -> int | None:
     scored = []
-    for i, choice in enumerate(choices):
-        value = _choice_scalar(str(choice))
+    for i, 選択肢 in enumerate(choices):
+        value = _選択肢スカラー(str(選択肢))
         if value is None:
             continue
         error = abs(value - target) / max(abs(target), 1e-12)
@@ -100,7 +100,7 @@ def solve_exponential_decay_probability(q: str, choices: Sequence[str]):
         return None
     ratio = t1 * scale[unit1] / (t0 * scale[unit0])
     target = 1.0 - (1.0 - p) ** ratio
-    return _result(
+    return _結果(
         _nearest_scalar(choices, target, tol=0.035),
         'exponential_decay_probability',
         f'{target:.12g}',
@@ -116,8 +116,8 @@ def solve_magnetic_monopole_maxwell(q: str, choices: Sequence[str]):
     ):
         return None
     hits = []
-    for i, choice in enumerate(choices):
-        c = str(choice).casefold()
+    for i, 選択肢 in enumerate(choices):
+        c = str(選択肢).casefold()
         electric_curl = (
             'circulation of the electric field' in c
             or 'curl of the electric field' in c
@@ -130,7 +130,7 @@ def solve_magnetic_monopole_maxwell(q: str, choices: Sequence[str]):
         )
         if electric_curl and magnetic_div:
             hits.append(i)
-    return _result(
+    return _結果(
         hits[0] if len(hits) == 1 else None,
         'magnetic_monopole_maxwell_symmetry',
         'curl(E),div(B)',
@@ -149,8 +149,8 @@ def solve_dipole_operator_mass_dimension(q: str, choices: Sequence[str]):
     if not (field_pattern and sigma_pattern and ('kappa' in s or '\\kappa' in s)):
         return None
     hits = []
-    for i, choice in enumerate(choices):
-        c = _compact(choice).replace(' ', '')
+    for i, 選択肢 in enumerate(choices):
+        c = _compact(選択肢).replace(' ', '')
         neg_one = bool(re.search(r'(?:kappa|\\kappa)[^=]{0,20}=\s*-1(?:\D|$)', c)) or '=-1' in c
         nonren = (
             'notrenormalizable' in c
@@ -159,7 +159,7 @@ def solve_dipole_operator_mass_dimension(q: str, choices: Sequence[str]):
         )
         if neg_one and nonren:
             hits.append(i)
-    return _result(
+    return _結果(
         hits[0] if len(hits) == 1 else None,
         'dipole_operator_mass_dimension',
         -1,
@@ -172,8 +172,8 @@ def _parse_matrix_entries(raw: str) -> list[list[complex]] | None:
     matrix = []
     for row in rows:
         values = []
-        for token in row.split(','):
-            value = _scalar(token)
+        for 字句 in row.split(','):
+            value = _scalar(字句)
             if value is None:
                 return None
             values.append(value)
@@ -202,7 +202,7 @@ def _parse_row_matrix(q: str, label: str):
     return _parse_matrix_entries(';'.join(match.groups()))
 
 
-def _parse_state(q: str):
+def _状態解析(q: str):
     match = re.search(
         r'state[^.]{0,100}?column matrix having elements\s*\(([^)]*)\)',
         q,
@@ -211,8 +211,8 @@ def _parse_state(q: str):
     if not match:
         return None
     values = []
-    for token in match.group(1).split(','):
-        value = _scalar(token)
+    for 字句 in match.group(1).split(','):
+        value = _scalar(字句)
         if value is None:
             return None
         values.append(value)
@@ -245,23 +245,23 @@ def _eigvec3(a, eigenvalue: float):
     norm2 = _norm2(vector)
     if norm2 <= 1e-16:
         return None
-    residual = [
+    残差 = [
         sum(shifted[i][j] * vector[j] for j in range(3))
         for i in range(3)
     ]
-    if _norm2(residual) > 1e-10 * norm2:
+    if _norm2(残差) > 1e-10 * norm2:
         return None
     root = math.sqrt(norm2)
     return [value / root for value in vector]
 
 
-def _projection_probability(state, eigenvector):
-    norm2 = _norm2(state)
+def _射影確率(状態, eigenvector):
+    norm2 = _norm2(状態)
     if norm2 <= 0:
         return None
     amplitude = sum(
-        eigenvector[i].conjugate() * state[i]
-        for i in range(len(state))
+        eigenvector[i].conjugate() * 状態[i]
+        for i in range(len(状態))
     )
     return abs(amplitude) ** 2 / norm2
 
@@ -270,9 +270,9 @@ def solve_projective_measurement_3x3(q: str, choices: Sequence[str]):
     s = q.casefold()
     if 'measurement' not in s or 'column matrix' not in s or 'operator p' not in s:
         return None
-    state = _parse_state(q)
+    状態 = _状態解析(q)
     p_matrix = _parse_row_matrix(q, 'P')
-    if state is None or p_matrix is None or len(p_matrix) != 3:
+    if 状態 is None or p_matrix is None or len(p_matrix) != 3:
         return None
     joint = re.search(
         r'getting\s*([+-]?\d+(?:\.\d+)?)\s*for\s*p\s*and\s*([+-]?\d+(?:\.\d+)?)\s*for\s*q',
@@ -288,12 +288,12 @@ def solve_projective_measurement_3x3(q: str, choices: Sequence[str]):
         q_vector = _eigvec3(q_matrix, q_value)
         if p_vector is None or q_vector is None:
             return None
-        first = _projection_probability(state, p_vector)
-        second = _projection_probability(p_vector, q_vector)
+        first = _射影確率(状態, p_vector)
+        second = _射影確率(p_vector, q_vector)
         if first is None or second is None:
             return None
         target = first * second
-        return _result(
+        return _結果(
             _nearest_scalar(choices, target, tol=0.025),
             'sequential_projective_measurement_3x3',
             f'{target:.12g}',
@@ -306,10 +306,10 @@ def solve_projective_measurement_3x3(q: str, choices: Sequence[str]):
     eigenvector = _eigvec3(p_matrix, eigenvalue)
     if eigenvector is None:
         return None
-    target = _projection_probability(state, eigenvector)
+    target = _射影確率(状態, eigenvector)
     if target is None:
         return None
-    return _result(
+    return _結果(
         _nearest_scalar(choices, target, tol=0.025),
         'projective_measurement_probability_3x3',
         f'{target:.12g}',
@@ -343,7 +343,7 @@ def solve_blackbody_luminosity_with_radial_velocity(q: str, choices: Sequence[st
 
     temperature_ratio = doppler(v1) / doppler(v2)
     target = radius_ratio ** 2 * temperature_ratio ** 4
-    return _result(
+    return _結果(
         _nearest_scalar(choices, target, tol=0.02),
         'blackbody_luminosity_radial_doppler',
         f'{target:.12g}',
@@ -351,7 +351,7 @@ def solve_blackbody_luminosity_with_radial_velocity(q: str, choices: Sequence[st
     )
 
 
-REGISTRY = (
+登録簿 = (
     solve_exponential_decay_probability,
     solve_magnetic_monopole_maxwell,
     solve_dipole_operator_mass_dimension,
@@ -362,16 +362,16 @@ REGISTRY = (
 
 def 解決(question: str, choices: Sequence[str]):
     hits = []
-    for solver in REGISTRY:
+    for 解決器 in 登録簿:
         try:
-            row = solver(question, choices)
+            row = 解決器(question, choices)
         except Exception:
             row = None
         if row is not None:
             hits.append(row)
     if not hits or len({row.index for row in hits}) != 1:
         return None
-    return max(hits, key=lambda row: row.confidence)
+    return max(hits, key=lambda row: row.信頼度)
 
 
 __all__ = ['解決']

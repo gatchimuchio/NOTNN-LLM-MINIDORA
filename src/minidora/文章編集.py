@@ -1,7 +1,4 @@
-"""文章の起点と期待原文を照合し、指定範囲だけを原子的に編集する。
-
-修正文は上位のData。修正案の発見や、保護外の意味保持の自動証明はしない。
-"""
+'文章の起点と期待原文を照合し、指定範囲だけを原子的に編集する。\n\n修正文は上位の資料。修正案の発見や、保護外の意味保持の自動証明はしない。\n'
 from __future__ import annotations
 
 from copy import deepcopy
@@ -24,10 +21,10 @@ class 文章修正:
     理由: str
 
 
-def _修正を適用(state, modifications, revision):
+def _修正を適用(状態, modifications, revision):
     if type(modifications) is not list or not 1 <= len(modifications) <= 64:
         raise 文章境界違反("修正は1〜64件")
-    old = state["本文"]
+    old = 状態["本文"]
     ids = set()
     for row in modifications:
         _項目(row, 文章修正)
@@ -49,7 +46,7 @@ def _修正を適用(state, modifications, revision):
             raise 文章境界違反("修正範囲が交差または同位置で曖昧")
     for row in ordered:
         start, end = row["開始"], row["終了"]
-        for lock in state["保護"]:
+        for lock in 状態["保護"]:
             a, b = lock["開始"], lock["終了"]
             if (start < b and a < end) or (start == end and a < start < b):
                 raise 文章境界違反("保護された引用・条件・指定範囲への修正")
@@ -60,7 +57,7 @@ def _修正を適用(state, modifications, revision):
         a, b = row["開始"], row["終了"]
         unchanged = old[cursor:a]
         pieces.append(unchanged)
-        spans.extend(_複写対応(state["対応"], cursor, a, pos)); pos += len(unchanged)
+        spans.extend(_複写対応(状態["対応"], cursor, a, pos)); pos += len(unchanged)
         inserted = row["置換文"]
         if inserted:
             pieces.append(inserted)
@@ -71,8 +68,8 @@ def _修正を適用(state, modifications, revision):
             "新文": inserted, "理由": row["理由"]})
         pos += len(inserted); cursor = b
     pieces.append(old[cursor:])
-    spans.extend(_複写対応(state["対応"], cursor, len(old), pos))
-    new = deepcopy(state)
+    spans.extend(_複写対応(状態["対応"], cursor, len(old), pos))
+    new = deepcopy(状態)
     new.update(本文="".join(pieces), 対応=spans, 直近差分=changes)
     for lock in new["保護"]:
         shift = sum(len(r["置換文"])-(r["終了"]-r["開始"]) for r in ordered if r["終了"] <= lock["開始"])
@@ -83,27 +80,27 @@ def _修正を適用(state, modifications, revision):
 def _再構成(root, history):
     if type(history) is not list or len(history) > 16:
         raise 文章境界違反("編集履歴は16回以内")
-    result = _原本結果(root)
-    state = _初期構成(root)
+    結果 = _原本結果(root)
+    状態 = _初期構成(root)
     for i, event in enumerate(history):
         if type(event) is not dict or set(event) != {"起点SHA256", "修正"}:
             raise 文章境界違反("編集履歴の項目不正")
-        if event["起点SHA256"] != result.データ["記録SHA256"]:
+        if event["起点SHA256"] != 結果.データ["記録SHA256"]:
             raise 文章境界違反("履歴の編集起点が一致しない")
-        state = _修正を適用(state, event["修正"], i+1)
-        result = _結果(root, history[:i+1], state)
-    return result
+        状態 = _修正を適用(状態, event["修正"], i+1)
+        結果 = _結果(root, history[:i+1], 状態)
+    return 結果
 
 
-def 文章記録整合(result: 能力結果) -> bool:
+def 文章記録整合(結果: 能力結果) -> bool:
     try:
-        _結果辞書(result)
-        if (result.成立 is not True or result.根拠 or result.保留理由
-                or result.データ.get("版") != 文章版 or len(_符号(_結果辞書(result))) > 2000000):
+        _結果辞書(結果)
+        if (結果.成立 is not True or 結果.根拠 or 結果.保留理由
+                or 結果.データ.get("版") != 文章版 or len(_符号(_結果辞書(結果))) > 2000000):
             return False
-        replay = _再構成(result.データ["原本"], result.データ["編集履歴"])
+        再生 = _再構成(結果.データ["原本"], 結果.データ["編集履歴"])
         # 参照資料は合成器が追加し得る。参照一覧自体の認証をこの検査に含めない。
-        return replay.本文 == result.本文 and _符号(replay.データ) == _符号(result.データ)
+        return 再生.本文 == 結果.本文 and _符号(再生.データ) == _符号(結果.データ)
     except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
         return False
 

@@ -163,7 +163,7 @@ MMLUだけでもbaseとInstructで回答手順が異なり、macro/microで値�
 
 Metaの公開設計自体がsystem-level safetyを採る。
 
-**pretraining filtering + safety fine-tuning + red-team/evaluation + runtime guard + application policy**
+**pretraining filtering + safety fine-tuning + red-team/evaluation + 実行系 guard + application policy**
 
 の合成で配備安全を作る。
 Llama Guard 2 / Code Shieldはモデル外部の実行時層であり、モデル単体の挙動と分離する。
@@ -200,7 +200,7 @@ Llama Guard 2 / Code Shieldはモデル外部の実行時層であり、モデ�
    2024年4月版とLlama 3.1を時間で分けないと、128K、tool use、多言語Instruct等が逆流する。
 
 2. **「128K vocabulary」は厳密ID数と同一ではない。**
-   公式表現は128K/128,000、tokenizer実装は特殊token予約を持つ。ゲート内一次config本文を未観測のため、厳密runtime値は保留した。
+   公式表現は128K/128,000、tokenizer実装は特殊token予約を持つ。ゲート内一次config本文を未観測のため、厳密実行系値は保留した。
 
 3. **post-training recipeは版で変化する。**
    元版記事はPPOを含み、3.1論文はDPO中心。どちらかで他方を訂正せず版差として保持する。

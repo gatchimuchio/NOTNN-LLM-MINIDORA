@@ -36,7 +36,7 @@
   {
     "id": "SR-04",
     "name": "全token共通Dense変換主幹",
-    "state": "MECHANISM_CANDIDATE",
+    "state": "機構候補",
     "relation": "各tokenがrouterによるexpert分岐なしに各層の同一Dense FFN経路を通るため、入力内容が違っても変換主体のparameter場は経路上で不変に保たれる。",
     "evidence": [
       "O06",
@@ -48,7 +48,7 @@
   {
     "id": "SR-05",
     "name": "逐次残差による深さ方向連続性",
-    "state": "MECHANISM_CANDIDATE",
+    "state": "機構候補",
     "relation": "各層は直前状態を主幹としてattention/FFN差分を加えるため、深さ方向の状態更新が一本の逐次系列として保持される。",
     "evidence": [
       "O07"
@@ -69,7 +69,7 @@
   {
     "id": "SR-07",
     "name": "自己の再構成型連続性",
-    "state": "PRINCIPLE_CANDIDATE",
+    "state": "原理候補",
     "relation": "Llama3の自己一貫性は、永続的な内在自己を保存するより、主体住所・過去自己出力・固定parameter場・逐次残差・選択傾向を毎turn再結合して『同じ主体』を再構成することで成立する可能性が高い。",
     "evidence": [
       "O01",

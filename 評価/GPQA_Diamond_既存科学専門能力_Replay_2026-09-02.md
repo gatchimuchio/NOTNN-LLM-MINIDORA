@@ -4,7 +4,7 @@
 
 MINIDORAリポジトリ内に既に存在する `src/minidora/科学専門能力*.py` 群を、既存の `科学専門能力を通常MINIDORAへ接続` で明示接続した場合の純粋な寄与を測る。
 
-新しいGPQA解法器・gold参照solver・問題番号分岐は追加しない。
+新しいGPQA解法器・gold参照解決器・問題番号分岐は追加しない。
 
 ## 2. Replay境界
 
@@ -89,9 +89,9 @@ specialist_fired_cases    = 55
 
 である。
 
-## 5. 発火solver
+## 5. 発火解決器
 
-55 solverが各1問で発火した。
+55 解決器が各1問で発火した。
 
 ```text
 abundance_dex_ratio
@@ -158,7 +158,7 @@ weak_acid_titration
 次を意味しない。
 
 - live外部参照再取得を含む最新HEADの正式実測が31.818%で確定した、とはまだ言わない。
-- 55 solverがGPQA全域へ一般化した、とは言わない。
+- 55 解決器がGPQA全域へ一般化した、とは言わない。
 - GPQA性能を厳密言語模型成立証拠へ読み替えない。
 
 live 198問 controlled A/Bは `.github/workflows/gpqa_scientific_specialist_ab.yml` で別途実行する。
@@ -176,5 +176,5 @@ live 198問 controlled A/Bは `.github/workflows/gpqa_scientific_specialist_ab.y
 再現入口:
 
 ```bash
-python tools/gpqa_scientific_specialist_replay.py --out gpqa_scientific_specialist_replay.json
+python tools/GPQA科学専門能力再生.py --out gpqa_scientific_specialist_replay.json
 ```

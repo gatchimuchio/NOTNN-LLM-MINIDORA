@@ -57,7 +57,7 @@ Layer-0 / P / Adapter / 最小化への射影は意図的に行っていない�
 結果から少なくとも以下を再開放した。
 
 - Llama 3という対象の版境界
-- vocabulary数の丸め表記とruntime厳密値
+- vocabulary数の丸め表記と実行系厳密値
 - 元版と3.1のpost-training recipe差
 - 公開/非公開情報境界
 - safetyのモデル内外境界

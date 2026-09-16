@@ -33,10 +33,10 @@ class JSON文書試験(unittest.TestCase):
         self.assertEqual([n['型'] for n in nodes],['数値','文字列','真偽','空値','配列','対象'])
 
     def test_大きい整数と小数表記を保持(self):
-        for token in ('9007199254740993','-0','1.2300','1e+20','0.10000000000000001'):
-            r = self.read(token)
-            self.assertEqual(r.データ['文書']['構造']['値'],token)
-            self.assertEqual(文書を処理(r,'JSON選択',{'位置':''}).本文,token)
+        for 字句 in ('9007199254740993','-0','1.2300','1e+20','0.10000000000000001'):
+            r = self.read(字句)
+            self.assertEqual(r.データ['文書']['構造']['値'],字句)
+            self.assertEqual(文書を処理(r,'JSON選択',{'位置':''}).本文,字句)
 
     def test_原文の空白とキー順を保持(self):
         text = ' \r\n{ "乙" : 1, "甲": "a\\nb" }\t'
@@ -187,9 +187,9 @@ class 標準パーサ独立対照試験(unittest.TestCase):
                 self.assertEqual(native(r.データ['文書']['構造']),expected[1:])
                 for j in (0,1):
                     s=r.データ['文書']['対応'][f'/0/{j}']
-                    token=text[s['開始']:s['終了']]
+                    字句=text[s['開始']:s['終了']]
                     # 空セルだけの空入力はreaderが行を作らないため1セル列へ付ける。
-                    one=list(csv.reader(io.StringIO(token+delimiter+'END\r\n',newline=''),delimiter=delimiter,strict=True))[0][0]
+                    one=list(csv.reader(io.StringIO(字句+delimiter+'END\r\n',newline=''),delimiter=delimiter,strict=True))[0][0]
                     self.assertEqual(one,(a,b)[j])
                 count+=1
         self.assertEqual(count,98)

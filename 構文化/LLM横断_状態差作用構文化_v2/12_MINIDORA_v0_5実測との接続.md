@@ -8,8 +8,8 @@
 - controlled baseline: 22 / 198 = 11.11%
 - current answered: 120
 - baseline answered: 95
-- checkpoint_count: 815
-- checkpoint_reactivations: 0
+- 検査点_count: 815
+- 検査点_reactivations: 0
 - global_reconciliations: 0
 - candidate_cross_updates: 0
 - specialist_actions_invoked: 0
@@ -31,8 +31,8 @@
 
 ## 現時点で言えること
 
-MINIDORAの `checkpoint_count=815` は状態記録量を示すが、`reactivations=0` ならcheckpoint機構自身については後続再利用を観測できていない。
+MINIDORAの `検査点_count=815` は状態記録量を示すが、`reactivations=0` なら検査点機構自身については後続再利用を観測できていない。
 
-ただし能力核の他経路がstate依存計算を行っている可能性は別監査である。よって、checkpoint 0発火だけをGPQA低得点の単独原因と断定しない。
+ただし能力核の他経路がstate依存計算を行っている可能性は別監査である。よって、検査点 0発火だけをGPQA低得点の単独原因と断定しない。
 
-次の検証では、checkpoint/working stateを介入的に除去・固定し、出力・候補差・参照集合・作用回数が変化するかを計測する必要がある。
+次の検証では、検査点/working stateを介入的に除去・固定し、出力・候補差・参照集合・作用回数が変化するかを計測する必要がある。

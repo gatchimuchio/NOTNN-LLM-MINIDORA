@@ -33,7 +33,7 @@ DEPTH_DOWNSTREAM_DEPENDENCYとattention state-dependent weightingを観測。
 
 ## R — 再参照・再利用の尺度
 
-window内明示referenceと周期的full-context reference。runtime recursionではなくconfigured depth pattern。
+window内明示referenceと周期的full-context reference。実行系 recursionではなくconfigured depth pattern。
 
 ## C — 再結合
 

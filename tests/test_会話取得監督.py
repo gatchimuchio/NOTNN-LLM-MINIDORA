@@ -1,4 +1,4 @@
-"""検索・本文の供給だけを人工Dataへ差し替え、実取得器・HDS・計画・監督を接続する。"""
+'検索・本文の供給だけを人工資料へ差し替え、実取得器・HDS・計画・監督を接続する。'
 import unittest
 from minidora.汎用会話 import 汎用会話セッション
 from minidora.知識取得 import 知識取得器
@@ -11,7 +11,7 @@ class 検索:
     def 検索(self,q,limit=5):
         self.calls.append(q)
         if self.none or self.empty_first and '数値' not in q:return ()
-        return (参照資料('candidate','人工資料','局所試験','https://example.test/doc',本文='間違った数値999'),)
+        return (参照資料('候補','人工資料','局所試験','https://example.test/doc',本文='間違った数値999'),)
 class 本文:
     def __init__(self,text='機器Aの電圧は120 V。'):self.text=text;self.calls=[]
     def 取得(self,url):

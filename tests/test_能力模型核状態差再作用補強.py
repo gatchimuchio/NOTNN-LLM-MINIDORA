@@ -93,7 +93,7 @@ class 能力模型核状態差再作用補強試験(unittest.TestCase):
         # それでも寄与構造は毎回変化しているので、得点差だけで循環を打ち切らない。
         self.assertEqual(結果.統計.再作用回数, 3)
         self.assertGreaterEqual(結果.統計.寄与状態再利用数, 6)
-        self.assertTrue(any(保存点.段階 == "RECONCILE_3" for 保存点 in 結果.checkpoint))
+        self.assertTrue(any(保存点.段階 == "RECONCILE_3" for 保存点 in 結果.検査点))
 
     def test_現在首位を保ちながら全変化候補を再作用面へ残す(self) -> None:
         _再作用面観測.観測 = []

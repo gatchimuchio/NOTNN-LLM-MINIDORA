@@ -6,7 +6,7 @@ from .統合実行 import 統合セッション, 統合応答
 from .能力意味カタログ import 能力意味カタログ
 from .目的計画 import 目的計画器, 目的計画結果
 from .HDS目的射影 import HDSから目的要求, 目的射影結果
-from .hds_compiler import 公開HDSコンパイラ
+from .HDS構文化器 import 公開HDSコンパイラ
 from .要求境界契約 import 被覆台帳印, 要求境界契約印
 
 @dataclass(frozen=True, slots=True)
@@ -45,7 +45,7 @@ class 目的会話セッション:
     def 応答(self, 原文: str, 資料=None, *, 停止要求=None) -> 目的会話応答:
         if not self._ロック.acquire(blocking=False):
             return 目的会話応答('保留', '', '同じ目的会話の処理中')
-        projection = plan = None
+        射影 = plan = None
         try:
             start, history = self.統合.採用履歴スナップショット()
             current = 能力意味カタログ(self.統合.能力一覧())
@@ -56,24 +56,24 @@ class 目的会話セッション:
                 raise ValueError('依頼文の範囲外')
             ir = 公開HDSコンパイラ().コンパイル(原文)
             prior = history[-1]['出力'] if history else ()
-            projection = HDSから目的要求(ir, {} if 資料 is None else 資料, 前回成果=prior)
-            if not projection.成立:
-                return 目的会話応答('保留', '', projection.理由, projection)
+            射影 = HDSから目的要求(ir, {} if 資料 is None else 資料, 前回成果=prior)
+            if not 射影.成立:
+                return 目的会話応答('保留', '', 射影.理由, 射影)
             self.統合._停止(停止要求)
-            plan = self._計画器.計画する(projection.要求)
+            plan = self._計画器.計画する(射影.要求)
             if not plan.成立:
-                return 目的会話応答('保留', '', plan.理由, projection, plan)
+                return 目的会話応答('保留', '', plan.理由, 射影, plan)
             coverage_seal = 被覆台帳印(plan.要求被覆)
-            prepared = self.統合.準備(plan.計画, plan.Data, 依頼文=原文)
+            prepared = self.統合.準備(plan.計画, plan.資料, 依頼文=原文)
             if prepared.起点 != start:
-                return 目的会話応答('保留', '', '解釈後に会話状態が変化', projection, plan)
-            boundary_seal = 要求境界契約印(
+                return 目的会話応答('保留', '', '解釈後に会話状態が変化', 射影, plan)
+            境界_seal = 要求境界契約印(
                 原文=原文, 計画印=prepared.ハッシュ, 要求被覆印=coverage_seal)
-            result = self.統合.実行(prepared, 停止要求=停止要求)
-            return 目的会話応答(result.状態, result.本文, result.理由,
-                            projection, plan, result, boundary_seal)
+            結果 = self.統合.実行(prepared, 停止要求=停止要求)
+            return 目的会話応答(結果.状態, 結果.本文, 結果.理由,
+                            射影, plan, 結果, 境界_seal)
         except (ValueError, TypeError, KeyError, AttributeError, RecursionError, InterruptedError) as exc:
-            state = '中止' if isinstance(exc, InterruptedError) else '保留'
-            return 目的会話応答(state, '', str(exc), projection, plan)
+            状態 = '中止' if isinstance(exc, InterruptedError) else '保留'
+            return 目的会話応答(状態, '', str(exc), 射影, plan)
         finally:
             self._ロック.release()

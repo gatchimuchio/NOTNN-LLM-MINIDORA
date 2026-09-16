@@ -1,8 +1,4 @@
-"""採用済みの会話成果を、Runtime局所状態と一緒に参照する。
-
-ファイル永続化・意味類似検索・任意の照応理解を担わない。
-スナップショットの指紋は整合検査であり、認証や電子署名ではない。
-"""
+'採用済みの会話成果を、実行系局所状態と一緒に参照する。\n\nファイル永続化・意味類似検索・任意の照応理解を担わない。\nスナップショットの指紋は整合検査であり、認証や電子署名ではない。\n'
 from __future__ import annotations
 
 from copy import deepcopy
@@ -16,8 +12,8 @@ from threading import RLock
 import unicodedata
 from uuid import uuid4
 
-from .hds_adapter import HDS文脈
-from .hds_ir import HDSIR
+from .HDS適合器 import HDS文脈
+from .HDS中間表現 import HDSIR
 from .局所解釈 import 局所解釈キャッシュ, 局所解釈スナップショット
 from .能力合成 import _結果辞書, _参照結合
 from .製品版.型 import 能力結果
@@ -70,7 +66,7 @@ class 照応束縛:
     応答番号: int
     出力番号: int
     出力ID: str
-    Dataキー: str
+    資料キー: str
     結果ハッシュ: str
 
 

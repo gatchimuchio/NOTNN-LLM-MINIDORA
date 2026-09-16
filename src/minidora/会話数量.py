@@ -122,8 +122,8 @@ def 表数量を読む(value: 能力結果, settings: dict) -> 能力結果:
     if node['型']=='真偽' or node['型']=='空値': _失敗('入力不正','真偽・空値を数値化しない')
     if doc['形式']=='JSON' and node['型']!='数値':
         _失敗('入力不正','JSON文字列を数値型へ読み替えない')
-    token=_素値(node)
-    if type(token) is not str or len(token)>128 or not re.fullmatch(r'[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]{1,3})?',token):
+    字句=_素値(node)
+    if type(字句) is not str or len(字句)>128 or not re.fullmatch(r'[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]{1,3})?',字句):
         _失敗('入力不正','明示的な有限数値表記が必要')
     unit=metadata.get('単位') or settings['単位']
     if unit not in _単位: _失敗('入力不足','単位が未確定又は未対応')
@@ -134,20 +134,20 @@ def 表数量を読む(value: 能力結果, settings: dict) -> 能力結果:
     if condition is not None: _文字(str(condition))
     if moment is not None: _文字(str(moment))
     span=doc['対応'][pointer]
-    source=value.データ['原本']['原文']
-    quantity=_有理数(token)*Fraction(mul)
+    情報源=value.データ['原本']['原文']
+    quantity=_有理数(字句)*Fraction(mul)
     display_unit=settings['単位'] or base
     display_value=_数表記(quantity/Fraction(_単位[display_unit][1]))
     body=display_value+' '+display_unit
-    data={'版':会話数量版,'種別':'数量','資料':settings['資料'],'属性':attribute,
+    資料={'版':会話数量版,'種別':'数量','資料':settings['資料'],'属性':attribute,
           '値':_数表記(quantity),'単位':base,'入力単位':unit,'表示単位':display_unit,'表示値':display_value,
           '単位由来':'資料' if metadata.get('単位') else '依頼の宣言',
           '条件':None if condition is None else str(condition),'時点':None if moment is None else str(moment),
           '位置':pointer,'開始':span['開始'],'終了':span['終了'],
-          '原文片':source[span['開始']:span['終了']], '同伴':metadata,
+          '原文片':情報源[span['開始']:span['終了']], '同伴':metadata,
           '選択':deepcopy(settings),'元結果':_結果辞書(value),'方式':'表', '本文':body}
-    data['記録SHA256']=意味指紋(data)
-    return 能力結果(True,body,参照=value.参照,データ=data)
+    資料['記録SHA256']=意味指紋(資料)
+    return 能力結果(True,body,参照=value.参照,データ=資料)
 
 
 def 記載数量を読む(value: 能力結果, settings: dict) -> 能力結果:
@@ -168,22 +168,22 @@ def 記載数量を読む(value: 能力結果, settings: dict) -> 能力結果:
         _失敗('意味未確定','一点の一致記載だけを数量として扱う')
     unit=selected[0]['単位'];display_unit=settings['単位']
     display_value=_数表記(quantity/Fraction(_単位[display_unit][1]));body=display_value+' '+display_unit
-    data={'版':会話数量版,'種別':'数量','資料':settings['対象'],'属性':settings['属性'],
+    資料={'版':会話数量版,'種別':'数量','資料':settings['対象'],'属性':settings['属性'],
           '値':_数表記(quantity),'単位':unit,'表示単位':display_unit,'表示値':display_value,'条件':group['条件'],'時点':group['時点'],
           '入力単位':settings['単位'],'単位由来':'資料','同伴':{},'方式':'記載',
           '選択':deepcopy(settings),'元結果':_結果辞書(value),'証拠':_結果辞書(report),
           '原文片':selected[0]['原文'],'開始':selected[0]['開始'],'終了':selected[0]['終了'],
           '位置':selected[0]['参照ID'],'本文':body}
-    data['記録SHA256']=意味指紋(data)
-    return 能力結果(True,body,参照=report.参照,データ=data)
+    資料['記録SHA256']=意味指紋(資料)
+    return 能力結果(True,body,参照=report.参照,データ=資料)
 
 
 def 数量記録整合(value):
     try:
         raw=deepcopy(value.データ); hash_=raw.pop('記録SHA256')
         if hash_!=意味指紋(raw) or raw['本文']!=value.本文 or not value.成立: return False
-        source=能力結果を復元(raw['元結果'])
-        rebuilt=(表数量を読む if raw['方式']=='表' else 記載数量を読む)(source,raw['選択'])
+        情報源=能力結果を復元(raw['元結果'])
+        rebuilt=(表数量を読む if raw['方式']=='表' else 記載数量を読む)(情報源,raw['選択'])
         # 上流参照は合成器が追加できるが、消去・書換えは許さない。
         available={r.識別子:r for r in value.参照}
         return rebuilt.データ==value.データ and all(available.get(r.識別子)==r for r in rebuilt.参照)
@@ -204,32 +204,32 @@ def 数量を比較(left: 能力結果, right: 能力結果, settings: dict) -> 
     if a['資料']==b['資料'] and a.get('位置')==b.get('位置'):
         _失敗('意味未確定','同じ値を異なる比較対象として扱わない')
     av,bv=Fraction(a['値']),Fraction(b['値']); delta=bv-av
-    relation=関係制約器().実行(関係問題(('左','右','基準'),
+    関係=関係制約器().実行(関係問題(('左','右','基準'),
         (関係式('前提左','左','一致','基準',a['値']),関係式('前提右','右','一致','基準',b['値'])),
         (関係式('右大','右','超','左'),関係式('同値','右','一致','左'),関係式('右小','右','未満','左')),
         属性=a['属性'],単位=a['単位'],条件=a['条件']))
-    if not relation.成立: _失敗('能力不成立','既存関係制約器が成立しない')
-    decisions={r['問い']['識別子']:r['判定'] for r in relation.データ['回答']}
+    if not 関係.成立: _失敗('能力不成立','既存関係制約器が成立しない')
+    decisions={r['問い']['識別子']:r['判定'] for r in 関係.データ['回答']}
     expected='右大' if delta>0 else '右小' if delta<0 else '同値'
     if decisions.get(expected)!='導出': _失敗('能力不成立','関係推論と数量差が一致しない')
     display_unit=a['表示単位'] if a['表示単位']==b['表示単位'] else a['単位']
     display_delta=_数表記(delta/Fraction(_単位[display_unit][1]))
     body='右－左の差は'+display_delta+' '+display_unit
-    data={'版':会話数量版,'種別':'数量比較','左':_結果辞書(left),'右':_結果辞書(right),
+    資料={'版':会話数量版,'種別':'数量比較','左':_結果辞書(left),'右':_結果辞書(right),
           '設定':deepcopy(settings),'差':_数表記(delta),'方向':expected,
           '表示単位':display_unit,'表示差':display_delta,
-          '関係報告':_結果辞書(relation),'本文':body,
+          '関係報告':_結果辞書(関係),'本文':body,
           '限界':'資料の記載値の比較。原因・優劣・資料の真偽は判定していない'}
-    data['記録SHA256']=意味指紋(data)
-    return 能力結果(True,body,参照=_参照結合((*left.参照,*right.参照)),データ=data)
+    資料['記録SHA256']=意味指紋(資料)
+    return 能力結果(True,body,参照=_参照結合((*left.参照,*right.参照)),データ=資料)
 
 
 def 比較記録整合(value):
     try:
         _結果辞書(value)
-        data=value.データ
-        rebuilt=数量を比較(能力結果を復元(data['左']),能力結果を復元(data['右']),data['設定'])
+        資料=value.データ
+        rebuilt=数量を比較(能力結果を復元(資料['左']),能力結果を復元(資料['右']),資料['設定'])
         available={r.識別子:r for r in _参照結合(value.参照)}
-        return value.成立 and rebuilt.データ==data and rebuilt.本文==value.本文 and rebuilt.根拠==value.根拠 and rebuilt.保留理由==value.保留理由 and all(available.get(r.識別子)==r for r in rebuilt.参照)
+        return value.成立 and rebuilt.データ==資料 and rebuilt.本文==value.本文 and rebuilt.根拠==value.根拠 and rebuilt.保留理由==value.保留理由 and all(available.get(r.識別子)==r for r in rebuilt.参照)
     except (ValueError,KeyError,TypeError,AttributeError,RecursionError):
         return False

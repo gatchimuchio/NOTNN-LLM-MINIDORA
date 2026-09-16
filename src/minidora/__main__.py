@@ -5,7 +5,7 @@ import json
 import sys
 from collections.abc import Sequence
 
-from .runtime import ミニドラ, 要求
+from .実行系 import ミニドラ, 要求
 from .標準構成 import 標準ミニドラ
 
 
@@ -20,7 +20,7 @@ def _標準入出力をUTF8化() -> None:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="minidora",
-        description="MINIDORA v0.5 日本語基底・非ニューラルネットワークLLM Runtime",
+        description='MINIDORA v0.5 日本語基底・非ニューラルネットワークLLM 実行系',
     )
     parser.add_argument("query", nargs="?", help="MINIDORAへ渡す言語入力")
     parser.add_argument(
@@ -34,21 +34,21 @@ def _parser() -> argparse.ArgumentParser:
 
 def _run_once(body: ミニドラ, query: str, *, json_mode: bool) -> None:
     if json_mode:
-        result = body.実行(要求(query))
-        compiler = body.HDSコンパイラ
+        結果 = body.実行(要求(query))
+        構文化器 = body.HDSコンパイラ
         payload = {
             "query": query,
-            "value": result.値,
-            "status": result.採否.状態.value,
-            "reasons": list(result.採否.理由),
-            "plan": result.言語計画,
-            "reference_count": len(result.参照),
-            "hds_ir": result.HDS_IR is not None,
-            "compiler": "公開HDSコンパイラ",
-            "compiler_architecture": getattr(compiler, "Architecture版", None),
-            "compiler_pipeline": getattr(compiler, "Pipeline版", None),
-            "runtime": "MINIDORA v0.5",
-            "model_core": "MINIDORA模型核",
+            "value": 結果.値,
+            "status": 結果.採否.状態.value,
+            "reasons": list(結果.採否.理由),
+            "plan": 結果.言語計画,
+            '参照_count': len(結果.参照),
+            "HDS中間表現": 結果.HDS_IR is not None,
+            '構文化器': "公開HDSコンパイラ",
+            '構文化器_構造': getattr(構文化器, '構造版', None),
+            '構文化器_処理系列': getattr(構文化器, '処理系列版', None),
+            "実行系": "MINIDORA v0.5",
+            '模型_模型核': "MINIDORA模型核",
         }
         print(json.dumps(payload, ensure_ascii=False, default=str))
         return

@@ -49,11 +49,11 @@ def _入出力を検査(args) -> None:
             raise ValueError('出力先は通常ファイルを指定する')
 
 
-def _応答を書き出す(session, source, target) -> bool:
+def _応答を書き出す(session, 情報源, target) -> bool:
     invalid = False
     first = True
     while True:
-        line = source.readline(65_537)
+        line = 情報源.readline(65_537)
         if not line:
             break
         if first:
@@ -86,14 +86,14 @@ def main(argv=None):
     entry = ap.add_mutually_exclusive_group()
     entry.add_argument('--入力', dest='input', type=Path, help='UTF-8 JSONL。省略時は標準入力')
     entry.add_argument('--発話', dest='utterances', action='append', help='日本語発話を直接指定。順に複数回指定できる')
-    entry.add_argument('--契約', dest='contract', action='store_true', help='対応入口・上限・日本語入力例をJSON表示')
+    entry.add_argument('--契約', dest='契約', action='store_true', help='対応入口・上限・日本語入力例をJSON表示')
     ap.add_argument('--出力', dest='output', type=Path, help='UTF-8 JSONL。省略時は標準出力')
     ap.add_argument('--復元', dest='restore', type=Path)
     ap.add_argument('--保存', dest='save', type=Path)
     ap.add_argument('--セッション', dest='session')
     ap.add_argument('--上書き', dest='overwrite', action='store_true')
     args = ap.parse_args(argv)
-    if args.contract:
+    if args.契約:
         if any(p is not None for p in (args.output, args.restore, args.save, args.session)) or args.overwrite:
             ap.error('--契約は出力先・状態操作・セッション指定と併用しない')
         print(_符号化({
@@ -111,8 +111,8 @@ def main(argv=None):
             raise ValueError('直接発話の数・文字数上限')
         _入出力を検査(args)
         if args.restore is not None:
-            with args.restore.open('rb') as source:
-                raw = source.read(2_000_001)
+            with args.restore.open('rb') as 情報源:
+                raw = 情報源.read(2_000_001)
             if len(raw) > 2_000_000:
                 raise ValueError('復元状態のサイズ上限')
             session = 監査改善会話セッション.復元(raw.decode('utf-8'), 期待セッションID=args.session)
@@ -120,12 +120,12 @@ def main(argv=None):
             session = 監査改善会話セッション(args.session or 'default')
         with ExitStack() as stack:
             if args.utterances is not None:
-                source = stack.enter_context(io.StringIO(''.join(
+                情報源 = stack.enter_context(io.StringIO(''.join(
                     _符号化({'入力': text}).decode('utf-8') + '\n' for text in args.utterances)))
             else:
-                source = stack.enter_context(args.input.open(encoding='utf-8-sig', errors='strict')) if args.input else sys.stdin
+                情報源 = stack.enter_context(args.input.open(encoding='utf-8-sig', errors='strict')) if args.input else sys.stdin
             target = stack.enter_context(原子的テキスト出力(args.output, 上書き=args.overwrite)) if args.output else sys.stdout
-            invalid = _応答を書き出す(session, source, target)
+            invalid = _応答を書き出す(session, 情報源, target)
             if invalid:
                 # 正常行があっても破損通信を含むファイル・状態は公開しない。
                 raise ValueError('通信入力不正のためファイル出力と保存を確定しません')

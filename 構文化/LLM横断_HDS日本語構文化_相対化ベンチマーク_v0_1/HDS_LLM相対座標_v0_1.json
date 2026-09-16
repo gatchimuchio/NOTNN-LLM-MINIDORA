@@ -1,5 +1,5 @@
 {
-  "schema": "HDS-LLM-relative-coordinate-v0.1",
+  "契約形式": "HDS-LLM-relative-coordinate-v0.1",
   "date": "2026-08-21",
   "principle": "単一尺度の点数順位ではなく、同一の日本語HDS座標へ複数対象を置き、共通項・差分・未観測を保持する。相対化で新軸が出た場合はHDS観測軸を更新し、必要な対象を再投影する。",
   "observation_levels": {
@@ -17,7 +17,7 @@
     {
       "id": "A1",
       "name": "成立物境界",
-      "definition": "モデル本体 / 推論runtime / agent harness / safety classifier・router / product tool integrationを分離する。"
+      "definition": "モデル本体 / 推論実行系 / agent harness / safety classifier・router / product tool integrationを分離する。"
     },
     {
       "id": "A2",
@@ -47,7 +47,7 @@
     {
       "id": "A7",
       "name": "形成過程",
-      "definition": "pretraining / continued pretraining / SFT / preference / RL / agentic trajectory学習をruntime機構と分離する。"
+      "definition": "pretraining / continued pretraining / SFT / preference / RL / agentic trajectory学習を実行系機構と分離する。"
     },
     {
       "id": "A8",
@@ -74,7 +74,7 @@
     {
       "rev": "R2",
       "trigger": "OpenAI GPT-5.6 / Claude Fable-Mythos",
-      "change": "A1/A8。モデル本体・推論runtime・agent harness・classifier/fallbackを分離。"
+      "change": "A1/A8。モデル本体・推論実行系・agent harness・classifier/fallbackを分離。"
     },
     {
       "rev": "R3",
@@ -233,7 +233,7 @@
       "future": "主構造上なし。",
       "modality": "text。",
       "formation": "pretraining/posttrainingをcore geometryから分離。旧HDSでも生成可能集合と選択傾向を分けていた。",
-      "deployment": "runtime guard等はcore外。",
+      "deployment": "実行系 guard等はcore外。",
       "hds": "Dense・uniform global-attentionの基準点。K2V2との幾何類似により、能力差をarchitecture差だけへ押し込めない。",
       "unresolved": [
         "weight全量意味解析",
@@ -269,7 +269,7 @@
       "future": "thinking modeはposttraining/serving modeとして中央decoder geometryと分離。",
       "modality": "1.5はimage/audio/text input。repoにはcore model 3 shardsに加えvision_tokenizerとwavtokenizerのweightが別ファイルで存在。",
       "formation": "continued pretraining（multimodal mix）＋posttraining改善。",
-      "deployment": "tool callingとthinking modeは同時利用制約もあり、runtime mode境界を持つ。",
+      "deployment": "tool callingとthinking modeは同時利用制約もあり、実行系 mode境界を持つ。",
       "hds": "中央decoderを維持したままモダリティとreasoning/tool capabilityが拡張。能力追加＝中央architecture刷新、ではない自然実験。",
       "unresolved": [
         "1.5全weight意味解析",
@@ -305,7 +305,7 @@
       "future": "MOPD等は独立制御として保持し、未確定機能を未来予測へ勝手に寄せない。",
       "modality": "今回のfullweight対象範囲に従う。",
       "formation": "旧v6.1意味構文を教師として使わずblind-primary-v2で再観測。",
-      "deployment": "weight構造と外部runtimeを分離。",
+      "deployment": "weight構造と外部実行系を分離。",
       "hds": "今回の最高解像度基準点。DeepSeek V4/Qwen/OLMo/Llama等を相対化した後に再配置すると、系列・深さ・幅の独立性がより明確になる。",
       "unresolved": [
         "shard1 zero位置の位置帰属は当時保持されず推測しない",

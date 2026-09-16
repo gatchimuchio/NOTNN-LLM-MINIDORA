@@ -7,7 +7,7 @@ import unittest
 from minidora.ブラウザ閲覧 import 描画を観測, 表示操作を行う, 表を配列, _要素
 from minidora.構造化文書 import 構造化文書を読む
 from minidora.構造化文書操作 import 文書を処理
-from minidora.製品版.抽出 import 情報抽出Module
+from minidora.製品版.抽出 import 情報抽出モジュール
 from ブラウザ試験素材 import 画面HTML
 
 
@@ -22,10 +22,10 @@ class 実ブラウザ描画試験(unittest.TestCase):
     def tearDownClass(cls):
         cls.browser.close();cls.driver.stop()
     def setUp(self):
-        self.context=self.browser.new_context(offline=True,service_workers='block')
-        self.page=self.context.new_page()
+        self.文脈=self.browser.new_context(offline=True,service_workers='block')
+        self.page=self.文脈.new_page()
     def tearDown(self):
-        self.context.close()
+        self.文脈.close()
     def load(self,html=None):
         self.page.set_content(画面HTML() if html is None else html)
         return 描画を観測(self.page)
@@ -37,12 +37,12 @@ class 実ブラウザ描画試験(unittest.TestCase):
         self.assertEqual(表を配列(_要素(after,'table')),[['番号','値'],['001','731']])
     def test_動的表を既存JSON処理と抽出へ渡す(self):
         before=self.load();表示操作を行う(self.page,before,'expand','詳細表示')
-        data=表を配列(_要素(描画を観測(self.page),'table'))
-        r=構造化文書を読む(json.dumps(data,ensure_ascii=False),'JSON')
+        資料=表を配列(_要素(描画を観測(self.page),'table'))
+        r=構造化文書を読む(json.dumps(資料,ensure_ascii=False),'JSON')
         r=文書を処理(r,'JSON選択',{'位置':'/1/1'})
         r=文書を処理(r,'値取出',{'型':'文字列'})
         self.assertTrue(r.成立,r.保留理由)
-        self.assertEqual(情報抽出Module().実行('数字',r.本文).本文,'731')
+        self.assertEqual(情報抽出モジュール().実行('数字',r.本文).本文,'731')
     def test_値変更が実描画へ到達(self):
         for n in (0,222,10007):
             self.page.set_content(画面HTML(n));before=描画を観測(self.page)

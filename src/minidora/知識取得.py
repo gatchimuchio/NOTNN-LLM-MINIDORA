@@ -124,17 +124,17 @@ class 知識取得器:
         attempts = 0
 
         def 結果(成立: bool, 理由: str = "") -> 能力結果:
-            data = {"版": 知識取得版, "状態": "合格" if 成立 else "保留",
+            資料 = {"版": 知識取得版, "状態": "合格" if 成立 else "保留",
                     "意味的事実検証": "未実施", "要求": asdict(要求),
                     "不足語": [w for w in 要求.必要語 if w not in covered],
                     "資料": documents, "抜粋": passages, "試行": traces,
                     "本文取得数": attempts, "資料数": len(refs)}
-            encoded = json.dumps(data, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8")
+            encoded = json.dumps(資料, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8")
             if len(encoded) + sum(len(r.本文.encode("utf-8")) for r in refs) > 1_000_000:
                 return 能力結果(False, "", 保留理由="取得記録サイズ上限")
-            data["記録SHA256"] = sha256(encoded).hexdigest()
+            資料["記録SHA256"] = sha256(encoded).hexdigest()
             return 能力結果(成立, "\n\n".join(p["本文"] for p in passages) if 成立 else "",
-                            根拠=tuple(r.識別子 for r in refs), 参照=tuple(refs), データ=data, 保留理由=理由)
+                            根拠=tuple(r.識別子 for r in refs), 参照=tuple(refs), データ=資料, 保留理由=理由)
 
         def 停止() -> bool:
             if 停止要求 is None:
@@ -174,12 +174,12 @@ class 知識取得器:
                         if not isinstance(item, 参照資料) or type(item.題名) is not str:
                             raise ValueError("検索候補型不正")
                         url = 公開URL(item.URL)
-                        priority = urlsplit(url).hostname in 要求.優先ホスト
-                        ordered.append((not priority, url, item))
+                        優先度 = urlsplit(url).hostname in 要求.優先ホスト
+                        ordered.append((not 優先度, url, item))
                     except (ValueError, TypeError):
                         traces.append({"作用": "候補除外", "理由": "候補型または公開URL不正"})
                 ordered.sort(key=lambda row: row[0])  # 同順位は検索供給器の順序を保持する。
-                for _, url, candidate in ordered:
+                for _, url, 候補 in ordered:
                     if 停止():
                         return 結果(False, "停止要求")
                     if url in tried_urls or url in final_urls:
@@ -206,7 +206,7 @@ class 知識取得器:
                         traces.append({"作用": "本文非採用", "URL": url, "理由": "必要語不一致または段落長上限"})
                         continue
                     key = "web:" + sha256((doc.最終URL + "\n" + doc.本文SHA256).encode()).hexdigest()[:24]
-                    ref = 参照資料(key, doc.題名 or candidate.題名, "公開HTTPS本文", doc.最終URL, None, doc.本文)
+                    ref = 参照資料(key, doc.題名 or 候補.題名, "公開HTTPS本文", doc.最終URL, None, doc.本文)
                     refs.append(ref)
                     hashes.add(doc.本文SHA256)
                     final_urls.add(doc.最終URL)

@@ -41,7 +41,7 @@ HDSを後段の最終採否ラッパーとして置かない。また、HDSの�
 
 ## 2. 責任境界
 
-通常MINIDORAは HDS Compiler、R、K3、direct relation、graph、candidate reconcile、Working Relation、local reparse、capability model、計算実行器、runtime採否、主体整合を保持する。候補生成・候補比較・回答形成・通常閉包は既存MINIDORAの責任である。
+通常MINIDORAは HDS 構文化器、R、K3、direct relation、graph、candidate reconcile、Working Relation、local reparse、capability model、計算実行器、実行系採否、主体整合を保持する。候補生成・候補比較・回答形成・通常閉包は既存MINIDORAの責任である。
 
 HDSが受け取るのは、既存処理状態、出力存在、根拠存在、直接検証状態、opaqueな参照状態署名、opaqueな候補状態署名、未解残差種別、既存MINIDORAが公開した介入可能作用だけとする。
 
@@ -75,7 +75,7 @@ HDS介入 = 0
 - 通常MINIDORAが生成した理由
 - 通常MINIDORA内部の能力作用
 
-したがって、正常系に対してHDS用resolver、別能力提案の再統合、追加R、別採否Gateを挿入してはならない。
+したがって、正常系に対してHDS用re解決器、別能力提案の再統合、追加R、別採否関門を挿入してはならない。
 
 HDS監督メタ情報は、HDSが実際に介入した場合だけ付加できる。
 
@@ -100,10 +100,10 @@ HDSは正解ラベルやgoldを見て異常を判定しない。
 標準MINIDORA coreでHDSが外側から起動する作用は、原則として次の二つへ限定する。
 
 - `REFERENCE` — 既存Rを段階的に広げて追加観測する。
-- `EXISTING_COMPUTE_EXECUTOR` — Compilerが閉包済みCompute IRを生成できた場合だけ既存計算実行器を使う。
+- `EXISTING_COMPUTE_EXECUTOR` — 構文化器が閉包済みCompute IRを生成できた場合だけ既存計算実行器を使う。
 
 Working Relation再作用、局所再照合、能力模型再照合は能力模型核内部の一般作用であり、標準HDS監督が別経路として再実行しない。
-専門領域solverをHDS作用候補へ入れない。HDSは計算法則・専門知識・候補勝者を生成しない。
+専門領域解決器をHDS作用候補へ入れない。HDSは計算法則・専門知識・候補勝者を生成しない。
 
 ## 6. 作用固有入力署名
 
@@ -139,7 +139,7 @@ HDSによるR拡張は、通常推論が観測不足等で閉じなかった場�
 
 追加Rでは次の一般修復を利用できる。
 
-- 未被覆候補だけ追加fallbackする。
+- 未被覆候補だけ追加代替経路する。
 - 候補別queryで得たsourceを対称に予算へ残す。
 - 同一sourceは1件へ統合する。
 - `hds_query_choice` は検索経路情報に限定し、真偽票へ変換しない。
@@ -154,13 +154,13 @@ HDSが能力模型照合を起動する場合も、通常MINIDORAがSUSPENDし�
 
 次は履歴・互換資産として保持するが、現行active pathでは使用しない。
 
-- `hds判断主体.py` の output-only Gate
-- `runtime_hds_v1.py`
-- `hds統合runtime.py`
+- `hds判断主体.py` の output-only 関門
+- `実行系_HDS_v1.py`
+- `HDS統合実行系.py`
 - `hds統合判断主体.py`
 - `hds能力経路_v2.py` の別formal C
 - `hds適応候補調停.py`
-- `hds既存能力resolver.py` を用いた監督用再統合
+- `hds既存能力re解決器.py` を用いた監督用再統合
 
 特に次の二種類を禁止する。
 
@@ -177,7 +177,7 @@ APPROVE / HOLD / REJECT
 ↓
 複数の能力提案へ再構成
 ↓
-HDS用resolverで再統合
+HDS用re解決器で再統合
 ```
 
 どちらもHDS監督介入ではなく、通常系の置換になる。
@@ -195,18 +195,18 @@ HDS用resolverで再統合
 9. persistent canonical Kへrequest-local作業証拠を無断昇格しない。
 10. 厳密言語模型核へHDS制御状態を逆流させない。
 11. 非選択・計算・通常会話経路をHDS監督統合のために作り直さない。
-12. HDS用resolverで通常MINIDORAの初期結果を再解釈しない。
+12. HDS用re解決器で通常MINIDORAの初期結果を再解釈しない。
 
 ## 12. 実装
 
 現行active実装:
 
 - `src/minidora/hds介入制御.py`
-- `src/minidora/hds監督選択runtime.py`
+- `src/minidora/HDS監督選択実行系.py`
 - `src/minidora/hds参照拡張.py`
-- `src/minidora/runtime.py`
+- `src/minidora/実行系.py`
 
-`src/minidora/hds既存能力resolver.py` は履歴・互換資産として保持できるが、HDS監督介入active pathからは外す。
+`src/minidora/hds既存能力re解決器.py` は履歴・互換資産として保持できるが、HDS監督介入active pathからは外す。
 
 ## 13. 検証
 
@@ -216,7 +216,7 @@ HDS用resolverで再統合
 - 初期RがHDS投入前標準Rと同じである。
 - 未閉包時だけ既存作用を追加起動できる。
 - 介入後は通常MINIDORAを再実行する。
-- HDS用resolverがactive監督経路に存在しない。
+- HDS用re解決器がactive監督経路に存在しない。
 - R候補被覆/source identity境界を維持する。
 - repository consistency / 日本語基底 / compileall / unit tests / CLI smokeを通す。
 

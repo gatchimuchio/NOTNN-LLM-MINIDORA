@@ -1,5 +1,5 @@
 {
-  "schema": "minidora.constructuration.package.v1",
+  "契約形式": "minidora.constructuration.package.v1",
   "name": "GLM-5.3系 能力成立作用構文化 D4 v1",
   "date": "2026-09-02",
   "language": "ja",
@@ -15,7 +15,7 @@
   ],
   "comparison_index": "../K3_GLM_作用比較索引_v1.md",
   "implementation_contract": "../../設計/33_GLM還元_参照計画と並列作業状態_v1.md",
-  "runtime_modules": [
+  "実行系_modules": [
     "../../src/minidora/hds参照計画.py",
     "../../src/minidora/hds並列作業状態.py",
     "../../src/minidora/hds多時間尺度.py",

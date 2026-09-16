@@ -61,7 +61,7 @@ class GLM構文化還元試験(unittest.TestCase):
 
     def test_参照正本変更と明示無効化で再利用不可(self) -> None:
         refs = self._refs(4)
-        plan = HDS参照計画作成("evidence", refs)
+        plan = HDS参照計画作成('証拠', refs)
         changed = list(refs)
         changed[0] = 参照記録(
             識別子="R-0",
@@ -71,7 +71,7 @@ class GLM構文化還元試験(unittest.TestCase):
             供給器="test",
             信頼=0.9,
         )
-        self.assertFalse(HDS参照計画再利用可能(plan, "evidence", tuple(changed)))
+        self.assertFalse(HDS参照計画再利用可能(plan, '証拠', tuple(changed)))
         invalid = HDS参照計画無効化(plan, "evidence changed")
         self.assertFalse(invalid.有効)
         self.assertEqual(invalid.無効理由, "evidence changed")
@@ -90,39 +90,39 @@ class GLM構文化還元試験(unittest.TestCase):
         for j in range(4):
             self.assertAlmostEqual(sum(matrix[i][j] for i in range(4)), 1.0, places=6)
 
-        state = HDS並列作業状態生成((
+        状態 = HDS並列作業状態生成((
             {"a": 1.0},
             {"b": 1.0},
             {"c": 1.0},
             {"d": 1.0},
         ))
-        mixed = HDS並列状態読書混合(state, raw, raw, 反復回数=40)
+        mixed = HDS並列状態読書混合(状態, raw, raw, 反復回数=40)
         self.assertEqual(mixed.lane数, 4)
         self.assertEqual(mixed.revision, 2)
         self.assertTrue(all({"a", "b", "c", "d"}.issubset(lane.辞書()) for lane in mixed.lane群))
 
     def test_局所大域再照合の分離(self) -> None:
         refs = self._refs(2)
-        plan = HDS参照計画作成("state", refs)
+        plan = HDS参照計画作成('状態', refs)
         self.assertFalse(HDS大域再照合判断(1, 参照計画=plan).大域再照合)
         self.assertTrue(HDS大域再照合判断(4, 参照計画=plan).大域再照合)
         self.assertTrue(HDS大域再照合判断(1, 参照計画=plan, 証拠不足=True).大域再照合)
         self.assertTrue(HDS大域再照合判断(1, 参照計画=plan, 矛盾数=1).大域再照合)
 
     def test_先行草案は不成立prefixからrollbackする(self) -> None:
-        result = HDS先行草案検証(("A", "B", "C"), lambda prefix: "C" not in prefix)
-        self.assertEqual(result.採用prefix, ("A", "B"))
-        self.assertEqual(result.却下位置, 2)
-        self.assertTrue(result.rollback)
-        self.assertEqual(result.検証回数, 3)
+        結果 = HDS先行草案検証(("A", "B", "C"), lambda prefix: "C" not in prefix)
+        self.assertEqual(結果.採用prefix, ("A", "B"))
+        self.assertEqual(結果.却下位置, 2)
+        self.assertTrue(結果.rollback)
+        self.assertEqual(結果.検証回数, 3)
 
     def test_阻害回復は証拠状態変化で参照計画再構築を選ぶ(self) -> None:
-        recovery = HDS阻害回復方針(("NO_PROVENANCE_PROOF", "EVIDENCE_GAP"))
-        self.assertEqual(recovery.作用, "REBUILD_RETRIEVAL_PLAN")
+        recovery = HDS阻害回復方針(("NO_PROVENANCE_PROOF", '証拠_GAP'))
+        self.assertEqual(recovery.作用, 'REBUILD_取得_PLAN')
         self.assertTrue(recovery.参照計画無効化)
         self.assertFalse(recovery.Jへ留保)
 
-    def test_異種入力はadapter後の表象だけを共通境界へ渡す(self) -> None:
+    def test_異種入力は適合器後の表象だけを共通境界へ渡す(self) -> None:
         value = HDS異種入力射影("image", {"objects": 3}, 出典ID="vision:1")
         self.assertEqual(value.種別, "image")
         self.assertEqual(value.出典ID, "vision:1")

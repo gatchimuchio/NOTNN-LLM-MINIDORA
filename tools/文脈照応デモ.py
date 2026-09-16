@@ -1,4 +1,4 @@
-"""本物の公開HDS Compilerによる、状態あり／初期化後の複数turn対照。"""
+'本物の公開HDS 構文化器による、状態あり／初期化後の複数turn対照。'
 from __future__ import annotations
 
 import argparse
@@ -22,16 +22,16 @@ def main() -> int:
     if not 0 <= args.売上 <= 1_000_000:
         parser.error("--売上 は0〜1000000の整数")
     text = f"売上は{args.売上}です。費用は75です。利益は45です。"
-    data = {"本文": 能力結果(True, text, 参照=(参照資料("原典", "人工入力", "局所デモ", 本文=text),))}
+    資料 = {"本文": 能力結果(True, text, 参照=(参照資料("原典", "人工入力", "局所デモ", 本文=text),))}
     session = 文脈付き要求セッション("文脈デモ")
     rows = []
-    for request, source in (("本文を1行で要約して", data),
+    for request, 情報源 in (("本文を1行で要約して", 資料),
                              ("それから数字を抽出して", None),
                              ("さっきの結果を箇条書きにして", None)):
-        result = session.応答(request, source)
-        rows.append({"依頼": request, "状態": result.状態, "理由": result.理由,
-                     "出力": [v.本文 for _, v in result.出力],
-                     "文脈束縛": [asdict(v) for v in result.解釈.文脈束縛] if result.解釈 else []})
+        結果 = session.応答(request, 情報源)
+        rows.append({"依頼": request, "状態": 結果.状態, "理由": 結果.理由,
+                     "出力": [v.本文 for _, v in 結果.出力],
+                     "文脈束縛": [asdict(v) for v in 結果.解釈.文脈束縛] if 結果.解釈 else []})
     session.初期化()
     reset = session.応答("それから数字を抽出して")
     print(json.dumps({"範囲": "採用済み会話成果への限定照応。汎用会話能力の完成ではない。",

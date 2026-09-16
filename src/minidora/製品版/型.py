@@ -14,9 +14,9 @@ class 参照資料:
     本文: str = ""
 
     def 辞書化(self) -> dict[str, Any]:
-        data = asdict(self)
-        data["公開時刻"] = self.公開時刻.isoformat() if self.公開時刻 else None
-        return data
+        資料 = asdict(self)
+        資料["公開時刻"] = self.公開時刻.isoformat() if self.公開時刻 else None
+        return 資料
 
 @dataclass(frozen=True, slots=True)
 class 能力結果:
@@ -53,9 +53,9 @@ class 製品応答:
             "session_id": self.セッションID,
             "response": self.本文,
             "status": self.状態,
-            "route": self.経路,
-            "trace_id": self.追跡ID,
-            "trace_hash": self.監査ハッシュ,
+            '経路': self.経路,
+            '追跡_id': self.追跡ID,
+            '追跡_hash': self.監査ハッシュ,
             "capabilities": list(self.能力),
             "sources": [r.辞書化() for r in self.参照],
             "metadata": self.メタデータ,

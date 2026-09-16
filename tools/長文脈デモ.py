@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from minidora.長文脈管理 import 長文脈庫, 文脈登録, 文脈選択要求
-from minidora.長文脈接続 import 長文脈選択Module, 長文脈要求Data
+from minidora.長文脈接続 import 長文脈選択モジュール, 長文脈要求資料
 from minidora.能力合成 import 能力合成器, 合成計画, 合成工程, 素材参照
 from minidora.能力合成_局所接続 import 局所能力群
 from minidora.製品版.型 import 能力結果, 参照資料
@@ -32,11 +32,11 @@ def 抽出(archive, key="原資料"):
         合成工程("文脈", ("長文脈選択",), "i", (素材参照("入力", "要求"),)),
         合成工程("抽出", ("情報抽出",), "i", (素材参照("工程", "文脈"),), "抽出設定"),
     ), ("抽出",))
-    data = {"要求": 長文脈要求Data(archive, request), "i": 能力結果(True, "指定処理"),
+    資料 = {"要求": 長文脈要求資料(archive, request), "i": 能力結果(True, "指定処理"),
             "抽出設定": 能力結果(True, "", データ={"種別": "数字"})}
-    result = 能力合成器((長文脈選択Module(archive).登録(), *局所能力群())).実行(
-        plan, data, 文脈=能力文脈("", archive.起点().セッションID))
-    return result
+    結果 = 能力合成器((長文脈選択モジュール(archive).登録(), *局所能力群())).実行(
+        plan, 資料, 文脈=能力文脈("", archive.起点().セッションID))
+    return 結果
 
 
 def main():

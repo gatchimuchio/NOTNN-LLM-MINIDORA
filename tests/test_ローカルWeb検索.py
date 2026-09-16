@@ -12,7 +12,7 @@ WEB = (
 )
 
 
-class CaptureProvider:
+class 記録Provider:
     def __init__(self) -> None:
         self.query = ""
     def 検索(self, query: str, limit: int = 5):
@@ -39,30 +39,30 @@ class FakeSearXNG(SearXNG検索供給器):
 
 
 class LocalWebSearchTests(unittest.TestCase):
-    def test_web_search_route_and_references(self):
+    def test_Web検索経路と参照(self):
         app = 製品ミニドラ(検索供給器=固定Web検索供給器(WEB))
-        result = app.応答("MINIDORAをWebで検索して", セッションID="web")
-        self.assertEqual(result.経路, "Web検索")
-        self.assertEqual(len(result.参照), 2)
-        self.assertIn("MINIDORA overview", result.本文)
+        結果 = app.応答("MINIDORAをWebで検索して", セッションID="web")
+        self.assertEqual(結果.経路, "Web検索")
+        self.assertEqual(len(結果.参照), 2)
+        self.assertIn("MINIDORA overview", 結果.本文)
 
-    def test_query_cleanup(self):
-        provider = CaptureProvider()
+    def test_検索語整形(self):
+        provider = 記録Provider()
         app = 製品ミニドラ(検索供給器=provider)
-        result = app.応答("MINIDORAをWebで検索して", セッションID="query")
-        self.assertEqual(result.経路, "Web検索")
+        結果 = app.応答("MINIDORAをWebで検索して", セッションID="query")
+        self.assertEqual(結果.経路, "Web検索")
         self.assertEqual(provider.query, "MINIDORA")
 
-    def test_search_then_summary_uses_search_references(self):
+    def test_検索後要約は検索参照を使う(self):
         app = 製品ミニドラ(検索供給器=固定Web検索供給器(WEB))
-        first = app.応答("MINIDORAを検索して", セッションID="summary")
+        first = app.応答("MINIDORAを検索して", セッションID='要約')
         self.assertEqual(first.経路, "Web検索")
-        second = app.応答("3行で要約して", セッションID="summary")
+        second = app.応答("3行で要約して", セッションID='要約')
         self.assertEqual(second.経路, "要約")
         self.assertEqual(len(second.参照), 2)
         self.assertIn("MINIDORA", second.本文)
 
-    def test_searxng_json_mapping(self):
+    def test_SearXNG_JSON対応(self):
         provider = FakeSearXNG()
         refs = provider.検索("MINIDORA", 3)
         self.assertEqual(len(refs), 1)
@@ -73,11 +73,11 @@ class LocalWebSearchTests(unittest.TestCase):
         self.assertEqual(params["q"], ["MINIDORA"])
         self.assertEqual(params["format"], ["json"])
 
-    def test_search_failure_holds_without_core(self):
+    def test_検索失敗時は模型核なしで保留(self):
         app = 製品ミニドラ(検索供給器=固定Web検索供給器(()))
-        result = app.応答("存在しないものを検索して", セッションID="empty")
-        self.assertEqual(result.経路, "Web検索")
-        self.assertEqual(result.状態, "保留")
+        結果 = app.応答("存在しないものを検索して", セッションID="empty")
+        self.assertEqual(結果.経路, "Web検索")
+        self.assertEqual(結果.状態, "保留")
 
 
 if __name__ == "__main__":

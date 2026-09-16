@@ -10,14 +10,14 @@ from test_統合実行 import 一工程, 数学計画
 class 統合HDS試験(unittest.TestCase):
     def setUp(self):
         self.s=統合セッション('統合HDS')
-        self.data={'本文':能力結果(True,'売上は731です。費用は75です。利益は45です。')}
+        self.資料={'本文':能力結果(True,'売上は731です。費用は75です。利益は45です。')}
 
     def ok(self,r):
         self.assertTrue(r.成立,(r.理由,r.解釈,r.実行))
         return r
 
     def test_日本語依頼を実HDSから共通実行器へ(self):
-        r=self.ok(self.s.応答('本文から数字を抽出して',self.data))
+        r=self.ok(self.s.応答('本文から数字を抽出して',self.資料))
         self.assertEqual(r.本文,'731、75、45')
         self.assertEqual(r.解釈['解釈'].HDS保持.原文,'本文から数字を抽出して')
 
@@ -27,15 +27,15 @@ class 統合HDS試験(unittest.TestCase):
         self.assertEqual(r.本文,'27')
 
     def test_英文依頼も同じ会話成果へ接続(self):
-        self.ok(self.s.応答('Summarize the text in exactly 1 line.',self.data,入力言語='en'))
+        self.ok(self.s.応答('Summarize the text in exactly 1 line.',self.資料,入力言語='en'))
         r=self.ok(self.s.応答('Extract numbers from it.',入力言語='en'))
         self.assertEqual(r.本文,'731')
         self.assertEqual(r.解釈['翻訳'].データ['入力']['本文'],'Extract numbers from it.')
 
     def test_失敗した依頼で最後の採用成果を上書きしない(self):
-        self.ok(self.s.応答('本文を1行で要約して',self.data))
+        self.ok(self.s.応答('本文を1行で要約して',self.資料))
         before=self.s.保存文脈()
-        failed=self.s.応答('本文から数字を抽出して。ただし正数だけにして',self.data)
+        failed=self.s.応答('本文から数字を抽出して。ただし正数だけにして',self.資料)
         self.assertFalse(failed.成立)
         self.assertEqual(before,self.s.保存文脈())
         self.assertEqual(self.ok(self.s.応答('それから数字を抽出して')).本文,'731')
@@ -56,8 +56,8 @@ class 統合HDS試験(unittest.TestCase):
         self.assertEqual(r.本文,'120')
 
     def test_20項目の文書依頼が切断なしで完了(self):
-        data={'本文':能力結果(True,'。'.join('項目'+str(i) for i in range(20))+'。')}
-        r=self.ok(self.s.応答('本文を箇条書きにして',data))
+        資料={'本文':能力結果(True,'。'.join('項目'+str(i) for i in range(20))+'。')}
+        r=self.ok(self.s.応答('本文を箇条書きにして',資料))
         self.assertEqual(len(r.本文.splitlines()),20)
 
     def test_厳密行数不達は採用しない(self):

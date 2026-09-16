@@ -34,7 +34,7 @@ class RSSニュース供給器:
                 title = _strip_html(item.findtext("title") or "")
                 link = (item.findtext("link") or "").strip()
                 desc = _strip_html(item.findtext("description") or "")
-                source = _strip_html(item.findtext("source") or "RSS")
+                情報源 = _strip_html(item.findtext('情報源') or "RSS")
                 pub = None
                 p = item.findtext("pubDate")
                 if p:
@@ -43,7 +43,7 @@ class RSSニュース供給器:
                 key = sha256((title+link).encode("utf-8")).hexdigest()[:20]
                 if not title or key in seen: continue
                 seen.add(key)
-                out.append(参照資料(key, title, source, link, pub, desc or title))
+                out.append(参照資料(key, title, 情報源, link, pub, desc or title))
                 if len(out) >= limit: return tuple(out)
         return tuple(out)
 
@@ -51,7 +51,7 @@ class 固定ニュース供給器:
     def __init__(self, items: tuple[参照資料, ...]): self.items = items
     def 取得(self, query: str, limit: int = 6) -> tuple[参照資料, ...]: return self.items[:limit]
 
-class ニュースModule:
+class ニュースモジュール:
     版 = ニュース版
     def __init__(self, provider: ニュース供給器): self.provider = provider
     def 実行(self, query: str) -> 能力結果:

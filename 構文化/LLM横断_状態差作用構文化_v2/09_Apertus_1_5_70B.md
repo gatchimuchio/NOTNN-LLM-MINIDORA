@@ -33,7 +33,7 @@ Dense central path。thinking mode内部path selectionは未観測。
 
 ## R — 再参照・再利用の尺度
 
-global attention系のcontext referenceは観測対象だがruntime recurrenceは断定しない。
+global attention系のcontext referenceは観測対象だが実行系 recurrenceは断定しない。
 
 ## C — 再結合
 

@@ -27,32 +27,32 @@ class 分離入力評価試験(unittest.TestCase):
         def spy(kind,request,**settings):
             calls.append((kind,request,settings))
             return 改善計画を実行(kind,request,**settings)
-        result=評価する([row],実行器=spy)
-        self.assertEqual(result['集計']['期待一致'],1)
+        結果=評価する([row],実行器=spy)
+        self.assertEqual(結果['集計']['期待一致'],1)
         self.assertEqual(calls,[('命題',row['要求'],{'詳細':False})])
 
     def test_正しい未確定を実質回答に数えない(self):
-        result=評価する([ケース('未確定',query='Q')])['集計']
-        self.assertEqual(result['期待一致'],1);self.assertEqual(result['実質回答数'],0)
-        self.assertEqual(result['意味未確定数'],1)
+        結果=評価する([ケース('未確定',query='Q')])['集計']
+        self.assertEqual(結果['期待一致'],1);self.assertEqual(結果['実質回答数'],0)
+        self.assertEqual(結果['意味未確定数'],1)
 
     def test_正常な保留を実質回答に数えない(self):
         row=ケース(content='未知の動作をしてください。');row['期待']={'状態':'保留'}
-        result=評価する([row])['集計']
-        self.assertEqual(result['期待一致'],1);self.assertEqual(result['正常な保留数'],1)
-        self.assertEqual(result['実質回答数'],0)
+        結果=評価する([row])['集計']
+        self.assertEqual(結果['期待一致'],1);self.assertEqual(結果['正常な保留数'],1)
+        self.assertEqual(結果['実質回答数'],0)
 
     def test_誤った意味結果を検出(self):
-        result=評価する([ケース('反証')])['集計']
-        self.assertEqual(result['期待一致'],0);self.assertEqual(result['期待不一致'],1)
-        self.assertEqual(result['実質回答中の期待一致率'],0)
+        結果=評価する([ケース('反証')])['集計']
+        self.assertEqual(結果['期待一致'],0);self.assertEqual(結果['期待不一致'],1)
+        self.assertEqual(結果['実質回答中の期待一致率'],0)
 
     def test_実行例外を保留へ変えない(self):
         row=ケース();row['期待']={'状態':'保留'}
         def fail(*args,**kwargs):raise RuntimeError('試験用例外')
-        result=評価する([row],実行器=fail)['集計']
-        self.assertEqual(result['実行例外'],1);self.assertEqual(result['正常な保留数'],0)
-        self.assertEqual(result['期待不一致'],1)
+        結果=評価する([row],実行器=fail)['集計']
+        self.assertEqual(結果['実行例外'],1);self.assertEqual(結果['正常な保留数'],0)
+        self.assertEqual(結果['期待不一致'],1)
 
     def test_入力区分別を別集計する(self):
         a=ケース();b=ケース('未確定',query='Q');b['ID']='C2';b['区分']='外部提供'

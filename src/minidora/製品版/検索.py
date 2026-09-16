@@ -18,7 +18,7 @@ class Web検索供給器(Protocol):
 
 
 class SearXNG検索供給器:
-    """ローカルSearXNGのJSON Search APIを外部Data参照として利用する。"""
+    'ローカルSearXNGのJSON Search APIを外部資料参照として利用する。'
 
     def __init__(self, base_url: str | None = None, timeout: float = 10.0) -> None:
         self.base_url = (
@@ -54,13 +54,13 @@ class SearXNG検索供給器:
             {
                 "q": q,
                 "format": "json",
-                "language": "ja-JP",
+                '言語': "ja-JP",
                 "safesearch": "0",
             }
         )
-        data = self._get(f"{self.base_url}/search?{params}")
+        資料 = self._get(f"{self.base_url}/search?{params}")
         out: list[参照資料] = []
-        for item in data.get("results", []) or []:
+        for item in 資料.get("results", []) or []:
             if len(out) >= limit:
                 break
             if not isinstance(item, dict):
@@ -72,12 +72,12 @@ class SearXNG検索供給器:
             content = self._text(item.get("content"))
             engines = item.get("engines")
             if isinstance(engines, list):
-                source = ", ".join(self._text(x) for x in engines if self._text(x))
+                情報源 = ", ".join(self._text(x) for x in engines if self._text(x))
             else:
-                source = self._text(item.get("engine"))
-            source = source or "Web"
+                情報源 = self._text(item.get("engine"))
+            情報源 = 情報源 or "Web"
             key = sha256((title + "\n" + url).encode("utf-8")).hexdigest()[:20]
-            out.append(参照資料(key, title, source, url, None, content))
+            out.append(参照資料(key, title, 情報源, url, None, content))
         return tuple(out)
 
 
@@ -89,7 +89,7 @@ class 固定Web検索供給器:
         return self.items[: max(1, int(limit))]
 
 
-class Web検索Module本体:
+class Web検索モジュール本体:
     版 = 検索版
 
     def __init__(self, provider: Web検索供給器, limit: int = 5) -> None:

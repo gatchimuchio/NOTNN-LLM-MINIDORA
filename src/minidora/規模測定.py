@@ -49,8 +49,8 @@ class 規模測定結果:
 
 
 def _内部署名(kernel: MINIDORA模型核, text: str, system: str) -> tuple[object, ...]:
-    state = kernel.言語対応.内部化(言語状態(text, system))
-    return (tuple(sorted(state.意味語集合)), state.構造署名)
+    状態 = kernel.言語対応.内部化(言語状態(text, system))
+    return (tuple(sorted(状態.意味語集合)), 状態.構造署名)
 
 
 def _状態域測定(kernel: MINIDORA模型核) -> dict[str, Any]:
@@ -64,14 +64,14 @@ def _状態域測定(kernel: MINIDORA模型核) -> dict[str, Any]:
     long_ok = bool(_内部署名(kernel, "語" * 10000, "自然言語:ja"))
 
     history = tuple(言語状態(f"履歴{i}", "自然言語:ja") for i in range(256))
-    context = kernel.文脈化(言語状態("現在", "自然言語:ja"), history)
+    文脈 = kernel.文脈化(言語状態("現在", "自然言語:ja"), history)
 
     return {
         "試験状態数": len(rows),
         "識別内部状態数": len(signatures),
         "試験言語体系数": 3,
         "一万文字状態受理": long_ok,
-        "履歴深さ256受理": len(context.履歴) == 256,
+        "履歴深さ256受理": len(文脈.履歴) == 256,
         "明示固定文脈長上限": None,
         "観測": "意味集合だけでなく順序・関係構造を保持し、複数言語体系の開放状態を同じ模型核へ写せる",
     }
@@ -82,12 +82,12 @@ def _winner(kernel: MINIDORA模型核, current: str, candidates: tuple[str, str]
         成立候補("A", 言語状態(candidates[0], "自然言語:en")),
         成立候補("B", 言語状態(candidates[1], "自然言語:en")),
     )
-    result = kernel.評価言語状態(
+    結果 = kernel.評価言語状態(
         言語状態(current, "自然言語:en"),
         items,
         履歴=tuple(言語状態(item, "自然言語:en") for item in history),
     )
-    return result.最有力候補ID
+    return 結果.最有力候補ID
 
 
 def _関係域測定(kernel: MINIDORA模型核) -> dict[str, Any]:
@@ -101,13 +101,13 @@ def _関係域測定(kernel: MINIDORA模型核) -> dict[str, Any]:
             recognized.append(kind)
         for i in range(32):
             generated += 1
-            state = kernel.言語対応.内部化(
+            状態 = kernel.言語対応.内部化(
                 言語状態(f"entity_{i} {phrase} target_{(i * 7) % 37}", "自然言語:en")
             )
-            structure_signatures.add(state.構造署名)
+            structure_signatures.add(状態.構造署名)
 
     direction = _winner(kernel, "A causes B", ("A causes B", "B causes A")) == "A"
-    polarity = _winner(kernel, "A causes B", ("A causes B", "A does not cause B")) == "A"
+    極性 = _winner(kernel, "A causes B", ("A causes B", "A does not cause B")) == "A"
 
     history_forward = _winner(kernel, "current", ("alpha", "beta"), history=("alpha", "beta"))
     history_reverse = _winner(kernel, "current", ("alpha", "beta"), history=("beta", "alpha"))
@@ -126,7 +126,7 @@ def _関係域測定(kernel: MINIDORA模型核) -> dict[str, Any]:
         "関係構造生成試験数": generated,
         "識別関係構造数": len(structure_signatures),
         "方向差が成立差へ到達": direction,
-        "肯否差が成立差へ到達": polarity,
+        "肯否差が成立差へ到達": 極性,
         "履歴順序差が成立差へ到達": history_order,
         "条件結合差が成立差へ到達": condition_binding,
         "観測": "有限の関係作用素を任意の端点状態へ再利用し、17一般関係族・方向・肯否・履歴位置・条件結合の組合せを成立差へ反映する",
@@ -136,17 +136,17 @@ def _関係域測定(kernel: MINIDORA模型核) -> dict[str, Any]:
 def _共有適用測定(kernel: MINIDORA模型核) -> dict[str, Any]:
     passed = 0
     total = 256
-    relation_ids = tuple(id(item) for item in kernel.関係群)
+    関係_ids = tuple(id(item) for item in kernel.関係群)
     for i in range(total):
-        context = 言語状態(f"topic_{i} causes result_{i % 19}", "自然言語:en")
+        文脈 = 言語状態(f"topic_{i} causes result_{i % 19}", "自然言語:en")
         candidates = (
             成立候補("shared", 言語状態(f"topic_{i} causes result_{i % 19}", "自然言語:en")),
             成立候補("other", 言語状態(f"result_{i % 19} causes topic_{i}", "自然言語:en")),
         )
-        result = kernel.評価言語状態(context, candidates)
-        if result.最有力候補ID == "shared":
+        結果 = kernel.評価言語状態(文脈, candidates)
+        if 結果.最有力候補ID == "shared":
             passed += 1
-        if tuple(id(item) for item in kernel.関係群) != relation_ids:
+        if tuple(id(item) for item in kernel.関係群) != 関係_ids:
             raise AssertionError("共有適用試験中に模型関係実体が交換された")
 
     return {
@@ -159,28 +159,28 @@ def _共有適用測定(kernel: MINIDORA模型核) -> dict[str, Any]:
 
 
 def 規模測定(kernel: MINIDORA模型核 | None = None) -> 規模測定結果:
-    model = kernel or 標準模型核()
-    state = _状態域測定(model)
-    relation = _関係域測定(model)
-    shared = _共有適用測定(model)
+    模型 = kernel or 標準模型核()
+    状態 = _状態域測定(模型)
+    関係 = _関係域測定(模型)
+    shared = _共有適用測定(模型)
     base_stats = 標準言語基底P.統計()
 
-    state_ok = (
-        state["識別内部状態数"] == state["試験状態数"]
-        and state["一万文字状態受理"]
-        and state["履歴深さ256受理"]
+    状態_ok = (
+        状態["識別内部状態数"] == 状態["試験状態数"]
+        and 状態["一万文字状態受理"]
+        and 状態["履歴深さ256受理"]
     )
-    relation_ok = (
-        relation["意味対応済み関係族数"] == len(_関係代表表層)
-        and relation["識別関係構造数"] == relation["関係構造生成試験数"]
-        and relation["方向差が成立差へ到達"]
-        and relation["肯否差が成立差へ到達"]
-        and relation["履歴順序差が成立差へ到達"]
-        and relation["条件結合差が成立差へ到達"]
+    関係_ok = (
+        関係["意味対応済み関係族数"] == len(_関係代表表層)
+        and 関係["識別関係構造数"] == 関係["関係構造生成試験数"]
+        and 関係["方向差が成立差へ到達"]
+        and 関係["肯否差が成立差へ到達"]
+        and 関係["履歴順序差が成立差へ到達"]
+        and 関係["条件結合差が成立差へ到達"]
     )
     shared_ok = shared["関係実体再利用"] and shared["成功率"] == 1.0
 
-    if state_ok and relation_ok and shared_ok:
+    if 状態_ok and 関係_ok and shared_ok:
         status = "局所成立候補"
         reasons = (
             "状態域・関係域・共有適用規模の三面が、明示した比較集合に対して同時に開放的である",
@@ -190,9 +190,9 @@ def 規模測定(kernel: MINIDORA模型核 | None = None) -> 規模測定結果:
         )
     else:
         missing: list[str] = []
-        if not state_ok:
+        if not 状態_ok:
             missing.append("状態域")
-        if not relation_ok:
+        if not 関係_ok:
             missing.append("関係域")
         if not shared_ok:
             missing.append("共有適用")
@@ -206,16 +206,16 @@ def 規模測定(kernel: MINIDORA模型核 | None = None) -> 規模測定結果:
     return 規模測定結果(
         版=規模測定版,
         対象言語体系=("自然言語:ja", "自然言語:en", "program:python"),
-        対象範囲="MINIDORA v0.4 標準模型核。外部参照R、HDS Compiler、主体主幹、K3補助、計算実行器は模型核の規模へ加算しない",
+        対象範囲='MINIDORA v0.4 標準模型核。外部参照R、HDS 構文化器、主体主幹、K3補助、計算実行器は模型核の規模へ加算しない',
         比較集合=(
             "固定ラベル・少数テンプレート・固定FAQ等の狭い言語処理系",
             "上流規定の2026年現代LLM参照群（構造比較。物理尺度の直接同一視はしない）",
         ),
-        状態域規模=state,
-        関係域規模=relation,
+        状態域規模=状態,
+        関係域規模=関係,
         共有適用規模=shared,
         物理規模値={
-            "模型関係実体数": len(model.関係群),
+            "模型関係実体数": len(模型.関係群),
             "英語関係語形数": 英語語形数(),
             **base_stats,
         },

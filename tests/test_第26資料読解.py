@@ -14,7 +14,7 @@ from minidora.導出説明 import 導出説明を構成
 from minidora.監査改善接続 import 改善回答を構成, 改善回答を検査, 拡張命題を検討, 改善計画を実行
 from minidora.監査改善会話 import 監査改善会話セッション, 改善会話版
 from minidora.監査改善会話解釈 import 改善発話を解釈
-from minidora.監査改善計画 import 改善回答照合Module
+from minidora.監査改善計画 import 改善回答照合モジュール
 from minidora.製品版.能力契約 import 能力文脈
 from minidora.製品版.型 import 能力結果
 from minidora.能力合成 import _結果辞書
@@ -24,13 +24,13 @@ from minidora.会話意味 import 意味指紋
 問い = '太郎は哺乳類である'
 
 def 要求(本文_=本文, 問い_=問い, **kw):
-    data = {'資料': [{'名前': '文', '本文': 本文_}], **kw}
+    資料 = {'資料': [{'名前': '文', '本文': 本文_}], **kw}
     if 問い_ is not None:
-        data['問い'] = 問い_
-    return data
+        資料['問い'] = 問い_
+    return 資料
 
-def 回答(data, 詳細=True):
-    return 改善回答を構成(資料を読解(data), 詳細=詳細)
+def 回答(資料, 詳細=True):
+    return 改善回答を構成(資料を読解(資料), 詳細=詳細)
 
 
 class 読解試験(unittest.TestCase):
@@ -90,11 +90,11 @@ class 読解試験(unittest.TestCase):
         self.assertEqual(report['抽出記載'][0]['式']['種別'], '帰属')
 
     def test_引用の私を話者へ束縛し条件を表示(self):
-        data = 要求('太郎は「私は猫です」と言った。', None)
-        report = 資料を読解(data)
+        資料 = 要求('太郎は「私は猫です」と言った。', None)
+        report = 資料を読解(資料)
         self.assertEqual(report['抽出記載'][0]['解消'][0]['束縛先'], '太郎')
-        self.assertIn('「私」→「太郎」', 回答(data, False)['本文'])
-        self.assertIn('私は猫です', 回答(data)['本文'])
+        self.assertIn('「私」→「太郎」', 回答(資料, False)['本文'])
+        self.assertIn('私は猫です', 回答(資料)['本文'])
 
     def test_未知記載をまたいで代名詞を勝手に解消しない(self):
         report = 資料を読解(要求('太郎は猫です。別の人物について述べる。彼は哺乳類です。'))
@@ -124,9 +124,9 @@ class 読解試験(unittest.TestCase):
         self.assertIn('問いの意味を確定していません', 回答(report['要求'])['本文'])
 
     def test_全く未対応の資料を情報なしと断定しない(self):
-        data = 要求('図を見れば理由が分かる。')
-        self.assertIsNone(資料を読解(data)['局所判定'])
-        self.assertIn('情報が存在しないという意味ではありません', 回答(data)['本文'])
+        資料 = 要求('図を見れば理由が分かる。')
+        self.assertIsNone(資料を読解(資料)['局所判定'])
+        self.assertIn('情報が存在しないという意味ではありません', 回答(資料)['本文'])
 
     def test_壊れた引用の内側を外側として利用しない(self):
         text = '太郎は「P。Q。太郎は哺乳類です。'
@@ -149,47 +149,47 @@ class 読解試験(unittest.TestCase):
         self.assertEqual(len(report['抽出記載']), 3)
 
     def test_表示上限で省略を明示(self):
-        data = 要求('P。Q。R。', None, 最大表示記載=1)
-        report = 資料を読解(data)
+        資料 = 要求('P。Q。R。', None, 最大表示記載=1)
+        report = 資料を読解(資料)
         self.assertEqual(report['非表示対象数'], 2)
-        self.assertIn('2記載', 回答(data, False)['本文'])
+        self.assertIn('2記載', 回答(資料, False)['本文'])
         self.assertEqual(len(report['抽出記載']), 3)
 
     def test_欠落を消さず短縮でも数と限界を表示(self):
-        data = 要求(); data['資料'][0]['欠落'] = ['表の未取得', '図の未取得']
-        report = 資料を読解(data)
+        資料 = 要求(); 資料['資料'][0]['欠落'] = ['表の未取得', '図の未取得']
+        report = 資料を読解(資料)
         self.assertEqual(report['状態'], '部分読解')
         for detail in (True, False):
-            text = 回答(data, detail)['本文']
+            text = 回答(資料, detail)['本文']
             self.assertIn('欠落2件', text)
             self.assertIn('資料全体の判定ではありません', text)
             self.assertIn('未解釈1記載', text)
-        self.assertIn('図の未取得', 回答(data)['本文'])
+        self.assertIn('図の未取得', 回答(資料)['本文'])
 
     def test_複数資料を原文出典を保持して接続(self):
-        data = {'資料': [{'名前': '甲', '本文': 'P。'}, {'名前': '乙', '本文': 'PならばQ。'}], '問い': 'Q'}
-        report = 資料を読解(data)
+        資料 = {'資料': [{'名前': '甲', '本文': 'P。'}, {'名前': '乙', '本文': 'PならばQ。'}], '問い': 'Q'}
+        report = 資料を読解(資料)
         self.assertEqual(report['局所判定']['判定'], '支持')
         self.assertEqual(set(report['選択記載']), {'甲:0', '乙:0'})
         self.assertEqual({r['名前'] for r in report['資料']}, {'甲', '乙'})
 
     def test_明示別名を使い条件を表示(self):
-        data = 要求('太郎はネコです。すべての猫は哺乳類です。', 述語別名=[
+        資料 = 要求('太郎はネコです。すべての猫は哺乳類です。', 述語別名=[
             {'表記': 'ネコ', '正規名': '猫', '引数数': 1, '出典': '提供定義'}])
-        report = 資料を読解(data)
+        report = 資料を読解(資料)
         self.assertEqual(report['局所判定']['判定'], '支持')
-        self.assertIn('提供定義', 回答(data, False)['本文'])
+        self.assertIn('提供定義', 回答(資料, False)['本文'])
         self.assertTrue(report['語彙対応'])
 
     def test_明示別名なしに常識を補わない(self):
         self.assertEqual(資料を読解(要求('太郎はネコです。すべての猫は哺乳類です。'))['局所判定']['判定'], '未確定')
 
     def test_再実行が決定論的で入力を変更しない(self):
-        data = 要求(); before = deepcopy(data)
-        first, second = 資料を読解(data), 資料を読解(data)
-        self.assertEqual(first, second); self.assertEqual(data, before)
+        資料 = 要求(); before = deepcopy(資料)
+        first, second = 資料を読解(資料), 資料を読解(資料)
+        self.assertEqual(first, second); self.assertEqual(資料, before)
         first['要求']['資料'][0]['本文'] = '改変'
-        self.assertEqual(data, before)
+        self.assertEqual(資料, before)
         self.assertFalse(読解報告を検査(first))
 
     def test_報告改変を再計算で拒否(self):
@@ -211,9 +211,9 @@ class 読解試験(unittest.TestCase):
                {'資料':[{'名前':'甲','本文':'P。'},{'名前':'甲','本文':'Q。'}]},
                {'資料':[{'名前':'甲','本文':'P。','欠落':'table'}]},
                {'資料':[{'名前':'甲','本文':'P。','欠落':[None]}]}]
-        for data in bad:
-            with self.subTest(data=str(data)[:100]), self.assertRaises((ValueError,TypeError)):
-                資料を読解(data)
+        for 資料 in bad:
+            with self.subTest(資料=str(資料)[:100]), self.assertRaises((ValueError,TypeError)):
+                資料を読解(資料)
 
     def test_予算超過を部分支持として返さない(self):
         class 予算停止:
@@ -236,17 +236,17 @@ class 読解試験(unittest.TestCase):
 
 class 導出試験(unittest.TestCase):
     def test_既存命題説明も実際に使った根拠だけ(self):
-        data = 要求('太郎は猫です。すべての猫は哺乳類です。花子は学生です。')
-        answer = 改善回答を構成(拡張命題を検討(data))
+        資料 = 要求('太郎は猫です。すべての猫は哺乳類です。花子は学生です。')
+        answer = 改善回答を構成(拡張命題を検討(資料))
         self.assertIn('条件適用', answer['本文'])
         self.assertIn('全称具体化', answer['本文'])
         self.assertNotIn('花子は学生', answer['本文'])
         self.assertEqual(len(answer['報告']['判定結果']['場合別'][0]['記載']), 3)
 
     def test_選言の仮定と閉じた場合分けを表示(self):
-        data = 要求('PまたはQ。PならばR。QならばR。', 'R')
-        report = 資料を読解(data)
-        text = 回答(data)['本文']
+        資料 = 要求('PまたはQ。PならばR。QならばR。', 'R')
+        report = 資料を読解(資料)
+        text = 回答(資料)['本文']
         self.assertEqual(report['局所判定']['判定'], '支持')
         self.assertIn('全場合を閉じた選言除去', text)
         self.assertIn('仮定範囲だけ', text)
@@ -263,15 +263,15 @@ class 導出試験(unittest.TestCase):
         report = 資料を読解(要求())
         judgment = report['局所判定']
         records = report['抽出記載']
-        for mutation in ('cycle','missing','source','action'):
-            data = deepcopy(judgment); key = data['支持']
-            if mutation=='cycle':data['導出'][key]['親']=[key]
-            if mutation=='missing':data['導出'].pop(key)
-            if mutation=='source':
-                node=next(n for n in data['導出'].values() if n['作用']=='資料記載');node['出典']='不存在'
-            if mutation=='action':data['導出'][key]['作用']='常識で補完'
+        for mutation in ('cycle','missing','情報源','作用'):
+            資料 = deepcopy(judgment); key = 資料['支持']
+            if mutation=='cycle':資料['導出'][key]['親']=[key]
+            if mutation=='missing':資料['導出'].pop(key)
+            if mutation=='情報源':
+                node=next(n for n in 資料['導出'].values() if n['作用']=='資料記載');node['出典']='不存在'
+            if mutation=='作用':資料['導出'][key]['作用']='常識で補完'
             with self.subTest(mutation=mutation),self.assertRaises(ValueError):
-                導出説明を構成(data,records)
+                導出説明を構成(資料,records)
 
     def test_量化証人を固有の実体へ置換しない(self):
         report = 資料を読解(要求('一部の猫は哺乳類です。', 'あるxについて（哺乳類(x)）'))
@@ -288,12 +288,12 @@ class 会話接続試験(unittest.TestCase):
     def ok(self,text):
         r=self.s.応答(text);self.assertEqual(r.状態,'合格',r.本文);return r
     def test_計画合成と原要求照合を通る(self):
-        result=self.ok('資料「文」から「'+問い+'」の根拠を説明して')
-        self.assertTrue(result.追跡['合成監査整合'])
-        self.assertEqual(len(result.追跡['工程作用']),3)
-        self.assertTrue(result.追跡['採用記録ID'])
-        self.assertEqual(result.結果.参照[0].本文,本文)
-        self.assertEqual(result.追跡['要求']['問い'],問い)
+        結果=self.ok('資料「文」から「'+問い+'」の根拠を説明して')
+        self.assertTrue(結果.追跡['合成監査整合'])
+        self.assertEqual(len(結果.追跡['工程作用']),3)
+        self.assertTrue(結果.追跡['採用記録ID'])
+        self.assertEqual(結果.結果.参照[0].本文,本文)
+        self.assertEqual(結果.追跡['要求']['問い'],問い)
     def test_自然な要約の入口と再説明(self):
         first=self.ok('資料「文」を要約してくれる？')
         self.assertIn('原文出現順',first.本文)
@@ -312,9 +312,9 @@ class 会話接続試験(unittest.TestCase):
         self.assertEqual(self.s.状態(),restored.状態())
         self.assertEqual(restored.応答('詳しく説明して').本文,self.s.応答('詳しく説明して').本文)
     def test_別版の無言再生を拒否(self):
-        self.ok('資料「文」を要約して');data=json.loads(self.s.保存文字列())
-        data['版']=改善会話版+'-異版'
-        with self.assertRaises(ValueError):監査改善会話セッション.復元(json.dumps(data,ensure_ascii=False))
+        self.ok('資料「文」を要約して');資料=json.loads(self.s.保存文字列())
+        資料['版']=改善会話版+'-異版'
+        with self.assertRaises(ValueError):監査改善会話セッション.復元(json.dumps(資料,ensure_ascii=False))
     def test_部分読解を通常判定へ勝手に切り替えない(self):
         r=self.s.応答('資料「文」から「'+問い+'」を判定して')
         self.assertEqual(r.状態,'保留')
@@ -339,9 +339,9 @@ class 会話接続試験(unittest.TestCase):
         r=self.ok('資料「論」から「Q」の根拠を説明して')
         self.assertIn('「支持」',r.本文)
     def test_二工程IR入口で読解も実行(self):
-        result=改善計画を実行('読解',要求())
-        self.assertTrue(result.成立)
-        self.assertTrue(result.監査整合())
+        結果=改善計画を実行('読解',要求())
+        self.assertTrue(結果.成立)
+        self.assertTrue(結果.監査整合())
 
 
 class 別プロセス試験(unittest.TestCase):
@@ -365,21 +365,21 @@ class 追加監査試験(unittest.TestCase):
             while previous!=facts:
                 previous=set(facts)
                 facts.update(b for a,b in selected if a in facts)
-            result=資料を読解(要求(text,'R'))
+            結果=資料を読解(要求(text,'R'))
             with self.subTest(mask=mask):
-                self.assertEqual(result['局所判定']['判定'],'支持' if 'R' in facts else '未確定')
-                if 'R' in facts:self.assertTrue(result['選択記載'])
+                self.assertEqual(結果['局所判定']['判定'],'支持' if 'R' in facts else '未確定')
+                if 'R' in facts:self.assertTrue(結果['選択記載'])
 
     def test_自己整合した別入力の回答を最終照合で拒否(self):
         req=要求();report=資料を読解(req);answer=改善回答を構成(report)
         value=能力結果(True,answer['本文'],根拠=('原データ:'+意味指紋(report),),データ=answer)
         for other,accepted in ((req,True),(要求('P。','P'),False)):
-            context=能力文脈('検査','s',補助={'合成入力':(
+            文脈=能力文脈('検査','s',補助={'合成入力':(
                 {'参照':'回答','結果':_結果辞書(value)},
                 {'参照':'要求','結果':_結果辞書(能力結果(True,'原要求',データ=other))}),
                 '合成設定':{'種類':'読解','詳細':True}})
             with self.subTest(accepted=accepted):
-                self.assertEqual(改善回答照合Module().実行(context).成立,accepted)
+                self.assertEqual(改善回答照合モジュール().実行(文脈).成立,accepted)
 
     def test_留保を削った回答はハッシュを直しても不成立(self):
         answer=回答(要求());answer['節']=[r for r in answer['節'] if r['役割']!='留保']

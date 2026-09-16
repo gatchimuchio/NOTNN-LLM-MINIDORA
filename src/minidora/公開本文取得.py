@@ -107,11 +107,11 @@ class _本文抽出(HTMLParser):
         elif tag in self._区切:
             self.断片.append("\n")
 
-    def handle_data(self, data):
+    def handle_data(self, 資料):
         if self._題名内:
-            self.題名.append(data)
+            self.題名.append(資料)
         elif not self.抑止:
-            self.断片.append(data)
+            self.断片.append(資料)
 
     def 本文(self) -> str:
         return "\n".join(x for line in "".join(self.断片).splitlines() if (x := " ".join(line.split())))
@@ -196,11 +196,11 @@ class 公開本文取得器:
     def _一回取得(self, url: str) -> tuple[int, dict[str, str], bytes]:
         host = urlsplit(url).hostname
         ip = _公開アドレス(host)
-        context = ssl.create_default_context()
-        conn = HTTPSConnection(host, 443, timeout=self.timeout, context=context)
+        文脈 = ssl.create_default_context()
+        conn = HTTPSConnection(host, 443, timeout=self.timeout, context=文脈)
         raw_socket = socket.create_connection((ip, 443), timeout=self.timeout)
         try:
-            tls_socket = context.wrap_socket(raw_socket, server_hostname=host)
+            tls_socket = 文脈.wrap_socket(raw_socket, server_hostname=host)
             conn.sock = tls_socket
             u = urlsplit(url)
             conn.request("GET", u.path + ("?" + u.query if u.query else ""), headers={
@@ -228,26 +228,26 @@ class 公開本文取得器:
                     size += len(chunk)
                     if size > self.最大バイト数:
                         raise 本文取得失敗("本文サイズ上限")
-                data = b"".join(chunks)
-                if length is not None and len(data) != int(length):
+                資料 = b"".join(chunks)
+                if length is not None and len(資料) != int(length):
                     raise 本文取得失敗("本文受信長不一致")
-                return response.status, headers, data
+                return response.status, headers, 資料
         finally:
             conn.close()
             raw_socket.close()
 
     def 取得(self, url: str) -> 取得本文:
         first = current = 公開URL(url)
-        route = []
+        経路 = []
         for _ in range(self.最大転送数 + 1):
             current = 公開URL(current)
             host = urlsplit(current).hostname
             if self.許可ホスト and host not in self.許可ホスト:
                 raise 本文取得失敗("許可ホスト外")
-            if current in route:
+            if current in 経路:
                 raise 本文取得失敗("転送循環")
-            route.append(current)
-            status, headers, data = self._一回取得(current)
+            経路.append(current)
+            status, headers, 資料 = self._一回取得(current)
             if status in (301, 302, 303, 307, 308):
                 target = headers.get("location")
                 if not target:
@@ -256,7 +256,7 @@ class 公開本文取得器:
                 continue
             if status != 200:
                 raise 本文取得失敗(f"HTTP状態:{status}")
-            if len(data) > self.最大バイト数:
+            if len(資料) > self.最大バイト数:
                 raise 本文取得失敗("本文サイズ上限")
-            return 本文を復号(first, tuple(route), headers, data)
+            return 本文を復号(first, tuple(経路), headers, 資料)
         raise 本文取得失敗("転送回数上限")

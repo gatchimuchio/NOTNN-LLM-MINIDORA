@@ -7,8 +7,8 @@ from typing import Callable, Iterable, Sequence
 @dataclass(frozen=True, slots=True)
 class 科学専門能力結果:
     index: int
-    solver: str
-    confidence: float
+    解決器: str
+    信頼度: float
     value: object | None = None
     reason: str = ''
 
@@ -49,14 +49,14 @@ def _nums(text: str) -> list[float]:
             pass
     return out
 
-def _choice_numeric(choice: str) -> float | None:
-    ns = _nums(choice)
+def _選択肢数値(選択肢: str) -> float | None:
+    ns = _nums(選択肢)
     return ns[0] if ns else None
 
 def _nearest(choices: Sequence[str], target: float, *, log: bool=False, rel_tol: float | None=None) -> int | None:
     vals = []
     for i, c in enumerate(choices):
-        v = _choice_numeric(c)
+        v = _選択肢数値(c)
         if v is None:
             continue
         if log and (v == 0 or target == 0):
@@ -81,7 +81,7 @@ def _nearest(choices: Sequence[str], target: float, *, log: bool=False, rel_tol:
         return None
     return vals[0][1]
 
-def _choice_contains(choices: Sequence[str], *needles: str) -> int | None:
+def _選択肢包含(choices: Sequence[str], *needles: str) -> int | None:
     needles = tuple((_norm(n).casefold() for n in needles))
     hits = []
     for i, c in enumerate(choices):
@@ -90,15 +90,15 @@ def _choice_contains(choices: Sequence[str], *needles: str) -> int | None:
             hits.append(i)
     return hits[0] if len(hits) == 1 else None
 
-def _result(idx: int | None, name: str, value=None, reason='', confidence=0.995) -> 科学専門能力結果 | None:
-    return None if idx is None else 科学専門能力結果(idx, name, confidence, value, reason)
+def _結果(idx: int | None, name: str, value=None, reason='', 信頼度=0.995) -> 科学専門能力結果 | None:
+    return None if idx is None else 科学専門能力結果(idx, name, 信頼度, value, reason)
 
-def _generic_result(idx: int | None, name: str, value=None, confidence=0.995):
-    return None if idx is None else 科学専門能力結果(idx, name, confidence, value, 'generic-law')
+def _一般結果(idx: int | None, name: str, value=None, 信頼度=0.995):
+    return None if idx is None else 科学専門能力結果(idx, name, 信頼度, value, 'generic-law')
 
-def _num_expr(token: str) -> float | None:
+def _num_expr(字句: str) -> float | None:
     """Parse compact decimal/scientific forms such as 2*10^4, 10^-9, 6.3e-7."""
-    t = token.strip().strip('.,;:').replace('×', 'x').replace('^', '**').replace(' ', '')
+    t = 字句.strip().strip('.,;:').replace('×', 'x').replace('^', '**').replace(' ', '')
     try:
         return float(t)
     except Exception:
@@ -142,11 +142,11 @@ def _rel(a: float, b: float) -> float:
         return abs(a - b)
     return abs(a - b) / abs(b)
 
-def _numbers(choice: str) -> list[float]:
-    return _nums(choice)
+def _numbers(選択肢: str) -> list[float]:
+    return _nums(選択肢)
 
-def _coefficient_hbar(choice: str) -> float | None:
-    s = choice.casefold().replace(' ', '').replace('ℏ', 'hbar')
+def _coefficient_hbar(選択肢: str) -> float | None:
+    s = 選択肢.casefold().replace(' ', '').replace('ℏ', 'hbar')
     m = re.search('([+-]?\\d+(?:\\.\\d+)?)\\*?hbar/(\\d+(?:\\.\\d+)?)', s)
     if m:
         return float(m.group(1)) / float(m.group(2))
@@ -158,8 +158,8 @@ def _coefficient_hbar(choice: str) -> float | None:
         return float(m.group(1))
     return None
 
-def _qpcr_support(choice: str, target: float) -> bool:
-    vals = [x for x in _numbers(choice) if 15 <= x <= 50]
+def _qpcr_support(選択肢: str, target: float) -> bool:
+    vals = [x for x in _numbers(選択肢) if 15 <= x <= 50]
     if len(vals) < 15:
         return False
     vals = vals[-15:]
@@ -169,8 +169,8 @@ def _qpcr_support(choice: str, target: float) -> bool:
     spread = max((max(vals[j:j + 3]) - min(vals[j:j + 3]) for j in range(0, 15, 3)))
     return abs(slope - target) <= 0.12 and spread <= 1.0
 
-def _lyman_threshold_support(choice: str, target: float) -> bool:
-    m = re.search('z\\s*([<>])\\s*([0-9.]+)', choice.casefold())
+def _lyman_threshold_support(選択肢: str, target: float) -> bool:
+    m = re.search('z\\s*([<>])\\s*([0-9.]+)', 選択肢.casefold())
     if not m:
         return False
     direction, bound = (m.group(1), float(m.group(2)))
@@ -192,25 +192,20 @@ def _tuple_support(nums: list[float], targets: Sequence[float], tol: float=0.06)
                 return True
     return False
 
-def 候補支持成立(result, choice: str) -> bool:
-    """Absolute candidate-support gate.
-
-    A solver may rank candidates internally, but runtime acceptance requires the selected
-    candidate itself to encode the computed result within a bounded tolerance. This prevents
-    'nearest remaining option' behavior when the supported answer is absent.
-    """
-    name = str(getattr(result, 'solver', ''))
-    value = getattr(result, 'value', None)
+def 候補支持成立(結果, 選択肢: str) -> bool:
+    "Absolute 候補-support 関門.\n\n    A 解決器 may rank candidates internally, but 実行系 acceptance requires the selected\n    候補 itself to encode the computed 結果 within a bounded tolerance. This prevents\n    'nearest remaining option' behavior when the supported answer is absent.\n    "
+    name = str(getattr(結果, '解決器', ''))
+    value = getattr(結果, 'value', None)
     if name == 'qpcr_log_linear_curve':
-        return _qpcr_support(choice, float(value))
+        return _qpcr_support(選択肢, float(value))
     if name == 'energy_time_resolution':
-        ns = _numbers(choice)
+        ns = _numbers(選択肢)
         return bool(ns) and max((abs(x) for x in ns)) >= 3.0 * abs(float(value))
     if name == 'gauss_radial_flux':
-        compact = choice.casefold().replace(' ', '').replace('\\pi', 'pi').replace('π', 'pi')
-        return compact in {'4pi', '4*pi'} or (bool(_numbers(choice)) and min((_rel(x, float(value)) for x in _numbers(choice))) <= 0.05)
+        compact = 選択肢.casefold().replace(' ', '').replace('\\pi', 'pi').replace('π', 'pi')
+        return compact in {'4pi', '4*pi'} or (bool(_numbers(選択肢)) and min((_rel(x, float(value)) for x in _numbers(選択肢))) <= 0.05)
     if name == 'zeeman_vs_transition':
-        compact = choice.replace(' ', '')
+        compact = 選択肢.replace(' ', '')
         ratio = abs(float(value))
         if '\\ll' in compact or '≪' in compact or '<<' in compact:
             return ratio < 0.1
@@ -218,25 +213,25 @@ def 候補支持成立(result, choice: str) -> bool:
             return ratio > 10
         return False
     if name == 'lyman_alpha_optical_threshold':
-        return _lyman_threshold_support(choice, float(value))
+        return _lyman_threshold_support(選択肢, float(value))
     if name == 'spin_y_expectation':
-        v = _coefficient_hbar(choice)
+        v = _coefficient_hbar(選択肢)
         return v is not None and abs(v - float(value)) <= 0.02
     if name == 'spin_x_measurement':
-        ns = _numbers(choice)
+        ns = _numbers(選択肢)
         if len(ns) < 2:
             return False
         probs = value[:2] if isinstance(value, (tuple, list)) else ()
         if len(probs) != 2 or max(_rel(ns[0], probs[0]), _rel(ns[1], probs[1])) > 0.04:
             return False
-        coeff = _coefficient_hbar(choice)
+        coeff = _coefficient_hbar(選択肢)
         return coeff is not None and _rel(coeff, float(value[2])) <= 0.04
     tol = {'proper_time_distance': 0.012, 'decay_resolution': 0.12, 'synchrocyclotron_revolutions': 0.02, 'coplanar_transit_max_period': 0.05, 'gamma_gamma_pair_threshold': 0.05, 'black_hole_angular_size': 0.05, 'complex_dissociation': 0.05, 'resonance_width_decay_length': 0.05, 'teq_from_period_ratio': 0.05, 'phosphate_speciation': 0.05, 'pauli_expectation': 0.05, 'relativistic_velocity_energy': 0.06, 'two_body_decay_kinematics': 0.04, 'weak_acid_titration': 0.03, 'ksp_acid_dissolution': 0.03, 'infinite_well_fermion_occupancy': 0.03, 'neutralization_enthalpy': 0.04}.get(name, 0.08)
     if isinstance(value, (int, float)) and (not isinstance(value, bool)):
-        ns = _numbers(choice)
+        ns = _numbers(選択肢)
         return bool(ns) and min((_rel(x, float(value)) for x in ns)) <= tol
     if isinstance(value, (tuple, list)) and value and all((isinstance(x, (int, float)) and (not isinstance(x, bool)) for x in value)):
-        return _tuple_support(_numbers(choice), value, tol)
+        return _tuple_support(_numbers(選択肢), value, tol)
     return True
 _EQUIVALENTS = (('refractive index', 'index of refraction'), ('average free path', 'mean free path'), ('largest orbital period', 'maximum orbital period'), ('transit impact value', 'impact parameter'), ('heat of neutralisation', 'enthalpy of neutralization'), ('heat of neutralization', 'enthalpy of neutralization'), ('element abundance ratios', 'elemental abundances'), ('molecular weight', 'molar mass'), ('period of orbit', 'orbital period'), ('difference in energy', 'energy difference'), ('rest-frame lifetime', 'proper lifetime'), ('planetary equilibrium temperature', 'equilibrium temperature'), ('conducting sphere', 'spherical conductor'), ('canonical partition sum', 'partition function'), ('spinor state', 'spin state'), ('infinite square well', 'infinite potential well'), ('wavefunction', 'wave function'), ('line-of-sight velocity', 'radial velocity'), ('likelihood', 'probability'), ('magnetic vector potential', 'vector potential'), ('electric scalar potential', 'scalar potential'))
 
@@ -247,4 +242,4 @@ def 問合せ正規化(text: str) -> str:
             out = re.sub(re.escape(src), dst, out, flags=re.I)
     return re.sub('\\s+', ' ', out).strip()
 
-__all__ = ['科学専門能力結果', '_choice_contains', '_choice_numeric', '_coefficient_hbar', '_first', '_generic_result', '_lyman_threshold_support', '_nearest', '_norm', '_num_expr', '_numbers', '_nums', '_parse_complex_coeff', '_qpcr_support', '_rel', '_result', '_tuple_support', '問合せ正規化', '候補支持成立']
+__all__ = ['科学専門能力結果', '_選択肢包含', '_選択肢数値', '_coefficient_hbar', '_first', '_一般結果', '_lyman_threshold_support', '_nearest', '_norm', '_num_expr', '_numbers', '_nums', '_parse_complex_coeff', '_qpcr_support', '_rel', '_結果', '_tuple_support', '問合せ正規化', '候補支持成立']

@@ -5,7 +5,7 @@
   "pass_count": 47,
   "fail_count": 0,
   "total_count": 47,
-  "runtime": {
+  "実行系": {
     "elapsed_seconds": 0.6353403609999972,
     "peak_tracemalloc_mib": 4.487577438354492,
     "peak_rss_mib": 30.375,
@@ -28,6 +28,6 @@
     "G": "PASS",
     "Layer-0-six-roles": "PASS"
   },
-  "minidora_runtime_reachable": true,
+  "minidora_実行系_reachable": true,
   "claim": "K3公開構造に対する機能形式・統合循環の相当。K3の重み・規模・世界知識・一般ベンチマーク・frontier性能の同等性は主張しない。"
 }

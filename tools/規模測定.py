@@ -20,9 +20,9 @@ def _標準出力UTF8化() -> None:
 
 def main() -> int:
     _標準出力UTF8化()
-    result = 規模測定()
-    print("MINIDORA_SCALE_MEASUREMENT=" + json.dumps(result.辞書(), ensure_ascii=False, sort_keys=True))
-    print(f"LARGE_SCALE_STATUS={result.大規模性状態}")
+    結果 = 規模測定()
+    print("MINIDORA_SCALE_MEASUREMENT=" + json.dumps(結果.辞書(), ensure_ascii=False, sort_keys=True))
+    print(f"LARGE_SCALE_STATUS={結果.大規模性状態}")
     return 0
 
 

@@ -64,15 +64,15 @@ class 回復規則:
                 or len(self.対象作用) > 16 or len(set(self.対象作用)) != len(self.対象作用)
                 or any(type(x) is not str or not x for x in self.対象作用)):
             raise ValueError('入力回復には役割名と対象作用の許可列が必要')
-        action = self.動作()
-        if action == '同一作用再試行':
+        作用 = self.動作()
+        if 作用 == '同一作用再試行':
             if self.対象 != '自己' or 失敗を分類(self.失敗種別) != '実行環境' or self.最大再試行 < 1:
                 raise ValueError('同一作用再試行は実行環境の自己回復に限定')
         elif self.最大再試行 != 0:
             raise ValueError('再試行方式以外に再試行上限を指定しない')
-        if action == '入力再取得' and self.対象 != '入力役割':
+        if 作用 == '入力再取得' and self.対象 != '入力役割':
             raise ValueError('入力再取得は入力役割の回復に限定')
-        if action == '代替作用' and self.対象 != '自己':
+        if 作用 == '代替作用' and self.対象 != '自己':
             raise ValueError('代替作用は自己回復に限定')
         return self
 
@@ -104,24 +104,24 @@ def 回復方針を決定(*, 種別: str, 分類: str, 発生目的: str, 発生
     if 分類 != 失敗を分類(種別):
         raise ValueError('失敗種別と分類が不一致')
     if 規則 is None:
-        action = '利用者確認' if 種別 in _確認必要 else '停止'
-        reason = '追加入力又は意味確定が必要' if action == '利用者確認' else '自動回復契約なし'
-        return 回復方針(action, False, 発生目的, 発生作用, 理由=reason)
+        作用 = '利用者確認' if 種別 in _確認必要 else '停止'
+        reason = '追加入力又は意味確定が必要' if 作用 == '利用者確認' else '自動回復契約なし'
+        return 回復方針(作用, False, 発生目的, 発生作用, 理由=reason)
     if type(規則) is not 回復規則:
         raise ValueError('回復規則型不正')
     規則.検証()
-    action = 規則.動作()
-    if action == '同一作用再試行':
+    作用 = 規則.動作()
+    if 作用 == '同一作用再試行':
         if 再試行済 >= 規則.最大再試行:
             return 回復方針('停止', False, 発生目的, 発生作用,
                 発生目的, 発生作用, 契約=契約, 理由='同一作用再試行上限',
                 再試行番号=再試行済, 再試行上限=規則.最大再試行)
-        return 回復方針(action, True, 発生目的, 発生作用,
+        return 回復方針(作用, True, 発生目的, 発生作用,
             発生目的, 発生作用, 契約=契約, 理由='明示契約による有限再試行',
             再試行番号=再試行済 + 1, 再試行上限=規則.最大再試行)
     if (type(再開放) is not tuple or len(再開放) != 2
             or any(type(x) is not str or not x for x in 再開放)):
         return 回復方針('停止', False, 発生目的, 発生作用,
             契約=契約, 理由='回復対象を計画へ一意に束縛できない')
-    return 回復方針(action, True, 発生目的, 発生作用,
+    return 回復方針(作用, True, 発生目的, 発生作用,
         再開放[0], 再開放[1], (再開放,), 契約, '明示契約による局所再計画')

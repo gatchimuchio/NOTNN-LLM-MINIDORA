@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.runtime import ミニドラ, 要求
-from minidora.hds_adapter import HDS文脈
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
+from minidora.実行系 import ミニドラ, 要求
+from minidora.HDS適合器 import HDS文脈
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 
 
 class 局所解釈連続性試験(unittest.TestCase):
@@ -27,12 +27,12 @@ class 局所解釈連続性試験(unittest.TestCase):
         body = ミニドラ()
         body.実行(要求("2+3"))
 
-        context = body.HDS文脈
-        self.assertEqual(context.記憶版, 1)
-        self.assertEqual(context.直前入力, "2+3")
-        self.assertEqual(context.直前結果, 5)
-        self.assertEqual(context.現在焦点, 5)
-        self.assertEqual(context.直前採否, "合格")
+        文脈 = body.HDS文脈
+        self.assertEqual(文脈.記憶版, 1)
+        self.assertEqual(文脈.直前入力, "2+3")
+        self.assertEqual(文脈.直前結果, 5)
+        self.assertEqual(文脈.現在焦点, 5)
+        self.assertEqual(文脈.直前採否, "合格")
 
     def test_保留は採用済み焦点を無言上書きしない(self) -> None:
         body = ミニドラ()
@@ -45,7 +45,7 @@ class 局所解釈連続性試験(unittest.TestCase):
         self.assertEqual(body.局所解釈状態.直前結果, 5)
         self.assertEqual(body.局所解釈状態.直前採否, "保留")
 
-    def test_Runtime境界と明示初期化で局所状態を切れる(self) -> None:
+    def test_実行系境界と明示初期化で局所状態を切れる(self) -> None:
         first = ミニドラ()
         second = ミニドラ()
         first.実行(要求("2+3"))
@@ -69,8 +69,8 @@ class 局所解釈連続性試験(unittest.TestCase):
         self.assertEqual(second.状態["文脈0"], 5)
 
     def test_HDS接続でも局所解釈が意味IRから最終計算まで到達する(self) -> None:
-        compiler = 公開HDSコンパイラ()
-        body = ミニドラ(HDSコンパイラ_=compiler)
+        構文化器 = 公開HDSコンパイラ()
+        body = ミニドラ(HDSコンパイラ_=構文化器)
         first = body.実行(要求("2+3"))
         second = body.実行(要求("それに4を足して"))
 
@@ -90,16 +90,16 @@ class 局所解釈連続性試験(unittest.TestCase):
         self.assertIsNone(reset.値)
         self.assertNotEqual(reset.採否.状態.value, "合格")
 
-    def test_計算Pへ文脈Dataを埋め込まず状態参照で束縛する(self) -> None:
-        compiler = 公開HDSコンパイラ()
-        context = HDS文脈(
+    def test_計算Pへ文脈資料を埋め込まず状態参照で束縛する(self) -> None:
+        構文化器 = 公開HDSコンパイラ()
+        文脈 = HDS文脈(
             記憶版=1,
             現在焦点=5,
             直前結果=5,
             直前入力="2+3",
             直前採否="合格",
         )
-        bundle = compiler.コンパイル束("それに4を足して", 文脈=context, 前回結果=5)
+        bundle = 構文化器.コンパイル束("それに4を足して", 文脈=文脈, 前回結果=5)
         plan = bundle.計算計画
 
         self.assertEqual(plan.初期状態["文脈0"], 5)

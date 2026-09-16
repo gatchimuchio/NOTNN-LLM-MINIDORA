@@ -56,10 +56,7 @@ def _指紋(value: object) -> str:
 
 
 def _表示値(value: str) -> str:
-    """外部文字列を一行の引用として表示する。原値はDataと原資料に保持する。
-
-    制御・双方向文字と表示構文の記号を可視エスケープする。HTML用の出力ではない。
-    """
+    '外部文字列を一行の引用として表示する。原値は資料と原資料に保持する。\n\n    制御・双方向文字と表示構文の記号を可視エスケープする。HTML用の出力ではない。\n    '
     if type(value) is not str:
         raise ValueError("表示値は文字列")
     value.encode("utf-8")
@@ -88,10 +85,10 @@ def 能力結果を復元(raw: dict) -> 能力結果:
                 raise ValueError("公開時刻型不正")
             item["公開時刻"] = datetime.fromisoformat(item["公開時刻"])
         refs.append(参照資料(**item))
-    result = 能力結果(raw["成立"], raw["本文"], tuple(raw["根拠"]), tuple(refs),
+    結果 = 能力結果(raw["成立"], raw["本文"], tuple(raw["根拠"]), tuple(refs),
                         deepcopy(raw["データ"]), raw["保留理由"])
-    _結果辞書(result)
-    return result
+    _結果辞書(結果)
+    return 結果
 
 
 def _報告を確認(report: 能力結果) -> 能力結果:
@@ -99,12 +96,12 @@ def _報告を確認(report: 能力結果) -> 能力結果:
     if not 証拠記録整合(report) or report.データ["版"] != 証拠統合版:
         raise ValueError("証拠報告の整合・版不一致")
     request = 証拠照合要求(**report.データ["要求"])
-    replay = 証拠統合器().実行(request, deepcopy(report.参照))
-    if not replay.成立 or _符号(_結果辞書(replay)) != _符号(
+    再生 = 証拠統合器().実行(request, deepcopy(report.参照))
+    if not 再生.成立 or _符号(_結果辞書(再生)) != _符号(
             {**_結果辞書(report), "参照": [r.辞書化() for r in sorted(
                 _参照結合(report.参照), key=lambda r: r.識別子)]}):
         raise ValueError("証拠報告と元資料からの再計算が不一致")
-    return replay
+    return 再生
 
 
 def _適用範囲(condition: str | None, moment: str | None) -> str:
@@ -145,38 +142,38 @@ def _構成(reports: tuple[能力結果, ...], spec: 応答仕様) -> 能力結�
     nodes, citations, states = [], [], []
     sources = {s.識別子: s for s in refs}
 
-    def node(kind: str, text: str, origin: list[dict], source_ids=()) -> None:
-        numbers = sorted({labels[s] for s in source_ids})
+    def node(kind: str, text: str, origin: list[dict], 情報源_ids=()) -> None:
+        numbers = sorted({labels[s] for s in 情報源_ids})
         nodes.append({"単位ID": f"応答:{len(nodes)+1:04d}", "種別": kind, "文": text,
                       "由来": origin, "出典番号": numbers})
 
     for ri, report in enumerate(reports, 1):
-        data = report.データ
-        request = data["要求"]
+        資料 = report.データ
+        request = 資料["要求"]
         all_ids = [s.識別子 for s in report.参照]
-        state = {"報告番号": ri, "対象": request["対象"], "属性": request["属性"],
-                 "判定": data["判定"], "記載値採用可": data["採用可"],
-                 "条件": data["採用条件"], "時点": data["採用時点"],
-                 "理由": deepcopy(data["理由"]), "証拠記録SHA256": data["記録SHA256"]}
-        states.append(state)
+        状態 = {"報告番号": ri, "対象": request["対象"], "属性": request["属性"],
+                 "判定": 資料["判定"], "記載値採用可": 資料["採用可"],
+                 "条件": 資料["採用条件"], "時点": 資料["採用時点"],
+                 "理由": deepcopy(資料["理由"]), "証拠記録SHA256": 資料["記録SHA256"]}
+        states.append(状態)
         def origin(section, key):
             return {"報告番号": ri, "区分": section, "キー": key}
         node("見出し", f'{ri}. {_表示値(request["対象"])}の{_表示値(request["属性"])}', [origin("要求", "対象・属性")])
-        if data["採用可"]:
-            text = f'資料上の記載から採用できる値は{data["採用値"]} {data["採用単位"]}です。'
-            text += _適用範囲(data["採用条件"], data["採用時点"]) + "の記載比較に限ります。"
+        if 資料["採用可"]:
+            text = f'資料上の記載から採用できる値は{資料["採用値"]} {資料["採用単位"]}です。'
+            text += _適用範囲(資料["採用条件"], 資料["採用時点"]) + "の記載比較に限ります。"
         else:
             text = "現時点の資料比較では値の採用を保留します。"
-        node("結論", text, [origin("判定", data["判定"])], all_ids)
-        requested_scope = ("指定条件=" + (_表示値(request["条件"]) if request["条件"] is not None else "指定なし")
+        node("結論", text, [origin("判定", 資料["判定"])], all_ids)
+        requested_範囲 = ("指定条件=" + (_表示値(request["条件"]) if request["条件"] is not None else "指定なし")
                            + "、指定時点=" + (_表示値(request["時点"]) if request["時点"] is not None else "指定なし"))
-        node("要求条件", f'{requested_scope}、最低資料系統数={request["最低資料系統数"]}です。', [origin("要求", "適用範囲・資料数")])
-        for reason in data["理由"]:
+        node("要求条件", f'{requested_範囲}、最低資料系統数={request["最低資料系統数"]}です。', [origin("要求", "適用範囲・資料数")])
+        for reason in 資料["理由"]:
             node("保留理由", _理由文[reason], [origin("理由", reason)], all_ids)
 
         claim_origins = {}
         for section in ("主張", "残差", "対象外"):
-            for index, item in enumerate(data[section]):
+            for index, item in enumerate(資料[section]):
                 ref = sources[item["参照ID"]]
                 start, end = item["開始"], item["終了"]
                 if type(start) is not int or type(end) is not int or not 0 <= start < end <= len(ref.本文):
@@ -188,8 +185,8 @@ def _構成(reports: tuple[能力結果, ...], spec: 応答仕様) -> 能力結�
                 citations.append(link)
                 if section == "主張":
                     claim_origins[item["主張ID"]] = link
-        claims = {c["主張ID"]: c for c in data["主張"]}
-        for gi, group in enumerate(data["群"]):
+        claims = {c["主張ID"]: c for c in 資料["主張"]}
+        for gi, group in enumerate(資料["群"]):
             members = [claims[k] for k in group["主張ID"]]
             selected = ((request["条件"] is None or group["条件"] == request["条件"])
                         and (request["時点"] is None or group["時点"] == request["時点"]))
@@ -245,11 +242,11 @@ def _構成(reports: tuple[能力結果, ...], spec: 応答仕様) -> 能力結�
                "文章対応": segments, "引用対応": citations,
                "元報告": [_結果辞書(r) for r in reports], "事実認定": "未実施"}
     bases = tuple(f'証拠報告:{i}:{r.データ["記録SHA256"]}' for i, r in enumerate(reports, 1))
-    result = 能力結果(True, body, 根拠=bases, 参照=refs, データ=payload)
-    payload["応答SHA256"] = _指紋(_結果辞書(result))
-    if len(_符号(_結果辞書(result))) > 2000000:
+    結果 = 能力結果(True, body, 根拠=bases, 参照=refs, データ=payload)
+    payload["応答SHA256"] = _指紋(_結果辞書(結果))
+    if len(_符号(_結果辞書(結果))) > 2000000:
         return 能力結果(False, "", 保留理由="応答記録サイズ上限")
-    return result
+    return 結果
 
 
 class 応答構成器:
@@ -262,20 +259,20 @@ class 応答構成器:
             return 能力結果(False, "", 保留理由=f"応答構成契約違反:{type(exc).__name__}")
 
 
-def 応答記録整合(result: 能力結果) -> bool:
+def 応答記録整合(結果: 能力結果) -> bool:
     """元資料からの比較と回答構成を再実行して検査する。真正性は証明しない。"""
     try:
-        if not isinstance(result, 能力結果) or result.成立 is not True:
+        if not isinstance(結果, 能力結果) or 結果.成立 is not True:
             return False
-        _結果辞書(result)
-        if result.データ["版"] != 応答構成版:
+        _結果辞書(結果)
+        if 結果.データ["版"] != 応答構成版:
             return False
-        reports = tuple(能力結果を復元(r) for r in result.データ["元報告"])
-        spec = 応答仕様(**result.データ["仕様"])
+        reports = tuple(能力結果を復元(r) for r in 結果.データ["元報告"])
+        spec = 応答仕様(**結果.データ["仕様"])
         expected = 応答構成器().実行(reports, spec)
         # 合成器が付加する消費資料の来歴は、回答の根拠として使った資料と同一であること。
-        value = {**_結果辞書(result), "参照": [r.辞書化() for r in sorted(
-            _参照結合(result.参照), key=lambda r: r.識別子)]}
+        value = {**_結果辞書(結果), "参照": [r.辞書化() for r in sorted(
+            _参照結合(結果.参照), key=lambda r: r.識別子)]}
         return expected.成立 and _符号(_結果辞書(expected)) == _符号(value)
     except (TypeError, ValueError, KeyError, AttributeError, RecursionError, OverflowError):
         return False

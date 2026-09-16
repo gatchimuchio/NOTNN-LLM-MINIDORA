@@ -118,74 +118,74 @@ class 計算実行境界:
 
             op = 命令_.作用
             inputs = tuple(self._値(item, 状態) for item in 命令_.入力)
-            result: Any = None
+            結果: Any = None
 
             if op == 計算作用.設定:
-                result = inputs[0]
+                結果 = inputs[0]
                 assert 命令_.出力住所 is not None
-                状態[命令_.出力住所] = result
+                状態[命令_.出力住所] = 結果
             elif op == 計算作用.取得:
                 assert 命令_.対象住所 is not None
-                result = 状態.get(命令_.対象住所)
+                結果 = 状態.get(命令_.対象住所)
                 if 命令_.出力住所 is not None:
-                    状態[命令_.出力住所] = result
+                    状態[命令_.出力住所] = 結果
             elif op == 計算作用.抽出:
-                source, key = inputs
-                if isinstance(source, Mapping):
-                    result = source.get(key)
-                elif isinstance(key, int) and isinstance(source, (tuple, list, str)):
-                    result = source[key] if -len(source) <= key < len(source) else None
-                elif isinstance(key, str) and hasattr(source, key):
-                    result = getattr(source, key)
+                情報源, key = inputs
+                if isinstance(情報源, Mapping):
+                    結果 = 情報源.get(key)
+                elif isinstance(key, int) and isinstance(情報源, (tuple, list, str)):
+                    結果 = 情報源[key] if -len(情報源) <= key < len(情報源) else None
+                elif isinstance(key, str) and hasattr(情報源, key):
+                    結果 = getattr(情報源, key)
                 else:
                     try:
-                        result = source[key]
+                        結果 = 情報源[key]
                     except (KeyError, IndexError, TypeError):
-                        result = None
+                        結果 = None
                 if 命令_.出力住所 is not None:
-                    状態[命令_.出力住所] = result
+                    状態[命令_.出力住所] = 結果
             elif op in {計算作用.加算, 計算作用.減算, 計算作用.乗算, 計算作用.除算}:
-                result = inputs[0]
+                結果 = inputs[0]
                 for value in inputs[1:]:
                     # in-place演算はlist等の入力状態を破壊し得るため使わない。
                     if op == 計算作用.加算:
-                        result = result + value
+                        結果 = 結果 + value
                     elif op == 計算作用.減算:
-                        result = result - value
+                        結果 = 結果 - value
                     elif op == 計算作用.乗算:
-                        result = result * value
+                        結果 = 結果 * value
                     else:
                         if value == 0:
                             raise ValueError("0では除算できない")
-                        result = result / value
+                        結果 = 結果 / value
                 if 命令_.出力住所 is not None:
-                    状態[命令_.出力住所] = result
+                    状態[命令_.出力住所] = 結果
             elif op == 計算作用.比較:
                 left, operator, right = inputs
-                result = self._比較(left, operator, right)
+                結果 = self._比較(left, operator, right)
                 if 命令_.出力住所 is not None:
-                    状態[命令_.出力住所] = result
+                    状態[命令_.出力住所] = 結果
             elif op == 計算作用.計数:
-                result = len(inputs[0])
+                結果 = len(inputs[0])
                 if 命令_.出力住所 is not None:
-                    状態[命令_.出力住所] = result
+                    状態[命令_.出力住所] = 結果
             elif op == 計算作用.結合:
-                result = tuple(inputs)
+                結果 = tuple(inputs)
                 if 命令_.出力住所 is not None:
-                    状態[命令_.出力住所] = result
+                    状態[命令_.出力住所] = 結果
             elif op == 計算作用.交換:
                 left_address, right_address = (str(item.内容) for item in 命令_.入力)
                 状態[left_address], 状態[right_address] = 状態.get(right_address), 状態.get(left_address)
-                result = (状態[left_address], 状態[right_address])
+                結果 = (状態[left_address], 状態[right_address])
                 if 命令_.出力住所 is not None:
-                    状態[命令_.出力住所] = result
+                    状態[命令_.出力住所] = 結果
             elif op == 計算作用.反転:
-                result = not bool(inputs[0])
+                結果 = not bool(inputs[0])
                 if 命令_.出力住所 is not None:
-                    状態[命令_.出力住所] = result
+                    状態[命令_.出力住所] = 結果
             elif op == 計算作用.停止:
                 停止済み = True
-                result = True
+                結果 = True
             else:
                 raise ValueError(f"未対応計算作用: {op}")
 
@@ -196,7 +196,7 @@ class 計算実行境界:
                     op,
                     命令_.対象住所,
                     inputs,
-                    result,
+                    結果,
                     命令_.出力住所,
                     命令_.根拠,
                 )

@@ -4,9 +4,9 @@ from dataclasses import replace
 import unicodedata
 from typing import Iterable, TYPE_CHECKING
 
-from .hds_choice_runtime import HDS選択実行結果
-from .hds_ir import HDSIR
-from .hds_reference import (
+from .HDS選択実行系 import HDS選択実行結果
+from .HDS中間表現 import HDSIR
+from .HDS参照 import (
     HDS参照予算選択,
     HDS参照検索,
     _候補被覆,
@@ -16,10 +16,10 @@ from .hds_reference import (
     _縮退仕様,
     _記録統合,
 )
-from .hds候補提案runtime import HDS候補提案実行
+from .HDS候補提案実行系 import HDS候補提案実行
 from .hds局所再照合 import HDS局所Window候補
 if TYPE_CHECKING:
-    from .k3_functional import K3相当能力核
+    from .K3機能 import K3相当能力核
 from .模型 import MINIDORA模型核, 模型結果
 from .能力状態差循環 import MINIDORA能力状態差模型核, 標準能力模型核
 from .参照 import 参照供給器, 参照記録
@@ -33,7 +33,7 @@ def _候補ラベル群(record: 参照記録) -> frozenset[str]:
     return frozenset(
         str(value)
         for key, value in record.条件
-        if str(key) == "hds_query_choice" and str(value)
+        if str(key) == 'hds_query_選択肢' and str(value)
     )
 
 
@@ -43,11 +43,7 @@ def HDS候補被覆優先統合(
     expected_labels: Iterable[str],
     limit: int,
 ) -> tuple[参照記録, ...]:
-    """候補別queryで観測できたsourceを対称に残してから、残枠へ通常順を戻す。
-
-    `hds_query_choice` は検索経路情報であり、候補真偽の票としては使わない。
-    同一sourceは1件へ統合し、query provenanceだけを併合する。
-    """
+    '候補別queryで観測できた情報源を対称に残してから、残枠へ通常順を戻す。\n\n    `hds_query_選択肢` は検索経路情報であり、候補真偽の票としては使わない。\n    同一情報源は1件へ統合し、query provenanceだけを併合する。\n    '
 
     total_limit = max(0, int(limit))
     if total_limit <= 0:
@@ -56,12 +52,12 @@ def HDS候補被覆優先統合(
     combined: list[参照記録] = []
     index_by_id: dict[str, int] = {}
     for record in (*tuple(primary), *tuple(extra)):
-        source_id = str(record.識別子)
-        existing = index_by_id.get(source_id)
+        情報源_id = str(record.識別子)
+        existing = index_by_id.get(情報源_id)
         if existing is not None:
             combined[existing] = _記録統合(combined[existing], record)
             continue
-        index_by_id[source_id] = len(combined)
+        index_by_id[情報源_id] = len(combined)
         combined.append(record)
 
     selected: list[参照記録] = []
@@ -69,7 +65,7 @@ def HDS候補被覆優先統合(
     for label in sorted({str(item) for item in expected_labels if str(item)}):
         if any(label in _候補ラベル群(record) for record in selected):
             continue
-        candidate = next(
+        候補 = next(
             (
                 record
                 for record in combined
@@ -77,19 +73,19 @@ def HDS候補被覆優先統合(
             ),
             None,
         )
-        if candidate is None:
+        if 候補 is None:
             continue
-        selected.append(candidate)
-        selected_ids.add(str(candidate.識別子))
+        selected.append(候補)
+        selected_ids.add(str(候補.識別子))
         if len(selected) >= total_limit:
             return tuple(selected)
 
     for record in combined:
-        source_id = str(record.識別子)
-        if source_id in selected_ids:
+        情報源_id = str(record.識別子)
+        if 情報源_id in selected_ids:
             continue
         selected.append(record)
-        selected_ids.add(source_id)
+        selected_ids.add(情報源_id)
         if len(selected) >= total_limit:
             break
     return tuple(selected)
@@ -104,16 +100,12 @@ def HDS参照検索V2(
     最大問合せ並列: int | None = None,
     最大候補補完回数: int = 1,
 ) -> tuple[参照記録, ...]:
-    """一回のREFERENCE作用内で候補被覆不足だけを追加観測するR閉包。
+    '一回の参照作用内で候補被覆不足だけを追加観測するR閉包。\n\n    既存Rのprimary/代替経路規則は保持し、その出力に候補別query被覆が不足した場合だけ、\n    未被覆候補の縮退queryを追加する。generic検索量を無条件には増やさない。\n    '
 
-    既存Rのprimary/fallback規則は保持し、その出力に候補別query被覆が不足した場合だけ、
-    未被覆候補の縮退queryを追加する。generic検索量を無条件には増やさない。
-    """
-
-    budget = HDS参照予算選択(ir)
-    total_limit = budget.取得上限 if 上限 is None else max(0, int(上限))
-    per_query = budget.一問合せ上限 if 一問合せ上限 is None else max(1, int(一問合せ上限))
-    parallel = budget.最大問合せ並列 if 最大問合せ並列 is None else max(1, int(最大問合せ並列))
+    予算 = HDS参照予算選択(ir)
+    total_limit = 予算.取得上限 if 上限 is None else max(0, int(上限))
+    per_query = 予算.一問合せ上限 if 一問合せ上限 is None else max(1, int(一問合せ上限))
+    parallel = 予算.最大問合せ並列 if 最大問合せ並列 is None else max(1, int(最大問合せ並列))
     if total_limit <= 0:
         return ()
 
@@ -134,15 +126,15 @@ def HDS参照検索V2(
         missing = expected - coverage
         if not missing:
             break
-        fallback_specs = tuple(
+        代替経路_specs = tuple(
             spec
             for spec in _縮退仕様(ir)
             if spec.候補 is not None and spec.候補 in missing
         )
-        if not fallback_specs:
+        if not 代替経路_specs:
             break
         extra = _round_robin(
-            _query_pools(provider, fallback_specs, per_query, max_parallel=parallel),
+            _query_pools(provider, 代替経路_specs, per_query, max_parallel=parallel),
             total_limit,
         )
         if not extra:
@@ -156,14 +148,10 @@ def HDS参照検索V2(
     return references
 
 
-def HDS能力模型核V2(core: MINIDORA模型核 | None = None) -> MINIDORA模型核:
-    """同Dataの候補縮小再投票を無効化した能力模型核を返す。
+def HDS能力模型核V2(模型核: MINIDORA模型核 | None = None) -> MINIDORA模型核:
+    '同資料の候補縮小再投票を無効化した能力模型核を返す。\n\n    外界観測が変わらない内部再作用は行わず、観測viewが変化した場合の再評価は\n    `HDS能力経路V2候補提案実行` が全候補で新しい評価Runとして行う。\n    '
 
-    外界観測が変わらない内部再作用は行わず、観測viewが変化した場合の再評価は
-    `HDS能力経路V2候補提案実行` が全候補で新しい評価Runとして行う。
-    """
-
-    base = core or 標準能力模型核()
+    base = 模型核 or 標準能力模型核()
     if not isinstance(base, MINIDORA能力状態差模型核):
         return base
     return MINIDORA能力状態差模型核(
@@ -181,22 +169,19 @@ def HDS局所観測view(
     *,
     上限: int = 12,
 ) -> tuple[tuple[参照記録, ...], int]:
-    """同一sourceの全文viewを最上位local windowへ置換する。
-
-    source ID・provider・origin・confidence・query provenanceは保持し、独立source数を増やさない。
-    """
+    '同一情報源の全文viewを最上位local windowへ置換する。\n\n    情報源 ID・provider・origin・信頼度・query provenanceは保持し、独立情報源数を増やさない。\n    '
 
     windows = HDS局所Window候補(question_ir, references, 上限=max(0, int(上限)))
-    best_by_source = {}
+    best_by_情報源 = {}
     for row in windows:
-        source_id = str(row.参照.識別子)
-        if source_id not in best_by_source:
-            best_by_source[source_id] = row
+        情報源_id = str(row.参照.識別子)
+        if 情報源_id not in best_by_情報源:
+            best_by_情報源[情報源_id] = row
 
     changed = 0
     projected: list[参照記録] = []
     for record in references:
-        row = best_by_source.get(str(record.識別子))
+        row = best_by_情報源.get(str(record.識別子))
         if row is None or _正規化(row.内容).casefold() == _正規化(record.内容).casefold():
             projected.append(record)
             continue
@@ -209,42 +194,42 @@ def HDS局所観測view(
     return tuple(projected), changed
 
 
-def _寄与参照ID群(result: HDS選択実行結果) -> frozenset[str]:
-    model = result.MINIDORA模型結果
-    label = result.回答ラベル
-    if model is None or label is None:
+def _寄与参照ID群(結果: HDS選択実行結果) -> frozenset[str]:
+    模型 = 結果.MINIDORA模型結果
+    label = 結果.回答ラベル
+    if 模型 is None or label is None:
         return frozenset()
-    row = next((item for item in model.候補差 if item.候補ID == label), None)
+    row = next((item for item in 模型.候補差 if item.候補ID == label), None)
     if row is None:
         return frozenset()
 
-    source_ids: set[str] = set()
+    情報源_ids: set[str] = set()
     for contribution in row.寄与:
         for raw in contribution.根拠:
             text = str(raw)
             if text.startswith("参照:"):
                 payload = text[len("参照:"):]
-                source_id = payload.rsplit(":", 1)[0] if ":" in payload else payload
-                if source_id:
-                    source_ids.add(source_id)
+                情報源_id = payload.rsplit(":", 1)[0] if ":" in payload else payload
+                if 情報源_id:
+                    情報源_ids.add(情報源_id)
             elif text.startswith("再照合:"):
                 payload = text[len("再照合:"):]
                 parts = payload.rsplit(":", 2)
-                source_id = parts[0] if parts else payload
-                if source_id:
-                    source_ids.add(source_id)
-    return frozenset(source_ids)
+                情報源_id = parts[0] if parts else payload
+                if 情報源_id:
+                    情報源_ids.add(情報源_id)
+    return frozenset(情報源_ids)
 
 
-def _提案強度(result: HDS選択実行結果) -> tuple[int, int, int]:
-    if result.状態 != "PROPOSE" or result.回答ラベル is None or result.MINIDORA模型結果 is None:
+def _提案強度(結果: HDS選択実行結果) -> tuple[int, int, int]:
+    if 結果.状態 != "PROPOSE" or 結果.回答ラベル is None or 結果.MINIDORA模型結果 is None:
         return (-1, -10**9, -10**9)
-    scores = result.MINIDORA模型結果.候補辞書()
-    if result.回答ラベル not in scores:
+    scores = 結果.MINIDORA模型結果.候補辞書()
+    if 結果.回答ラベル not in scores:
         return (-1, -10**9, -10**9)
-    top = int(scores[result.回答ラベル])
-    second = max((int(value) for key, value in scores.items() if key != result.回答ラベル), default=0)
-    return (len(_寄与参照ID群(result)), top - second, top)
+    top = int(scores[結果.回答ラベル])
+    second = max((int(value) for key, value in scores.items() if key != 結果.回答ラベル), default=0)
+    return (len(_寄与参照ID群(結果)), top - second, top)
 
 
 def _局所再評価採用可能(initial: HDS選択実行結果, rechecked: HDS選択実行結果) -> bool:
@@ -265,10 +250,7 @@ def HDS能力経路V2候補提案実行(
     模型核: MINIDORA模型核 | None = None,
     最大局所Window数: int = 12,
 ) -> HDS選択実行結果:
-    """Rで閉じたDataをCが全候補評価し、実観測view変化時だけ再評価する。
-
-    C_execはPROPOSEまで。COMMIT/SUSPEND権限は持たない。
-    """
+    'Rで閉じた資料をCが全候補評価し、実観測view変化時だけ再評価する。\n\n    C_execはPROPOSEまで。COMMIT/SUSPEND権限は持たない。\n    '
 
     initial = HDS候補提案実行(
         question_ir,
@@ -281,7 +263,7 @@ def HDS能力経路V2候補提案実行(
     initial = replace(
         initial,
         理由=tuple(dict.fromkeys(tuple(initial.理由) + (
-            "C_SAME_DATA_CANDIDATE_NARROWING_DISABLED",
+            'C_SAME_資料_候補_NARROWING_DISABLED',
         ))),
     )
 

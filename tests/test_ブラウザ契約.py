@@ -6,7 +6,7 @@ import unittest
 
 from minidora.ブラウザ通信 import (正規URL, ブラウザ資源, 公開資源供給器, ブラウザ通信境界)
 from minidora.ブラウザ閲覧 import ブラウザ閲覧器, ブラウザ要求, ブラウザ工程, ブラウザ記録整合, 表を配列
-from minidora.ブラウザ接続 import ブラウザ閲覧Module, ブラウザ要求を復元
+from minidora.ブラウザ接続 import ブラウザ閲覧モジュール, ブラウザ要求を復元
 from minidora.能力合成 import 能力合成器, 合成計画, 合成工程, 素材参照
 from minidora.多段解決 import 多段解決器
 from minidora.製品版.型 import 能力結果
@@ -47,14 +47,14 @@ class 閲覧要求試験(unittest.TestCase):
             r=ブラウザ閲覧器().実行(表要求(),外部読取許可=True,停止要求=f)
             self.assertFalse(r.成立);self.assertEqual(r.データ['資源記録'],[])
     def test_通常会話は閲覧要求にしない(self):
-        module=ブラウザ閲覧Module(ブラウザ閲覧器());c=能力文脈('全部見て','s')
-        self.assertEqual(module.判定(c),0);self.assertFalse(module.実行(c).成立)
+        モジュール=ブラウザ閲覧モジュール(ブラウザ閲覧器());c=能力文脈('全部見て','s')
+        self.assertEqual(モジュール.判定(c),0);self.assertFalse(モジュール.実行(c).成立)
     def test_外部読取登録を純粋探索へ混ぜない(self):
-        reg=ブラウザ閲覧Module(ブラウザ閲覧器()).登録()
+        reg=ブラウザ閲覧モジュール(ブラウザ閲覧器()).登録()
         self.assertTrue(reg.外部読取)
         with self.assertRaises(ValueError):多段解決器((reg,),純粋作用確認=True)
     def test_合成器の外部許可も必要(self):
-        reg=ブラウザ閲覧Module(ブラウザ閲覧器(),外部読取許可=True).登録()
+        reg=ブラウザ閲覧モジュール(ブラウザ閲覧器(),外部読取許可=True).登録()
         p=合成計画((合成工程('閲覧',('ブラウザ閲覧',),'i',(素材参照('入力','r'),)),),('閲覧',))
         r=能力合成器((reg,)).実行(p,{'i':能力結果(True,'閲覧'),'r':能力結果(True,'',データ={'要求':asdict(表要求())})})
         self.assertFalse(r.成立);self.assertEqual(r.実行数,0)
@@ -98,7 +98,7 @@ class 閲覧通信試験(unittest.TestCase):
     def test_資源数を勝手に剪定しない(self):
         for _ in range(64):self.n.応答(数値,'GET','fetch')
         with self.assertRaises(ValueError):self.n.応答(数値,'GET','fetch')
-    def test_実取得Adapterの既存HTTPS接続(self):
+    def test_実取得適合器の既存HTTPS接続(self):
         with patch('minidora.ブラウザ通信.公開本文取得器._一回取得',return_value=(200,{'content-type':'text/html'},b'<p>x</p>')) as get:
             self.assertEqual(公開資源供給器()(起点).本体,b'<p>x</p>');get.assert_called_once_with(起点)
     def test_転送圧縮ダウンロードを追従しない(self):

@@ -1,6 +1,6 @@
-# Core24 vs repaired Core same-reference A/B — 2026-09-05
+# 模型核24 vs repaired 模型核 same-reference A/B — 2026-09-05
 
-同一Question IR・同一Reference recordを24点系Coreと修正版Coreへ投入した因果A/B。
+同一Question IR・同一Reference recordを24点系模型核と修正版模型核へ投入した因果A/B。
 Goldは両推論完了後の採点にのみ使用。
 
 ```json

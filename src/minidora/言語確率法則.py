@@ -19,8 +19,8 @@ def _正規化(text: str) -> str:
     return unicodedata.normalize("NFKC", str(text)).replace("\r\n", "\n").replace("\r", "\n")
 
 
-def _文脈キー(context: Sequence[str]) -> str:
-    return "\u001f".join(context)
+def _文脈キー(文脈: Sequence[str]) -> str:
+    return "\u001f".join(文脈)
 
 
 def _文脈復元(raw: str) -> tuple[str, ...]:
@@ -53,56 +53,56 @@ class 言語確率模型状態:
 
         vocabulary = frozenset(self.語彙)
         contexts: set[tuple[str, ...]] = set()
-        for context, rows in self.遷移計数:
-            if context in contexts:
+        for 文脈, rows in self.遷移計数:
+            if 文脈 in contexts:
                 raise ValueError("遷移計数の文脈は一意である必要がある")
-            contexts.add(context)
-            if len(context) >= self.次数:
+            contexts.add(文脈)
+            if len(文脈) >= self.次数:
                 raise ValueError("遷移計数の文脈長は次数未満である必要がある")
-            if any(token != BOS記号 and token not in vocabulary for token in context):
+            if any(字句 != BOS記号 and 字句 not in vocabulary for 字句 in 文脈):
                 raise ValueError("遷移計数の文脈に語彙外記号がある")
-            seen_tokens: set[str] = set()
-            for token, count in rows:
-                if token in seen_tokens:
+            seen_字句: set[str] = set()
+            for 字句, count in rows:
+                if 字句 in seen_字句:
                     raise ValueError("同一文脈内の遷移記号は一意である必要がある")
-                seen_tokens.add(token)
-                if token not in vocabulary:
+                seen_字句.add(字句)
+                if 字句 not in vocabulary:
                     raise ValueError("遷移計数に語彙外記号がある")
                 if count <= 0:
                     raise ValueError("遷移計数は正整数である必要がある")
 
     def 辞書化(self) -> dict[str, object]:
         return {
-            "schema": "minidora.strict-language-model.v1",
+            "契約形式": 'minidora.strict-言語-模型.v1',
             "次数": self.次数,
             "加算平滑化": self.加算平滑化,
             "語彙": list(self.語彙),
             "形成文書数": self.形成文書数,
             "遷移計数": {
-                _文脈キー(context): {token: count for token, count in rows}
-                for context, rows in self.遷移計数
+                _文脈キー(文脈): {字句: count for 字句, count in rows}
+                for 文脈, rows in self.遷移計数
             },
         }
 
     @classmethod
-    def 復元(cls, data: Mapping[str, object]) -> "言語確率模型状態":
-        if data.get("schema") != "minidora.strict-language-model.v1":
+    def 復元(cls, 資料: Mapping[str, object]) -> "言語確率模型状態":
+        if 資料.get("契約形式") != 'minidora.strict-言語-模型.v1':
             raise ValueError("未知の言語確率模型状態schema")
-        raw_counts = data.get("遷移計数")
+        raw_counts = 資料.get("遷移計数")
         if not isinstance(raw_counts, Mapping):
             raise TypeError("遷移計数が不正")
         counts: list[tuple[tuple[str, ...], tuple[tuple[str, int], ...]]] = []
-        for raw_context, raw_rows in raw_counts.items():
-            if not isinstance(raw_context, str) or not isinstance(raw_rows, Mapping):
+        for raw_文脈, raw_rows in raw_counts.items():
+            if not isinstance(raw_文脈, str) or not isinstance(raw_rows, Mapping):
                 raise TypeError("遷移計数要素が不正")
-            rows = tuple(sorted((str(token), int(count)) for token, count in raw_rows.items()))
-            counts.append((_文脈復元(raw_context), rows))
+            rows = tuple(sorted((str(字句), int(count)) for 字句, count in raw_rows.items()))
+            counts.append((_文脈復元(raw_文脈), rows))
         return cls(
-            次数=int(data["次数"]),
-            加算平滑化=int(data["加算平滑化"]),
-            語彙=tuple(str(x) for x in data["語彙"]),
+            次数=int(資料["次数"]),
+            加算平滑化=int(資料["加算平滑化"]),
+            語彙=tuple(str(x) for x in 資料["語彙"]),
             遷移計数=tuple(sorted(counts, key=lambda row: row[0])),
-            形成文書数=int(data.get("形成文書数", 0)),
+            形成文書数=int(資料.get("形成文書数", 0)),
         )
 
     @property
@@ -128,8 +128,8 @@ class 条件付き記号分布:
         return dict(self.確率)
 
     def 確率_of(self, 記号: str) -> Fraction:
-        for token, probability in self.確率:
-            if token == 記号:
+        for 字句, probability in self.確率:
+            if 字句 == 記号:
                 return probability
         return Fraction(0, 1)
 
@@ -143,14 +143,14 @@ class 言語確率監査結果:
 
 
 class MINIDORA厳密言語模型:
-    """非ニューラル・決定論的な厳密Language Model核。"""
+    '非ニューラル・決定論的な厳密言語 模型核。'
 
     def __init__(self, 状態: 言語確率模型状態) -> None:
         self.状態 = 状態
         self._語彙 = tuple(状態.語彙)
         self._語彙集合 = frozenset(self._語彙)
         self._counts: dict[tuple[str, ...], dict[str, int]] = {
-            context: dict(rows) for context, rows in 状態.遷移計数
+            文脈: dict(rows) for 文脈, rows in 状態.遷移計数
         }
 
     @staticmethod
@@ -165,12 +165,12 @@ class MINIDORA厳密言語模型:
         observed.update(normalized)
         max_history = max(0, 次数 - 1)
         history: tuple[str, ...] = (BOS記号,) * max_history
-        for token in (*normalized, EOS記号):
+        for 字句 in (*normalized, EOS記号):
             for width in range(次数):
-                context = history[-width:] if width else ()
-                counts[context][token] += 1
+                文脈 = history[-width:] if width else ()
+                counts[文脈][字句] += 1
             if max_history:
-                history = (*history, token)[-max_history:]
+                history = (*history, 字句)[-max_history:]
 
     @classmethod
     def 形成(
@@ -194,8 +194,8 @@ class MINIDORA厳密言語模型:
 
         vocabulary = tuple(sorted((*observed, UNK記号, EOS記号)))
         frozen_counts = tuple(
-            (context, tuple(sorted(counter.items())))
-            for context, counter in sorted(counts.items(), key=lambda row: row[0])
+            (文脈, tuple(sorted(counter.items())))
+            for 文脈, counter in sorted(counts.items(), key=lambda row: row[0])
         )
         return cls(
             言語確率模型状態(
@@ -208,19 +208,19 @@ class MINIDORA厳密言語模型:
         )
 
     def 追加形成(self, 文書群: Iterable[str]) -> "MINIDORA厳密言語模型":
-        """現在状態だけを基点にDataを増分形成し、新しい模型を返す。"""
+        '現在状態だけを基点に資料を増分形成し、新しい模型を返す。'
         observed = set(self._語彙) - {UNK記号, EOS記号}
         counts: dict[tuple[str, ...], Counter[str]] = defaultdict(Counter)
-        for context, rows in self.状態.遷移計数:
-            counts[context].update(dict(rows))
+        for 文脈, rows in self.状態.遷移計数:
+            counts[文脈].update(dict(rows))
         document_count = self.状態.形成文書数
         for text in 文書群:
             self._形成へ追加(str(text), 次数=self.状態.次数, observed=observed, counts=counts)
             document_count += 1
         vocabulary = tuple(sorted((*observed, UNK記号, EOS記号)))
         frozen_counts = tuple(
-            (context, tuple(sorted(counter.items())))
-            for context, counter in sorted(counts.items(), key=lambda row: row[0])
+            (文脈, tuple(sorted(counter.items())))
+            for 文脈, counter in sorted(counts.items(), key=lambda row: row[0])
         )
         return type(self)(
             言語確率模型状態(
@@ -233,8 +233,8 @@ class MINIDORA厳密言語模型:
         )
 
     @classmethod
-    def 復元(cls, data: Mapping[str, object]) -> "MINIDORA厳密言語模型":
-        return cls(言語確率模型状態.復元(data))
+    def 復元(cls, 資料: Mapping[str, object]) -> "MINIDORA厳密言語模型":
+        return cls(言語確率模型状態.復元(資料))
 
     def 辞書化(self) -> dict[str, object]:
         return self.状態.辞書化()
@@ -252,45 +252,45 @@ class MINIDORA厳密言語模型:
         tail = tuple(history[-max_history:]) if max_history else ()
         padded = (BOS記号,) * max(0, max_history - len(tail)) + tail
         for width in range(max_history, -1, -1):
-            context = padded[-width:] if width else ()
-            if context in self._counts:
-                return context
+            文脈 = padded[-width:] if width else ()
+            if 文脈 in self._counts:
+                return 文脈
         return ()
 
-    def _分母(self, context: tuple[str, ...]) -> tuple[dict[str, int], int, int]:
-        raw = self._counts.get(context, {})
+    def _分母(self, 文脈: tuple[str, ...]) -> tuple[dict[str, int], int, int]:
+        raw = self._counts.get(文脈, {})
         alpha = self.状態.加算平滑化
         denominator = sum(raw.values()) + alpha * len(self._語彙)
         return raw, alpha, denominator
 
-    def _確率_for_context(self, context: tuple[str, ...], token: str) -> Fraction:
-        raw, alpha, denominator = self._分母(context)
-        return Fraction(raw.get(token, 0) + alpha, denominator)
+    def _文脈確率(self, 文脈: tuple[str, ...], 字句: str) -> Fraction:
+        raw, alpha, denominator = self._分母(文脈)
+        return Fraction(raw.get(字句, 0) + alpha, denominator)
 
-    def _分布_for_context(self, context: tuple[str, ...]) -> 条件付き記号分布:
-        raw, alpha, denominator = self._分母(context)
+    def _文脈分布(self, 文脈: tuple[str, ...]) -> 条件付き記号分布:
+        raw, alpha, denominator = self._分母(文脈)
         probabilities = tuple(
-            (token, Fraction(raw.get(token, 0) + alpha, denominator))
-            for token in self._語彙
+            (字句, Fraction(raw.get(字句, 0) + alpha, denominator))
+            for 字句 in self._語彙
         )
-        return 条件付き記号分布(context, probabilities)
+        return 条件付き記号分布(文脈, probabilities)
 
     def _分布_for_history(self, history: Sequence[str]) -> 条件付き記号分布:
-        return self._分布_for_context(self._有効文脈(history))
+        return self._文脈分布(self._有効文脈(history))
 
-    def _確率_for_history(self, history: Sequence[str], token: str) -> Fraction:
-        return self._確率_for_context(self._有効文脈(history), token)
+    def _確率_for_history(self, history: Sequence[str], 字句: str) -> Fraction:
+        return self._文脈確率(self._有効文脈(history), 字句)
 
     def 次記号分布(self, 接頭辞: str = "") -> 条件付き記号分布:
         return self._分布_for_history(self._符号化(接頭辞))
 
-    def _系列確率(self, history: tuple[str, ...], tokens: Sequence[str]) -> Fraction:
+    def _系列確率(self, history: tuple[str, ...], 字句: Sequence[str]) -> Fraction:
         probability = Fraction(1, 1)
         max_history = max(0, self.状態.次数 - 1)
-        for token in (*tokens, EOS記号):
-            probability *= self._確率_for_history(history, token)
+        for 字句 in (*字句, EOS記号):
+            probability *= self._確率_for_history(history, 字句)
             if max_history:
-                history = (*history, token)[-max_history:]
+                history = (*history, 字句)[-max_history:]
         return probability
 
     def 系列確率(self, text: str) -> Fraction:
@@ -311,14 +311,14 @@ class MINIDORA厳密言語模型:
         contexts = tuple(self._counts) or ((),)
         reasons: list[str] = []
         eos_values: list[Fraction] = []
-        for context in contexts:
-            dist = self._分布_for_context(context)
+        for 文脈 in contexts:
+            dist = self._文脈分布(文脈)
             total = sum((p for _, p in dist.確率), Fraction(0, 1))
             if total != Fraction(1, 1):
-                reasons.append(f"非正規化:{context!r}:{total}")
+                reasons.append(f"非正規化:{文脈!r}:{total}")
             eos = dist.確率_of(EOS記号)
             if eos <= 0:
-                reasons.append(f"EOS非正:{context!r}")
+                reasons.append(f"EOS非正:{文脈!r}")
             eos_values.append(eos)
         lower = min(eos_values, default=Fraction(0, 1))
         if lower <= 0:

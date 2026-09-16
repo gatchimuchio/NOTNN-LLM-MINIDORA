@@ -141,8 +141,8 @@ class 応答構成契約試験(unittest.TestCase):
         self.assertNotIn('条件=「通常」',value.本文)
 
     def test_公開日時は主張時点にしない(self):
-        source = 参照資料("a","資料","人工",公開時刻=datetime(2026,9,10,tzinfo=timezone.utc),本文="装置Aの電圧は120 Vです。")
-        report = 証拠統合器().実行(証拠照合要求("装置A","電圧","V",時点="2026-09-10"),(source,))
+        情報源 = 参照資料("a","資料","人工",公開時刻=datetime(2026,9,10,tzinfo=timezone.utc),本文="装置Aの電圧は120 Vです。")
+        report = 証拠統合器().実行(証拠照合要求("装置A","電圧","V",時点="2026-09-10"),(情報源,))
         value = self.render(report)
         self.assertIn("時点=未記載",value.本文)
         self.assertIn("適用できるか未確定",value.本文)
@@ -279,8 +279,8 @@ class 応答構成契約試験(unittest.TestCase):
     def test_hashを書き直した偽報告も元資料からの再計算で拒否(self):
         report=deepcopy(self.report)
         report.データ["採用値"]="999"
-        data=dict(report.データ);data.pop("記録SHA256")
-        report.データ["記録SHA256"]=_記録hash(data)
+        資料=dict(report.データ);資料.pop("記録SHA256")
+        report.データ["記録SHA256"]=_記録hash(資料)
         self.assertTrue(証拠記録整合(report))  # 既存関数のhash検査だけでは検出しない場合。
         value=self.構成器.実行((report,))
         self.assertFalse(value.成立)
@@ -334,10 +334,10 @@ class 応答構成契約試験(unittest.TestCase):
 
     def test_入力を変更しない(self):
         before=deepcopy(self.report)
-        result=self.render()
-        result.データ["元報告"][0]["データ"]["採用値"]="changed"
+        結果=self.render()
+        結果.データ["元報告"][0]["データ"]["採用値"]="changed"
         self.assertEqual(self.report,before)
-        self.assertFalse(応答記録整合(result))
+        self.assertFalse(応答記録整合(結果))
 
     def test_反復実行は同じ結果(self):
         self.assertEqual(self.render(),self.render())

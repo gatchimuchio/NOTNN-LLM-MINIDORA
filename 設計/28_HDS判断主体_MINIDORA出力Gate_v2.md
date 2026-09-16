@@ -1,4 +1,4 @@
-# HDS判断主体 — MINIDORA出力Gate仕様 v2
+# HDS判断主体 — MINIDORA出力関門仕様 v2
 
 日付: 2026-08-27
 状態: 現行正本
@@ -11,7 +11,7 @@ MINIDORAを計算機としてのLLMに固定し、後段HDSの責任を「MINIDO
 ```text
 自然言語 / Data
   ↓
-HDS Compiler
+HDS 構文化器
   ↓
 MINIDORA入力
   ↓
@@ -29,7 +29,7 @@ MINIDORA出力
 
 ## 2. 責任境界
 
-### HDS Compiler
+### HDS 構文化器
 
 - 自然言語・外部Dataを観測・構文化する。
 - MINIDORAが扱う入力状態へ変換する。
@@ -37,8 +37,8 @@ MINIDORA出力
 
 ### MINIDORA
 
-- HDS Compilerから渡された入力を計算する。
-- 候補差・参照差・checkpoint・再作用状態を形成する。
+- HDS 構文化器から渡された入力を計算する。
+- 候補差・参照差・検査点・再作用状態を形成する。
 - 自律的な再検索・再試行・目的変更は行わない。
 
 ### 後段HDS
@@ -60,13 +60,13 @@ MINIDORA出力
 - 候補差
 - 参照候補差
 - 参照同率候補
-- checkpoint数
+- 検査点数
 - 再作用回数
 - 終端遍歴数
 
 これは元Dataそのものではない。**MINIDORAの計算結果を監査可能な形で表した出力状態**である。
 
-正式knowledge choiceでは、一般表層差へfallbackせず `参照最有力候補ID` をMINIDORA出力候補とする。
+正式knowledge choiceでは、一般表層差へ代替経路せず `参照最有力候補ID` をMINIDORA出力候補とする。
 
 ## 4. 後段HDSの終端
 
@@ -170,12 +170,12 @@ MINIDORA局所結果
 - MINIDORA出力不整合 → REJECT / SILENT。
 - HOLD / REJECTに再試行・差し戻しフィールドが存在しない。
 - 参照信頼を変えても、同一MINIDORA出力に対する後段HDS判断は変わらない。
-- 前段HDS CompilerとMINIDORA入力境界は従来どおり維持する。
+- 前段HDS 構文化器とMINIDORA入力境界は従来どおり維持する。
 
 ## 9. 責任式
 
 ```text
-CompiledInput = HDS_Compiler(Input, Data)
+CompiledInput = HDS_構文化器(Input, Data)
 ModelOutput   = MINIDORA(CompiledInput)
 Decision      = HDS(ModelOutput)
 

@@ -1,7 +1,4 @@
-"""局所会話状態→実HDS→要求計画→既存能力→次状態を接続する。
-
-標準チャット入口の置換ではなく、文書操作Capability用の同期セッション。
-"""
+'局所会話状態→実HDS→要求計画→既存能力→次状態を接続する。\n\n標準チャット入口の置換ではなく、文書操作能力用の同期セッション。\n'
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
@@ -9,8 +6,8 @@ from copy import deepcopy
 from dataclasses import dataclass
 from threading import Lock
 
-from .hds_adapter import HDSコンパイラProtocol
-from .hds_ir import HDSIR
+from .HDS適合器 import HDSコンパイラProtocol
+from .HDS中間表現 import HDSIR
 from .要求解釈 import 要求計画器, 要求解釈結果
 from .要求解釈実行 import 要求計画を実行, 要求実行結果
 from .能力合成 import 能力合成器
@@ -48,7 +45,7 @@ class 文脈付き要求セッション:
     def __init__(self, セッションID: str, *, コンパイラ: HDSコンパイラProtocol | None = None,
                  最大応答数: int = 64, 最大記録バイト数: int = 2_000_000):
         if コンパイラ is None:
-            from .hds_compiler import 公開HDSコンパイラ
+            from .HDS構文化器 import 公開HDSコンパイラ
             コンパイラ = 公開HDSコンパイラ()
         self._コンパイラ = コンパイラ
         self._文脈 = 会話参照記憶(セッションID, 最大応答数=最大応答数,
@@ -83,7 +80,7 @@ class 文脈付き要求セッション:
         ir = self._コンパイラ.コンパイル(依頼, 文脈=s.HDS文脈へ(),
                                          HDS履歴=deepcopy(s.局所起点.IR履歴))
         if not isinstance(ir, HDSIR) or ir.原文 != 依頼:
-            raise _準備不成立("Compiler出力と依頼原文が不一致")
+            raise _準備不成立('構文化器出力と依頼原文が不一致')
         r = self._計画器.コンパイル(ir, {} if 資料 is None else 資料, 文脈=s)
         return 文脈要求計画(s, r)
 

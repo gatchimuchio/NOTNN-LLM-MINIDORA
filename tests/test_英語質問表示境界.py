@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import replace
 import unittest
 
-from minidora.hds_choice_runtime import HDS選択推論実行
-from minidora.hds_compiler_v1 import 公開HDSコンパイラ
-from minidora.hds_ir import HDS残差
-from minidora.hds_language_semantic_bridge import HDS英日意味射影
-from minidora.hds_model_projection import HDS内部言語状態
-from minidora.hds_runtime_projection import HDSKData射影
+from minidora.HDS選択実行系 import HDS選択推論実行
+from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
+from minidora.HDS中間表現 import HDS残差
+from minidora.HDS言語意味橋渡し import HDS英日意味射影
+from minidora.HDS模型射影 import HDS内部言語状態
+from minidora.HDS実行系射影 import HDSK資料射影
 from minidora.参照 import 参照記録
 from minidora.能力状態差循環 import 標準能力模型核
 from minidora.言語基底_英日意味 import 英語質問境界解析, 英語質問表示, 英日意味フレーム抽出 as 基礎抽出
@@ -55,7 +55,7 @@ class 英語質問表示境界試験(unittest.TestCase):
             assert 質問 is not None
             self.assertEqual((質問.種別, 質問.未知位置, 質問.要求型, 質問.既知端点, 質問.検索述語),
                              ("活性化", "始点", "switch", "lamp", "activate"))
-            self.assertEqual(tuple(値 for 鍵, 値 in 質問.修飾 if 鍵 == "条件scope"), 条件)
+            self.assertEqual(tuple(値 for 鍵, 値 in 質問.修飾 if 鍵 == '条件範囲'), 条件)
         ir = self.コンパイラ.意味コンパイル(本文)
         関係群 = [関係 for 関係 in ir.関係 if "英日意味射影=v0.5" in 関係.条件
                   and "不足位置=始点" in 関係.条件]
@@ -63,9 +63,9 @@ class 英語質問表示境界試験(unittest.TestCase):
         self.assertEqual(関係群[0].種別, "活性化")
         座標 = ir.座標辞書()
         self.assertEqual(tuple(座標[端点].内容 for 端点 in 関係群[0].終点), ("lamp",))
-        self.assertEqual(tuple(値.removeprefix("条件scope=") for 値 in 関係群[0].条件
-                               if 値.startswith("条件scope=")), 条件)
-        self.assertFalse(any(残差.種別 == "semantic_loss" for 残差 in ir.残差))
+        self.assertEqual(tuple(値.removeprefix('条件範囲=') for 値 in 関係群[0].条件
+                               if 値.startswith('条件範囲=')), 条件)
+        self.assertFalse(any(残差.種別 == '意味_loss' for 残差 in ir.残差))
 
     def test_全文括弧と句点と疑問符を端点へ混ぜない(self) -> None:
         for 本文 in (
@@ -122,7 +122,7 @@ class 英語質問表示境界試験(unittest.TestCase):
                 with self.subTest(本文=本文):
                     self._活性化質問を確認(本文, (条件,))
         引用内条件 = 英語質問境界解析('Which object has the label "under condition delta"?')
-        self.assertEqual(引用内条件.条件scope, ())
+        self.assertEqual(引用内条件.条件範囲, ())
 
     def test_単独改行は直接疑問を切らず間接疑問を主節へ昇格しない(self) -> None:
         裸 = "Which switch activates lamp"
@@ -138,7 +138,7 @@ class 英語質問表示境界試験(unittest.TestCase):
                 self.assertFalse(英語質問表示(本文))
                 self.assertIsNone(強化抽出(本文).関係質問)
                 ir = self.コンパイラ.意味コンパイル(本文)
-                self.assertFalse(any(残差.種別 == "semantic_loss" for 残差 in ir.残差))
+                self.assertFalse(any(残差.種別 == '意味_loss' for 残差 in ir.残差))
 
     def test_直接when疑問は前半を条件へ変換せず全文を保持する(self) -> None:
         for 主節 in ("does the switch activate lamp", "has the switch activated lamp",
@@ -150,13 +150,13 @@ class 英語質問表示境界試験(unittest.TestCase):
                         境界 = 英語質問境界解析(本文)
                         self.assertTrue(境界.質問表示)
                         self.assertEqual(境界.本体, 本体)
-                        self.assertEqual(境界.条件scope, ())
+                        self.assertEqual(境界.条件範囲, ())
                         self.assertIsNone(基礎抽出(本文).関係質問)
                         質問 = 強化抽出(本文).関係質問
                         self.assertIsNotNone(質問)
                         assert 質問 is not None
                         self.assertEqual((質問.種別, 質問.既知端点), ("問い適合", 本体))
-                        self.assertFalse(any(鍵 == "条件scope" for 鍵, _ in 質問.修飾))
+                        self.assertFalse(any(鍵 == '条件範囲' for 鍵, _ in 質問.修飾))
         self._活性化質問を確認("When the seal is open, which switch activates lamp",
                                  ("When the seal is open",))
 
@@ -171,13 +171,13 @@ class 英語質問表示境界試験(unittest.TestCase):
                     境界 = 英語質問境界解析(本体 + 終端)
                     self.assertTrue(境界.質問表示)
                     self.assertEqual(境界.境界状態, "条件境界未確定")
-                    self.assertEqual((境界.本体, 境界.条件scope), (本体, ()))
+                    self.assertEqual((境界.本体, 境界.条件範囲), (本体, ()))
                     self.assertIsNone(基礎抽出(本体 + 終端).関係質問)
                     質問 = 強化抽出(本体 + 終端).関係質問
                     self.assertIsNotNone(質問)
                     assert 質問 is not None
                     self.assertEqual((質問.種別, 質問.既知端点), ("問い適合", 本体))
-                    self.assertFalse(any(鍵 == "条件scope" for 鍵, _ in 質問.修飾))
+                    self.assertFalse(any(鍵 == '条件範囲' for 鍵, _ in 質問.修飾))
 
     def test_副詞と前置詞句を伴う直接疑問を条件節へ落とさない(self) -> None:
         for 主節 in (
@@ -191,13 +191,13 @@ class 英語質問表示境界試験(unittest.TestCase):
                     with self.subTest(本文=本文):
                         境界 = 英語質問境界解析(本文)
                         self.assertTrue(境界.質問表示)
-                        self.assertEqual((境界.本体, 境界.条件scope), (主節, ()))
+                        self.assertEqual((境界.本体, 境界.条件範囲), (主節, ()))
                         質問 = 強化抽出(本文).関係質問
                         self.assertIsNotNone(質問)
                         assert 質問 is not None
                         self.assertEqual((質問.種別, 質問.既知端点), ("問い適合", 主節))
 
-    def test_条件付きの倒置疑問と前置疑問句は条件scopeを保持する(self) -> None:
+    def test_条件付きの倒置疑問と前置疑問句は条件範囲を保持する(self) -> None:
         条件 = "If the seal is open"
         for 主節 in (
             "does the switch activate lamp",
@@ -212,16 +212,16 @@ class 英語質問表示境界試験(unittest.TestCase):
                 with self.subTest(本文=本文):
                     境界 = 英語質問境界解析(本文)
                     self.assertTrue(境界.質問表示)
-                    self.assertEqual((境界.本体, 境界.条件scope), (主節, (条件,)))
+                    self.assertEqual((境界.本体, 境界.条件範囲), (主節, (条件,)))
                     質問 = 強化抽出(本文).関係質問
                     self.assertIsNotNone(質問)
                     assert 質問 is not None
                     self.assertEqual(質問.既知端点, 主節)
-                    self.assertIn(("条件scope", 条件), 質問.修飾)
+                    self.assertIn(('条件範囲', 条件), 質問.修飾)
                     ir = self.コンパイラ.意味コンパイル(本文)
                     関係群 = [関係 for 関係 in ir.関係 if "英日意味射影=v0.5" in 関係.条件]
                     self.assertEqual(len(関係群), 1)
-                    self.assertIn(f"条件scope={条件}", 関係群[0].条件)
+                    self.assertIn(f"条件範囲={条件}", 関係群[0].条件)
 
     def test_倒置疑問の認定で条件節と埋込と引用を主節へ昇格しない(self) -> None:
         for 本文 in (
@@ -254,13 +254,13 @@ class 英語質問表示境界試験(unittest.TestCase):
             for 主節 in ("when does the switch activate lamp", "under which condition does the switch activate lamp"):
                 本文 = f"{条件}, {主節}?"
                 境界 = 英語質問境界解析(本文)
-                self.assertEqual((境界.本体, 境界.条件scope), (主節, (条件,)))
-                self.assertIn(("条件scope", 条件), 強化抽出(本文).関係質問.修飾)
+                self.assertEqual((境界.本体, 境界.条件範囲), (主節, (条件,)))
+                self.assertIn(('条件範囲', 条件), 強化抽出(本文).関係質問.修飾)
         for 終端 in ("", "?"):
             本体 = "When in the cycle does the switch activate lamp, under condition delta"
             境界 = 英語質問境界解析(本体 + 終端)
             self.assertEqual(境界.質問表示, bool(終端))
-            self.assertEqual((境界.本体, 境界.条件scope), (本体, ()))
+            self.assertEqual((境界.本体, 境界.条件範囲), (本体, ()))
             self.assertEqual(境界.境界状態, "when前置句境界未確定")
 
     def test_未確定のwhen境界は平叙事実として利用しない(self) -> None:
@@ -273,8 +273,8 @@ class 英語質問表示境界試験(unittest.TestCase):
                     self.assertFalse(英語質問表示(本文))
                     self.assertIsNone(強化抽出(本文).関係質問)
                     ir = self.コンパイラ.意味コンパイル(本文)
-                    self.assertTrue(any(残差.残差ID == "lang-sem:question-boundary-unresolved" for 残差 in ir.残差))
-                    self.assertFalse(HDS内部言語状態(HDSKData射影(ir), 証拠境界=True).証拠利用可)
+                    self.assertTrue(any(残差.残差ID == 'lang-sem:question-境界-unresolved' for 残差 in ir.残差))
+                    self.assertFalse(HDS内部言語状態(HDSK資料射影(ir), 証拠境界=True).証拠利用可)
 
     def test_不整合括弧は端点stripで修復せず未確定の全文を保持する(self) -> None:
         for 本文 in ("(Which switch activates lamp?", "([Which switch activates lamp)]?"):
@@ -288,7 +288,7 @@ class 英語質問表示境界試験(unittest.TestCase):
                 assert 質問 is not None
                 self.assertEqual((質問.種別, 質問.既知端点), ("問い適合", 本文.rstrip("?")))
 
-    def test_正式Runtimeで裸と全文括弧の支持差と無根拠停止が一致する(self) -> None:
+    def test_正式実行系で裸と全文括弧の支持差と無根拠停止が一致する(self) -> None:
         問い群 = ("Which switch activates lamp", "(Which switch activates lamp)",
                   "[(Which switch activates lamp)].", "(Which switch activates lamp? )")
         参照条件 = (
@@ -329,8 +329,8 @@ class 英語質問表示境界試験(unittest.TestCase):
                     self.assertIsNone(強化抽出(本文).関係質問)
                     ir = self.コンパイラ.意味コンパイル(本文)
                     self.assertFalse(any("不足位置=" in 条件 for 関係 in ir.関係 for 条件 in 関係.条件))
-                    self.assertFalse(any(残差.種別 == "semantic_loss" for 残差 in ir.残差))
-                    self.assertTrue(HDS内部言語状態(HDSKData射影(ir), 証拠境界=True).証拠利用可)
+                    self.assertFalse(any(残差.種別 == '意味_loss' for 残差 in ir.残差))
+                    self.assertTrue(HDS内部言語状態(HDSK資料射影(ir), 証拠境界=True).証拠利用可)
 
     def test_疑問符なしの問いに前後文を足しても意味フレームを変えない(self) -> None:
         for 問い in ("Which widgets activate gamma", "What activates gamma", "Who activates gamma"):
@@ -348,7 +348,7 @@ class 英語質問表示境界試験(unittest.TestCase):
                 self.assertIsNone(強化抽出(本文).関係質問)
                 ir = self.コンパイラ.意味コンパイル(本文)
                 self.assertTrue(any(残差.残差ID == "lang-sem:question-loss" for 残差 in ir.残差))
-                self.assertFalse(HDS内部言語状態(HDSKData射影(ir), 証拠境界=True).証拠利用可)
+                self.assertFalse(HDS内部言語状態(HDSK資料射影(ir), 証拠境界=True).証拠利用可)
 
     def test_条件whenの主節が平叙文か問いかを区別する(self) -> None:
         self.assertFalse(英語質問表示("When the gate is open, blue widgets activate gamma."))
@@ -360,7 +360,7 @@ class 英語質問表示境界試験(unittest.TestCase):
                     質問 = 強化抽出(本文).関係質問
                     self.assertIsNotNone(質問)
                     assert 質問 is not None
-                    self.assertIn(("条件scope", "When the gate is open"), 質問.修飾)
+                    self.assertIn(('条件範囲', "When the gate is open"), 質問.修飾)
 
     def test_引用疑問符は実質問の焦点を奪わない(self) -> None:
         for 問い in ("Which widgets activate gamma", "Which widgets activate gamma?"):
@@ -389,17 +389,17 @@ class 英語質問表示境界試験(unittest.TestCase):
 
     def test_質問表示を持たない宣言でも既存の意味損失を免除しない(self) -> None:
         元 = self.コンパイラ.意味コンパイル("The report identifies which device works.")
-        残差 = HDS残差("test:unresolved", "semantic_loss", 元.原文, "別の未解関係")
+        残差 = HDS残差("test:unresolved", '意味_loss', 元.原文, "別の未解関係")
         結果 = HDS英日意味射影(replace(元, 残差=(残差,)))
         self.assertEqual(結果.残差, (残差,))
-        self.assertFalse(HDS内部言語状態(HDSKData射影(結果), 証拠境界=True).証拠利用可)
+        self.assertFalse(HDS内部言語状態(HDSK資料射影(結果), 証拠境界=True).証拠利用可)
 
     def test_独立明示関係の否定条件を中立追加で失わない(self) -> None:
         否定条件 = "Under condition delta, blue widgets do not activate gamma."
         for 本文 in (否定条件, _宣言群[1] + " " + 否定条件, 否定条件 + " " + _宣言群[1] + " " + _中立文):
             with self.subTest(本文=本文):
                 ir = self.コンパイラ.意味コンパイル(本文)
-                状態 = HDS内部言語状態(HDSKData射影(ir), 証拠境界=True)
+                状態 = HDS内部言語状態(HDSK資料射影(ir), 証拠境界=True)
                 self.assertTrue(状態.証拠利用可)
                 対象 = [関係 for 関係 in 状態.関係構造 if 関係.種別 == "活性化"
                         and 関係.始点 == _意味集合("blue widgets") and 関係.終点 == _意味集合("gamma")]
@@ -407,7 +407,7 @@ class 英語質問表示境界試験(unittest.TestCase):
                 self.assertFalse(any(関係.肯定 for 関係 in 対象))
                 self.assertTrue(any({"condition", "delta"}.issubset(frozenset().union(*関係.条件)) for 関係 in 対象))
 
-    def test_正式Runtimeで関係詞や間接疑問の中立追加後も明示支持を利用する(self) -> None:
+    def test_正式実行系で関係詞や間接疑問の中立追加後も明示支持を利用する(self) -> None:
         問い = self.コンパイラ.問題IR("Which object activates gamma?", ("Blue widgets", "Red widgets"))
         for 宣言 in _宣言群[:11]:
             for 本文 in _前後追加("Blue widgets activate gamma. " + 宣言):

@@ -7,9 +7,9 @@ from typing import Iterable
 
 class 既存提案源(StrEnum):
     K3 = "K3"
-    能力模型 = "CAPABILITY_MODEL"
+    能力模型 = '能力_模型'
     計算 = "COMPUTE"
-    直接関係 = "DIRECT_RELATION"
+    直接関係 = 'DIRECT_関係'
 
 
 class 既存提案状態(StrEnum):
@@ -70,7 +70,7 @@ def 既存MINIDORA提案解決(
         return 既存解決結果(
             既存提案状態.保留,
             None,
-            ("CANDIDATE_CONFLICT", "DIRECT_RELATION_CONFLICT"),
+            ('候補_CONFLICT', 'DIRECT_関係_CONFLICT'),
             (),
             ("EXISTING_DIRECT_RELATIONS_DISAGREE",),
         )
@@ -85,7 +85,7 @@ def 既存MINIDORA提案解決(
             return 既存解決結果(
                 既存提案状態.保留,
                 None,
-                ("CANDIDATE_CONFLICT", "DIRECT_COMPUTE_CONFLICT"),
+                ('候補_CONFLICT', "DIRECT_COMPUTE_CONFLICT"),
                 (),
                 ("EXISTING_DIRECT_AND_COMPUTE_DISAGREE",),
             )
@@ -95,7 +95,7 @@ def 既存MINIDORA提案解決(
             answer,
             (),
             tuple(dict.fromkeys(selected)),
-            ("EXISTING_DIRECT_RELATION_VERIFIED",),
+            ('EXISTING_DIRECT_関係_VERIFIED',),
         )
 
     if 計算要求:
@@ -108,7 +108,7 @@ def 既存MINIDORA提案解決(
             return 既存解決結果(
                 既存提案状態.保留,
                 None,
-                ("CANDIDATE_CONFLICT", "COMPUTE_CONFLICT"),
+                ('候補_CONFLICT', "COMPUTE_CONFLICT"),
                 (),
                 ("EXISTING_COMPUTE_RESULTS_DISAGREE",),
             )
@@ -128,7 +128,7 @@ def 既存MINIDORA提案解決(
         return 既存解決結果(
             既存提案状態.保留,
             None,
-            ("CANDIDATE_CONFLICT",),
+            ('候補_CONFLICT',),
             (),
             ("EXISTING_CAPABILITIES_DISAGREE",),
         )
@@ -147,7 +147,7 @@ def 既存MINIDORA提案解決(
         return 既存解決結果(
             既存提案状態.失敗,
             None,
-            ("EXISTING_CAPABILITY_FAILURE",),
+            ('EXISTING_能力_FAILURE',),
             (),
             ("NO_VALID_EXISTING_PROPOSAL",),
         )
@@ -155,7 +155,7 @@ def 既存MINIDORA提案解決(
     return 既存解決結果(
         既存提案状態.保留,
         None,
-        ("CANDIDATE_DISCRIMINATION_INSUFFICIENT",),
+        ('候補_DISCRIMINATION_INSUFFICIENT',),
         (),
         ("NO_VALID_EXISTING_PROPOSAL",),
     )

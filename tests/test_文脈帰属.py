@@ -9,8 +9,8 @@ from minidora.文脈命題 import 文脈資料を読む, 解釈場合を構成, 
 
 
 class 帰属試験(unittest.TestCase):
-    def judge(self, source, query):
-        return 命題推論器(命題資料を読む(source, '資料')).判定(命題を読む(query)[0].式)['判定']
+    def judge(self, 情報源, query):
+        return 命題推論器(命題資料を読む(情報源, '資料')).判定(命題を読む(query)[0].式)['判定']
     def test_発言の内容を事実にしない(self):
         self.assertEqual(self.judge('太郎は「P」と述べた。', 'P'), '未確定')
     def test_発言記載そのものは支持できる(self):
@@ -74,10 +74,10 @@ class 帰属試験(unittest.TestCase):
 
 
 class 文脈資料試験(unittest.TestCase):
-    def result(self, text, q, choice=0):
-        return 文脈判定((文脈資料を読む(text,'A'),), q, 資料候補=choice)
+    def 結果(self, text, q, 選択肢=0):
+        return 文脈判定((文脈資料を読む(text,'A'),), q, 資料候補=選択肢)
     def test_隣接主題へ照応(self):
-        r=self.result('太郎は猫である。彼は鳥である。','太郎は鳥である')
+        r=self.結果('太郎は猫である。彼は鳥である。','太郎は鳥である')
         self.assertEqual(r['判定'],'支持');self.assertEqual(r['場合別'][0]['照応解消'][0]['束縛先'],'太郎')
     def test_照応原文と位置を保持(self):
         t='太郎は猫である。\n彼は鳥である。'; d=文脈資料を読む(t,'A')
@@ -93,47 +93,47 @@ class 文脈資料試験(unittest.TestCase):
     def test_直前に主題がなければ古い人物を勝手に使わない(self):
         with self.assertRaises(ValueError): 文脈資料を読む('太郎は猫である。P。彼は鳥である。','A')
     def test_多主題では候補を保持(self):
-        r=self.result('太郎は猫であるかつ花子は鳥である。彼は魚である。','太郎は魚である')
+        r=self.結果('太郎は猫であるかつ花子は鳥である。彼は魚である。','太郎は魚である')
         self.assertEqual(r['判定'],'解釈依存');self.assertEqual(r['場合総数'],2)
     def test_続く照応の選択を前の照応へ束縛(self):
-        r=self.result('太郎は猫であるかつ花子は鳥である。彼は魚である。彼は動物である。','太郎は動物である')
+        r=self.結果('太郎は猫であるかつ花子は鳥である。彼は魚である。彼は動物である。','太郎は動物である')
         self.assertEqual(r['場合総数'],2)  # 独立に掛け合わせた4通りにはしない。
         for case in r['場合別']:
             self.assertEqual(case['照応解消'][0]['束縛先'],case['照応解消'][1]['束縛先'])
     def test_引用の私は発言主体へ(self):
-        r=self.result('太郎は「私は猫である」と述べた。','太郎は「太郎は猫である」と述べた')
+        r=self.結果('太郎は「私は猫である」と述べた。','太郎は「太郎は猫である」と述べた')
         self.assertEqual(r['判定'],'支持')
     def test_引用の私は事実にならない(self):
-        self.assertEqual(self.result('太郎は「私は猫である」と述べた。','太郎は猫である')['判定'],'未確定')
+        self.assertEqual(self.結果('太郎は「私は猫である」と述べた。','太郎は猫である')['判定'],'未確定')
     def test_二重引用の一人称は最寄り話者へ(self):
-        r=self.result('太郎は「花子は『私は猫である』と考えている」と述べた。','太郎は「花子は『花子は猫である』と考えている」と述べた')
+        r=self.結果('太郎は「花子は『私は猫である』と考えている」と述べた。','太郎は「花子は『花子は猫である』と考えている」と述べた')
         self.assertEqual(r['判定'],'支持')
     def test_引用の話者を外へ漏らさない(self):
-        r=self.result('太郎は「花子は猫である」と述べた。彼は鳥である。','花子は鳥である')
+        r=self.結果('太郎は「花子は猫である」と述べた。彼は鳥である。','花子は鳥である')
         self.assertEqual(r['判定'],'未確定')
     def test_伝聞の資料名を一人称の話者にしない(self):
         with self.assertRaises(ValueError):文脈資料を読む('資料Aによると「私は猫である」。','A')
     def test_複数引用中の一人称を独立に束縛(self):
-        r=self.result('太郎は「私は猫である」と述べたかつ花子は「私は鳥である」と述べた。',
+        r=self.結果('太郎は「私は猫である」と述べたかつ花子は「私は鳥である」と述べた。',
                       '花子は「花子は鳥である」と述べた')
         self.assertEqual(r['判定'],'支持')
     def test_引用内の複数文の私は同じ直接話者(self):
-        r=self.result('太郎は「私は猫である。私は鳥である」と述べた。','太郎は「太郎は猫であるかつ太郎は鳥である」と述べた')
+        r=self.結果('太郎は「私は猫である。私は鳥である」と述べた。','太郎は「太郎は猫であるかつ太郎は鳥である」と述べた')
         self.assertEqual(r['判定'],'支持')
     def test_資料読みが違っても結論共通なら保持して報告(self):
-        r=self.result('PまたはQかつR。','PまたはQ')
+        r=self.結果('PまたはQかつR。','PまたはQ')
         self.assertEqual(r['判定'],'支持');self.assertEqual(r['解釈状態'],'読み未確定')
     def test_都合のいい資料解釈を選ばない(self):
-        r=self.result('PまたはQかつR。','R');self.assertEqual(r['判定'],'解釈依存')
+        r=self.結果('PまたはQかつR。','R');self.assertEqual(r['判定'],'解釈依存')
     def test_明示選択は条件として残る(self):
-        r=self.result('PまたはQかつR。','R',2)
+        r=self.結果('PまたはQかつR。','R',2)
         self.assertEqual(r['判定'],'支持');self.assertEqual(r['資料候補'],2)
     def test_候補番号不正(self):
-        with self.assertRaises(ValueError):self.result('PまたはQかつR。','R',3)
+        with self.assertRaises(ValueError):self.結果('PまたはQかつR。','R',3)
     def test_未知尾部を落とさない(self):
-        with self.assertRaises(ValueError):self.result('P。まだ例外がある。','P')
+        with self.assertRaises(ValueError):self.結果('P。まだ例外がある。','P')
     def test_組合せ上限で一部を採用しない(self):
-        with self.assertRaises(ValueError):self.result('。'.join(f'P{i}またはQ{i}かつR{i}' for i in range(5)),'P0')
+        with self.assertRaises(ValueError):self.結果('。'.join(f'P{i}またはQ{i}かつR{i}' for i in range(5)),'P0')
     def test_重複資料を拒否(self):
         d=文脈資料を読む('P','A')
         with self.assertRaises(ValueError):解釈場合を構成((d,d))

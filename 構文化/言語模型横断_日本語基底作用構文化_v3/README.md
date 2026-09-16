@@ -8,7 +8,7 @@
 
 ## 1. 再構文化理由
 
-v2は技術観測の分別自体には有効だったが、内部座標に `runtime`、`harness`、`recurrent`、`branch` 等の外部原語を残し、英語圏の分類を日本語で説明する構造になっていた。
+v2は技術観測の分別自体には有効だったが、内部座標に `実行系`、`harness`、`recurrent`、`branch` 等の外部原語を残し、英語圏の分類を日本語で説明する構造になっていた。
 
 これは `cognitive-engineering-foundations` の日本語基底規定およびMINIDORA `00_日本語基底規定_v1` と一致しない。
 

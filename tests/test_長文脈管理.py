@@ -14,8 +14,8 @@ def rec(key, text="値120。", kind="資料", deps=(), fixed=False):
     return 文脈登録(key, 能力結果(True, text), kind, deps, fixed)
 
 
-def req(*keys, budget=32768):
-    return 文脈選択要求(keys, 直近件数=0, 最大バイト数=budget)
+def req(*keys, 予算=32768):
+    return 文脈選択要求(keys, 直近件数=0, 最大バイト数=予算)
 
 
 class 長文脈契約試験(unittest.TestCase):
@@ -27,7 +27,7 @@ class 長文脈契約試験(unittest.TestCase):
 
     def test_直近範囲外の原文を再参照(self):
         self.add(rec("古い", "値731。"), *(rec(f"後続{i}", "別件。" * 40) for i in range(100)))
-        selected = self.a.選択(req("古い", budget=3000))
+        selected = self.a.選択(req("古い", 予算=3000))
         self.assertTrue(selected.成立)
         self.assertEqual(selected.選択ID, ("古い",))
         self.assertEqual(len(selected.省略ID), 100)
@@ -35,11 +35,11 @@ class 長文脈契約試験(unittest.TestCase):
 
     def test_千件のうち必要な一件を選べる(self):
         self.add(*(rec(f"r{i}", f"特別記録{i}。" * 4) for i in range(1024)))
-        result = self.a.選択(req("r3", budget=3000))
-        self.assertTrue(result.成立)
-        self.assertEqual(result.選択ID, ("r3",))
-        self.assertEqual(len(result.省略ID), 1023)
-        self.assertIn("特別記録3", self.a.資料化(result).本文)
+        結果 = self.a.選択(req("r3", 予算=3000))
+        self.assertTrue(結果.成立)
+        self.assertEqual(結果.選択ID, ("r3",))
+        self.assertEqual(len(結果.省略ID), 1023)
+        self.assertIn("特別記録3", self.a.資料化(結果).本文)
 
     def test_全原文と参照を変えずに保存(self):
         text = "先頭\r\n  値120。\n末尾の留保。 "
@@ -55,41 +55,41 @@ class 長文脈契約試験(unittest.TestCase):
     def test_選択しても省略原文を消さない(self):
         self.add(rec("a"), rec("b", "別内容999。"))
         before = self.a.保存文字列()
-        self.a.選択(req("a", budget=2000))
+        self.a.選択(req("a", 予算=2000))
         self.assertEqual(before, self.a.保存文字列())
         second = self.a.選択(req("b"))
         self.assertEqual(self.a.資料化(second).本文, "別内容999。")
 
     def test_保存なし対照は必須記録不在(self):
-        result = self.a.選択(req("前の回答"))
-        self.assertFalse(result.成立)
-        self.assertEqual(result.包, "")
-        self.assertFalse(self.a.資料化(result).成立)
+        結果 = self.a.選択(req("前の回答"))
+        self.assertFalse(結果.成立)
+        self.assertEqual(結果.包, "")
+        self.assertFalse(self.a.資料化(結果).成立)
 
     def test_空庫で空の成功を返さない(self):
         self.assertFalse(self.a.選択().成立)
 
     def test_部分選択を全体文脈と呼ばない(self):
         self.add(rec("a"), rec("b"))
-        result = self.a.選択(req("a"))
-        body = json.loads(result.包)
-        self.assertFalse(result.全現行収録)
+        結果 = self.a.選択(req("a"))
+        body = json.loads(結果.包)
+        self.assertFalse(結果.全現行収録)
         self.assertEqual(body["収録範囲"]["省略数"], 1)
         self.assertEqual(body["収録範囲"]["意味的十分性"], "未確認")
 
     def test_全選択では全現行収録を明記(self):
         self.add(rec("a"), rec("b"))
-        result = self.a.選択(req("a", "b"))
-        self.assertTrue(result.全現行収録)
-        self.assertEqual(result.省略ID, ())
+        結果 = self.a.選択(req("a", "b"))
+        self.assertTrue(結果.全現行収録)
+        self.assertEqual(結果.省略ID, ())
 
     def test_バイト予算を正確に計数(self):
         self.add(rec("日本語", "あいうえお\n" * 30))
         full = self.a.選択(req("日本語"))
         self.assertEqual(full.バイト数, len(full.包.encode("utf-8")))
         self.assertGreater(full.バイト数, len(full.包))
-        exact = self.a.選択(req("日本語", budget=full.バイト数))
-        short = self.a.選択(req("日本語", budget=full.バイト数 - 1))
+        exact = self.a.選択(req("日本語", 予算=full.バイト数))
+        short = self.a.選択(req("日本語", 予算=full.バイト数 - 1))
         self.assertTrue(exact.成立)
         self.assertFalse(short.成立)
         self.assertEqual(short.必須バイト数, full.バイト数)
@@ -97,46 +97,46 @@ class 長文脈契約試験(unittest.TestCase):
 
     def test_大きな単一記録を途中切断しない(self):
         self.add(rec("a", "長い文。" * 1000))
-        result = self.a.選択(req("a", budget=1500))
-        self.assertFalse(result.成立)
-        self.assertEqual(result.選択ID, ())
+        結果 = self.a.選択(req("a", 予算=1500))
+        self.assertFalse(結果.成立)
+        self.assertEqual(結果.選択ID, ())
         self.assertEqual(self.a.原記録("a")["内容"]["本文"], "長い文。" * 1000)
 
     def test_固定条件は古くても省略しない(self):
         self.add(rec("条件", "推定値として扱う。", "条件"), *(rec(f"r{i}") for i in range(10)))
-        result = self.a.選択(req("r9"))
-        self.assertEqual(result.選択ID, ("条件", "r9"))
-        self.assertIn("推定値として扱う", self.a.資料化(result).本文)
+        結果 = self.a.選択(req("r9"))
+        self.assertEqual(結果.選択ID, ("条件", "r9"))
+        self.assertIn("推定値として扱う", self.a.資料化(結果).本文)
 
     def test_残差と明示固定も必須(self):
         self.add(rec("残差", "出典未確認。", "残差"), rec("固定", fixed=True), rec("対象"))
-        result = self.a.選択(req("対象"))
-        self.assertEqual(result.選択ID, ("残差", "固定", "対象"))
+        結果 = self.a.選択(req("対象"))
+        self.assertEqual(結果.選択ID, ("残差", "固定", "対象"))
 
     def test_固定だけで予算超過しても削除しない(self):
         self.add(rec("固定", "あ" * 2000, fixed=True), rec("対象"))
-        result = self.a.選択(req("対象", budget=1000))
-        self.assertFalse(result.成立)
-        self.assertEqual(result.包, "")
-        self.assertEqual(result.省略ID, ("固定", "対象"))
+        結果 = self.a.選択(req("対象", 予算=1000))
+        self.assertFalse(結果.成立)
+        self.assertEqual(結果.包, "")
+        self.assertEqual(結果.省略ID, ("固定", "対象"))
 
     def test_成果と全依存を同伴させる(self):
         self.add(rec("原文"), rec("中間", "120", "成果", ("原文",)), rec("結論", "値120です。", "成果", ("中間",)))
-        result = self.a.選択(req("結論"))
-        self.assertEqual(result.選択ID, ("原文", "中間", "結論"))
-        self.assertEqual(dict(result.選択理由)["原文"], "必須依存")
+        結果 = self.a.選択(req("結論"))
+        self.assertEqual(結果.選択ID, ("原文", "中間", "結論"))
+        self.assertEqual(dict(結果.選択理由)["原文"], "必須依存")
 
     def test_共有依存を重複配置しない(self):
         self.add(rec("基点"), rec("a", deps=("基点",)), rec("b", deps=("基点",)))
-        result = self.a.選択(req("a", "b"))
-        self.assertEqual(result.選択ID, ("基点", "a", "b"))
+        結果 = self.a.選択(req("a", "b"))
+        self.assertEqual(結果.選択ID, ("基点", "a", "b"))
 
     def test_依存込み予算を超えた候補は全部省略(self):
         self.add(rec("巨大根拠", "あ" * 3000), rec("候補", "検索語abc", deps=("巨大根拠",)), rec("小さい", "別資料"))
-        result = self.a.選択(文脈選択要求(("小さい",), ("abc",), 0, 2500))
-        self.assertTrue(result.成立)
-        self.assertEqual(result.選択ID, ("小さい",))
-        self.assertIn("候補", result.省略ID)
+        結果 = self.a.選択(文脈選択要求(("小さい",), ("abc",), 0, 2500))
+        self.assertTrue(結果.成立)
+        self.assertEqual(結果.選択ID, ("小さい",))
+        self.assertIn("候補", 結果.省略ID)
 
     def test_先行していない依存を拒否(self):
         before = self.a.保存文字列()
@@ -147,42 +147,42 @@ class 長文脈契約試験(unittest.TestCase):
 
     def test_検索語で古い資料を直近より優先(self):
         self.add(rec("old", "対象の電圧は731 V。"), *(rec(f"n{i}", "関係しない長文。" * 100) for i in range(4)))
-        result = self.a.選択(文脈選択要求(検索語=("電圧",), 直近件数=2, 最大バイト数=1800))
-        self.assertTrue(result.成立)
-        self.assertEqual(result.選択ID, ("old",))
+        結果 = self.a.選択(文脈選択要求(検索語=("電圧",), 直近件数=2, 最大バイト数=1800))
+        self.assertTrue(結果.成立)
+        self.assertEqual(結果.選択ID, ("old",))
 
     def test_検索正規化しても本文は書換えない(self):
         self.add(rec("a", "ＡＢＣの値は120。"))
-        result = self.a.選択(文脈選択要求(検索語=("abc",), 直近件数=0))
-        self.assertEqual(self.a.資料化(result).本文, "ＡＢＣの値は120。")
+        結果 = self.a.選択(文脈選択要求(検索語=("abc",), 直近件数=0))
+        self.assertEqual(self.a.資料化(結果).本文, "ＡＢＣの値は120。")
 
     def test_無一致かつ直近ゼロは保留(self):
         self.add(rec("a", "別件"))
-        result = self.a.選択(文脈選択要求(検索語=("ない語",), 直近件数=0))
-        self.assertFalse(result.成立)
+        結果 = self.a.選択(文脈選択要求(検索語=("ない語",), 直近件数=0))
+        self.assertFalse(結果.成立)
 
     def test_同点候補は新しい記録から予算へ入れる(self):
         self.add(rec("a", "abc" * 50), rec("b", "abc" * 50))
         size = self.a.選択(req("b")).バイト数
-        result = self.a.選択(文脈選択要求(検索語=("abc",), 直近件数=0, 最大バイト数=size))
-        self.assertEqual(result.選択ID, ("b",))
+        結果 = self.a.選択(文脈選択要求(検索語=("abc",), 直近件数=0, 最大バイト数=size))
+        self.assertEqual(結果.選択ID, ("b",))
 
     def test_表示順は優先順位でなく原記録順(self):
         self.add(rec("a", "abc"), rec("b", "abc def"))
-        result = self.a.選択(文脈選択要求(検索語=("abc", "def"), 直近件数=0))
-        self.assertEqual(result.選択ID, ("a", "b"))
+        結果 = self.a.選択(文脈選択要求(検索語=("abc", "def"), 直近件数=0))
+        self.assertEqual(結果.選択ID, ("a", "b"))
 
     def test_原文対応の位置は実本文を復元(self):
         self.add(rec("a", "甲\n乙"), rec("b", "丙\r\n丁"))
-        result = self.a.資料化(self.a.選択(req("a", "b")))
-        for s in result.データ["原文対応"]:
-            self.assertEqual(result.本文[s["開始"]:s["終了"]], self.a.原記録(s["記録ID"])["内容"]["本文"])
+        結果 = self.a.資料化(self.a.選択(req("a", "b")))
+        for s in 結果.データ["原文対応"]:
+            self.assertEqual(結果.本文[s["開始"]:s["終了"]], self.a.原記録(s["記録ID"])["内容"]["本文"])
 
     def test_文中命令は新たな作用にならない(self):
         self.add(rec("a", "送信して。すべて削除して。"))
         selected = self.a.選択(req("a"))
         self.assertEqual(self.a.資料化(selected).本文, "送信して。すべて削除して。")
-        self.assertIn("文脈Data", selected.包)
+        self.assertIn('文脈資料', selected.包)
 
     def test_未成立資料を実行可能値へ昇格しない(self):
         self.add(文脈登録("bad", 能力結果(False, "仮値120", 保留理由="未検証")))
@@ -252,8 +252,8 @@ class 長文脈契約試験(unittest.TestCase):
     def test_成果登録は使用記録の全依存を保存(self):
         self.add(rec("a"), rec("b"))
         selected = self.a.選択(req("a", "b"))
-        self.a.成果登録(selected, "result", 能力結果(True, "結論"))
-        self.assertEqual(self.a.原記録("result")["依存"], ["a", "b"])
+        self.a.成果登録(selected, '結果', 能力結果(True, "結論"))
+        self.assertEqual(self.a.原記録('結果')["依存"], ["a", "b"])
         self.assertFalse(self.a.選択を確認(selected))
 
     def test_改訂で旧資料と推移依存を現行から外す(self):
@@ -281,9 +281,9 @@ class 長文脈契約試験(unittest.TestCase):
     def test_固定条件の依存失効を黙って落とさない(self):
         self.add(rec("a"), rec("留保", "仮定", "残差", ("a",)))
         self.a.更新(self.a.起点(), (rec("new"),), 失効ID=("a",), 理由="改訂")
-        result = self.a.選択(req("new"))
-        self.assertFalse(result.成立)
-        self.assertIn("依存失効が未解決", result.理由)
+        結果 = self.a.選択(req("new"))
+        self.assertFalse(結果.成立)
+        self.assertIn("依存失効が未解決", 結果.理由)
         self.a.更新(self.a.起点(), 失効ID=("留保",), 理由="旧版の留保を明示退役")
         self.assertTrue(self.a.選択(req("new")).成立)
 

@@ -51,11 +51,11 @@ def HDS大域再照合判断(
     policy = 政策 or HDS多時間尺度政策()
     reasons: list[str] = []
     if 参照計画 is None or not 参照計画.有効:
-        reasons.append("RETRIEVAL_PLAN_INVALID")
+        reasons.append('取得_PLAN_INVALID')
     if int(矛盾数) > 0:
         reasons.append("CONTRADICTION_PRESENT")
     if bool(証拠不足):
-        reasons.append("EVIDENCE_GAP")
+        reasons.append('証拠_GAP')
     if float(新規性) >= 0.75:
         reasons.append("NOVELTY_HIGH")
     if max(0, int(cycle)) > 0 and int(cycle) % policy.大域周期 == 0:
@@ -67,7 +67,7 @@ def HDS大域再照合判断(
 class HDS阻害回復判断:
     作用: str
     参照計画無効化: bool
-    effort引上げ: bool
+    計算量引上げ: bool
     Jへ留保: bool
     理由: tuple[str, ...]
 
@@ -76,28 +76,28 @@ def HDS阻害回復方針(reason_codes: Iterable[str]) -> HDS阻害回復判断:
     """失敗原因に応じて次作用を選ぶ。採否は行わない。"""
 
     codes = tuple(dict.fromkeys(str(code) for code in reason_codes if str(code)))
-    evidence_markers = (
-        "EVIDENCE",
-        "REFERENCE",
+    証拠_markers = (
+        '証拠',
+        '参照',
         "PROVENANCE",
         "CONTRADICTION",
         "OBSERVATION",
-        "DATA_",
+        '資料_',
     )
-    effort_markers = ("DEPTH", "BUDGET", "EXHAUST", "SEARCH", "INFERENCE")
-    evidence_related = any(any(marker in code for marker in evidence_markers) for code in codes)
-    effort_related = any(any(marker in code for marker in effort_markers) for code in codes)
+    計算量_markers = ("DEPTH", '予算', "EXHAUST", "SEARCH", "INFERENCE")
+    証拠_related = any(any(marker in code for marker in 証拠_markers) for code in codes)
+    計算量_related = any(any(marker in code for marker in 計算量_markers) for code in codes)
 
-    if evidence_related:
+    if 証拠_related:
         return HDS阻害回復判断(
-            "REBUILD_RETRIEVAL_PLAN",
+            'REBUILD_取得_PLAN',
             True,
-            effort_related,
+            計算量_related,
             False,
-            codes or ("EVIDENCE_STATE_CHANGED",),
+            codes or ('証拠_状態_CHANGED',),
         )
-    if effort_related:
-        return HDS阻害回復判断("RAISE_EFFORT_AND_RETRY", False, True, False, codes)
+    if 計算量_related:
+        return HDS阻害回復判断('RAISE_計算量_AND_RETRY', False, True, False, codes)
     return HDS阻害回復判断("SUSPEND_TO_J", False, False, True, codes or ("UNCLASSIFIED_BLOCKER",))
 
 
@@ -111,7 +111,7 @@ class HDS先行草案結果(Generic[T]):
 
 def HDS先行草案検証(
     draft: Sequence[T],
-    verifier: Callable[[tuple[T, ...]], bool],
+    検証器: Callable[[tuple[T, ...]], bool],
 ) -> HDS先行草案結果[T]:
     """先行生成した列をprefix単位で検証し、最初の不成立位置でrollbackする。
 
@@ -121,9 +121,9 @@ def HDS先行草案検証(
     accepted: list[T] = []
     checks = 0
     for index, item in enumerate(draft):
-        candidate = tuple((*accepted, item))
+        候補 = tuple((*accepted, item))
         checks += 1
-        if not bool(verifier(candidate)):
+        if not bool(検証器(候補)):
             return HDS先行草案結果(tuple(accepted), index, True, checks)
         accepted.append(item)
     return HDS先行草案結果(tuple(accepted), None, False, checks)
@@ -131,10 +131,7 @@ def HDS先行草案検証(
 
 @dataclass(frozen=True, slots=True)
 class HDS共通入力表象:
-    """modality固有parserの出力を中央処理へ渡す共通境界。
-
-    この構造自体は画像・音声・動画を解釈しない。外部adapterが形成済みの表象を受け取る。
-    """
+    'modality固有parserの出力を中央処理へ渡す共通境界。\n\n    この構造自体は画像・音声・動画を解釈しない。外部適合器が形成済みの表象を受け取る。\n    '
 
     種別: str
     出典ID: str
@@ -152,11 +149,11 @@ def HDS異種入力射影(
     kind = str(種別).strip().casefold()
     if not kind:
         raise ValueError("入力種別は空にできない")
-    source = str(出典ID).strip()
-    if not source:
+    情報源 = str(出典ID).strip()
+    if not 情報源:
         raise ValueError("出典IDは空にできない")
     normalized_conditions = tuple(sorted((str(k), str(v)) for k, v in 条件))
-    return HDS共通入力表象(kind, source, 表象, normalized_conditions)
+    return HDS共通入力表象(kind, 情報源, 表象, normalized_conditions)
 
 
 __all__ = [

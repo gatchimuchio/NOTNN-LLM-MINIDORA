@@ -15,7 +15,7 @@ from .製品版.型 import 能力結果
 class 目的計画結果:
     状態: str
     計画: 合成計画 | None
-    Data: dict[str, 能力結果]
+    資料: dict[str, 能力結果]
     目的出力: tuple[tuple[str, str], ...]
     作用経路: tuple[tuple[str, tuple[str, ...]], ...]
     理由: str = ''
@@ -60,31 +60,31 @@ class 目的計画器:
                 if name in needed: needed.update(deps[name])
             if needed != set(goals):
                 raise ValueError('出力に接続していない目的')
-            data = {'素材:' + k: v for k, v in req.素材.items()}
+            資料 = {'素材:' + k: v for k, v in req.素材.items()}
             outputs, states = {}, dict(req.素材種別)
             refs = {k: 素材参照('入力', '素材:' + k) for k in req.素材}
             steps, traces = [], []
 
-            def 経路(source, target, args):
+            def 経路(情報源, target, args):
                 paths = []
                 best_length = self._上限[0] + 1
-                def visit(want, chain, used):
+                def visit(want, 連鎖, used):
                     nonlocal count, best_length
                     count += 1
                     if count > self._上限[1]: raise ValueError('計画探索の展開上限')
-                    if len(chain) >= min(self._上限[0], best_length): return
-                    for rule in sorted(rules, key=lambda r: source not in r.入力状態):
+                    if len(連鎖) >= min(self._上限[0], best_length): return
+                    for rule in sorted(rules, key=lambda r: 情報源 not in r.入力状態):
                         if rule.出力状態 != want or rule.識別子 in used: continue
                         required = {k for _, k in rule.引数写像}
                         if not required <= set(args): continue
-                        path = (rule, *chain)
-                        if source in rule.入力状態:
+                        path = (rule, *連鎖)
+                        if 情報源 in rule.入力状態:
                             consumed = {k for r in path for _, k in r.引数写像}
                             if consumed == set(args):
                                 paths.append(path)
                                 best_length = min(best_length, len(path))
                         for before in rule.入力状態:
-                            if before != source and len(path) < best_length:
+                            if before != 情報源 and len(path) < best_length:
                                 visit(before, path, used | {rule.識別子})
                 visit(target, (), frozenset())
                 if not paths: raise ValueError('適用経路なし又は引数未解決:' + target)
@@ -95,24 +95,24 @@ class 目的計画器:
 
             for name in order:
                 goal = goals[name]
-                args = req.引数Data[goal.引数参照]
+                args = req.引数資料[goal.引数参照]
                 path = 経路(states[goal.対象], goal.成果種別, args)
                 current = refs[goal.対象]
-                trace = []
+                追跡 = []
                 for rule in path:
                     sid = f'目的工程:{len(steps) + 1:04d}'
                     inst, config = '指示:' + sid, '設定:' + sid
-                    data[inst] = 能力結果(True, req.原文[goal.原文範囲[0]:goal.原文範囲[1]])
-                    data[config] = 能力結果(True, '', データ=rule.設定(args))
+                    資料[inst] = 能力結果(True, req.原文[goal.原文範囲[0]:goal.原文範囲[1]])
+                    資料[config] = 能力結果(True, '', データ=rule.設定(args))
                     steps.append(合成工程(sid, (rule.能力,), inst, (current,), config))
                     current = 素材参照('工程', sid)
-                    trace.append(rule.識別子)
+                    追跡.append(rule.識別子)
                 refs[name], states[name] = current, goal.成果種別
                 outputs[name] = current.識別子
-                traces.append((name, tuple(trace)))
+                traces.append((name, tuple(追跡)))
             if len(steps) > 64: raise ValueError('合成器の工程上限')
             plan = 合成計画(tuple(steps), tuple(outputs[g] for g in req.出力目的))
-            return 目的計画結果('合格', plan, data, tuple(outputs.items()), tuple(traces),
+            return 目的計画結果('合格', plan, 資料, tuple(outputs.items()), tuple(traces),
                                   展開数=count, カタログ印=self.カタログ.ハッシュ, 要求被覆=coverage)
         except (ValueError, TypeError, KeyError, AttributeError, RecursionError, CycleError) as exc:
             return 目的計画結果('保留', None, {}, (), (), str(exc), count, self.カタログ.ハッシュ, coverage)

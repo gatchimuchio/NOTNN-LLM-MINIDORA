@@ -1,11 +1,11 @@
 {
-  "schema": "minidora.gpqa.formal.parallel.full.v1",
+  "契約形式": "minidora.gpqa.formal.parallel.full.v1",
   "protocol": {
     "benchmark": "GPQA Diamond",
-    "full_benchmark_total": 198,
-    "choice_shuffle_seed": 0,
+    "全問題数": 198,
+    "選択肢シャッフル種": 0,
     "runner": "tools/benchmark_formal.py",
-    "controlled_ab": true,
+    "統制AB": true,
     "gold_boundary": "gold used only after baseline/current inference for scoring",
     "specialist_modules": "excluded",
     "parallelization": "4 disjoint index shards; same formal runner; merged after completion"
