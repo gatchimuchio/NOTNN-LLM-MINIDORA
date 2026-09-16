@@ -1,4 +1,4 @@
-"""明示したブラウザ要求を外部読取Capabilityとして接続する。純粋な多段探索へは登録しない。"""
+'明示したブラウザ要求を外部読取能力として接続する。純粋な多段探索へは登録しない。'
 from __future__ import annotations
 
 from .ブラウザ閲覧 import ブラウザ閲覧器, ブラウザ要求, ブラウザ工程
@@ -23,7 +23,7 @@ def ブラウザ要求を復元(raw: dict) -> ブラウザ要求:
     return request
 
 
-class ブラウザ閲覧Module:
+class ブラウザ閲覧モジュール:
     名前 = "ブラウザ閲覧"
     版 = ブラウザ版
     優先度 = 0
@@ -34,30 +34,30 @@ class ブラウザ閲覧Module:
         self._閲覧器, self._許可 = 閲覧器, 外部読取許可
 
     @staticmethod
-    def _要求(context):
-        if not isinstance(context, 能力文脈) or type(context.補助) is not dict:
-            raise ValueError("明示した閲覧Dataが必要")
-        rows = context.補助.get("合成入力", ())
-        settings = context.補助.get("合成設定", {})
+    def _要求(文脈):
+        if not isinstance(文脈, 能力文脈) or type(文脈.補助) is not dict:
+            raise ValueError('明示した閲覧資料が必要')
+        rows = 文脈.補助.get("合成入力", ())
+        settings = 文脈.補助.get("合成設定", {})
         if type(rows) is not tuple or len(rows) != 1 or type(settings) is not dict or settings:
             raise ValueError("単一の要求と空の設定が必要")
         value = 能力結果を復元(rows[0]["結果"])
         if not value.成立 or set(value.データ) != {"要求"}:
-            raise ValueError("成立した閲覧要求Dataが必要")
+            raise ValueError('成立した閲覧要求資料が必要')
         return ブラウザ要求を復元(value.データ["要求"])
 
-    def 判定(self, context):
+    def 判定(self, 文脈):
         try:
-            self._要求(context)
+            self._要求(文脈)
             return 1.0
         except (TypeError, ValueError, KeyError, AttributeError):
             return 0.0
 
-    def 実行(self, context):
+    def 実行(self, 文脈):
         try:
-            return self._閲覧器.実行(self._要求(context), 外部読取許可=self._許可)
+            return self._閲覧器.実行(self._要求(文脈), 外部読取許可=self._許可)
         except (TypeError, ValueError, KeyError, AttributeError):
-            return 能力結果(False, "", 保留理由="閲覧要求Data不正")
+            return 能力結果(False, "", 保留理由='閲覧要求資料不正')
 
     def 登録(self):
         return 登録能力(self, 外部読取=True)

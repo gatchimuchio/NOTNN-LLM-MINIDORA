@@ -18,11 +18,11 @@ from minidora.応答構成 import 能力結果を復元
 
 class _部品:
     版='回復試験-v1';優先度=0
-    def __init__(self,name,result): self.名前=name;self.result=result;self.calls=0
-    def 判定(self,context): return 1.0
-    def 実行(self,context):
+    def __init__(self,name,結果): self.名前=name;self.結果=結果;self.calls=0
+    def 判定(self,文脈): return 1.0
+    def 実行(self,文脈):
         self.calls+=1
-        return self.result(context) if callable(self.result) else deepcopy(self.result)
+        return self.結果(文脈) if callable(self.結果) else deepcopy(self.結果)
 
 
 def setup(code='検証失敗',recovery=True):
@@ -58,7 +58,7 @@ class 共通回復試験(unittest.TestCase):
     def test_通常例外は実行環境として区別して止める(self):
         root,planner,bad,good=setup()
         def crash(ctx): raise RuntimeError('実装例外')
-        bad.result=crash
+        bad.結果=crash
         r=会話実行監督(planner,root).実行(意味目的('成果',{}),{},原文='成果')
         self.assertFalse(r.応答.成立);self.assertEqual(r.失敗[0].分類,'実行環境');self.assertEqual(good.calls,0)
     def test_再計画で解法が尽きても元の実行失敗を保持する(self):
@@ -78,15 +78,15 @@ class 共通回復試験(unittest.TestCase):
         self.assertFalse(r.応答.成立);self.assertEqual(good.calls,0)
     def test_途中で外部の可変目的が変わっても固定目的を維持(self):
         root,planner,bad,good=setup();goal=意味目的('成果',{'指定':'元'})
-        old=bad.result
+        old=bad.結果
         def change(ctx): goal.引数['指定']='書換';return old
-        bad.result=change
+        bad.結果=change
         initial=goal.鍵();r=会話実行監督(planner,root).実行(goal,{},原文='成果')
         self.assertTrue(r.応答.成立);self.assertTrue(all(x['目的印']==initial for x in r.試行))
     def test_途中で契約が差し替わったら止める(self):
-        root,planner,bad,good=setup();old=bad.result
+        root,planner,bad,good=setup();old=bad.結果
         def change(ctx): planner.作用=planner.作用[::-1];return old
-        bad.result=change
+        bad.結果=change
         with self.assertRaises(ValueError):会話実行監督(planner,root).実行(意味目的('成果',{}),{},原文='成果')
         self.assertEqual(good.calls,0)
     def test_条件矛盾を回復契約にして逃がさない(self):

@@ -8,51 +8,51 @@ from minidora.HDS参照 import HDS参照問合せ候補
 
 class 公開HDSコンパイラ試験(unittest.TestCase):
     def setUp(self) -> None:
-        self.compiler = 公開HDSコンパイラ()
+        self.構文化器 = 公開HDSコンパイラ()
 
     def test_日本語を規定言語とし外部英語は表層だけ保持する(self) -> None:
-        ir = self.compiler.コンパイル("Protein A causes apoptosis.")
-        self.assertEqual(self.compiler.基底言語, "ja")
+        ir = self.構文化器.コンパイル("Protein A causes apoptosis.")
+        self.assertEqual(self.構文化器.基底言語, "ja")
         self.assertEqual(ir.入力言語, "en")
-        self.assertIn("因果", {relation.種別 for relation in ir.関係})
+        self.assertIn("因果", {関係.種別 for 関係 in ir.関係})
         self.assertTrue(any(coord.種別 == "関係.述語" and "causes" in str(coord.内容) for coord in ir.座標))
 
     def test_受動因果を同じ有向関係へ正規化する(self) -> None:
-        active = self.compiler.コンパイル("Protein A causes apoptosis.")
-        passive = self.compiler.コンパイル("Apoptosis is caused by Protein A.")
+        active = self.構文化器.コンパイル("Protein A causes apoptosis.")
+        passive = self.構文化器.コンパイル("Apoptosis is caused by Protein A.")
 
         def edge(ir):
-            relation = next(item for item in ir.関係 if item.種別 == "因果")
+            関係 = next(item for item in ir.関係 if item.種別 == "因果")
             coords = ir.座標辞書()
-            return str(coords[relation.始点[0]].内容), str(coords[relation.終点[0]].内容)
+            return str(coords[関係.始点[0]].内容), str(coords[関係.終点[0]].内容)
 
         self.assertEqual(edge(active), ("Protein A", "apoptosis"))
         self.assertEqual(edge(passive), ("Protein A", "Apoptosis"))
 
     def test_反転選択意図を検索前に保持する(self) -> None:
-        ir = self.compiler.コンパイル("Which mechanism is least likely to increase ATP production?")
+        ir = self.構文化器.コンパイル("Which mechanism is least likely to increase ATP production?")
         controls = {str(coord.内容) for coord in ir.座標 if coord.種別 == "制御.選択意図"}
         conditions = {str(coord.内容).casefold() for coord in ir.座標 if coord.種別 == "条件.検索極性"}
         self.assertEqual(controls, {"反転"})
         self.assertIn("least likely", conditions)
 
     def test_数量と単位を分離して関係を保持する(self) -> None:
-        ir = self.compiler.コンパイル("The sample was heated to 37 °C under hypoxia.")
+        ir = self.構文化器.コンパイル("The sample was heated to 37 °C under hypoxia.")
         self.assertTrue(any(coord.種別 == "値.数量" and str(coord.内容) == "37" for coord in ir.座標))
         self.assertTrue(any(coord.種別 == "属性.単位" and "°C" in str(coord.内容) for coord in ir.座標))
-        self.assertTrue(any(relation.種別 == "数量単位" for relation in ir.関係))
+        self.assertTrue(any(関係.種別 == "数量単位" for 関係 in ir.関係))
         self.assertTrue(any(coord.種別 == "条件.前提" and "under hypoxia" in str(coord.内容).casefold() for coord in ir.座標))
 
     def test_R問い合わせへ構造化された焦点が反映される(self) -> None:
-        ir = self.compiler.問題IR(
+        ir = self.構文化器.問題IR(
             "Which molecule causes apoptosis under hypoxia?",
             ("Protein A", "Protein B", "Protein C", "Protein D"),
         )
         queries = HDS参照問合せ候補(ir)
         self.assertGreaterEqual(len(queries), 6)
         self.assertTrue(any("molecule causes apoptosis under hypoxia" in query.casefold() for query in queries))
-        for choice in ("protein a", "protein b", "protein c", "protein d"):
-            self.assertTrue(any(choice in query.casefold() for query in queries))
+        for 選択肢 in ("protein a", "protein b", "protein c", "protein d"):
+            self.assertTrue(any(選択肢 in query.casefold() for query in queries))
 
 
 if __name__ == "__main__":

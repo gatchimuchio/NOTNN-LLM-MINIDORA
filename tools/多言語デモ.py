@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from minidora.多言語変換 import 対訳語, 対訳を変換, 翻訳記録整合
-from minidora.多言語接続 import 多言語変換Module
+from minidora.多言語接続 import 多言語変換モジュール
 from minidora.能力合成 import 能力合成器, 合成計画, 合成工程, 素材参照
 from minidora.能力合成_局所接続 import 局所能力群
 from minidora.製品版.型 import 能力結果
@@ -28,8 +28,8 @@ def main():
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--値", type=int, default=120)
-    parser.add_argument("--否定", action="store_true")
-    parser.add_argument("--未対応", action="store_true")
+    parser.add_argument("--否定", 作用="store_true")
+    parser.add_argument("--未対応", 作用="store_true")
     args = parser.parse_args()
     if not -1_000_000 <= args.値 <= 1_000_000:
         parser.error("--値は-1000000〜1000000")
@@ -43,22 +43,22 @@ def main():
     plan = 合成計画((
         合成工程("翻訳", ("多言語変換",), "指示", (素材参照("入力", "原文"),), "設定"),
         合成工程("抽出", ("情報抽出",), "指示", (素材参照("工程", "翻訳"),), "抽出設定")), ("抽出",))
-    data = {"原文": 能力結果(True, original), "指示": 能力結果(True, "明示された処理を実行"),
+    資料 = {"原文": 能力結果(True, original), "指示": 能力結果(True, "明示された処理を実行"),
             "設定": 能力結果(True, "", データ={"入力言語": "en", "出力言語": "ja", "種別": "数値記載",
                                                 "対訳": [asdict(w) for w in 例の対訳()]}),
             "抽出設定": 能力結果(True, "", データ={"種別": "数字"})}
-    result = 能力合成器((多言語変換Module().登録(), *局所能力群())).実行(plan, data)
-    ok = (not translated.成立 and not result.成立) if args.未対応 else (
-        translated.成立 and reverse.成立 and result.成立 and 翻訳記録整合(translated)
+    結果 = 能力合成器((多言語変換モジュール().登録(), *局所能力群())).実行(plan, 資料)
+    ok = (not translated.成立 and not 結果.成立) if args.未対応 else (
+        translated.成立 and reverse.成立 and 結果.成立 and 翻訳記録整合(translated)
         and translated.データ["意味列"] == reverse.データ["意味列"]
-        and result.出力[0][1].本文 == str(args.値))
+        and 結果.出力[0][1].本文 == str(args.値))
     print(json.dumps({"範囲": "明示対訳語と有限文法の局所対照。汎用翻訳精度の評価ではない。",
         "原文": original, "日本語": translated.本文, "逆方向": reverse.本文 if reverse else "",
         "翻訳成立": translated.成立, "保留理由": translated.保留理由,
-        "後続抽出": result.出力[0][1].本文 if result.成立 else "",
-        "実行能力": [r.能力 for r in result.履歴], "合成監査": result.監査整合(), "対照成立": ok},
+        "後続抽出": 結果.出力[0][1].本文 if 結果.成立 else "",
+        "実行能力": [r.能力 for r in 結果.履歴], "合成監査": 結果.監査整合(), "対照成立": ok},
         ensure_ascii=False, indent=2))
-    return 0 if ok and result.監査整合() else 1
+    return 0 if ok and 結果.監査整合() else 1
 
 
 if __name__ == "__main__":

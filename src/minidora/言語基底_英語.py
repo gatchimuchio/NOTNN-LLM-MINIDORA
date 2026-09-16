@@ -33,7 +33,7 @@ _英語基本形表 = {
     "cause": "cause", "causes": "cause", "caused": "cause", "causing": "cause",
     "causal": "cause", "causally": "cause", "causation": "cause",
     "lead": "lead", "leads": "lead", "led": "lead", "leading": "lead",
-    "result": "result", "results": "result", "resulted": "result", "resulting": "result",
+    '結果': '結果', "results": '結果', "resulted": '結果', "resulting": '結果',
     # 増加
     "increase": "increase", "increases": "increase", "increased": "increase", "increasing": "increase",
     "raise": "raise", "raises": "raise", "raised": "raise", "raising": "raise",
@@ -65,7 +65,7 @@ _英語基本形表 = {
     "requirement": "require", "requirements": "require",
     "need": "need", "needs": "need", "needed": "need", "needing": "need",
     "depend": "depend", "depends": "depend", "depended": "depend", "depending": "depend",
-    "dependent": "depend", "dependence": "depend", "dependency": "depend", "dependencies": "depend",
+    "dependent": "depend", "dependence": "depend", '依存': "depend", "dependencies": "depend",
     # 包含
     "contain": "contain", "contains": "contain", "contained": "contain", "containing": "contain",
     "containment": "contain",
@@ -89,7 +89,7 @@ _英語基本形表 = {
     "correlate": "correlate", "correlates": "correlate", "correlated": "correlate", "correlating": "correlate",
     "correlation": "correlate", "correlations": "correlate", "correlative": "correlate",
     "relate": "relate", "relates": "relate", "related": "relate", "relating": "relate",
-    "relation": "relate", "relations": "relate", "relational": "relate",
+    '関係': "relate", "relations": "relate", "relational": "relate",
     # 分野横断の一般関係
     "bind": "bind", "binds": "bind", "bound": "bind", "binding": "bind", "bindings": "bind",
     "interact": "interact", "interacts": "interact", "interacted": "interact", "interacting": "interact",
@@ -106,7 +106,7 @@ _英語基本形表 = {
 
 
 _英語関係族 = {
-    "因果": frozenset({"cause", "lead", "result"}),
+    "因果": frozenset({"cause", "lead", '結果'}),
     "増加": frozenset({"increase", "raise", "enhance"}),
     "減少": frozenset({"decrease", "reduce", "lower"}),
     "阻害": frozenset({"inhibit", "suppress", "block"}),
@@ -149,14 +149,14 @@ def 英語語形数() -> int:
     return len(_英語基本形表)
 
 
-_SUBJECT = r"(?P<s>[^?!.;,\n]{1,120}?)"
+_主体 = r"(?P<s>[^?!.;,\n]{1,120}?)"
 _OBJECT = r"(?P<o>[^?!.;,\n]{1,120})"
 _AUX = r"(?:is|are|was|were|be|been|being|has\s+been|have\s+been|had\s+been)"
 
 
 def _構文生成(種別: str, 述語式: str, *, 反転: bool = False) -> 英語関係構文:
     # 標準述語式は外側groupを参照しない。同じ式・flagsの不一致は完全式の不一致を含意する。
-    完全式 = re.compile(rf"{_SUBJECT}\s+(?P<v>{述語式})\s+{_OBJECT}", re.I)
+    完全式 = re.compile(rf"{_主体}\s+(?P<v>{述語式})\s+{_OBJECT}", re.I)
     return 英語関係構文(
         種別, 完全式, 反転,
         述語必要条件=re.compile(述語式, 完全式.flags),

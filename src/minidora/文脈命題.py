@@ -29,20 +29,20 @@ def _引用内一人称(本文, 深さ=0):
     trimmed = 本文.strip()
     leading = len(本文) - len(本文.lstrip())
     if trimmed.startswith(('(', '（')) and _外側(trimmed) is not None:
-        changed, trace = _引用内一人称(trimmed[1:-1], 深さ + 1)
-        return 本文[:leading + 1] + changed + 本文[leading + len(trimmed) - 1:], trace
+        changed, 追跡 = _引用内一人称(trimmed[1:-1], 深さ + 1)
+        return 本文[:leading + 1] + changed + 本文[leading + len(trimmed) - 1:], 追跡
     wrapper = re.fullmatch(r'(否定|[0-9]{4}年では|時点「[^「」]+」では)([（(].*[）)])', trimmed, re.S)
     if wrapper and _外側(wrapper[2]) is not None:
-        changed, trace = _引用内一人称(wrapper[2], 深さ + 1)
-        return 本文[:leading] + wrapper[1] + changed + 本文[leading + len(trimmed):], trace
+        changed, 追跡 = _引用内一人称(wrapper[2], 深さ + 1)
+        return 本文[:leading] + wrapper[1] + changed + 本文[leading + len(trimmed):], 追跡
     clauses = list(構成句を分ける(本文, (*接続語, '。', '\n')))
     if len(clauses) > 1:
-        result = []; cursor = 0; traces = []
+        結果 = []; cursor = 0; traces = []
         for a, b in clauses:
             changed, local = _引用内一人称(本文[a:b], 深さ + 1)
-            result.extend((本文[cursor:a], changed)); cursor = b; traces.extend(local)
-        result.append(本文[cursor:])
-        return ''.join(result), traces
+            結果.extend((本文[cursor:a], changed)); cursor = b; traces.extend(local)
+        結果.append(本文[cursor:])
+        return ''.join(結果), traces
     for i, marker in 最上位位置(本文, ('は', 'が')):
         start = i + len(marker)
         if start >= len(本文) or 本文[start] not in ('「', '『'): continue
@@ -53,15 +53,15 @@ def _引用内一人称(本文, 深さ=0):
         pieces = []; cursor = 0; changes = []
         for a, b in 構成句を分ける(content, (*接続語, '。', '\n')):
             fragment = content[a:b]
-            inner, trace = _引用内一人称(fragment, 深さ + 1)
-            if not trace:
+            inner, 追跡 = _引用内一人称(fragment, 深さ + 1)
+            if not 追跡:
                 m = re.match(r'\s*(私|わたし)は', fragment)
                 if m:
                     left, right = m.span(1)
                     inner = fragment[:left] + speaker + fragment[right:]
-                    trace = [{'種別': '引用内一人称', '原文': m[1], '束縛先': speaker,
+                    追跡 = [{'種別': '引用内一人称', '原文': m[1], '束縛先': speaker,
                               '理由': '直接引用の明示話者'}]
-            pieces.extend((content[cursor:a], inner)); cursor = b; changes.extend(trace)
+            pieces.extend((content[cursor:a], inner)); cursor = b; changes.extend(追跡)
         pieces.append(content[cursor:])
         if changes:
             return 本文[:start + 1] + ''.join(pieces) + 本文[end - 1:], changes
@@ -174,10 +174,10 @@ def 文脈判定(資料群, 問い, 問い候補=1, 資料候補=0, *, 述語別
         question, local = 命題の述語を対応付ける(candidates[問い候補 - 1].式, mapping)
         traces.extend({'記載': '問い', **row} for row in local)
         engine = 命題推論器(tuple(records), 上限=推論上限(操作数=min(50000, remaining)))
-        result = engine.判定(question)
-        remaining -= result['操作数']
+        結果 = engine.判定(question)
+        remaining -= 結果['操作数']
         reports.append({'場合': number, '選択': case['選択'], '照応解消': case['照応解消'],
-                        '記載': [asdict(r) for r in records], '判定結果': result,
+                        '記載': [asdict(r) for r in records], '判定結果': 結果,
                         **({'語彙対応': traces} if 述語別名 else {})})
     statuses = {r['判定結果']['判定'] for r in reports}
     return {'問い': 問い, '問い候補': 問い候補, '資料候補': 資料候補, '場合総数': len(cases),

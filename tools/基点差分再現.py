@@ -64,7 +64,7 @@ def main():
     parser.add_argument('--参照ソース',type=Path)
     parser.add_argument('--変更ソース',type=Path)
     parser.add_argument('--出力',type=Path)
-    parser.add_argument('--子実行',action='store_true')
+    parser.add_argument('--子実行',作用='store_true')
     args=parser.parse_args()
     if args.子実行:
         print(json.dumps(観測(),ensure_ascii=False));return 0
@@ -73,9 +73,9 @@ def main():
     report={}
     for name,path in (('基点',args.参照ソース),('変更後',args.変更ソース)):
         env=dict(os.environ);env['PYTHONPATH']=str(path.resolve());env['PYTHONDONTWRITEBYTECODE']='1'
-        result=subprocess.run([sys.executable,str(Path(__file__).resolve()),'--子実行'],
+        結果=subprocess.run([sys.executable,str(Path(__file__).resolve()),'--子実行'],
             env=env,capture_output=True,text=True,encoding='utf-8',check=True,timeout=15)
-        report[name]=json.loads(result.stdout)
+        report[name]=json.loads(結果.stdout)
     report['注記']='実ソースの局所比較。表除外の追加境界と命題化は個別実行であり、既存製品の取得接続全体の実行証明ではない。'
     args.出力.parent.mkdir(parents=True,exist_ok=True)
     args.出力.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')

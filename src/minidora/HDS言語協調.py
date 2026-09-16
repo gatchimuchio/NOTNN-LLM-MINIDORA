@@ -40,8 +40,8 @@ def HDS英語AND展開(ir: HDSIR) -> HDSIR:
     ORは論理的に両方成立とは限らないため扱わない。未知端点・複雑な名詞句・長いcoordinationも
     推測せずそのまま残す。
     """
-    language = str(getattr(ir, "入力言語", "") or "").casefold()
-    if not language.startswith("en"):
+    言語 = str(getattr(ir, "入力言語", "") or "").casefold()
+    if not 言語.startswith("en"):
         return ir
 
     coords = list(ir.座標)
@@ -63,24 +63,24 @@ def HDS英語AND展開(ir: HDSIR) -> HDSIR:
         coords.append(HDS座標(cid, kind, content, 値状態.確定, 由来="共有言語基底P", 暫定性="EXPLICIT_AND_COORDINATION"))
         return cid
 
-    for relation in ir.関係:
-        if relation.値状態 != 値状態.確定 or str(relation.種別) in _GENERIC:
-            relations.append(relation)
+    for 関係 in ir.関係:
+        if 関係.値状態 != 値状態.確定 or str(関係.種別) in _GENERIC:
+            relations.append(関係)
             continue
-        starts = [coord_map[cid] for cid in relation.始点 if cid in coord_map]
-        ends = [coord_map[cid] for cid in relation.終点 if cid in coord_map]
+        starts = [coord_map[cid] for cid in 関係.始点 if cid in coord_map]
+        ends = [coord_map[cid] for cid in 関係.終点 if cid in coord_map]
         if len(starts) != 1 or len(ends) != 1:
-            relations.append(relation)
+            relations.append(関係)
             continue
         start, end = starts[0], ends[0]
         if start.値状態 != 値状態.確定 or end.値状態 != 値状態.確定:
-            relations.append(relation)
+            relations.append(関係)
             continue
 
         split_start = _単純AND(start.内容)
         split_end = _単純AND(end.内容)
         if split_start is None and split_end is None:
-            relations.append(relation)
+            relations.append(関係)
             continue
 
         start_values = split_start or (_norm(start.内容),)
@@ -90,15 +90,15 @@ def HDS英語AND展開(ir: HDSIR) -> HDSIR:
             sid = add_coord("対象.始点", svalue, f"lang-and:start:{expanded}:{sindex}") if split_start else start.座標ID
             for oindex, ovalue in enumerate(end_values):
                 oid = add_coord("対象.終点", ovalue, f"lang-and:end:{expanded}:{oindex}") if split_end else end.座標ID
-                conditions = tuple(dict.fromkeys((*relation.条件, f"AND展開={_VERSION}")))
+                conditions = tuple(dict.fromkeys((*関係.条件, f"AND展開={_VERSION}")))
                 relations.append(
                     HDS関係(
                         f"lang-and:relation:{expanded}:{local}",
                         (sid,),
                         (oid,),
-                        str(relation.種別),
+                        str(関係.種別),
                         条件=conditions,
-                        値状態=relation.値状態,
+                        値状態=関係.値状態,
                         由来="共有言語基底P",
                         暫定性="EXPLICIT_AND_COORDINATION",
                     )

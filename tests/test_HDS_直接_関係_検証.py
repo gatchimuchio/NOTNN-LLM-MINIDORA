@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.HDS選択仮説 import HDS候補代入仮説群
-from minidora.HDS資料K import HDSIR知識適合器
-from minidora.HDS直接関係検証 import HDS直接関係検証
+from minidora.hds_choice_hypothesis import HDS候補代入仮説群
+from minidora.hds_data_k import HDSIR知識適合器
+from minidora.hds_direct_relation_verifier import HDS直接関係検証
 from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
-from minidora.K3機能 import K3相当能力核
+from minidora.k3_functional import K3相当能力核
 
 
 def _ir(text: str, coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ...] = ()) -> HDSIR:

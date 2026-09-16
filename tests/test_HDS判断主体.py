@@ -4,7 +4,7 @@ import inspect
 import unittest
 
 from minidora.hds判断主体 import HDS判断主体, MINIDORA出力, MINIDORA出力化
-from minidora.模型 import 成立差, 模型Checkpoint, 模型結果, 模型統計, 文脈付き言語状態, 内部言語状態, 関係寄与
+from minidora.模型 import 成立差, 模型検査点, 模型結果, 模型統計, 文脈付き言語状態, 内部言語状態, 関係寄与
 
 
 def 模型結果(*, ref_winner="A", ref_ties=(), ref_a=2, ref_b=0, total_a=2, total_b=0):
@@ -15,7 +15,7 @@ def 模型結果(*, ref_winner="A", ref_ties=(), ref_a=2, ref_b=0, total_a=2, to
     )
     return 模型結果(
         ctx,diffs,"A" if total_a>total_b else None,(),
-        (模型Checkpoint("一次能力作用",(("A",total_a),("B",total_b))),),
+        (模型検査点("一次能力作用",(("A",total_a),("B",total_b))),),
         模型統計(終端遍歴数=1),ref_winner,tuple(ref_ties),
     )
 
@@ -48,7 +48,7 @@ class HDS判断主体試験(unittest.TestCase):
             状態="OUTPUT",候補ID="A",
             候補差=(("A",2),("B",3)),
             参照候補差=(("A",0),("B",2)),
-            参照同率候補ID=(),checkpoint数=1,再作用回数=0,終端遍歴数=1,
+            参照同率候補ID=(),検査点数=1,再作用回数=0,終端遍歴数=1,
         )
         decision=HDS判断主体().判断(output)
         self.assertEqual(decision.状態,"REJECT")
@@ -57,17 +57,17 @@ class HDS判断主体試験(unittest.TestCase):
         self.assertIn("NO_FEEDBACK_LOOP",decision.理由)
 
     def test_一般表層winnerは正式MINIDORA出力を上書きしない(self):
-        result=模型結果(ref_winner="B",ref_a=0,ref_b=2,total_a=10,total_b=2)
-        output=MINIDORA出力化(result)
-        self.assertEqual(result.最有力候補ID,"A")
+        結果=模型結果(ref_winner="B",ref_a=0,ref_b=2,total_a=10,total_b=2)
+        output=MINIDORA出力化(結果)
+        self.assertEqual(結果.最有力候補ID,"A")
         self.assertEqual(output.候補ID,"B")
         decision=HDS判断主体().判断(output)
         self.assertEqual((decision.状態,decision.選択候補ID),("APPROVE","B"))
 
-    def test_HDS判断はQuestion_Data_Referenceを受け取れない(self):
+    def test_HDS判断はQuestion_資料_参照を受け取れない(self):
         sig=inspect.signature(HDS判断主体.判断)
         names=set(sig.parameters)
-        self.assertTrue({"question_ir","候補群","参照群","data","reference"}.isdisjoint(names))
+        self.assertTrue({"question_ir","候補群","参照群",'資料','参照'}.isdisjoint(names))
 
     def test_HDS判断結果に差し戻し状態を持たない(self):
         fields=set(HDS判断主体().判断(MINIDORA出力化(模型結果())).__dataclass_fields__)

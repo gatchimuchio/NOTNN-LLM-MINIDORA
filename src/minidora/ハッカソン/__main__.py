@@ -21,9 +21,9 @@ def main() -> int:
     chat = ハッカソンチャット(基礎ミニドラ=ミニドラ(), 監査台帳_=_監査台帳())
 
     if args.message:
-        result = chat.応答(" ".join(args.message), セッションID=args.session)
-        print(result.本文)
-        print(f"\ntrace_id={result.追跡ID}\ntrace_hash={result.監査ハッシュ}")
+        結果 = chat.応答(" ".join(args.message), セッションID=args.session)
+        print(結果.本文)
+        print(f"\ntrace_id={結果.追跡ID}\ntrace_hash={結果.監査ハッシュ}")
         return 0
 
     print("MINIDORA Hackathon Chat / exit で終了")
@@ -34,9 +34,9 @@ def main() -> int:
             return 0
         if text.casefold() in {"exit", "quit"}:
             return 0
-        result = chat.応答(text, セッションID=args.session)
-        print(result.本文)
-        print(f"[trace:{result.追跡ID} hash:{result.監査ハッシュ}]")
+        結果 = chat.応答(text, セッションID=args.session)
+        print(結果.本文)
+        print(f"[trace:{結果.追跡ID} hash:{結果.監査ハッシュ}]")
 
 
 if __name__ == "__main__":

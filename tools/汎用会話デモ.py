@@ -28,14 +28,14 @@ def main():
               ('それをxで微分して', None, '合格')]
     failed = False
     for s, group in ((session, cases), (confirmation, cases2)):
-        for text, data, expected in group:
-            result = s.応答(text, data)
+        for text, 資料, expected in group:
+            結果 = s.応答(text, 資料)
             print('\n利用者：' + text)
-            print('MINIDORA [' + result.状態 + ']：\n' + result.本文)
-            changes = (result.追跡 or {}).get('再計画', [])
+            print('MINIDORA [' + 結果.状態 + ']：\n' + 結果.本文)
+            changes = (結果.追跡 or {}).get('再計画', [])
             if changes:
                 print('失敗からの再計画：' + ' → '.join(x['種別'] for x in changes))
-            if result.状態 != expected:
+            if 結果.状態 != expected:
                 failed = True
     return 2 if failed else 0
 

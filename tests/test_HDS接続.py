@@ -30,8 +30,8 @@ def _加算IR(入力, 左, 右):
         座標=(
             HDS座標("a", "対象.現在状態", 左),
             HDS座標("b", "対象.現在状態", 右),
-            HDS座標("action", "手段.作用", "加算"),
-            HDS座標("result", "目的.到達状態", "加算結果"),
+            HDS座標('作用', "手段.作用", "加算"),
+            HDS座標('結果', "目的.到達状態", "加算結果"),
         ),
         関係=(),
         残差=(),
@@ -46,14 +46,14 @@ def _加算IR(入力, 左, 右):
     )
 
 
-class FixtureCompiler:
+class Fixture構文化器:
     def コンパイル(self, 入力, *, 前回結果=None, HDS履歴=()):
         if "続き" in 入力:
             return _加算IR(入力, 前回結果, 4)
         return _加算IR(入力, 2, 3)
 
 
-class 未閉包Compiler:
+class 未閉包構文化器:
     def コンパイル(self, 入力, *, 前回結果=None, HDS履歴=()):
         return HDSIR(
             原文=入力,
@@ -64,7 +64,7 @@ class 未閉包Compiler:
             残差=(
                 HDS残差(
                     "res:0",
-                    "semantic_loss",
+                    '意味_loss',
                     入力,
                     "意味が実行可能な形まで閉包していない",
                 ),
@@ -78,30 +78,30 @@ class 未閉包Compiler:
         )
 
 
-class HDSAdapter試験(unittest.TestCase):
+class HDS適合器試験(unittest.TestCase):
     def test_外部HDSコンパイラのIRをそのまま実行する(self):
-        body = ミニドラ(HDSコンパイラ_=FixtureCompiler())
-        result = body.実行(要求("表層表現はfixtureでは解釈しない"))
-        self.assertEqual(result.値, 5)
-        self.assertEqual(result.採否.状態, 実行状態.合格)
-        self.assertIsNotNone(result.HDS_IR)
-        self.assertEqual(result.言語計画, "fixture")
+        body = ミニドラ(HDSコンパイラ_=Fixture構文化器())
+        結果 = body.実行(要求("表層表現はfixtureでは解釈しない"))
+        self.assertEqual(結果.値, 5)
+        self.assertEqual(結果.採否.状態, 実行状態.合格)
+        self.assertIsNotNone(結果.HDS_IR)
+        self.assertEqual(結果.言語計画, "fixture")
 
-    def test_HDS時間文脈をCompilerへ帰還する(self):
-        body = ミニドラ(HDSコンパイラ_=FixtureCompiler())
+    def test_HDS時間文脈を構文化器へ帰還する(self):
+        body = ミニドラ(HDSコンパイラ_=Fixture構文化器())
         self.assertEqual(body.応答("最初"), "5です。")
         self.assertEqual(body.応答("続き"), "9です。")
         self.assertEqual(len(body.HDS履歴), 2)
 
     def test_未閉包HDS_IRは推測せず保留する(self):
-        body = ミニドラ(HDSコンパイラ_=未閉包Compiler())
-        result = body.実行(要求("意味未確定"))
-        self.assertIsNone(result.値)
-        self.assertEqual(result.採否.状態, 実行状態.保留)
-        self.assertIn("HDS_IR未閉包", result.採否.理由)
+        body = ミニドラ(HDSコンパイラ_=未閉包構文化器())
+        結果 = body.実行(要求("意味未確定"))
+        self.assertIsNone(結果.値)
+        self.assertEqual(結果.採否.状態, 実行状態.保留)
+        self.assertIn("HDS_IR未閉包", 結果.採否.理由)
         self.assertEqual(len(body.HDS履歴), 1)
 
-    def test_意味同一性が確定したDataだけを競合判定する(self):
+    def test_意味同一性が確定した資料だけを競合判定する(self):
         records = (
             参照記録(
                 "a", "東京", "人口資料A", "fixture://a", "固定",
@@ -114,7 +114,7 @@ class HDSAdapter試験(unittest.TestCase):
         )
         self.assertEqual(参照矛盾数(records), 1)
 
-    def test_意味未確定Dataを勝手に矛盾認定しない(self):
+    def test_意味未確定資料を勝手に矛盾認定しない(self):
         records = (
             参照記録("a", "東京", "人口資料A", "fixture://a", "固定", 意味キー="人口", 値=1400),
             参照記録("b", "東京", "人口資料B", "fixture://b", "固定", 意味キー="人口", 値=1300),
@@ -132,10 +132,10 @@ class HDSAdapter試験(unittest.TestCase):
                 意味キー="人口", 値=1300, 時点="2026", 範囲="東京都", 意味確定=True,
             ),
         ))
-        result = ミニドラ(provider).実行(要求("東京 人口"))
-        self.assertIsNone(result.値)
-        self.assertEqual(result.採否.状態, 実行状態.保留)
-        self.assertIn("未解消矛盾", result.採否.理由)
+        結果 = ミニドラ(provider).実行(要求("東京 人口"))
+        self.assertIsNone(結果.値)
+        self.assertEqual(結果.採否.状態, 実行状態.保留)
+        self.assertIn("未解消矛盾", 結果.採否.理由)
 
 
 if __name__ == "__main__":

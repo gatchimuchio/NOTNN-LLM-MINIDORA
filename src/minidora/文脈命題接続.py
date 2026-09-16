@@ -35,12 +35,12 @@ def 文脈報告を構成(values, settings):
     if type(names) not in (tuple, list): raise ValueError('資料名の列型不正')
     docs = 文脈資料群(values, names)
     report = 文脈判定(docs, settings['問い'], settings['候補'], settings['資料候補'])
-    data = {'版': 文脈命題版, '種別': '文脈命題判定', '設定': settings,
+    資料 = {'版': 文脈命題版, '種別': '文脈命題判定', '設定': settings,
             '原入力': [_結果辞書(v) for v in values], '資料候補': docs, '判定結果': report}
-    data = json.loads(_符号化(data)); data['記録SHA256'] = 意味指紋(data)
+    資料 = json.loads(_符号化(資料)); 資料['記録SHA256'] = 意味指紋(資料)
     return 能力結果(True, '資料の読みを保持した判定：' + report['判定'],
         根拠=tuple(r['識別子'] for d in docs for r in d['記載候補']),
-        参照=_参照結合(r for v in values for r in v.参照), データ=data)
+        参照=_参照結合(r for v in values for r in v.参照), データ=資料)
 
 
 def 文脈報告整合(value):
@@ -110,10 +110,10 @@ def 取得命題を構成(value, settings):
         raise ValueError('取得命題の設定不正')
     values, names = 取得本文を資料化(value)
     report = 文脈報告を構成(values, {'資料': names, **settings, '資料候補': 0})
-    data = {'版': 文脈命題版, '種別': '取得命題判定', '元取得': _結果辞書(value),
+    資料 = {'版': 文脈命題版, '種別': '取得命題判定', '元取得': _結果辞書(value),
             '設定': settings, '文脈報告': _結果辞書(report)}
-    data = json.loads(_符号化(data)); data['記録SHA256'] = 意味指紋(data)
-    return 能力結果(True, report.本文, 根拠=report.根拠, 参照=report.参照, データ=data)
+    資料 = json.loads(_符号化(資料)); 資料['記録SHA256'] = 意味指紋(資料)
+    return 能力結果(True, report.本文, 根拠=report.根拠, 参照=report.参照, データ=資料)
 
 
 def 取得命題整合(value):
@@ -123,7 +123,7 @@ def 取得命題整合(value):
     except (ValueError, TypeError, KeyError, AttributeError, RecursionError): return False
 
 
-class 文脈命題Module:
+class 文脈命題モジュール:
     版 = 文脈命題版
     優先度 = 0
 
@@ -131,11 +131,11 @@ class 文脈命題Module:
         if 名前 not in ('文脈命題判定', '取得命題判定'): raise ValueError('文脈能力名不正')
         self.名前 = 名前
 
-    def 判定(self, context): return 1.0
+    def 判定(self, 文脈): return 1.0
 
-    def 実行(self, context):
+    def 実行(self, 文脈):
         try:
-            values, settings = _入力(context)
+            values, settings = _入力(文脈)
             if self.名前 == '文脈命題判定': return 文脈報告を構成(values, settings)
             if len(values) != 1: raise ValueError('取得命題は単一取得報告')
             return 取得命題を構成(values[0], settings)
@@ -146,7 +146,7 @@ class 文脈命題Module:
 
 
 def 文脈命題能力群():
-    return tuple(文脈命題Module(n).登録() for n in ('文脈命題判定', '取得命題判定'))
+    return tuple(文脈命題モジュール(n).登録() for n in ('文脈命題判定', '取得命題判定'))
 
 
 def 文脈命題作用群():

@@ -11,61 +11,61 @@ import re
 BOS = "<bos>"
 EOS = "<eos>"
 UNK = "<unk>"
-ANSWER_SLOT = "<answer>"
+ANSWER_欄 = "<answer>"
 EPS = 1e-12
 
 
-class TokenSymbolSpace:
-    TOKEN_RE = re.compile(r"<[^>]+>|[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*|[一-龯々〆ヵヶぁ-んァ-ヶー]+|[^\w\s]", re.UNICODE)
+class 字句SymbolSpace:
+    字句_RE = re.compile(r"<[^>]+>|[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*|[一-龯々〆ヵヶぁ-んァ-ヶー]+|[^\w\s]", re.UNICODE)
 
     def __init__(self) -> None:
-        self.token_to_id: dict[str, int] = {}
-        self.id_to_token: list[str] = []
-        for token in (BOS, EOS, UNK, ANSWER_SLOT):
-            self.add(token)
+        self.字句_to_id: dict[str, int] = {}
+        self.id_to_字句: list[str] = []
+        for 字句 in (BOS, EOS, UNK, ANSWER_欄):
+            self.add(字句)
 
     @staticmethod
-    def normalize(token: str) -> str:
-        if token.startswith("<") and token.endswith(">"):
-            return token.lower()
-        if re.fullmatch(r"[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*", token):
-            return token.lower()
-        return token
+    def normalize(字句: str) -> str:
+        if 字句.startswith("<") and 字句.endswith(">"):
+            return 字句.lower()
+        if re.fullmatch(r"[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*", 字句):
+            return 字句.lower()
+        return 字句
 
     def tokenize(self, text: str) -> list[str]:
-        return [self.normalize(t) for t in self.TOKEN_RE.findall(text)]
+        return [self.normalize(t) for t in self.字句_RE.findall(text)]
 
-    def add(self, token: str) -> int:
-        token = self.normalize(token)
-        if token not in self.token_to_id:
-            self.token_to_id[token] = len(self.id_to_token)
-            self.id_to_token.append(token)
-        return self.token_to_id[token]
+    def add(self, 字句: str) -> int:
+        字句 = self.normalize(字句)
+        if 字句 not in self.字句_to_id:
+            self.字句_to_id[字句] = len(self.id_to_字句)
+            self.id_to_字句.append(字句)
+        return self.字句_to_id[字句]
 
     def fit(self, texts: Sequence[str]) -> None:
         for text in texts:
-            for token in self.tokenize(text):
-                self.add(token)
+            for 字句 in self.tokenize(text):
+                self.add(字句)
 
     def encode(self, text: str) -> list[int]:
-        return [self.token_to_id.get(token, self.token_to_id[UNK]) for token in self.tokenize(text)]
+        return [self.字句_to_id.get(字句, self.字句_to_id[UNK]) for 字句 in self.tokenize(text)]
 
-    def decode_tokens(self, tokens: Sequence[str]) -> str:
+    def decode_字句(self, 字句: Sequence[str]) -> str:
         out = ""
         no_space_before = {".", ",", "!", "?", ":", ";", "。", "、", "！", "？", ")", "]"}
-        for token in tokens:
-            if token in {BOS, EOS}:
+        for 字句 in 字句:
+            if 字句 in {BOS, EOS}:
                 continue
             if not out:
-                out = token
-            elif token in no_space_before:
-                out += token
+                out = 字句
+            elif 字句 in no_space_before:
+                out += 字句
             else:
-                out += " " + token
+                out += " " + 字句
         return out
 
     def __len__(self) -> int:
-        return len(self.id_to_token)
+        return len(self.id_to_字句)
 
 
 @dataclass(frozen=True)
@@ -154,7 +154,7 @@ class CategoricalDecisionForest:
 
     def _distribution(self, node: TreeNode) -> dict[str, float]:
         total = sum(node.counts.values()) + self.alpha * len(self.vocabulary)
-        return {token: (node.counts.get(token, 0) + self.alpha) / total for token in self.vocabulary}
+        return {字句: (node.counts.get(字句, 0) + self.alpha) / total for 字句 in self.vocabulary}
 
     def _predict_tree(self, node: TreeNode, features: Mapping[str, str]) -> dict[str, float]:
         current = node
@@ -166,22 +166,22 @@ class CategoricalDecisionForest:
             current = child
         return self._distribution(current)
 
-    def predict_distribution(self, features: Mapping[str, str], allowed_tokens: Sequence[str] | None = None) -> dict[str, float]:
-        tokens = tuple(allowed_tokens) if allowed_tokens else self.vocabulary
+    def predict_distribution(self, features: Mapping[str, str], allowed_字句: Sequence[str] | None = None) -> dict[str, float]:
+        字句 = tuple(allowed_字句) if allowed_字句 else self.vocabulary
         if not self.fitted or not self.trees:
-            return {token: 1.0 / len(tokens) for token in tokens} if tokens else {}
-        aggregate = {token: 0.0 for token in self.vocabulary}
+            return {字句: 1.0 / len(字句) for 字句 in 字句} if 字句 else {}
+        aggregate = {字句: 0.0 for 字句 in self.vocabulary}
         for tree in self.trees:
-            for token, probability in self._predict_tree(tree, features).items():
-                aggregate[token] += probability
-        aggregate = {token: value / len(self.trees) for token, value in aggregate.items()}
-        if allowed_tokens is not None:
-            allowed = set(allowed_tokens)
-            aggregate = {token: p for token, p in aggregate.items() if token in allowed}
+            for 字句, probability in self._predict_tree(tree, features).items():
+                aggregate[字句] += probability
+        aggregate = {字句: value / len(self.trees) for 字句, value in aggregate.items()}
+        if allowed_字句 is not None:
+            allowed = set(allowed_字句)
+            aggregate = {字句: p for 字句, p in aggregate.items() if 字句 in allowed}
         total = sum(aggregate.values())
         if total <= EPS:
-            return {token: 1.0 / len(tokens) for token in tokens} if tokens else {}
-        return {token: p / total for token, p in aggregate.items()}
+            return {字句: 1.0 / len(字句) for 字句 in 字句} if 字句 else {}
+        return {字句: p / total for 字句, p in aggregate.items()}
 
     def parameter_count(self) -> int:
         def count(node: TreeNode) -> int:
@@ -199,14 +199,14 @@ class GenerationPlan:
     decision: str
     intent: str
     answer: str
-    relation: str
+    関係: str
     has_proof: bool
-    language: str = "en"
+    言語: str = "en"
 
 
 class ConditionalSurface:
-    def __init__(self, token_space: TokenSymbolSpace, transform: CategoricalDecisionForest) -> None:
-        self.token_space = token_space
+    def __init__(self, 字句_space: 字句SymbolSpace, transform: CategoricalDecisionForest) -> None:
+        self.字句_space = 字句_space
         self.transform = transform
 
     @staticmethod
@@ -216,31 +216,31 @@ class ConditionalSurface:
         return {
             "decision": plan.decision,
             "intent": plan.intent,
-            "relation": plan.relation or "none",
+            '関係': plan.関係 or "none",
             "proof": "1" if plan.has_proof else "0",
-            "language": plan.language,
+            '言語': plan.言語,
             "position": str(len(prefix)),
             "prev1": prev1,
             "prev2": prev2,
         }
 
-    def next_distribution(self, prefix: Sequence[str], plan: GenerationPlan, allowed_tokens: Sequence[str] | None = None) -> dict[str, float]:
-        return self.transform.predict_distribution(self.文脈特徴(prefix, plan), allowed_tokens)
+    def next_distribution(self, prefix: Sequence[str], plan: GenerationPlan, allowed_字句: Sequence[str] | None = None) -> dict[str, float]:
+        return self.transform.predict_distribution(self.文脈特徴(prefix, plan), allowed_字句)
 
 
 class NonNeuralDecoder:
     APPROVE_PATHS = (
-        ("the", "answer", "is", ANSWER_SLOT, ".", EOS),
-        (ANSWER_SLOT, ".", EOS),
-        ("evidence", "supports", ANSWER_SLOT, ".", EOS),
+        ("the", "answer", "is", ANSWER_欄, ".", EOS),
+        (ANSWER_欄, ".", EOS),
+        ('証拠', "supports", ANSWER_欄, ".", EOS),
     )
-    MEMORY_PATHS = (("the", "stored", "value", "is", ANSWER_SLOT, ".", EOS), (ANSWER_SLOT, ".", EOS))
-    RISK_PATHS = (("the", "identified", "risk", "is", ANSWER_SLOT, ".", EOS), ("the", "answer", "is", ANSWER_SLOT, ".", EOS))
-    GRID_PATHS = (("the", "leftmost", "object", "is", ANSWER_SLOT, ".", EOS), (ANSWER_SLOT, ".", EOS))
-    SUSPEND_PATHS = (("insufficient", "evidence", ".", EOS), ("the", "result", "is", "suspended", ".", EOS))
+    MEMORY_PATHS = (("the", "stored", "value", "is", ANSWER_欄, ".", EOS), (ANSWER_欄, ".", EOS))
+    RISK_PATHS = (("the", "identified", "risk", "is", ANSWER_欄, ".", EOS), ("the", "answer", "is", ANSWER_欄, ".", EOS))
+    GRID_PATHS = (("the", "leftmost", "object", "is", ANSWER_欄, ".", EOS), (ANSWER_欄, ".", EOS))
+    SUSPEND_PATHS = (("insufficient", '証拠', ".", EOS), ("the", '結果', "is", "suspended", ".", EOS))
 
-    def __init__(self, token_space: TokenSymbolSpace, surface: ConditionalSurface) -> None:
-        self.token_space = token_space
+    def __init__(self, 字句_space: 字句SymbolSpace, surface: ConditionalSurface) -> None:
+        self.字句_space = 字句_space
         self.surface = surface
 
     def paths_for(self, plan: GenerationPlan) -> tuple[tuple[str, ...], ...]:
@@ -248,16 +248,16 @@ class NonNeuralDecoder:
             return self.SUSPEND_PATHS
         if plan.intent in {"memory_recall", "memory_write"}:
             return self.MEMORY_PATHS
-        if plan.intent == "risk_reasoning":
+        if plan.intent == 'risk_推論':
             return self.RISK_PATHS
-        if plan.intent == "grid_relation":
+        if plan.intent == 'grid_関係':
             return self.GRID_PATHS
         return self.APPROVE_PATHS
 
     def decode(self, plan: GenerationPlan, beam_width: int = 4) -> tuple[str, list[dict[str, object]]]:
         paths = self.paths_for(plan)
         beams: list[tuple[tuple[str, ...], float]] = [((), 0.0)]
-        trace: list[dict[str, object]] = []
+        追跡: list[dict[str, object]] = []
         for step in range(max(len(path) for path in paths) + 1):
             expanded: list[tuple[tuple[str, ...], float]] = []
             for prefix, score in beams:
@@ -268,67 +268,67 @@ class NonNeuralDecoder:
                     expanded.append((prefix, score))
                     continue
                 allowed = sorted({path[len(prefix)] for path in matching if len(path) > len(prefix)})
-                for token, probability in sorted(self.surface.next_distribution(prefix, plan, allowed).items(), key=lambda x: (-x[1], x[0])):
-                    expanded.append((prefix + (token,), score + log(max(probability, EPS))))
+                for 字句, probability in sorted(self.surface.next_distribution(prefix, plan, allowed).items(), key=lambda x: (-x[1], x[0])):
+                    expanded.append((prefix + (字句,), score + log(max(probability, EPS))))
             if not expanded:
                 break
             beams = sorted(expanded, key=lambda x: (-x[1], x[0]))[:beam_width]
-            trace.append({"op": "DECODE_STEP", "step": step, "beam_count": len(beams)})
+            追跡.append({"op": "DECODE_STEP", "step": step, "beam_count": len(beams)})
             if all(prefix and prefix[-1] == EOS for prefix, _ in beams):
                 break
         completed = [beam for beam in beams if beam[0] and beam[0][-1] == EOS]
         if not completed:
             raise RuntimeError("decoder failed to reach EOS")
-        tokens, _ = max(completed, key=lambda x: x[1])
+        字句, _ = max(completed, key=lambda x: x[1])
         emitted: list[str] = []
-        for token in tokens:
-            emitted.extend(self.token_space.tokenize(plan.answer)) if token == ANSWER_SLOT else emitted.append(token)
-        text = self.token_space.decode_tokens(emitted)
-        return (text[0].upper() + text[1:] if text else text), trace
+        for 字句 in 字句:
+            emitted.extend(self.字句_space.tokenize(plan.answer)) if 字句 == ANSWER_欄 else emitted.append(字句)
+        text = self.字句_space.decode_字句(emitted)
+        return (text[0].upper() + text[1:] if text else text), 追跡
 
 
 class NonNeuralGenerator:
-    def __init__(self, token_space: TokenSymbolSpace, transform: CategoricalDecisionForest) -> None:
-        self.token_space = token_space
+    def __init__(self, 字句_space: 字句SymbolSpace, transform: CategoricalDecisionForest) -> None:
+        self.字句_space = 字句_space
         self.transform = transform
-        self.surface = ConditionalSurface(token_space, transform)
-        self.decoder = NonNeuralDecoder(token_space, self.surface)
+        self.surface = ConditionalSurface(字句_space, transform)
+        self.decoder = NonNeuralDecoder(字句_space, self.surface)
 
     def generate(self, plan: GenerationPlan) -> tuple[str, list[dict[str, object]]]:
-        text, decoder_trace = self.decoder.decode(plan)
+        text, decoder_追跡 = self.decoder.decode(plan)
         return text, [
             {"op": "CONDITIONAL_LINGUISTIC_OUTPUT_SURFACE", "parameter_count": self.transform.parameter_count()},
-            *decoder_trace,
+            *decoder_追跡,
             {"op": "DECODING_OR_EMISSION_INTERFACE", "text": text},
         ]
 
 
 def generation_training_sequences() -> list[tuple[GenerationPlan, tuple[str, ...]]]:
-    result: list[tuple[GenerationPlan, tuple[str, ...]]] = []
-    for intent, relation, paths in (
-        ("knowledge_query", "capability", NonNeuralDecoder.APPROVE_PATHS),
+    結果: list[tuple[GenerationPlan, tuple[str, ...]]] = []
+    for intent, 関係, paths in (
+        ("knowledge_query", '能力', NonNeuralDecoder.APPROVE_PATHS),
         ("memory_recall", "memory_value", NonNeuralDecoder.MEMORY_PATHS),
         ("memory_write", "memory_write", NonNeuralDecoder.MEMORY_PATHS),
-        ("risk_reasoning", "risk", NonNeuralDecoder.RISK_PATHS),
-        ("grid_relation", "leftmost_color", NonNeuralDecoder.GRID_PATHS),
+        ('risk_推論', "risk", NonNeuralDecoder.RISK_PATHS),
+        ('grid_関係', "leftmost_color", NonNeuralDecoder.GRID_PATHS),
     ):
-        plan = GenerationPlan("APPROVE", intent, ANSWER_SLOT, relation, True)
+        plan = GenerationPlan("APPROVE", intent, ANSWER_欄, 関係, True)
         for _ in range(4):
             for path in paths:
-                result.append((plan, path))
-    suspend = GenerationPlan("SUSPEND", "unknown", "", "none", False)
+                結果.append((plan, path))
+    suspend = GenerationPlan("SUSPEND", '未知', "", "none", False)
     for _ in range(10):
         for path in NonNeuralDecoder.SUSPEND_PATHS:
-            result.append((suspend, path))
-    return result
+            結果.append((suspend, path))
+    return 結果
 
 
 def build_generator() -> tuple[NonNeuralGenerator, list[SequenceSample], dict[str, float | int]]:
-    token_space = TokenSymbolSpace()
+    字句_space = 字句SymbolSpace()
     sequences = generation_training_sequences()
-    token_space.fit([" ".join(path) for _, path in sequences])
-    transform = CategoricalDecisionForest(token_space.id_to_token)
-    generator = NonNeuralGenerator(token_space, transform)
+    字句_space.fit([" ".join(path) for _, path in sequences])
+    transform = CategoricalDecisionForest(字句_space.id_to_字句)
+    generator = NonNeuralGenerator(字句_space, transform)
     samples: list[SequenceSample] = []
     for plan, sequence in sequences:
         prefix: list[str] = []
@@ -343,5 +343,5 @@ def build_generator() -> tuple[NonNeuralGenerator, list[SequenceSample], dict[st
         "after_nll": after,
         "parameter_count": transform.parameter_count(),
         "sample_count": len(samples),
-        "vocabulary_size": len(token_space),
+        "vocabulary_size": len(字句_space),
     }

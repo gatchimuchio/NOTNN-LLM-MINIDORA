@@ -30,8 +30,8 @@ class 関係制約契約試験(unittest.TestCase):
         return r.データ['回答'][0]['判定'],r
 
     def test_関係の推移を導く(self):
-        state,r=self.判定((式('ab'),式('bc','B','超','C')))
-        self.assertEqual(state,'導出')
+        状態,r=self.判定((式('ab'),式('bc','B','超','C')))
+        self.assertEqual(状態,'導出')
         self.assertEqual(r.データ['回答'][0]['根拠制約'],['ab','bc'])
 
     def test_入力に結論の直書きを必要としない(self):

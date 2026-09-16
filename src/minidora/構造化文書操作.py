@@ -32,18 +32,18 @@ def _取得(root, pointer):
     if len(pointer) > 2048 or (pointer and not pointer.startswith('/')) or re.search(r'~(?![01])', pointer):
         raise 文書境界違反('JSON Pointerの構文不正')
     node = root
-    for token in pointer.split('/')[1:] if pointer else ():
-        token = token.replace('~1', '/').replace('~0', '~')
+    for 字句 in pointer.split('/')[1:] if pointer else ():
+        字句 = 字句.replace('~1', '/').replace('~0', '~')
         if node['型'] == '対象':
-            if token not in node['値']:
+            if 字句 not in node['値']:
                 raise KeyError(pointer)
-            node = node['値'][token]
+            node = node['値'][字句]
         elif node['型'] == '配列':
-            if not re.fullmatch(r'0|[1-9][0-9]*', token):
+            if not re.fullmatch(r'0|[1-9][0-9]*', 字句):
                 raise 文書境界違反('配列位置は先行零のない非負整数')
-            if len(token) > 8 or int(token) >= len(node['値']):
+            if len(字句) > 8 or int(字句) >= len(node['値']):
                 raise KeyError(pointer)
-            node = node['値'][int(token)]
+            node = node['値'][int(字句)]
         else:
             raise KeyError(pointer)
     return node
@@ -208,45 +208,45 @@ def _操作(doc, operation, settings):
     return _CSV出力(doc) if doc['形式'] == 'CSV' else _JSON出力(doc['構造'])
 
 
-def _結果(source, operations, doc, body):
-    original = _読む(source['原文'], source['形式'], source['区切り'], source['見出し'])
+def _結果(情報源, operations, doc, body):
+    original = _読む(情報源['原文'], 情報源['形式'], 情報源['区切り'], 情報源['見出し'])
     leaves = _末端(original['構造'])
     used = {doc['対応'][p]['原位置'] for p in _末端(doc['構造']) if p in doc['対応']}
     omitted = [p for p in leaves if p not in used]
     header_links = doc['見出し対応'] + list(doc['キー対応'].values())
     omitted_headers = [name for name, span in zip(original['列名'] or [], original['見出し対応'])
                        if span not in header_links]
-    data = {"版": 構造化文書版, "原本": deepcopy(source), "操作列": deepcopy(operations),
+    資料 = {"版": 構造化文書版, "原本": deepcopy(情報源), "操作列": deepcopy(operations),
             "文書": deepcopy(doc), "未選択位置": omitted, "全原値保持": not omitted,
             "未選択見出し": omitted_headers, "値保持の範囲": "原本の末端値のみ。キー・見出し・空白の完全同一性ではない",
-            "原文SHA256": sha256(source['原文'].encode('utf-8')).hexdigest(),
+            "原文SHA256": sha256(情報源['原文'].encode('utf-8')).hexdigest(),
             "保証範囲": "形式・位置・型の処理。内容の真偽・意味的十分性・選択の妥当性は未判定"}
-    data['記録SHA256'] = sha256(_符号({'本文': body, 'データ': data})).hexdigest()
-    result = 能力結果(True, body, データ=data)
-    if len(_符号(_結果辞書(result))) > 2000000:
+    資料['記録SHA256'] = sha256(_符号({'本文': body, 'データ': 資料})).hexdigest()
+    結果 = 能力結果(True, body, データ=資料)
+    if len(_符号(_結果辞書(結果))) > 2000000:
         raise 文書境界違反('文書記録サイズ上限')
-    return result
+    return 結果
 
 
-def _再構成(source, operations):
-    _項目(source, {'原文', '形式', '区切り', '見出し'})
+def _再構成(情報源, operations):
+    _項目(情報源, {'原文', '形式', '区切り', '見出し'})
     if type(operations) is not list or len(operations) > 8:
         raise 文書境界違反('文書操作列の型・長さ不正')
-    doc = _読む(source['原文'], source['形式'], source['区切り'], source['見出し'])
-    body = source['原文']
+    doc = _読む(情報源['原文'], 情報源['形式'], 情報源['区切り'], 情報源['見出し'])
+    body = 情報源['原文']
     for row in operations:
         _項目(row, {'操作', '設定'})
         body = _操作(doc, row['操作'], row['設定'])
-    return _結果(source, operations, doc, body)
+    return _結果(情報源, operations, doc, body)
 
 
-def 文書記録整合(result: 能力結果) -> bool:
+def 文書記録整合(結果: 能力結果) -> bool:
     try:
-        _結果辞書(result)
-        if result.成立 is not True or result.保留理由 or result.根拠 or result.データ['版'] != 構造化文書版:
+        _結果辞書(結果)
+        if 結果.成立 is not True or 結果.保留理由 or 結果.根拠 or 結果.データ['版'] != 構造化文書版:
             return False
-        expected = _再構成(result.データ['原本'], result.データ['操作列'])
-        return expected.本文 == result.本文 and _符号(expected.データ) == _符号(result.データ)
+        expected = _再構成(結果.データ['原本'], 結果.データ['操作列'])
+        return expected.本文 == 結果.本文 and _符号(expected.データ) == _符号(結果.データ)
     except (ValueError, TypeError, KeyError, RecursionError, OverflowError):
         return False
 

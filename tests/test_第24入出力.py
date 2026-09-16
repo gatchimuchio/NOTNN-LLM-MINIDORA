@@ -26,11 +26,11 @@ def wire(*commands):
     return ''.join(json.dumps({'入力': s}, ensure_ascii=False) + '\n' for s in commands).encode('utf-8')
 
 
-def child(data=b'', *args, encoding='ascii', entry=CLI):
+def child(資料=b'', *args, encoding='ascii', entry=CLI):
     env = {**os.environ, 'PYTHONIOENCODING': encoding, 'PYTHONUTF8': '0',
            'PYTHONHASHSEED': '0', 'PYTHONDONTWRITEBYTECODE': '1'}
     # bytesで受け取り、親の既定符号化・置換に頼らず契約を検査する。
-    proc = subprocess.run([sys.executable, str(entry), *map(str, args)], input=data,
+    proc = subprocess.run([sys.executable, str(entry), *map(str, args)], input=資料,
                           capture_output=True, cwd=ROOT, env=env, timeout=30)
     stdout, stderr = proc.stdout.decode('utf-8', 'strict'), proc.stderr.decode('utf-8', 'strict')
     return proc.returncode, stdout, stderr
@@ -162,77 +162,77 @@ class ファイル公開試験(unittest.TestCase):
         self.assertEqual(path.read_bytes(), '日本語\n'.encode('utf-8'))
 
     def test_書込み途中の失敗で旧版を保持(self):
-        path = self.root/'result'; path.write_bytes(b'old')
+        path = self.root/'結果'; path.write_bytes(b'old')
         with self.assertRaises(RuntimeError):
             with 原子的テキスト出力(path, 上書き=True) as out:
                 out.write('途中'); raise RuntimeError('失敗注入')
         self.assertEqual(path.read_bytes(), b'old'); self.assertEqual(list(self.root.glob('.minidora-*')), [])
 
     def test_公開時点の競合で既存ファイルを上書きしない(self):
-        path = self.root/'result'
+        path = self.root/'結果'
         with self.assertRaises(FileExistsError):
             with 原子的テキスト出力(path) as out:
                 out.write('new'); path.write_bytes(b'other writer')
         self.assertEqual(path.read_bytes(), b'other writer'); self.assertEqual(list(self.root.glob('.minidora-*')), [])
 
     def test_fsync失敗で旧版と一時ファイルの整合を保つ(self):
-        path = self.root/'result'; path.write_bytes(b'old')
+        path = self.root/'結果'; path.write_bytes(b'old')
         with patch('minidora.原子的保存.os.fsync', side_effect=OSError('fsync失敗')), self.assertRaises(OSError):
             with 原子的テキスト出力(path, 上書き=True) as out:
                 out.write('new')
         self.assertEqual(path.read_bytes(), b'old'); self.assertEqual(list(self.root.glob('.minidora-*')), [])
 
     def test_replace失敗で旧版を保持(self):
-        path = self.root/'result'; path.write_bytes(b'old')
+        path = self.root/'結果'; path.write_bytes(b'old')
         with patch('minidora.原子的保存.os.replace', side_effect=OSError('replace失敗')), self.assertRaises(OSError):
             with 原子的テキスト出力(path, 上書き=True) as out:
                 out.write('new')
         self.assertEqual(path.read_bytes(), b'old'); self.assertEqual(list(self.root.glob('.minidora-*')), [])
 
     def test_ハードリンク別名の入力切詰めを拒否(self):
-        source, dest = self.root/'input', self.root/'alias'
-        raw = wire(REGISTER, QUERY); source.write_bytes(raw); os.link(source, dest)
-        self.assertTrue(同じファイル(source, dest))
-        code, _, _ = child(b'', '--入力', source, '--出力', dest, '--上書き')
-        self.assertEqual(code, 2); self.assertEqual(source.read_bytes(), raw); self.assertEqual(dest.read_bytes(), raw)
+        情報源, dest = self.root/'input', self.root/'alias'
+        raw = wire(REGISTER, QUERY); 情報源.write_bytes(raw); os.link(情報源, dest)
+        self.assertTrue(同じファイル(情報源, dest))
+        code, _, _ = child(b'', '--入力', 情報源, '--出力', dest, '--上書き')
+        self.assertEqual(code, 2); self.assertEqual(情報源.read_bytes(), raw); self.assertEqual(dest.read_bytes(), raw)
 
     def test_出力と保存状態のハードリンク別名を拒否(self):
-        out, state = self.root/'output', self.root/'state'
-        out.write_bytes(b'old'); os.link(out, state)
-        code, _, _ = child(wire(REGISTER), '--出力', out, '--保存', state, '--上書き')
+        out, 状態 = self.root/'output', self.root/'状態'
+        out.write_bytes(b'old'); os.link(out, 状態)
+        code, _, _ = child(wire(REGISTER), '--出力', out, '--保存', 状態, '--上書き')
         self.assertEqual(code, 2); self.assertEqual(out.read_bytes(), b'old')
 
     def test_不正通信があれば出力と保存の旧版を保持(self):
-        out, state = self.root/'out', self.root/'state'
-        out.write_bytes(b'old output'); state.write_bytes(b'old state')
-        code, _, _ = child(wire(REGISTER) + b'{bad}\n' + wire(QUERY), '--出力', out, '--保存', state, '--上書き')
-        self.assertEqual(code, 2); self.assertEqual(out.read_bytes(), b'old output'); self.assertEqual(state.read_bytes(), b'old state')
+        out, 状態 = self.root/'out', self.root/'状態'
+        out.write_bytes(b'old output'); 状態.write_bytes(b'old state')
+        code, _, _ = child(wire(REGISTER) + b'{bad}\n' + wire(QUERY), '--出力', out, '--保存', 状態, '--上書き')
+        self.assertEqual(code, 2); self.assertEqual(out.read_bytes(), b'old output'); self.assertEqual(状態.read_bytes(), b'old state')
         self.assertEqual(list(self.root.glob('.minidora-*')), [])
 
     def test_不正バイト読取で出力旧版を保持(self):
-        source, out = self.root/'input', self.root/'out'
-        source.write_bytes(wire(REGISTER) + b'\xff'); out.write_bytes(b'old')
-        code, _, _ = child(b'', '--入力', source, '--出力', out, '--上書き')
+        情報源, out = self.root/'input', self.root/'out'
+        情報源.write_bytes(wire(REGISTER) + b'\xff'); out.write_bytes(b'old')
+        code, _, _ = child(b'', '--入力', 情報源, '--出力', out, '--上書き')
         self.assertEqual(code, 2); self.assertEqual(out.read_bytes(), b'old')
 
     def test_不正通信で新規ファイルも作らない(self):
-        out, state = self.root/'out', self.root/'state'
-        code, _, _ = child(b'{bad}\n', '--出力', out, '--保存', state)
-        self.assertEqual(code, 2); self.assertFalse(out.exists()); self.assertFalse(state.exists())
+        out, 状態 = self.root/'out', self.root/'状態'
+        code, _, _ = child(b'{bad}\n', '--出力', out, '--保存', 状態)
+        self.assertEqual(code, 2); self.assertFalse(out.exists()); self.assertFalse(状態.exists())
 
     def test_意味上の保留は正常通信として保存復元できる(self):
-        state = self.root/'state'
-        code, out, err = child(wire('未対応の依頼'), '--保存', state)
+        状態 = self.root/'状態'
+        code, out, err = child(wire('未対応の依頼'), '--保存', 状態)
         self.assertEqual(code, 0, err); self.assertEqual(json.loads(out)['状態'], '保留')
-        restored = 監査改善会話セッション.復元(state.read_text(encoding='utf-8'))
+        restored = 監査改善会話セッション.復元(状態.read_text(encoding='utf-8'))
         self.assertEqual(restored.状態()['発話数'], 1)
 
     def test_同じ保存先へ明示復元と更新ができる(self):
-        state = self.root/'state'
-        self.assertEqual(child(wire(REGISTER, QUERY), '--保存', state)[0], 0)
-        code, out, err = child(wire('短く説明して'), '--復元', state, '--保存', state, '--上書き')
+        状態 = self.root/'状態'
+        self.assertEqual(child(wire(REGISTER, QUERY), '--保存', 状態)[0], 0)
+        code, out, err = child(wire('短く説明して'), '--復元', 状態, '--保存', 状態, '--上書き')
         self.assertEqual(code, 0, err); self.assertEqual(json.loads(out)['状態'], '合格')
-        self.assertEqual(監査改善会話セッション.復元(state.read_text(encoding='utf-8')).状態()['発話数'], 3)
+        self.assertEqual(監査改善会話セッション.復元(状態.read_text(encoding='utf-8')).状態()['発話数'], 3)
 
     def test_出力先ディレクトリは処理前に拒否(self):
         code, out, _ = child(wire(REGISTER), '--出力', self.root, '--上書き')
@@ -240,19 +240,19 @@ class ファイル公開試験(unittest.TestCase):
 
     def test_保存サイズ上限を超えたら旧版を保持(self):
         from 監査改善チャット import 保存する
-        path = self.root/'state'; path.write_bytes(b'old')
+        path = self.root/'状態'; path.write_bytes(b'old')
         with self.assertRaises(ValueError):
             保存する(path, 'あ' * 666667, True)
         self.assertEqual(path.read_bytes(), b'old')
 
     def test_シンボリックリンクを公開先にしない(self):
-        source, link = self.root/'source', self.root/'link'; source.write_bytes(b'old')
+        情報源, link = self.root/'情報源', self.root/'link'; 情報源.write_bytes(b'old')
         try:
-            link.symlink_to(source)
+            link.symlink_to(情報源)
         except OSError as exc:
             self.skipTest('実行環境でsymlink作成不可: ' + str(exc))
         code, _, _ = child(wire(REGISTER), '--出力', link, '--上書き')
-        self.assertEqual(code, 2); self.assertEqual(source.read_bytes(), b'old'); self.assertTrue(link.is_symlink())
+        self.assertEqual(code, 2); self.assertEqual(情報源.read_bytes(), b'old'); self.assertTrue(link.is_symlink())
 
 
 if __name__ == '__main__':

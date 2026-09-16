@@ -42,9 +42,9 @@ def _状態名(value: str | None) -> str | None:
         return None
     for prefix in _状態役割prefix:
         if text.startswith(prefix) and len(text) > len(prefix):
-            candidate = text[len(prefix):].strip(" :=：")
-            if candidate:
-                return candidate
+            候補 = text[len(prefix):].strip(" :=：")
+            if 候補:
+                return 候補
     return text
 
 
@@ -55,7 +55,7 @@ def _append_edge(
     src: str | None,
     dst: str | None,
     cond: tuple[str, ...] = (),
-    action: tuple[str, ...] = (),
+    作用: tuple[str, ...] = (),
     reversible: bool | None = None,
     rollback: str | None = None,
 ) -> None:
@@ -67,8 +67,8 @@ def _append_edge(
             nodes[value] = HDS状態ノード(f"state:{len(nodes):03d}", value)
 
     condition_values = tuple(dict.fromkeys(value for raw in cond if (value := _clean(raw))))
-    action_values = tuple(dict.fromkeys(value for raw in action if (value := _clean(raw))))
-    signature = (src, dst, condition_values, action_values, reversible, rollback)
+    作用_values = tuple(dict.fromkeys(value for raw in 作用 if (value := _clean(raw))))
+    signature = (src, dst, condition_values, 作用_values, reversible, rollback)
     if any((edge.始点, edge.終点, edge.条件, edge.作用, edge.可逆, edge.rollback先) == signature for edge in edges):
         return
     edges.append(
@@ -77,7 +77,7 @@ def _append_edge(
             src,
             dst,
             condition_values,
-            action_values,
+            作用_values,
             reversible,
             rollback,
         )
@@ -85,35 +85,35 @@ def _append_edge(
 
 
 def HDS状態遷移抽出(text: str) -> HDS状態遷移図:
-    source = " ".join(str(text).split()).strip()
+    情報源 = " ".join(str(text).split()).strip()
     nodes: dict[str, HDS状態ノード] = {}
     edges: list[HDS遷移辺] = []
     unresolved: list[str] = []
 
-    for match in _JA_FROM_TO.finditer(source):
+    for match in _JA_FROM_TO.finditer(情報源):
         condition = (match.group("cond"),) if match.group("cond") else ()
-        _append_edge(edges, nodes, src=match.group("src"), dst=match.group("dst"), cond=condition, action=("遷移",))
+        _append_edge(edges, nodes, src=match.group("src"), dst=match.group("dst"), cond=condition, 作用=("遷移",))
 
-    for match in _EN_FROM_TO.finditer(source):
-        _append_edge(edges, nodes, src=match.group("src"), dst=match.group("dst"), action=("遷移",))
+    for match in _EN_FROM_TO.finditer(情報源):
+        _append_edge(edges, nodes, src=match.group("src"), dst=match.group("dst"), 作用=("遷移",))
 
-    for match in _JA_COND_TO.finditer(source):
+    for match in _JA_COND_TO.finditer(情報源):
         dst = _状態名(match.group("dst"))
         if not any(edge.終点 == dst and edge.条件 for edge in edges):
-            _append_edge(edges, nodes, src=None, dst=dst, cond=(match.group("cond"),), action=("条件遷移",))
+            _append_edge(edges, nodes, src=None, dst=dst, cond=(match.group("cond"),), 作用=("条件遷移",))
 
-    for match in _EN_COND_TO.finditer(source):
+    for match in _EN_COND_TO.finditer(情報源):
         dst = _状態名(match.group("dst"))
         if not any(edge.終点 == dst and edge.条件 for edge in edges):
-            _append_edge(edges, nodes, src=None, dst=dst, cond=(match.group("cond"),), action=("条件遷移",))
+            _append_edge(edges, nodes, src=None, dst=dst, cond=(match.group("cond"),), 作用=("条件遷移",))
 
-    for match in _JA_ROLLBACK.finditer(source):
+    for match in _JA_ROLLBACK.finditer(情報源):
         rollback = _状態名(match.group("dst"))
-        _append_edge(edges, nodes, src=None, dst=rollback, cond=("失敗または撤回条件",), action=("巻戻し",), reversible=True, rollback=rollback)
+        _append_edge(edges, nodes, src=None, dst=rollback, cond=("失敗または撤回条件",), 作用=("巻戻し",), reversible=True, rollback=rollback)
 
-    for match in _EN_ROLLBACK.finditer(source):
+    for match in _EN_ROLLBACK.finditer(情報源):
         rollback = _状態名(match.group("dst"))
-        _append_edge(edges, nodes, src=None, dst=rollback, cond=("失敗または撤回条件",), action=("巻戻し",), reversible=True, rollback=rollback)
+        _append_edge(edges, nodes, src=None, dst=rollback, cond=("失敗または撤回条件",), 作用=("巻戻し",), reversible=True, rollback=rollback)
 
     for edge in edges:
         if edge.始点 is None:
@@ -124,8 +124,8 @@ def HDS状態遷移抽出(text: str) -> HDS状態遷移図:
     return HDS状態遷移図(tuple(nodes.values()), tuple(edges), tuple(unresolved))
 
 
-def HDS状態遷移IR射影(ir: HDSIR, graph: HDS状態遷移図) -> HDSIR:
-    if not graph.ノード and not graph.遷移:
+def HDS状態遷移IR射影(ir: HDSIR, 関係図: HDS状態遷移図) -> HDSIR:
+    if not 関係図.ノード and not 関係図.遷移:
         return ir
 
     coords = list(ir.座標)
@@ -134,16 +134,16 @@ def HDS状態遷移IR射影(ir: HDSIR, graph: HDS状態遷移図) -> HDSIR:
     coord_map: dict[str, str] = {}
     existing = {(str(coord.種別), str(coord.内容)): coord.座標ID for coord in coords}
 
-    for node in graph.ノード:
+    for node in 関係図.ノード:
         key = ("動態.状態", node.名称)
         cid = existing.get(key)
         if cid is None:
             cid = f"archv13:state:{len(coord_map):03d}"
-            coords.append(HDS座標(cid, "動態.状態", node.名称, 値状態.確定, 由来="公開HDS Compiler Architecture v1.3"))
+            coords.append(HDS座標(cid, "動態.状態", node.名称, 値状態.確定, 由来='公開HDS 構文化器 構造 v1.3'))
             existing[key] = cid
         coord_map[node.名称] = cid
 
-    for edge in graph.遷移:
+    for edge in 関係図.遷移:
         if edge.始点 and edge.終点:
             sid = coord_map.get(edge.始点)
             oid = coord_map.get(edge.終点)
@@ -159,7 +159,7 @@ def HDS状態遷移IR射影(ir: HDSIR, graph: HDS状態遷移図) -> HDSIR:
                         "状態遷移",
                         条件=tuple(conditions),
                         値状態=値状態.確定,
-                        由来="公開HDS Compiler Architecture v1.3",
+                        由来='公開HDS 構文化器 構造 v1.3',
                     )
                 )
         else:

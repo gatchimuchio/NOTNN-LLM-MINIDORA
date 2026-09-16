@@ -11,7 +11,7 @@ from minidora.ブラウザ閲覧 import ブラウザ閲覧器, 描画を観測, 
 from minidora.ブラウザ接続 import ブラウザ要求を復元
 from minidora.構造化文書 import 構造化文書を読む
 from minidora.構造化文書操作 import 文書を処理
-from minidora.製品版.抽出 import 情報抽出Module
+from minidora.製品版.抽出 import 情報抽出モジュール
 
 
 def 描画試験(value: int, executable: str | None):
@@ -32,35 +32,35 @@ def 描画試験(value: int, executable: str | None):
     doc=構造化文書を読む(json.dumps(rows,ensure_ascii=False),'JSON')
     doc=文書を処理(doc,'JSON選択',{'位置':'/1/1'})
     doc=文書を処理(doc,'値取出',{'型':'文字列'})
-    result=情報抽出Module().実行('数字',doc.本文)
+    結果=情報抽出モジュール().実行('数字',doc.本文)
     return {'範囲':'人工HTMLの実Chromium描画。URL移動・公開Web取得の実証ではない。',
             'ブラウザ版':version,'操作前に表あり':any(r['ID']=='t' for r in before['要素']),
-            '操作後の表':rows,'後続抽出':result.本文,
+            '操作後の表':rows,'後続抽出':結果.本文,
             '状態変化':before['観測SHA256']!=after['観測SHA256'],
-            '成立':result.成立 and result.本文==str(value)}
+            '成立':結果.成立 and 結果.本文==str(value)}
 
 
 def main():
     if hasattr(sys.stdout,'reconfigure'):sys.stdout.reconfigure(encoding='utf-8')
     parser=argparse.ArgumentParser(description=__doc__)
     mode=parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument('--描画試験',action='store_true')
+    mode.add_argument('--描画試験',作用='store_true')
     mode.add_argument('--要求',type=Path)
     parser.add_argument('--値',type=int,default=731)
     parser.add_argument('--実行ファイル')
-    parser.add_argument('--外部読取許可',action='store_true')
+    parser.add_argument('--外部読取許可',作用='store_true')
     args=parser.parse_args()
     if not 0<=args.値<=1000000:parser.error('--値は0〜1000000')
     if args.要求 and not args.外部読取許可:parser.error('公開閲覧には--外部読取許可が必要')
     try:
         if args.描画試験:
-            data=描画試験(args.値,args.実行ファイル)
+            資料=描画試験(args.値,args.実行ファイル)
         else:
             raw=json.loads(args.要求.read_text(encoding='utf-8'))
             r=ブラウザ閲覧器(実行ファイル=args.実行ファイル).実行(ブラウザ要求を復元(raw),外部読取許可=True)
-            data={'成立':r.成立,'本文':r.本文,'理由':r.保留理由,'記録':r.データ}
-        print(json.dumps(data,ensure_ascii=False,indent=2))
-        return 0 if data['成立'] else 1
+            資料={'成立':r.成立,'本文':r.本文,'理由':r.保留理由,'記録':r.データ}
+        print(json.dumps(資料,ensure_ascii=False,indent=2))
+        return 0 if 資料['成立'] else 1
     except Exception as exc:
         print(json.dumps({'成立':False,'診断':type(exc).__name__},ensure_ascii=False))
         return 1

@@ -19,7 +19,7 @@ class HDS作用記録:
 
 @dataclass(frozen=True, slots=True)
 class HDS状態差記録:
-    """作用前後の状態差。状態名が同一なら現行Projectionでは無変化として保持する。"""
+    '作用前後の状態差。状態名が同一なら現行射影では無変化として保持する。'
 
     差分ID: str
     原因作用ID: str

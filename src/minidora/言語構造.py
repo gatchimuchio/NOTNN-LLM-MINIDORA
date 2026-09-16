@@ -105,12 +105,12 @@ class 言語関係構造:
 
 def _意味集合(text: str) -> frozenset[str]:
     value = " ".join(str(text).split()).strip(" ,;:。！？?")
-    tokens = 意味語(value)
+    字句 = 意味語(value)
     # 物理量・記号の大文字/小文字を汎用語のcasefoldへ埋没させない。
     # 追加知識ではなく、入力に存在する記号identityの保全。
     if re.fullmatch(r"[A-Za-zΑ-Ωα-ω](?:[0-9_][A-Za-z0-9_]*)?", value):
-        tokens = tokens | frozenset({"識別記号:" + value})
-    return tokens
+        字句 = 字句 | frozenset({"識別記号:" + value})
+    return 字句
 
 
 def 意味列(text: str) -> tuple[str, ...]:
@@ -151,7 +151,7 @@ def _否定除去(text: str) -> tuple[str, bool]:
 
 
 def _文単位(text: str) -> tuple[str, ...]:
-    """否定・条件のscopeを文と明示対比境界へ局所化する。小数点は分割しない。"""
+    '否定・条件の範囲を文と明示対比境界へ局所化する。小数点は分割しない。'
     value = unicodedata.normalize("NFKC", str(text))
     parts: list[str] = []
     start = 0
@@ -192,8 +192,8 @@ def _単位関係抽出(raw: str, 言語体系: str) -> tuple[言語関係構造
     out: list[言語関係構造] = []
     seen: set[tuple[object, ...]] = set()
 
-    def add(kind: str, subject: str, object_: str, predicate: str, *, reverse: bool = False, positive: bool | None = None) -> None:
-        s = _意味集合(subject); o = _意味集合(object_); p = _意味集合(predicate)
+    def add(kind: str, 主体: str, object_: str, predicate: str, *, reverse: bool = False, positive: bool | None = None) -> None:
+        s = _意味集合(主体); o = _意味集合(object_); p = _意味集合(predicate)
         if kind == "開放述語" and predicate.lower().strip() in {"is","are","was","were"}:
             p = frozenset({"文法述語:be"})
         elif kind == "開放述語" and predicate.lower().strip() in {"has","have","had"}:
@@ -214,8 +214,8 @@ def _単位関係抽出(raw: str, 言語体系: str) -> tuple[言語関係構造
             if not syntax.反転 and any(a <= match.start() and match.end() <= b for a, b in passive_spans):
                 continue
             # 条件前置部を関係の主語へ混ぜない。
-            subject = re.sub(r"^(?:if|when|given|assuming|unless|under)\b[^,]*,\s*", "", match.group("s"), flags=re.I)
-            add(syntax.種別, subject, match.group("o"), match.group("v"), reverse=syntax.反転)
+            主体 = re.sub(r"^(?:if|when|given|assuming|unless|under)\b[^,]*,\s*", "", match.group("s"), flags=re.I)
+            add(syntax.種別, 主体, match.group("o"), match.group("v"), reverse=syntax.反転)
         for match in _自然文比較構文.finditer(cleaned):
             kind = _比較語形種別[" ".join(match.group("op").lower().split())]
             add(kind, match.group("s"), match.group("o"), match.group("v"))
@@ -268,7 +268,7 @@ _助動詞末尾 = re.compile(r"\s+(?:do|does|did|is|are|was|were|can|will|would
 
 
 def _自然文節単位(text: str, 言語体系: str = "自然言語:ja") -> tuple[str, ...]:
-    """明示された並列述語の省略主語だけを継承し、否定・目的語のscopeを分ける。"""
+    '明示された並列述語の省略主語だけを継承し、否定・目的語の範囲を分ける。'
     out = []
     for sentence in _文単位(text):
         pieces = [x.strip() for x in _関係節境界.split(sentence) if x.strip()]
@@ -276,24 +276,24 @@ def _自然文節単位(text: str, 言語体系: str = "自然言語:ja") -> tup
             out.append(sentence)
             continue
         expanded = []
-        subject = None
+        主体 = None
         valid = True
-        scope_match = re.match(r"^((?:if|when|given|assuming|unless|under)\b[^,]*,\s*)",sentence,re.I)
-        scope = scope_match.group(1) if scope_match else ""
+        範囲_match = re.match(r"^((?:if|when|given|assuming|unless|under)\b[^,]*,\s*)",sentence,re.I)
+        範囲 = 範囲_match.group(1) if 範囲_match else ""
         for piece_index, piece in enumerate(pieces):
-            if piece_index and scope and not re.match(r"^(?:if|when|given|assuming|unless|under)\b",piece,re.I):
-                piece = scope + piece
+            if piece_index and 範囲 and not re.match(r"^(?:if|when|given|assuming|unless|under)\b",piece,re.I):
+                piece = 範囲 + piece
             cleaned, _ = _否定除去(_条件本文(piece))
             matches = _英文一致(cleaned)
             comparisons = list(_自然文比較構文.finditer(cleaned))
             if comparisons:
-                subject = comparisons[0].group("s").strip()
+                主体 = comparisons[0].group("s").strip()
                 expanded.append(piece)
                 continue
-            if not matches and subject:
+            if not matches and 主体:
                 local_body = _条件本文(piece)
-                own_scope = piece[:-len(local_body)] if local_body and piece.endswith(local_body) else ""
-                trial = own_scope + subject + " " + local_body
+                own_範囲 = piece[:-len(local_body)] if local_body and piece.endswith(local_body) else ""
+                trial = own_範囲 + 主体 + " " + local_body
                 trial_cleaned, _ = _否定除去(_条件本文(trial))
                 matches = _英文一致(trial_cleaned)
                 if matches:
@@ -302,15 +302,15 @@ def _自然文節単位(text: str, 言語体系: str = "自然言語:ja") -> tup
                 valid = False
                 break
             preferred = next(((sy, ma) for sy, ma in matches if sy.反転), matches[0])
-            subject = _助動詞末尾.sub("", preferred[1].group("s")).strip()
+            主体 = _助動詞末尾.sub("", preferred[1].group("s")).strip()
             expanded.append(piece)
         out.extend(expanded if valid else [sentence])
     return tuple(out)
 
 
-def 問い候補関係形成(question: str, candidate: str, 言語体系: str = "自然言語:ja") -> tuple[言語関係構造, ...]:
+def 問い候補関係形成(question: str, 候補: str, 言語体系: str = "自然言語:ja") -> tuple[言語関係構造, ...]:
     """問いの未知端点へ候補を束縛する。候補の正しさは判定せず、照合対象だけを作る。"""
-    if not question.strip() or not candidate.strip():
+    if not question.strip() or not 候補.strip():
         return ()
     units = _文単位(question)
     # 最後の注意書きを問いそのものへ誤認しない。明示疑問節を後方から探索する。
@@ -327,14 +327,14 @@ def 問い候補関係形成(question: str, candidate: str, 言語体系: str = 
     negative = negative or question_negative
     copula = re.fullmatch(r"(?i:what|which(?:\s+\w+)?)\s+((?i:is|are))\s+((?i:the)\s+.+|[A-Z][A-Z0-9_]*)", cleaned)
     if copula:
-        bound = 言語関係抽出(copula.group(2) + " " + copula.group(1) + " " + candidate, 言語体系)
+        bound = 言語関係抽出(copula.group(2) + " " + copula.group(1) + " " + 候補, 言語体系)
         return tuple(replace(item, 肯定=not item.肯定 if negative else item.肯定,
                              条件=tuple(dict.fromkeys((*item.条件,*conditions)))) for item in bound)
     if _疑問開始.match(tail):
         # 目的語空所: What does X inhibit? -> X inhibits <candidate>.
         match = re.fullmatch(r"(?:what|which(?:\s+of\s+the\s+following)?(?:\s+\w+)?)\s+(?:do|does|did)\s+(.+)", cleaned, re.I)
         if match:
-            bound = 言語関係抽出(match.group(1) + " " + candidate, 言語体系)
+            bound = 言語関係抽出(match.group(1) + " " + 候補, 言語体系)
             candidates.extend(replace(item, 肯定=not item.肯定) if negative else item for item in bound)
         else:
             # 主語空所・受動態: What inhibits Y? / What is inhibited by X?
@@ -344,7 +344,7 @@ def 問い候補関係形成(question: str, candidate: str, 言語体系: str = 
             for syntax, m in matches:
                 if not syntax.反転 and any(a <= m.start() and m.end() <= b for a,b in spans):
                     continue
-                left, right = _意味集合(candidate), _意味集合(m.group("o"))
+                left, right = _意味集合(候補), _意味集合(m.group("o"))
                 if syntax.反転:
                     left, right = right, left
                 if left and right:
@@ -353,14 +353,14 @@ def 問い候補関係形成(question: str, candidate: str, 言語体系: str = 
                     candidates.append(言語関係構造(syntax.種別,left,right,not negative,conditions,p))
     elif re.search(r"何(?:が|は|を|に)|どれ(?:が|は|を)", tail):
         # 日本語の明示疑問端点。記述済み関係への単なる空所代入。
-        filled = re.sub(r"(?:何|どれ)(?=が|は|を|に)", candidate, tail, count=1)
+        filled = re.sub(r"(?:何|どれ)(?=が|は|を|に)", 候補, tail, count=1)
         candidates.extend(言語関係抽出(filled, 言語体系))
     out = []
     seen = set()
-    for relation in candidates:
-        relation = replace(relation, 条件=tuple(dict.fromkeys((*relation.条件,*conditions))))
-        if relation.署名 not in seen:
-            seen.add(relation.署名);out.append(relation)
+    for 関係 in candidates:
+        関係 = replace(関係, 条件=tuple(dict.fromkeys((*関係.条件,*conditions))))
+        if 関係.署名 not in seen:
+            seen.add(関係.署名);out.append(関係)
     return tuple(out)
 
 

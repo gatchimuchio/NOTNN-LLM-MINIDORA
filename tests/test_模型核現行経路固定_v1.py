@@ -7,7 +7,7 @@ import unittest
 import minidora.実行系 as 実行系
 
 
-class CoreActivePathLockV1Test(unittest.TestCase):
+class 模型核ActivePathLockV1Test(unittest.TestCase):
     def test_実行系推移依存から実験統一経路を除外する(self) -> None:
         root = Path(実行系.__file__).resolve().parent
         forbidden = {
@@ -17,7 +17,7 @@ class CoreActivePathLockV1Test(unittest.TestCase):
             "hds能力経路_v3",
             "hds適応候補調停",
             "hds統合判断主体",
-            "hds統合実行系",
+            "HDS統合実行系",
             "実行系_HDS_v1",
             "hds既存能力resolver",
         }
@@ -26,21 +26,21 @@ class CoreActivePathLockV1Test(unittest.TestCase):
         reached_forbidden: set[str] = set()
 
         while stack:
-            module = stack.pop()
-            if module in visited:
+            モジュール = stack.pop()
+            if モジュール in visited:
                 continue
-            visited.add(module)
-            if module in forbidden:
-                reached_forbidden.add(module)
+            visited.add(モジュール)
+            if モジュール in forbidden:
+                reached_forbidden.add(モジュール)
                 continue
-            path = root / f"{module}.py"
+            path = root / f"{モジュール}.py"
             if not path.exists():
                 continue
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for node in ast.walk(tree):
-                if not isinstance(node, ast.ImportFrom) or node.level != 1 or not node.module:
+                if not isinstance(node, ast.ImportFrom) or node.level != 1 or not node.モジュール:
                     continue
-                child = node.module.split(".", 1)[0]
+                child = node.モジュール.split(".", 1)[0]
                 if (root / f"{child}.py").exists() and child not in visited:
                     stack.append(child)
 

@@ -11,10 +11,10 @@ def 独立可解(rows):
     variables=('A','B','C')
     exclusions=[r for r in rows if r.比較=='不一致']
     for choices in product(('未満','超'),repeat=len(exclusions)):
-        choice=iter(choices)
+        選択肢=iter(choices)
         inequalities=[]
         for r in rows:
-            op=next(choice) if r.比較=='不一致' else r.比較
+            op=next(選択肢) if r.比較=='不一致' else r.比較
             vector=[F(0)]*3
             vector[variables.index(r.左項)]+=1
             vector[variables.index(r.右項)]-=1
@@ -50,11 +50,11 @@ class 差分独立対照試験(unittest.TestCase):
         for index in range(160):
             facts=tuple(関係式('f'+str(i),generator.choice('ABC'),generator.choice(ops),generator.choice('ABC'),generator.choice(numbers)) for i in range(4))
             qs=tuple(関係式('q'+str(i),'A',op,'C',generator.choice(numbers)) for i,op in enumerate(ops))
-            result=関係制約器().実行(関係問題(tuple('ABC'),facts,qs))
-            self.assertTrue(result.成立,result.保留理由)
+            結果=関係制約器().実行(関係問題(tuple('ABC'),facts,qs))
+            self.assertTrue(結果.成立,結果.保留理由)
             feasible=独立可解(facts)
-            self.assertEqual(result.データ['前提整合'],feasible,index)
-            for q,answer in zip(qs,result.データ['回答']):
+            self.assertEqual(結果.データ['前提整合'],feasible,index)
+            for q,answer in zip(qs,結果.データ['回答']):
                 if not feasible:
                     expected='前提矛盾'
                 elif not 独立可解(facts+(replace(q,比較=opposite[q.比較]),)):

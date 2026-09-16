@@ -20,14 +20,9 @@ def _tuple(value: Any) -> tuple:
 
 
 def HDSIR辞書化(ir: HDSIR) -> dict[str, Any]:
-    """Compiler内部を含めず、公開HDS-IRをReplay可能なJSON形へ変換する。
-
-    `手順` はK/J性能Replayでは使用しないため保存対象外とする。Layer-0実行手順を
-    再現する用途ではなく、問題/候補/Dataの意味構造を固定してRuntime性能差だけを
-    比較することが目的である。
-    """
+    '構文化器内部を含めず、公開HDS-IRを再生可能なJSON形へ変換する。\n\n    `手順` はK/J性能再生では使用しないため保存対象外とする。Layer-0実行手順を\n    再現する用途ではなく、問題/候補/資料の意味構造を固定してRuntime性能差だけを\n    比較することが目的である。\n    '
     return {
-        "契約形式": "minidora.hds-ir.replay.v1",
+        "契約形式": 'minidora.hds-ir.再生.v1',
         "原文": ir.原文,
         "正規化文": ir.正規化文,
         "認知世界ID": ir.認知世界ID,
@@ -102,9 +97,9 @@ def HDSIR辞書化(ir: HDSIR) -> dict[str, Any]:
     }
 
 
-def HDSIR復元(data: Mapping[str, Any]) -> HDSIR:
-    schema = data.get("契約形式")
-    if schema not in {None, "minidora.hds-ir.replay.v1"}:
+def HDSIR復元(資料: Mapping[str, Any]) -> HDSIR:
+    schema = 資料.get("契約形式")
+    if schema not in {None, 'minidora.hds-ir.再生.v1'}:
         raise ValueError(f"未対応HDS-IR replay schema: {schema}")
 
     coords = tuple(
@@ -118,7 +113,7 @@ def HDSIR復元(data: Mapping[str, Any]) -> HDSIR:
             暫定性=str(c.get("暫定性", "原則暫定")),
             再開放条件=_tuple(c.get("再開放条件")),
         )
-        for c in data.get("座標", ())
+        for c in 資料.get("座標", ())
     )
     relations = tuple(
         HDS関係(
@@ -131,7 +126,7 @@ def HDSIR復元(data: Mapping[str, Any]) -> HDSIR:
             由来=str(r.get("由来", "自然言語入力")),
             暫定性=str(r.get("暫定性", "原則暫定")),
         )
-        for r in data.get("関係", ())
+        for r in 資料.get("関係", ())
     )
     residuals = tuple(
         HDS残差(
@@ -142,7 +137,7 @@ def HDSIR復元(data: Mapping[str, Any]) -> HDSIR:
             影響座標=tuple(str(x) for x in r.get("影響座標", ())),
             解消条件=tuple(str(x) for x in r.get("解消条件", ())),
         )
-        for r in data.get("残差", ())
+        for r in 資料.get("残差", ())
     )
     effects = tuple(
         HDS意味作用(
@@ -155,37 +150,37 @@ def HDSIR復元(data: Mapping[str, Any]) -> HDSIR:
             損失=tuple(str(x) for x in a.get("損失", ())),
             検証=tuple(str(x) for x in a.get("検証", ())),
         )
-        for a in data.get("意味作用履歴", ())
+        for a in 資料.get("意味作用履歴", ())
     )
-    core_data = data.get("実行核", {})
-    execution_core = HDS実行核(
-        作用=core_data.get("作用"),
-        入力座標=tuple(str(x) for x in core_data.get("入力座標", ())),
-        出力座標=str(core_data.get("出力座標", "結果")),
-        境界=tuple(str(x) for x in core_data.get("境界", ())),
-        検証=tuple(str(x) for x in core_data.get("検証", ())),
+    模型核_資料 = 資料.get("実行核", {})
+    execution_模型核 = HDS実行核(
+        作用=模型核_資料.get("作用"),
+        入力座標=tuple(str(x) for x in 模型核_資料.get("入力座標", ())),
+        出力座標=str(模型核_資料.get("出力座標", "結果")),
+        境界=tuple(str(x) for x in 模型核_資料.get("境界", ())),
+        検証=tuple(str(x) for x in 模型核_資料.get("検証", ())),
     )
 
     return HDSIR(
-        原文=str(data.get("原文", "")),
-        正規化文=str(data.get("正規化文", data.get("原文", ""))),
-        認知世界ID=str(data.get("認知世界ID", "replay")),
+        原文=str(資料.get("原文", "")),
+        正規化文=str(資料.get("正規化文", 資料.get("原文", ""))),
+        認知世界ID=str(資料.get("認知世界ID", '再生')),
         座標=coords,
         関係=relations,
         残差=residuals,
         意味作用履歴=effects,
-        実行核=execution_core,
-        初期状態=dict(data.get("初期状態", {})),
-        参照必須=bool(data.get("参照必須", False)),
-        種別=str(data.get("種別", "一般")),
-        閉包状態=str(data.get("閉包状態", "OPEN")),
-        表現状態=str(data.get("表現状態", "部分構文化")),
-        保持状態=str(data.get("保持状態", "全領域有効")),
-        暫定性状態=str(data.get("暫定性状態", "原則暫定")),
+        実行核=execution_模型核,
+        初期状態=dict(資料.get("初期状態", {})),
+        参照必須=bool(資料.get("参照必須", False)),
+        種別=str(資料.get("種別", "一般")),
+        閉包状態=str(資料.get("閉包状態", "OPEN")),
+        表現状態=str(資料.get("表現状態", "部分構文化")),
+        保持状態=str(資料.get("保持状態", "全領域有効")),
+        暫定性状態=str(資料.get("暫定性状態", "原則暫定")),
         手順=None,
-        入力言語=str(data.get("入力言語", "ja")),
-        出力言語=(str(data["出力言語"]) if data.get("出力言語") is not None else None),
-        文脈引用=tuple(str(x) for x in data.get("文脈引用", ())),
+        入力言語=str(資料.get("入力言語", "ja")),
+        出力言語=(str(資料["出力言語"]) if 資料.get("出力言語") is not None else None),
+        文脈引用=tuple(str(x) for x in 資料.get("文脈引用", ())),
     )
 
 

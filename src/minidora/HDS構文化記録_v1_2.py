@@ -10,9 +10,9 @@ class HDS改善対象(StrEnum):
     座標生成規則 = "coordinate_generation_rule"
     作用素集合 = "operator_set"
     保持構造 = "retention_structure"
-    DomainAdapter = "domain_adapter"
+    Domain適合器 = 'domain_適合器'
     IdentityLock = "identity_lock"
-    FrameworkProjection = "framework_projection"
+    Framework射影 = 'framework_射影'
     Checklist = "checklist"
 
 
@@ -26,7 +26,7 @@ class HDS失敗観測:
     構造原因: str
     起動条件: tuple[str, ...] = ()
     適用範囲: tuple[str, ...] = ()
-    由来: str = "公開HDS Compiler v1.2"
+    由来: str = '公開HDS 構文化器 v1.2'
 
 
 @dataclass(frozen=True, slots=True)

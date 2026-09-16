@@ -23,7 +23,7 @@ def _refs(n: int) -> tuple[参照記録, ...]:
 
 
 @dataclass(frozen=True)
-class _Subject:
+class _主体:
     主体ID: str = "MINIDORA"
     版: int = 0
 
@@ -50,9 +50,9 @@ class HDS統一状態RepoTests(unittest.TestCase):
         self.assertTrue(any("PLAN_BINDING_CHANGED" in row for row in session.作用履歴))
 
     def test_主体変化は計画失効条件になる(self):
-        session = HDS統一状態Session("target", _refs(4), 主体状態=_Subject())
+        session = HDS統一状態Session("target", _refs(4), 主体状態=_主体())
         old = session.主体署名
-        self.assertTrue(session.主体状態更新(_Subject(版=1)))
+        self.assertTrue(session.主体状態更新(_主体(版=1)))
         self.assertNotEqual(old, session.主体署名)
 
     def test_並列通過の不一致で大域再照合を開く(self):
@@ -69,18 +69,18 @@ class HDS統一状態RepoTests(unittest.TestCase):
         ledger = HDS形成台帳()
         for i in range(3):
             ledger.記録(HDS形成観測(
-                f"run{i}", f"input{i}", "REBUILD_RETRIEVAL_PLAN",
-                ("EVIDENCE_GAP",), (), f"b{i}", f"a{i}", True, (f"R{i}",),
+                f"run{i}", f"input{i}", 'REBUILD_取得_PLAN',
+                ('証拠_GAP',), (), f"b{i}", f"a{i}", True, (f"R{i}",),
             ))
-        candidate = ledger.候補群()[0]
-        self.assertEqual(candidate.状態, "ELIGIBLE")
-        self.assertEqual(ledger.推奨作用(("EVIDENCE_GAP",)), ())
-        ledger.承認(candidate.候補ID, 理由=("independent repeated progress",))
-        self.assertEqual(ledger.推奨作用(("EVIDENCE_GAP",)), ("REBUILD_RETRIEVAL_PLAN",))
+        候補 = ledger.候補群()[0]
+        self.assertEqual(候補.状態, "ELIGIBLE")
+        self.assertEqual(ledger.推奨作用(('証拠_GAP',)), ())
+        ledger.承認(候補.候補ID, 理由=("independent repeated progress",))
+        self.assertEqual(ledger.推奨作用(('証拠_GAP',)), ('REBUILD_取得_PLAN',))
 
     def test_作用実効監査は後続差を要求する(self):
         audited = HDS作用実効監査(
-            "checkpoint",
+            '検査点',
             基準実行=lambda: {"状態": "S1", "経路": ("REACTIVATE",), "結果": "A"},
             変種実行={"removed": lambda: {"状態": "S0", "経路": (), "結果": "B"}},
         )

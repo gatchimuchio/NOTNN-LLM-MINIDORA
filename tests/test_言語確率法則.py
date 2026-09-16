@@ -18,7 +18,7 @@ class 厳密言語模型試験(unittest.TestCase):
             self.assertEqual(sum(dist.辞書().values(), Fraction(0, 1)), Fraction(1, 1))
             self.assertGreater(dist.確率_of(EOS記号), 0)
 
-    def test_系列確率はchain_ruleとEOSで正(self):
+    def test_系列確率は連鎖_ruleとEOSで正(self):
         lm = MINIDORA厳密言語模型.形成(("猫。", "猫です。", "犬。"), 次数=3)
         self.assertGreater(lm.系列確率("猫。"), 0)
         self.assertGreater(lm.系列確率("未観測文字列"), 0)

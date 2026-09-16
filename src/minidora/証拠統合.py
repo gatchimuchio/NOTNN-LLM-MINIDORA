@@ -152,23 +152,23 @@ def _資料系統(refs: tuple[参照資料, ...]) -> dict[str, str]:
     return {r.識別子: root(r.識別子) for r in refs}
 
 
-def _記録hash(data: dict) -> str:
-    return sha256(json.dumps(data, ensure_ascii=False, sort_keys=True,
+def _記録hash(資料: dict) -> str:
+    return sha256(json.dumps(資料, ensure_ascii=False, sort_keys=True,
                              separators=(",", ":"), allow_nan=False).encode()).hexdigest()
 
 
-def 証拠記録整合(result: 能力結果) -> bool:
+def 証拠記録整合(結果: 能力結果) -> bool:
     """記録・本文・資料の連結整合。署名・外部認証・意味の再検証ではない。"""
     try:
-        _結果辞書(result)
-        data = dict(result.データ)
-        expected = data.pop("記録SHA256")
-        return (data["版"] == 証拠統合版 and data["報告本文"] == result.本文
-                and data["資料原本"] == [r.辞書化() for r in sorted(_参照結合(result.参照), key=lambda x: x.識別子)]
-                and data["報告根拠"] == list(result.根拠)
-                and result.成立 is True and result.保留理由 == ""
-                and data["採用可"] is (data["判定"] == "記載値一致")
-                and expected == _記録hash(data))
+        _結果辞書(結果)
+        資料 = dict(結果.データ)
+        expected = 資料.pop("記録SHA256")
+        return (資料["版"] == 証拠統合版 and 資料["報告本文"] == 結果.本文
+                and 資料["資料原本"] == [r.辞書化() for r in sorted(_参照結合(結果.参照), key=lambda x: x.識別子)]
+                and 資料["報告根拠"] == list(結果.根拠)
+                and 結果.成立 is True and 結果.保留理由 == ""
+                and 資料["採用可"] is (資料["判定"] == "記載値一致")
+                and expected == _記録hash(資料))
     except (KeyError, TypeError, ValueError, RecursionError):
         return False
 
@@ -190,28 +190,28 @@ class 証拠統合器:
             families = _資料系統(refs)
             base_unit, multiplier = _単位[要求.単位]
             claims, residuals, unrelated = [], [], []
-            for source in refs:
+            for 情報源 in refs:
                 # 改行・句点を保持したまま局所単位へ分離。小数点では切らない。
-                for part in re.finditer(r"[^。\n]+。?", source.本文):
+                for part in re.finditer(r"[^。\n]+。?", 情報源.本文):
                     raw = part[0]
                     text = raw.strip()
                     if not text:
                         continue
                     start = part.start() + len(raw) - len(raw.lstrip())
                     end = part.end() - (len(raw) - len(raw.rstrip()))
-                    evidence = {"参照ID": source.識別子, "開始": start, "終了": end, "原文": text}
+                    証拠 = {"参照ID": 情報源.識別子, "開始": start, "終了": end, "原文": text}
                     if len(claims) + len(residuals) + len(unrelated) >= 512:
                         raise ValueError("記載数上限")
                     match = _文.fullmatch(text)
                     if match is None:
-                        residuals.append({**evidence, "理由": "未対応記載・条件・文脈"})
+                        residuals.append({**証拠, "理由": "未対応記載・条件・文脈"})
                         continue
                     fields = match.groupdict()
                     if fields["対象"] != 要求.対象 or fields["属性"] != 要求.属性:
                         if f"{要求.対象}の{要求.属性}は" in text:
-                            residuals.append({**evidence, "理由": "対象と属性の境界が曖昧"})
+                            residuals.append({**証拠, "理由": "対象と属性の境界が曖昧"})
                         else:
-                            unrelated.append({**evidence, "理由": "別対象または別属性"})
+                            unrelated.append({**証拠, "理由": "別対象または別属性"})
                         continue
                     try:
                         if fields["時点"] is not None:
@@ -222,30 +222,30 @@ class 証拠統合器:
                             raise ValueError("次元不一致")
                         value = _有理数(fields["数"]) * Fraction(scale)
                     except (KeyError, ValueError):
-                        residuals.append({**evidence, "理由": "単位・数値・時点が未対応または不整合"})
+                        residuals.append({**証拠, "理由": "単位・数値・時点が未対応または不整合"})
                         continue
                     op = _比較[fields["比較"]]
                     if fields["終止"] in ("ではない", "ではありません"):
                         op = _反転[op]
-                    claims.append({**evidence, "主張ID": f"主張:{len(claims)+1:04d}",
+                    claims.append({**証拠, "主張ID": f"主張:{len(claims)+1:04d}",
                                    "対象": fields["対象"], "属性": fields["属性"],
                                    "条件": fields["条件"], "時点": fields["時点"],
                                    "元数値": fields["数"], "元単位": fields["単位"],
                                    "値": _数表記(value), "単位": base_unit, "比較": op,
-                                   "資料系統": families[source.識別子]})
+                                   "資料系統": families[情報源.識別子]})
             groups = []
             keys = sorted({(c["条件"], c["時点"]) for c in claims},
                           key=lambda k: (k[0] or "", k[1] or ""))
             for condition, moment in keys:
                 members = [c for c in claims if (c["条件"], c["時点"]) == (condition, moment)]
                 common = _共通域(members)
-                state = "記載競合" if common["空"] else "記載値一致" if common["一点"] is not None else "範囲のみ"
-                groups.append({"条件": condition, "時点": moment, "状態": state, "共通域": common,
+                状態 = "記載競合" if common["空"] else "記載値一致" if common["一点"] is not None else "範囲のみ"
+                groups.append({"条件": condition, "時点": moment, "状態": 状態, "共通域": common,
                                "主張ID": [c["主張ID"] for c in members],
                                "資料系統数": len({c["資料系統"] for c in members})})
             selected = [g for g in groups if (要求.条件 is None or g["条件"] == 要求.条件)
                         and (要求.時点 is None or g["時点"] == 要求.時点)]
-            unknown_scope = any((要求.条件 is not None and g["条件"] is None or
+            未知_範囲 = any((要求.条件 is not None and g["条件"] is None or
                                  要求.時点 is not None and g["時点"] is None) for g in groups)
             reasons = []
             if not selected:
@@ -254,7 +254,7 @@ class 証拠統合器:
                 reasons.append("記載競合")
             if residuals:
                 reasons.append("未解釈記載あり")
-            if unknown_scope:
+            if 未知_範囲:
                 reasons.append("適用条件または時点が未記載")
             if len(selected) > 1:
                 reasons.append("適用範囲未選択")
@@ -265,12 +265,12 @@ class 証拠統合器:
             adopted = not reasons
             value = (_数表記(Fraction(selected[0]["共通域"]["一点"]) / Fraction(multiplier))
                      if adopted else None)
-            scope = (f'条件={selected[0]["条件"] or "未記載"}、時点={selected[0]["時点"] or "未記載"}。'
+            範囲 = (f'条件={selected[0]["条件"] or "未記載"}、時点={selected[0]["時点"] or "未記載"}。'
                      if adopted else "")
             report = (f"{要求.対象}の{要求.属性}: "
                       + (f"記載値は{value} {要求.単位}で一致。" if adopted else "採用保留（" + "、".join(reasons) + "）。")
-                      + scope + "資料上の記載比較であり、事実性・出典独立性は未確認。")
-            data = {"版": 証拠統合版, "要求": asdict(要求), "判定": "記載値一致" if adopted else "採用保留",
+                      + 範囲 + "資料上の記載比較であり、事実性・出典独立性は未確認。")
+            資料 = {"版": 証拠統合版, "要求": asdict(要求), "判定": "記載値一致" if adopted else "採用保留",
                     "採用可": adopted, "採用値": value, "採用単位": 要求.単位,
                     "採用条件": selected[0]["条件"] if adopted else None,
                     "採用時点": selected[0]["時点"] if adopted else None,
@@ -279,11 +279,11 @@ class 証拠統合器:
                     "報告根拠": [c["主張ID"] for c in claims],
                     "資料独立性": "未確認", "事実性": "未確認",
                     "条件未記載の解釈": "未記載同士の記載比較に限定。現実で同じ条件とは認定しない"}
-            data["記録SHA256"] = _記録hash(data)
-            result = 能力結果(True, report, 根拠=tuple(c["主張ID"] for c in claims), 参照=refs, データ=data)
-            if len(json.dumps(_結果辞書(result), ensure_ascii=False).encode()) > 1_500_000:
+            資料["記録SHA256"] = _記録hash(資料)
+            結果 = 能力結果(True, report, 根拠=tuple(c["主張ID"] for c in claims), 参照=refs, データ=資料)
+            if len(json.dumps(_結果辞書(結果), ensure_ascii=False).encode()) > 1_500_000:
                 raise ValueError("証拠記録サイズ上限")
-            return result
+            return 結果
         except (TypeError, ValueError, AttributeError, RecursionError, OverflowError) as exc:
             return 能力結果(False, "", 保留理由=f"証拠統合契約違反:{type(exc).__name__}")
 
@@ -292,11 +292,11 @@ def 記載値を採用(結果: 能力結果) -> 能力結果:
     """一意で競合・未解釈のない記載値のみを返す。現実の事実認定ではない。"""
     if not isinstance(結果, 能力結果) or not 結果.成立 or not 証拠記録整合(結果):
         return 能力結果(False, "", 保留理由="証拠報告の不成立または整合違反")
-    data = 結果.データ
-    if not data["採用可"]:
-        return 能力結果(False, "", 参照=結果.参照, 保留理由="、".join(data["理由"]),
-                        データ={"証拠記録SHA256": data["記録SHA256"], "理由": list(data["理由"])})
-    return 能力結果(True, f'{data["採用値"]} {data["採用単位"]}', 根拠=結果.根拠, 参照=結果.参照,
-                    データ={"値": data["採用値"], "単位": data["採用単位"],
-                            "条件": data["採用条件"], "時点": data["採用時点"],
-                            "意味": "資料記載値。事実性未確認", "証拠記録SHA256": data["記録SHA256"]})
+    資料 = 結果.データ
+    if not 資料["採用可"]:
+        return 能力結果(False, "", 参照=結果.参照, 保留理由="、".join(資料["理由"]),
+                        データ={"証拠記録SHA256": 資料["記録SHA256"], "理由": list(資料["理由"])})
+    return 能力結果(True, f'{資料["採用値"]} {資料["採用単位"]}', 根拠=結果.根拠, 参照=結果.参照,
+                    データ={"値": 資料["採用値"], "単位": 資料["採用単位"],
+                            "条件": 資料["採用条件"], "時点": 資料["採用時点"],
+                            "意味": "資料記載値。事実性未確認", "証拠記録SHA256": 資料["記録SHA256"]})

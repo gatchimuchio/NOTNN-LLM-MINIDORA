@@ -12,14 +12,14 @@ def _ir(text: str, coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ..
     return HDSIR(
         原文=text,
         正規化文=text,
-        認知世界ID="open-relation-v16",
+        認知世界ID='open-関係-v16',
         座標=coords,
         関係=relations,
         残差=(),
         意味作用履歴=(),
         実行核=HDS実行核("意味構造転送"),
         種別="knowledge_query",
-        閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
+        閉包状態='CLOSED_FOR_意味_TRANSFER',
         入力言語="en",
     )
 
@@ -29,13 +29,13 @@ def _question() -> HDSIR:
         "What does Alpha use?",
         (
             HDS座標("alpha", "対象.始点", "Alpha"),
-            HDS座標("unknown", "目的.未知終点", "object", 値状態.未観測),
-            HDS座標("choice:A", "目的.候補", "engine"),
-            HDS座標("choice:B", "目的.候補", "stone"),
+            HDS座標('未知', "目的.未知終点", "object", 値状態.未観測),
+            HDS座標('選択肢:A', "目的.候補", "engine"),
+            HDS座標('選択肢:B', "目的.候補", "stone"),
         ),
         (
             HDS関係(
-                "qrel", ("alpha",), ("unknown",), "使用",
+                "qrel", ("alpha",), ('未知',), "使用",
                 条件=("検索述語=uses", "不足位置=終点"), 値状態=値状態.未観測,
             ),
         ),
@@ -53,7 +53,7 @@ def _関係(text: str, start: str, end: str) -> HDSIR:
             HDS座標("s", "対象.始点", start),
             HDS座標("o", "対象.終点", end),
         ),
-        (HDS関係("r", ("s",), ("o",), "使用", 値状態=値状態.確定, 由来="公開HDS Compiler"),),
+        (HDS関係("r", ("s",), ("o",), "使用", 値状態=値状態.確定, 由来='公開HDS 構文化器'),),
     )
 
 
@@ -74,22 +74,22 @@ class _構文化器:
 
 class 開放関係RuntimeV16試験(unittest.TestCase):
     def test_通常K比較も候補代入後の方向を使う(self) -> None:
-        compiler = _構文化器()
+        構文化器 = _構文化器()
         references = (
             参照記録("reverse", "engine", "engine uses Alpha.", "fixture://reverse", "fixture"),
             参照記録("forward", "stone", "Alpha uses stone.", "fixture://forward", "fixture"),
         )
-        result = HDS選択推論実行(
+        結果 = HDS選択推論実行(
             _question(),
             references,
-            コンパイル=compiler.コンパイル,
+            コンパイル=構文化器.コンパイル,
             基礎能力核=K3相当能力核(),
         )
-        self.assertIsNotNone(result.K3結果)
-        assert result.K3結果 is not None
-        diagnostics = {item.候補: item for item in result.K3結果.候補診断}
+        self.assertIsNotNone(結果.K3結果)
+        assert 結果.K3結果 is not None
+        diagnostics = {item.候補: item for item in 結果.K3結果.候補診断}
         self.assertGreater(diagnostics["B"].証拠得点, diagnostics["A"].証拠得点)
-        self.assertEqual(result.回答ラベル, "B")
+        self.assertEqual(結果.回答ラベル, "B")
 
 
 if __name__ == "__main__":

@@ -98,7 +98,7 @@ def solve_boltzmann(q, choices):
             if has_log and has_difference and has_product and not squared_temperature:
                 hits.append(i)
         if len(hits) == 1:
-            return _一般結果(hits[0], 'boltzmann_temperature_relation', 'ln2=ΔE/k(1/T2-1/T1)')
+            return _一般結果(hits[0], 'boltzmann_temperature_関係', 'ln2=ΔE/k(1/T2-1/T1)')
     return None
 
 def solve_mean_free_path_added_scattering(q, choices):
@@ -130,17 +130,17 @@ def solve_qpcr_curve(q, choices):
         best.sort()
         return _結果(best[0][1], 'qpcr_log_linear_curve', -3.3)
     return None
-REGISTRY = (solve_decay_survival, solve_memoryless, solve_fission, solve_boltzmann, solve_mean_free_path_added_scattering, solve_qpcr_curve)
+登録簿 = (solve_decay_survival, solve_memoryless, solve_fission, solve_boltzmann, solve_mean_free_path_added_scattering, solve_qpcr_curve)
 
 def 解決(question: str, choices: Sequence[str]):
     hits = []
-    for solver in REGISTRY:
+    for 解決器 in 登録簿:
         try:
-            row = solver(question, choices)
+            row = 解決器(question, choices)
         except Exception:
             row = None
         if row is not None:
             hits.append(row)
     if not hits or len({row.index for row in hits}) != 1:
         return None
-    return max(hits, key=lambda row: row.confidence)
+    return max(hits, key=lambda row: row.信頼度)

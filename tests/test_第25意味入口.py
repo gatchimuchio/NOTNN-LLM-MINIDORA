@@ -28,48 +28,48 @@ class 依頼意味試験(unittest.TestCase):
                         # 各表現は別の実セッションで検討。発話・採用上限を変更しない。
                         session = 監査改善会話セッション('表現別')
                         session.応答(登録)
-                        result = session.応答(text)
-                        self.assertTrue(result.成立, result.本文)
-                        self.assertEqual(result.結果.データ['報告']['状態'], '支持')
-                        self.assertEqual(result.追跡['原依頼'], text)
+                        結果 = session.応答(text)
+                        self.assertTrue(結果.成立, 結果.本文)
+                        self.assertEqual(結果.結果.データ['報告']['状態'], '支持')
+                        self.assertEqual(結果.追跡['原依頼'], text)
 
     def test_引用なしの問いを接続(self):
         for tail in ('Qと言える？', 'Qと言えますか？'):
-            result = self.session.応答('資料「例」から' + tail)
-            self.assertTrue(result.成立, result.本文)
-            self.assertEqual(result.結果.データ['報告']['要求']['問い'], 'Q')
+            結果 = self.session.応答('資料「例」から' + tail)
+            self.assertTrue(結果.成立, 結果.本文)
+            self.assertEqual(結果.結果.データ['報告']['要求']['問い'], 'Q')
 
     def test_検討と表示を一つの目的に合成(self):
-        result = self.session.応答(問い + '、短く説明してください')
-        self.assertTrue(result.成立, result.本文)
-        self.assertFalse(result.結果.データ['詳細'])
-        self.assertIn(result.結果.データ['報告']['限界'], result.本文)
-        self.assertEqual(len(result.追跡['工程作用']), 3)
+        結果 = self.session.応答(問い + '、短く説明してください')
+        self.assertTrue(結果.成立, 結果.本文)
+        self.assertFalse(結果.結果.データ['詳細'])
+        self.assertIn(結果.結果.データ['報告']['限界'], 結果.本文)
+        self.assertEqual(len(結果.追跡['工程作用']), 3)
 
     def test_不足確認をまたいで表示条件を保持(self):
-        result = self.session.応答('資料「例」で命題を判断して、短く説明して')
-        self.assertEqual(result.状態, '確認待ち')
-        result = self.session.応答('問いを「Q」にして')
-        self.assertTrue(result.成立, result.本文)
-        self.assertFalse(result.結果.データ['詳細'])
+        結果 = self.session.応答('資料「例」で命題を判断して、短く説明して')
+        self.assertEqual(結果.状態, '確認待ち')
+        結果 = self.session.応答('問いを「Q」にして')
+        self.assertTrue(結果.成立, 結果.本文)
+        self.assertFalse(結果.結果.データ['詳細'])
 
     def test_登録をまたいで表示条件を保持(self):
-        result = self.session.応答('資料「未登録」から「Q」を判断して、短く説明して')
-        self.assertEqual(result.状態, '確認待ち')
+        結果 = self.session.応答('資料「未登録」から「Q」を判断して、短く説明して')
+        self.assertEqual(結果.状態, '確認待ち')
         self.session.応答('命題資料「未登録」を登録：Q。')
-        result = self.session.応答('続けて')
-        self.assertTrue(result.成立, result.本文)
-        self.assertFalse(result.結果.データ['詳細'])
+        結果 = self.session.応答('続けて')
+        self.assertTrue(結果.成立, 結果.本文)
+        self.assertFalse(結果.結果.データ['詳細'])
 
     def test_仮説と介入にも同じ表示指定を適用(self):
         self.session.応答('仮説資料「仮」を登録：\n規則：AならばB\n候補：A')
-        result = self.session.応答('資料「仮」で観測「B」を説明する仮説を検討して、短く説明して')
-        self.assertTrue(result.成立, result.本文)
-        self.assertFalse(result.結果.データ['詳細'])
+        結果 = self.session.応答('資料「仮」で観測「B」を説明する仮説を検討して、短く説明して')
+        self.assertTrue(結果.成立, 結果.本文)
+        self.assertFalse(結果.結果.データ['詳細'])
         self.session.応答('介入資料「因」を登録：\n外生：U=真\n構造：A=U')
-        result = self.session.応答('資料「因」で「A=偽」に介入した結果を比較して、短く説明して')
-        self.assertTrue(result.成立, result.本文)
-        self.assertFalse(result.結果.データ['詳細'])
+        結果 = self.session.応答('資料「因」で「A=偽」に介入した結果を比較して、短く説明して')
+        self.assertTrue(結果.成立, 結果.本文)
+        self.assertFalse(結果.結果.データ['詳細'])
 
     def test_相対短縮と表示限界を区別(self):
         detailed = self.session.応答(問い)
@@ -106,21 +106,21 @@ class 依頼意味試験(unittest.TestCase):
                      問い + '？？', '資料「例」から「Q」を判断して\n送信して'):
             with self.subTest(text=text):
                 before = deepcopy(self.session.状態()['成果'])
-                result = self.session.応答(text)
-                self.assertFalse(result.成立, result.本文)
+                結果 = self.session.応答(text)
+                self.assertFalse(結果.成立, 結果.本文)
                 self.assertEqual(before, self.session.状態()['成果'])
 
     def test_意味が曖昧な問いは確認へ戻る(self):
-        result = self.session.応答('資料「例」に基づいて「PまたはQかつR」を判断して、短く説明して')
-        self.assertEqual(result.状態, '確認待ち')
-        result = self.session.応答('問い候補1で続けて')
-        self.assertTrue(result.成立, result.本文)
-        self.assertFalse(result.結果.データ['詳細'])
+        結果 = self.session.応答('資料「例」に基づいて「PまたはQかつR」を判断して、短く説明して')
+        self.assertEqual(結果.状態, '確認待ち')
+        結果 = self.session.応答('問い候補1で続けて')
+        self.assertTrue(結果.成立, 結果.本文)
+        self.assertFalse(結果.結果.データ['詳細'])
 
     def test_引用帰属と世界事実の境界を維持(self):
         self.session.応答('命題資料「発言」を登録：太郎は「Q」と述べた。')
-        result = self.session.応答('資料「発言」に基づいて「Q」を判断してくれる？')
-        self.assertEqual(result.結果.データ['報告']['状態'], '未確定')
+        結果 = self.session.応答('資料「発言」に基づいて「Q」を判断してくれる？')
+        self.assertEqual(結果.結果.データ['報告']['状態'], '未確定')
 
     def test_新表現と複合目的を保存復元する(self):
         self.session.応答(問い + '、短く説明して')
@@ -131,8 +131,8 @@ class 依頼意味試験(unittest.TestCase):
     def test_未完了の表示条件も保存復元する(self):
         self.session.応答('資料「例」で命題を判定して、短く説明して')
         restored = 監査改善会話セッション.復元(self.session.保存文字列())
-        result = restored.応答('問いを「Q」にして')
-        self.assertFalse(result.結果.データ['詳細'])
+        結果 = restored.応答('問いを「Q」にして')
+        self.assertFalse(結果.結果.データ['詳細'])
 
 
 def 別名(表記='ネコ', 正規名='猫', 引数数=1):
@@ -210,21 +210,21 @@ class 明示語彙試験(unittest.TestCase):
         session = 監査改善会話セッション('語彙')
         session.応答('命題資料「例」を登録：太郎はネコである。すべての猫は哺乳類である。')
         session.応答('資料「例」から「太郎は哺乳類である」を判断して')
-        result = session.応答('述語別名を「ネコ/1=猫」にして')
-        self.assertEqual(result.結果.データ['報告']['状態'], '支持')
+        結果 = session.応答('述語別名を「ネコ/1=猫」にして')
+        self.assertEqual(結果.結果.データ['報告']['状態'], '支持')
         restored = 監査改善会話セッション.復元(session.保存文字列())
-        result = restored.応答('短く説明して')
-        self.assertIn('ネコ', result.本文)
-        result = restored.応答('述語別名を「なし」にして')
-        self.assertEqual(result.結果.データ['報告']['状態'], '未確定')
+        結果 = restored.応答('短く説明して')
+        self.assertIn('ネコ', 結果.本文)
+        結果 = restored.応答('述語別名を「なし」にして')
+        self.assertEqual(結果.結果.データ['報告']['状態'], '未確定')
 
     def test_新しい目的へ定義を無断で引き継がない(self):
         session = 監査改善会話セッション('語彙')
         session.応答('命題資料「例」を登録：太郎はネコである。')
         session.応答('資料「例」から「太郎は猫である」を判断して')
         session.応答('述語別名を「ネコ/1=猫」にして')
-        result = session.応答('資料「例」から「太郎は猫である」を判断して')
-        self.assertEqual(result.結果.データ['報告']['状態'], '未確定')
+        結果 = session.応答('資料「例」から「太郎は猫である」を判断して')
+        self.assertEqual(結果.結果.データ['報告']['状態'], '未確定')
 
 
 def 規則(index, left, right):

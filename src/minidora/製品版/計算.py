@@ -8,14 +8,14 @@ from .型 import 能力結果
 _OPS = {ast.Add:op.add, ast.Sub:op.sub, ast.Mult:op.mul, ast.Div:op.truediv, ast.FloorDiv:op.floordiv, ast.Mod:op.mod, ast.Pow:op.pow, ast.USub:op.neg, ast.UAdd:op.pos}
 _式表層 = r"[-+*/%().\d\s]+"
 
-def _eval(node):
-    if isinstance(node, ast.Expression): return _eval(node.body)
+def _評価(node):
+    if isinstance(node, ast.Expression): return _評価(node.body)
     if isinstance(node, ast.Constant) and isinstance(node.value, (int,float)): return node.value
     if isinstance(node, ast.BinOp) and type(node.op) in _OPS:
-        a, b = _eval(node.left), _eval(node.right)
+        a, b = _評価(node.left), _評価(node.right)
         if isinstance(node.op, ast.Pow) and abs(b) > 12: raise ValueError("指数が大きすぎる")
         return _OPS[type(node.op)](a,b)
-    if isinstance(node, ast.UnaryOp) and type(node.op) in _OPS: return _OPS[type(node.op)](_eval(node.operand))
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _OPS: return _OPS[type(node.op)](_評価(node.operand))
     raise ValueError("許可されていない式")
 
 def _正規化(text: str) -> str:
@@ -38,7 +38,7 @@ def _extract(text: str) -> str:
                 return expr
     return ""
 
-class 計算Module:
+class 計算モジュール:
     版 = 計算版
     def 解釈(self, text: str) -> str:
         return _extract(text)
@@ -49,7 +49,7 @@ class 計算Module:
         if len(expr) > 120:
             return 能力結果(False, "", 保留理由="式が長すぎる")
         try:
-            value = _eval(ast.parse(expr, mode="eval"))
+            value = _評価(ast.parse(expr, mode='評価'))
         except Exception as exc:
             return 能力結果(False, "", 保留理由=f"計算不能:{exc}")
         return 能力結果(True, f"{expr} = {value}", 根拠=("決定論的算術実行",), データ={"式":expr,"値":value})

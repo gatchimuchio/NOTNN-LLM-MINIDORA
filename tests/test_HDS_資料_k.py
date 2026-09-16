@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds_data_k import HDSIR知識Adapter, HDS証拠事実
+from minidora.hds_data_k import HDSIR知識適合器, HDS証拠事実
 from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差
 from minidora.k3_functional import K3相当能力核
 
 
-class HDSDataK試験(unittest.TestCase):
-    def test_取得DataはHDS_IRから構造FactとしてKへ入る(self) -> None:
+class HDS資料K試験(unittest.TestCase):
+    def test_取得資料はHDS_IRから構造FactとしてKへ入る(self) -> None:
         ir = HDSIR(
             原文="Foo binds Bar when Baz is absent.",
             正規化文="Foo binds Bar when Baz is absent.",
             認知世界ID="cw:test",
             座標=(
-                HDS座標("src", "source_text", "Foo binds Bar when Baz is absent."),
+                HDS座標("src", '情報源_text', "Foo binds Bar when Baz is absent."),
                 HDS座標("raw", "対象.原文保持", "Foo binds Bar when Baz is absent."),
                 HDS座標("foo", "対象.実体", "Foo"),
                 HDS座標("bar", "対象.実体", "Bar"),
@@ -28,23 +28,23 @@ class HDSDataK試験(unittest.TestCase):
             意味作用履歴=(),
             実行核=HDS実行核(),
             種別="意味構造",
-            閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
+            閉包状態='CLOSED_FOR_意味_TRANSFER',
             入力言語="en",
         )
-        core = K3相当能力核()
-        result = HDSIR知識Adapter(core).投入(ir, provenance=("web", "https://example.test"))
+        模型核 = K3相当能力核()
+        結果 = HDSIR知識適合器(模型核).投入(ir, provenance=("web", "https://example.test"))
 
-        self.assertEqual(result.関係事実数, 2)
-        self.assertEqual(result.座標事実数, 3)
-        self.assertGreaterEqual(result.追加事実数, 5)
-        self.assertGreaterEqual(result.証拠事実数, 5)
-        facts = tuple(core.K._facts.values())
-        self.assertTrue(any(f.predicate == "hds_relation_条件" and "Baz is absent" in f.args for f in facts))
-        self.assertTrue(any(f.predicate == "hds_relation_作用" and "Foo" in f.args and "Bar" in f.args for f in facts))
+        self.assertEqual(結果.関係事実数, 2)
+        self.assertEqual(結果.座標事実数, 3)
+        self.assertGreaterEqual(結果.追加事実数, 5)
+        self.assertGreaterEqual(結果.証拠事実数, 5)
+        facts = tuple(模型核.K._facts.values())
+        self.assertTrue(any(f.predicate == 'hds_関係_条件' and "Baz is absent" in f.args for f in facts))
+        self.assertTrue(any(f.predicate == 'hds_関係_作用' and "Foo" in f.args and "Bar" in f.args for f in facts))
         self.assertFalse(any(f.predicate == "retrieved_document" for f in facts))
-        self.assertFalse(any(f.predicate == "hds_coordinate" and f.args[0] in {"source_text", "対象.原文保持"} for f in facts))
+        self.assertFalse(any(f.predicate == "hds_coordinate" and f.args[0] in {'情報源_text', "対象.原文保持"} for f in facts))
 
-    def test_同一意味Factでも独立source証拠を潰さない(self) -> None:
+    def test_同一意味Factでも独立情報源証拠を潰さない(self) -> None:
         ir = HDSIR(
             原文="Alpha is catalytic.",
             正規化文="Alpha is catalytic.",
@@ -55,21 +55,21 @@ class HDSDataK試験(unittest.TestCase):
             意味作用履歴=(),
             実行核=HDS実行核(),
             種別="意味構造",
-            閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
+            閉包状態='CLOSED_FOR_意味_TRANSFER',
             入力言語="en",
         )
-        core = K3相当能力核()
-        adapter = HDSIR知識Adapter(core)
-        adapter.投入(ir, provenance=("web", "doc:1"))
-        adapter.投入(ir, provenance=("web", "doc:2"))
+        模型核 = K3相当能力核()
+        適合器 = HDSIR知識適合器(模型核)
+        適合器.投入(ir, provenance=("web", "doc:1"))
+        適合器.投入(ir, provenance=("web", "doc:2"))
 
         # Kの意味Factはcanonical化したまま、証拠台帳だけsource別に保持する。
-        self.assertEqual(len(core.K.find("hds_coordinate", ("対象.実体", "Alpha"))), 1)
-        evidence = [f for f in HDS証拠事実(core) if f.predicate == "hds_coordinate"]
-        self.assertEqual(len(evidence), 2)
-        self.assertEqual(len({f.fact_id for f in evidence}), 2)
-        self.assertTrue(any("doc:1" in f.provenance for f in evidence))
-        self.assertTrue(any("doc:2" in f.provenance for f in evidence))
+        self.assertEqual(len(模型核.K.find("hds_coordinate", ("対象.実体", "Alpha"))), 1)
+        証拠 = [f for f in HDS証拠事実(模型核) if f.predicate == "hds_coordinate"]
+        self.assertEqual(len(証拠), 2)
+        self.assertEqual(len({f.fact_id for f in 証拠}), 2)
+        self.assertTrue(any("doc:1" in f.provenance for f in 証拠))
+        self.assertTrue(any("doc:2" in f.provenance for f in 証拠))
 
     def test_残差も捨てずKへ保持する(self) -> None:
         ir = HDSIR(
@@ -85,11 +85,11 @@ class HDSDataK試験(unittest.TestCase):
             閉包状態="PARTIALLY_CLOSED",
             入力言語="en",
         )
-        core = K3相当能力核()
-        result = HDSIR知識Adapter(core).投入(ir)
-        self.assertEqual(result.残差数, 1)
-        self.assertTrue(core.K.find("hds_residual"))
-        self.assertFalse(core.K.find("hds_coordinate"))
+        模型核 = K3相当能力核()
+        結果 = HDSIR知識適合器(模型核).投入(ir)
+        self.assertEqual(結果.残差数, 1)
+        self.assertTrue(模型核.K.find('hds_残差'))
+        self.assertFalse(模型核.K.find("hds_coordinate"))
 
 
 if __name__ == "__main__":

@@ -43,12 +43,7 @@ def _doi_identifier(doi: str) -> str:
 
 
 class EuropePMC参照供給器:
-    """Europe PMC REST searchを使う、API key不要の科学文献参照Provider。
-
-    検索順位は文献候補の取得順にだけ利用し、真偽confidenceへ変換しない。
-    abstract本文がある文献を主証拠とし、titleしかないレコードは低confidenceで保持する。
-    DOIがある文献はProvider横断で共通識別子を使い、同一論文の独立source水増しを防ぐ。
-    """
+    'Europe PMC REST searchを使う、API key不要の科学文献参照Provider。\n\n    検索順位は文献候補の取得順にだけ利用し、真偽信頼度へ変換しない。\n    abstract本文がある文献を主証拠とし、titleしかないレコードは低信頼度で保持する。\n    DOIがある文献はProvider横断で共通識別子を使い、同一論文の独立情報源水増しを防ぐ。\n    '
 
     名称 = "EuropePMC"
     BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
@@ -84,7 +79,7 @@ class EuropePMC参照供給器:
 
         params = {
             "query": query,
-            "resultType": "core",
+            '結果Type': '模型核',
             "pageSize": str(min(max(1, int(上限)), 1000)),
             "format": "json",
             "synonym": "true" if self.同義語展開 else "false",
@@ -101,10 +96,10 @@ class EuropePMC参照供給器:
             self._error(f"{type(exc).__name__}: {exc}")
             return ()
 
-        result_list = payload.get("resultList", {})
-        if not isinstance(result_list, Mapping):
+        結果_list = payload.get('結果List', {})
+        if not isinstance(結果_list, Mapping):
             return ()
-        rows = result_list.get("result", ())
+        rows = 結果_list.get('結果', ())
         if not isinstance(rows, list):
             return ()
 
@@ -116,12 +111,12 @@ class EuropePMC参照供給器:
             if _truthy(row.get("isRetracted")) or _truthy(row.get("retracted")):
                 continue
 
-            source = _text(row.get("source")) or "UNKNOWN"
+            情報源 = _text(row.get('情報源')) or '未知'
             article_id = _text(row.get("id") or row.get("pmid") or row.get("pmcid") or row.get("doi"))
             if not article_id:
                 continue
             doi = _text(row.get("doi"))
-            identifier = _doi_identifier(doi) if doi else f"europepmc:{source}:{article_id}"
+            identifier = _doi_identifier(doi) if doi else f"europepmc:{情報源}:{article_id}"
             key = identifier.casefold()
             if key in seen:
                 continue
@@ -140,22 +135,22 @@ class EuropePMC参照供給器:
             if not pieces:
                 continue
             content = "\n".join(pieces)[: self.最大本文文字数]
-            confidence = self.ABSTRACT信頼 if abstract else self.TITLE_ONLY信頼
+            信頼度 = self.ABSTRACT信頼 if abstract else self.TITLE_ONLY信頼
 
             origin = (
                 "https://doi.org/" + quote(doi, safe="/:()-.;")
                 if doi
-                else f"https://europepmc.org/article/{quote(source, safe='')}/{quote(article_id, safe='')}"
+                else f"https://europepmc.org/article/{quote(情報源, safe='')}/{quote(article_id, safe='')}"
             )
             date = _text(row.get("firstPublicationDate") or row.get("firstIndexDate") or row.get("pubYear")) or None
             conditions: list[tuple[str, str]] = []
             if doi:
-                conditions.append(("canonical_source", _doi_identifier(doi)))
+                conditions.append(('canonical_情報源', _doi_identifier(doi)))
             if journal:
                 conditions.append(("journal", journal))
             if publication_type:
                 conditions.append(("publication_type", publication_type))
-            conditions.append(("evidence_scope", "abstract" if abstract else "title"))
+            conditions.append(('証拠_範囲', "abstract" if abstract else "title"))
 
             records.append(
                 参照記録(
@@ -164,7 +159,7 @@ class EuropePMC参照供給器:
                     内容=content,
                     由来=origin,
                     供給器=self.名称,
-                    信頼=confidence,
+                    信頼=信頼度,
                     時点=date,
                     条件=tuple(conditions),
                 )

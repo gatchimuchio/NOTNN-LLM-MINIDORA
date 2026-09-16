@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Kimi K3の固定revisionから公開artifact inventoryを生成する。
-
-開発・監査用ツールであり、MINIDORA Runtimeの依存ではない。
-出力先は呼び出し側が明示し、リポジトリへ自動commitしない。
-"""
+'Kimi K3の固定revisionから公開artifact 目録を生成する。\n\n開発・監査用ツールであり、MINIDORA Runtimeの依存ではない。\n出力先は呼び出し側が明示し、リポジトリへ自動commitしない。\n'
 
 from __future__ import annotations
 
@@ -23,26 +19,26 @@ REV = "c5d1dd4c428bd1ce8b88c5044f3b6ccde9e3b721"
 
 def obj_dict(value: Any) -> dict[str, Any]:
     """Hugging Face tree objectから再現に必要な属性だけを抽出する。"""
-    result: dict[str, Any] = {
+    結果: dict[str, Any] = {
         "path": value.path,
         "type": value.__class__.__name__,
     }
     for key in ("size", "blob_id", "security"):
         item = getattr(value, key, None)
         if item is not None:
-            result[key] = item
+            結果[key] = item
 
     lfs = getattr(value, "lfs", None)
     if lfs is not None:
         if hasattr(lfs, "__dict__"):
-            result["lfs"] = {
+            結果["lfs"] = {
                 key: item
                 for key, item in vars(lfs).items()
                 if item is not None
             }
         else:
-            result["lfs"] = str(lfs)
-    return result
+            結果["lfs"] = str(lfs)
+    return 結果
 
 
 def _目録バイト列(files: list[dict[str, Any]]) -> bytes:
@@ -56,7 +52,7 @@ def _目録バイト列(files: list[dict[str, Any]]) -> bytes:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Kimi K3固定revisionの公開artifact inventoryを生成する。"
+        description='Kimi K3固定revisionの公開artifact 目録を生成する。'
     )
     parser.add_argument("--out", type=Path, required=True, help="JSON出力先")
     args = parser.parse_args()
@@ -80,7 +76,7 @@ def main() -> int:
     weight_files = [
         row
         for row in files
-        if row["path"].startswith("model-")
+        if row["path"].startswith('模型-')
         and row["path"].endswith(".safetensors")
     ]
     nonweight_files = [row for row in files if row not in weight_files]
@@ -100,7 +96,7 @@ def main() -> int:
         "nonweight_file_size": sum(
             int(row.get("size") or 0) for row in nonweight_files
         ),
-        "manifest_sha256": hashlib.sha256(canonical).hexdigest(),
+        '目録_sha256': hashlib.sha256(canonical).hexdigest(),
         "files": files,
         "nonweight_files": nonweight_files,
         "directories": directories,
@@ -112,18 +108,18 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    summary_keys = (
+    要約_keys = (
         "file_count",
         "weight_shard_count",
         "nonweight_file_count",
         "total_file_size",
         "weight_file_size",
         "nonweight_file_size",
-        "manifest_sha256",
+        '目録_sha256',
     )
     print(
         json.dumps(
-            {key: output[key] for key in summary_keys},
+            {key: output[key] for key in 要約_keys},
             ensure_ascii=False,
             indent=2,
         )

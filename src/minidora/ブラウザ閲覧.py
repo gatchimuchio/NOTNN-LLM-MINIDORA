@@ -93,11 +93,11 @@ _観測JS = r"""() => {
 
 
 def 描画を観測(page) -> dict:
-    data = page.evaluate(_観測JS)
-    if len(_符号(data)) > 1_000_000:
+    資料 = page.evaluate(_観測JS)
+    if len(_符号(資料)) > 1_000_000:
         raise ブラウザ境界違反("描画記録サイズ上限")
-    data["観測SHA256"] = _印(data)
-    return data
+    資料["観測SHA256"] = _印(資料)
+    return 資料
 
 
 def _要素(observation, key, expected=None):
@@ -146,8 +146,8 @@ class ブラウザ閲覧器:
         network, steps, final, current = None, [], None, None
         def stop():
             if 停止要求 is not None:
-                state = 停止要求()
-                if type(state) is not bool or state:
+                状態 = 停止要求()
+                if type(状態) is not bool or 状態:
                     raise ブラウザ境界違反("停止要求・停止判定不正")
             if network is not None and network.失敗:
                 raise ブラウザ境界違反(network.失敗)
@@ -162,29 +162,29 @@ class ブラウザ閲覧器:
                 browser = driver.chromium.launch(headless=True, executable_path=self._実行ファイル,
                     args=["--disable-background-networking", "--force-webrtc-ip-handling-policy=disable_non_proxied_udp"])
                 try:
-                    context = browser.new_context(offline=True, service_workers="block", accept_downloads=False,
+                    文脈 = browser.new_context(offline=True, service_workers="block", accept_downloads=False,
                                                   viewport={"width": 1280, "height": 800}, locale="ja-JP")
-                    context.set_default_timeout(要求.待機ミリ秒)
-                    context.route_web_socket("**/*", lambda ws: (network.遮断("WebSocketは禁止"), ws.close()))
-                    page = context.new_page()
-                    context.on("page", lambda extra: (network.遮断("別窓は禁止"), extra.close()))
+                    文脈.set_default_timeout(要求.待機ミリ秒)
+                    文脈.route_web_socket("**/*", lambda ws: (network.遮断("WebSocketは禁止"), ws.close()))
+                    page = 文脈.new_page()
+                    文脈.on("page", lambda extra: (network.遮断("別窓は禁止"), extra.close()))
                     page.on("download", lambda _: network.遮断("ダウンロードは禁止"))
                     page.on("dialog", lambda dialog: (network.遮断("ダイアログ操作は未対応"), dialog.dismiss()))
-                    def supply(route):
+                    def supply(経路):
                         try:
-                            request = route.request
+                            request = 経路.request
                             asset = network.応答(request.url, request.method, request.resource_type,
                                                  主文書=request.is_navigation_request() and request.frame == page.main_frame)
                             # 文書の外部作用経路を閉じる。厳密なOS隔離やブラウザ脆弱性対策ではない。
                             csp = "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src data:; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
                             if asset.原CSP:
                                 csp = asset.原CSP + ", " + csp
-                            route.fulfill(status=200, headers={"content-type": asset.内容種別.split(";", 1)[0] + "; charset=utf-8",
+                            経路.fulfill(status=200, headers={"content-type": asset.内容種別.split(";", 1)[0] + "; charset=utf-8",
                                 "content-security-policy": csp, "x-content-type-options": "nosniff"}, body=asset.本体)
                         except Exception:
                             network.遮断(network.失敗 or "資源供給故障")
-                            route.abort()
-                    context.route("**/*", supply)
+                            経路.abort()
+                    文脈.route("**/*", supply)
                     def navigate(url):
                         stop()
                         if url not in 要求.許可URL:
@@ -238,17 +238,17 @@ class ブラウザ閲覧器:
                 finally:
                     browser.close()
             stop()
-            data = {"版": ブラウザ版, "要求": asdict(要求), "取得": final, "最終観測": current,
+            資料 = {"版": ブラウザ版, "要求": asdict(要求), "取得": final, "最終観測": current,
                     "工程記録": steps, "資源記録": deepcopy(network.履歴), "ブラウザ版": version,
                     "取得時刻": datetime.now(timezone.utc).isoformat(), "実行ID": uuid4().hex,
                     "供給区分": "試験供給" if self._試験供給 is not None else "公開HTTPS実取得",
                     "限界": "観測時点の描画と明示操作。原HTML同一性・意味理解・事実性・全機能再現ではない"}
-            data["記録SHA256"] = _印(data)
-            if len(_符号(data)) > 2_000_000:
+            資料["記録SHA256"] = _印(資料)
+            if len(_符号(資料)) > 2_000_000:
                 raise ブラウザ境界違反("閲覧記録上限")
-            ref = 参照資料("browser:" + data["実行ID"], current["題名"], "Chromium描画観測",
+            ref = 参照資料("browser:" + 資料["実行ID"], current["題名"], "Chromium描画観測",
                            current["URL"], 本文=current["本文"])
-            return 能力結果(True, final["本文"], 参照=(ref,), データ=data)
+            return 能力結果(True, final["本文"], 参照=(ref,), データ=資料)
         except Exception as exc:
             reason = str(exc) if isinstance(exc, ブラウザ境界違反) else type(exc).__name__
             return 能力結果(False, "", 保留理由="ブラウザ閲覧不成立:" + reason,
@@ -256,17 +256,17 @@ class ブラウザ閲覧器:
                         "診断": reason})
 
 
-def ブラウザ記録整合(result: 能力結果) -> bool:
+def ブラウザ記録整合(結果: 能力結果) -> bool:
     """記録と抽出の内部整合。再訪問・JavaScript再実行・署名ではない。"""
     try:
-        if not isinstance(result, 能力結果) or result.成立 is not True or result.保留理由:
+        if not isinstance(結果, 能力結果) or 結果.成立 is not True or 結果.保留理由:
             return False
-        data = deepcopy(result.データ); stamp = data.pop("記録SHA256")
-        view = deepcopy(data["最終観測"]); view_hash = view.pop("観測SHA256")
-        if stamp != _印(data) or view_hash != _印(view) or data["取得"]["観測SHA256"] != view_hash:
+        資料 = deepcopy(結果.データ); stamp = 資料.pop("記録SHA256")
+        view = deepcopy(資料["最終観測"]); view_hash = view.pop("観測SHA256")
+        if stamp != _印(資料) or view_hash != _印(view) or 資料["取得"]["観測SHA256"] != view_hash:
             return False
-        row = _要素(view, data["取得"]["対象ID"])
-        expected = row["本文"] if data["取得"]["操作"] == "本文取得" else json.dumps(表を配列(row), ensure_ascii=False)
-        return result.本文 == expected == data["取得"]["本文"] and data["版"] == ブラウザ版
+        row = _要素(view, 資料["取得"]["対象ID"])
+        expected = row["本文"] if 資料["取得"]["操作"] == "本文取得" else json.dumps(表を配列(row), ensure_ascii=False)
+        return 結果.本文 == expected == 資料["取得"]["本文"] and 資料["版"] == ブラウザ版
     except (ValueError, TypeError, KeyError):
         return False

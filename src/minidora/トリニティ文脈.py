@@ -45,13 +45,13 @@ class 記憶主体:
     def 文脈(self) -> HDS文脈:
         refs: list[str] = []
         if self._現在焦点 is not None:
-            refs.append("working:current_focus")
+            refs.append('作業:current_focus')
         if self._直前結果 is not None:
-            refs.append("working:last_result")
+            refs.append('作業:last_結果')
         if self._直前IR is not None:
-            refs.append("working:last_ir")
+            refs.append('作業:last_ir')
         if self._未解残差:
-            refs.append("working:unresolved")
+            refs.append('作業:unresolved')
         return HDS文脈(
             記憶版=self._版,
             現在焦点=self._現在焦点,
@@ -68,24 +68,24 @@ class 記憶主体:
     def IRを保持(self, ir: HDSIR) -> None:
         self._直前IR = ir
         self._IR履歴.append(ir)
-        self._記録("REVISE", "working:last_ir", ir, "現在turnのHDS-IRを保持")
+        self._記録("REVISE", '作業:last_ir', ir, "現在turnのHDS-IRを保持")
 
     def 結果を確定(self, 値: Any) -> None:
         self._直前結果 = 値
         self._現在焦点 = 値
         self._未解残差 = ()
-        self._記録("REVISE", "working:last_result", 値, "採用結果を保持")
-        self._記録("REVISE", "working:current_focus", 値, "採用結果を現在焦点へ更新")
+        self._記録("REVISE", '作業:last_結果', 値, "採用結果を保持")
+        self._記録("REVISE", '作業:current_focus', 値, "採用結果を現在焦点へ更新")
 
     def 未解を保持(self, ir: HDSIR) -> None:
         residuals = tuple((item.種別, item.理由) for item in ir.残差)
         if residuals:
             self._未解残差 = residuals
-            self._記録("REVISE", "working:unresolved", residuals, "SUSPENDした未解意味を保持")
+            self._記録("REVISE", '作業:unresolved', residuals, "SUSPENDした未解意味を保持")
 
 
 class HDS判断主体:
-    """TrinityのJ。Mの文脈をCompilerへ引用し、Cの結果をMへ確定帰還する。"""
+    'TrinityのJ。Mの文脈を構文化器へ引用し、Cの結果をMへ確定帰還する。'
 
     def __init__(self, 記憶: 記憶主体 | None = None) -> None:
         self.記憶 = 記憶 or 記憶主体()
@@ -93,16 +93,16 @@ class HDS判断主体:
     def 文脈(self) -> HDS文脈:
         return self.記憶.文脈()
 
-    def コンパイル(self, compiler: HDSコンパイラProtocol, 入力: str) -> HDSIR:
-        context = self.文脈()
-        compile_fn = compiler.コンパイル
+    def コンパイル(self, 構文化器: HDSコンパイラProtocol, 入力: str) -> HDSIR:
+        文脈 = self.文脈()
+        compile_fn = 構文化器.コンパイル
         params = inspect.signature(compile_fn).parameters
         kwargs: dict[str, Any] = {
-            "前回結果": context.直前結果,
+            "前回結果": 文脈.直前結果,
             "HDS履歴": self.記憶.IR履歴,
         }
         if "文脈" in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()):
-            kwargs["文脈"] = context
+            kwargs["文脈"] = 文脈
         return compile_fn(入力, **kwargs)
 
     def 帰還(self, 判定: 採否結果, 値: Any, ir: HDSIR | None) -> None:
@@ -124,8 +124,8 @@ class Trinity文脈系:
     def 記憶主体(self) -> 記憶主体:
         return self.判断主体.記憶
 
-    def コンパイル(self, compiler: HDSコンパイラProtocol, 入力: str) -> HDSIR:
-        return self.判断主体.コンパイル(compiler, 入力)
+    def コンパイル(self, 構文化器: HDSコンパイラProtocol, 入力: str) -> HDSIR:
+        return self.判断主体.コンパイル(構文化器, 入力)
 
     def 帰還(self, 判定: 採否結果, 値: Any, ir: HDSIR | None) -> None:
         self.判断主体.帰還(判定, 値, ir)

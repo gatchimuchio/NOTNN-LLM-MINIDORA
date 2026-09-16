@@ -27,10 +27,10 @@ class 試験検索:
 
     def 検索(self, query, limit=5):
         self.calls.append((query, limit))
-        result = self.results(query) if callable(self.results) else self.results
-        if isinstance(result, Exception):
-            raise result
-        return result
+        結果 = self.results(query) if callable(self.results) else self.results
+        if isinstance(結果, Exception):
+            raise 結果
+        return 結果
 
 
 class 試験本文:
@@ -39,10 +39,10 @@ class 試験本文:
 
     def 取得(self, url):
         self.calls.append(url)
-        result = self.values[url]
-        if isinstance(result, Exception):
-            raise result
-        return result
+        結果 = self.values[url]
+        if isinstance(結果, Exception):
+            raise 結果
+        return 結果
 
 
 class 知識取得契約試験(unittest.TestCase):
@@ -138,9 +138,9 @@ class 知識取得契約試験(unittest.TestCase):
 
     def test_記録hashの再計算(self):
         r = self.run_request()
-        data = dict(r.データ)
-        expected = data.pop("記録SHA256")
-        raw = json.dumps(data, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()
+        資料 = dict(r.データ)
+        expected = 資料.pop("記録SHA256")
+        raw = json.dumps(資料, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()
         self.assertEqual(sha256(raw).hexdigest(), expected)
 
     def test_同じURLや同一本文で最低資料数を水増ししない(self):
@@ -169,7 +169,7 @@ class 知識取得契約試験(unittest.TestCase):
         self.assertEqual(self.fetch.calls, [BASE + "b"])
         self.assertTrue(r.データ["資料"][0]["優先元一致"])
 
-    def test_取得故障は検索スニペットにfallbackしない(self):
+    def test_取得故障は検索スニペットに代替経路しない(self):
         self.fetch.values[BASE + "a"] = RuntimeError("secret server text")
         r = self.run_request()
         self.assertFalse(r.成立)

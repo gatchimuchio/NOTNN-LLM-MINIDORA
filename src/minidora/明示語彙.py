@@ -44,9 +44,9 @@ def 命題の述語を対応付ける(expression: 命題式, mapping, *, 経路=
             return expression, []
         return replace(expression, 述語=name), [{'経路': list(経路), '表記': expression.述語,
                                                 '正規名': name, '引数数': len(expression.項)}]
-    children, trace = [], []
+    children, 追跡 = [], []
     for index, child in enumerate(expression.子):
         value, rows = 命題の述語を対応付ける(child, mapping, 経路=(*経路, index))
         children.append(value)
-        trace.extend(rows)
-    return replace(expression, 子=tuple(children)), trace
+        追跡.extend(rows)
+    return replace(expression, 子=tuple(children)), 追跡

@@ -3,7 +3,7 @@ from collections import Counter
 import re
 from .型 import 能力結果, 参照資料
 
-要約版 = "extractive-summary-v2"
+要約版 = 'extractive-要約-v2'
 _SENTENCE = re.compile(r"(?<=[。！？!?])\s+|\n+")
 _WORD = re.compile(r"[一-龥ぁ-んァ-ヶA-Za-z0-9]{2,}")
 _STOP = {"これ", "それ", "ため", "こと", "もの", "よう", "です", "ます", "した", "する", "いる", "ある", "から", "まで", "について", "として"}
@@ -31,7 +31,7 @@ def _rank(text: str, limit: int) -> list[str]:
     top = sorted(scored, reverse=True)[:limit]
     return [s for _, _, s in sorted(top, key=lambda x: x[1])]
 
-class 汎用要約Module:
+class 汎用要約モジュール:
     版 = 要約版
     def 実行(self, text: str, *, 行数: int = 3, 参照: tuple[参照資料, ...] = ()) -> 能力結果:
         if not text.strip():

@@ -10,10 +10,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
-from minidora.HDS再生_eval import HDSReplay評価  # noqa: E402
+from minidora.HDS再生_eval import HDS再生評価  # noqa: E402
 
 
-SCHEMA = "minidora.hds-choice-replay.v1"
+SCHEMA = 'minidora.hds-選択肢-再生.v1'
 
 
 def _load(path: Path) -> list[dict]:
@@ -35,8 +35,8 @@ def main() -> int:
     parser.add_argument("--effort", choices=("low", "high", "max"))
     args = parser.parse_args()
 
-    result = HDSReplay評価(_load(args.input), effort=args.effort)
-    text = json.dumps(result, ensure_ascii=False, indent=2)
+    結果 = HDS再生評価(_load(args.input), 計算量=args.effort)
+    text = json.dumps(結果, ensure_ascii=False, indent=2)
     if args.out is not None:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(text + "\n", encoding="utf-8")

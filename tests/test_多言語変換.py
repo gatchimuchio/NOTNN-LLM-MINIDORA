@@ -24,12 +24,12 @@ def 辞書():
 
 
 class 日英対訳試験(unittest.TestCase):
-    def translate(self, source, origin="en", kind="数値記載", words=None, **options):
-        result = 対訳を変換(source, origin, "ja" if origin == "en" else "en", 種別=kind,
+    def translate(self, 情報源, origin="en", kind="数値記載", words=None, **options):
+        結果 = 対訳を変換(情報源, origin, "ja" if origin == "en" else "en", 種別=kind,
                             対訳=辞書() if words is None else words, **options)
-        self.assertTrue(result.成立, (result.保留理由, result.データ))
-        self.assertTrue(翻訳記録整合(result))
-        return result
+        self.assertTrue(結果.成立, (結果.保留理由, 結果.データ))
+        self.assertTrue(翻訳記録整合(結果))
+        return 結果
 
     def test_数値記載を語順変更して翻訳(self):
         r = self.translate("The voltage of device A is 120 V.")
@@ -66,7 +66,7 @@ class 日英対訳試験(unittest.TestCase):
                 self.assertIn(n + " V", r.本文)
                 self.assertEqual(r.データ["意味列"][0]["値"], n)
 
-    def test_辞書Data変更で同じソースの表層だけを変更(self):
+    def test_辞書資料変更で同じソースの表層だけを変更(self):
         words = tuple(replace(w, 日本語="機器甲") if w.識別子 == "対象A" else w for w in 辞書())
         original = "the voltage of device A is 731 V."
         a, b = self.translate(original), self.translate(original, words=words)
@@ -117,26 +117,26 @@ class 日英対訳試験(unittest.TestCase):
         self.assertFalse(r.成立)
         self.assertEqual(r.本文, "")
         self.assertEqual(r.データ["解釈済み行数"], 1)
-        for residual in r.データ["残差"]:
-            self.assertEqual(text[residual["開始"]:residual["終了"]], residual["原文"])
+        for 残差 in r.データ["残差"]:
+            self.assertEqual(text[残差["開始"]:残差["終了"]], 残差["原文"])
 
     def test_複数記載を順序と逆方向でも保持(self):
-        source = "the voltage of device A is 120 V.\nthe voltage of device B is not greater than 240 V."
-        a = self.translate(source)
+        情報源 = "the voltage of device A is 120 V.\nthe voltage of device B is not greater than 240 V."
+        a = self.translate(情報源)
         b = self.translate(a.本文, "ja")
         self.assertEqual(a.データ["意味列"], b.データ["意味列"])
         self.assertEqual([r["対象"] for r in a.データ["意味列"]], ["対象A", "対象B"])
 
     def test_原文と訳文の全文範囲対応(self):
-        source = " \r\n The voltage of device A is 120 V. \r\n\r\nthe current of device B is 5 A.\n"
-        result = self.translate(source)
-        self.assertEqual(result.データ["入力"]["本文"], source)
-        for row in result.データ["対応"]:
-            self.assertEqual(source[row["原文開始"]:row["原文終了"]], row["原文"])
-            self.assertEqual(result.本文[row["訳文開始"]:row["訳文終了"]], row["訳文"])
+        情報源 = " \r\n The voltage of device A is 120 V. \r\n\r\nthe current of device B is 5 A.\n"
+        結果 = self.translate(情報源)
+        self.assertEqual(結果.データ["入力"]["本文"], 情報源)
+        for row in 結果.データ["対応"]:
+            self.assertEqual(情報源[row["原文開始"]:row["原文終了"]], row["原文"])
+            self.assertEqual(結果.本文[row["訳文開始"]:row["訳文終了"]], row["訳文"])
             for key in ("値", "単位"):
                 a, b = row["原文役割"][key]; c, d = row["訳文役割"][key]
-                self.assertEqual(source[a:b], result.本文[c:d])
+                self.assertEqual(情報源[a:b], 結果.本文[c:d])
 
     def test_不正日付を補修しない(self):
         self.assertFalse(対訳を変換('As of 2026-02-30, the voltage of device A is 120 V.', "en", "ja", 種別="数値記載", 対訳=辞書()).成立)
@@ -146,11 +146,11 @@ class 日英対訳試験(unittest.TestCase):
             self.assertFalse(対訳を変換("装置Aの電圧は120 Vです。", a, b, 種別="数値記載", 対訳=辞書()).成立)
 
     def test_出力予算不足で途中切断しない(self):
-        source = "the voltage of device A is 120 V."
-        full = self.translate(source)
+        情報源 = "the voltage of device A is 120 V."
+        full = self.translate(情報源)
         n = len(full.本文.encode())
-        self.assertTrue(self.translate(source, 最大出力バイト数=n).成立)
-        r = 対訳を変換(source, "en", "ja", 種別="数値記載", 対訳=辞書(), 最大出力バイト数=n-1)
+        self.assertTrue(self.translate(情報源, 最大出力バイト数=n).成立)
+        r = 対訳を変換(情報源, "en", "ja", 種別="数値記載", 対訳=辞書(), 最大出力バイト数=n-1)
         self.assertFalse(r.成立)
         self.assertEqual(r.本文, "")
 
@@ -178,8 +178,8 @@ class 日英対訳試験(unittest.TestCase):
     def test_不正型大きい入力と制御文字を拒否(self):
         for text in (None, {}, "", " ", "a" * 32769, "the voltage\u202e of device A is 120 V.", "the voltage\x00 of device A is 120 V.", "a\n" * 65):
             self.assertFalse(対訳を変換(text, "en", "ja", 種別="数値記載", 対訳=辞書()).成立)
-        for budget in (0, True, -1, 131073):
-            self.assertFalse(対訳を変換("Extract numbers from the text.", "en", "ja", 種別="文書依頼", 最大出力バイト数=budget).成立)
+        for 予算 in (0, True, -1, 131073):
+            self.assertFalse(対訳を変換("Extract numbers from the text.", "en", "ja", 種別="文書依頼", 最大出力バイト数=予算).成立)
 
     def test_辞書の未知役割制御文字と過大入力(self):
         for words in ([辞書()[0]], 辞書() * 20, (対訳語("x", "命令", "送信", "send"),),

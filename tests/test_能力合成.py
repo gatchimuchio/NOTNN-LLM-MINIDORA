@@ -1,4 +1,4 @@
-"""合成器の契約試験。試験用能力は制御境界の検査用で、Core代替ではない。"""
+'合成器の契約試験。試験用能力は制御境界の検査用で、模型核代替ではない。'
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -99,15 +99,15 @@ class 能力合成契約試験(unittest.TestCase):
         self.検査(self.runner.実行(self.p, self.d), "保留")
         self.assertEqual(self.m.呼出, [])
 
-    def test_指示Data欠落(self):
+    def test_指示資料欠落(self):
         del self.d["指示"]
         self.検査(self.runner.実行(self.p, self.d), "保留")
 
-    def test_設定Data欠落(self):
+    def test_設定資料欠落(self):
         p = 合成計画((工程(設定参照="未提供設定"),), ("結果",))
         self.検査(self.runner.実行(p, self.d), "保留")
 
-    def test_入力Data未成立(self):
+    def test_入力資料未成立(self):
         for k in ("素材", "指示"):
             with self.subTest(k=k):
                 d = 初期()
@@ -153,7 +153,7 @@ class 能力合成契約試験(unittest.TestCase):
                 self.検査(self.runner.実行(p, self.d), "失敗")
         self.assertEqual(self.m.呼出, [])
 
-    def test_不正Data集合(self):
+    def test_不正資料集合(self):
         bad = [None, {"素材": "str"}, {1: 能力結果(True, "text")},
                {"素材": 能力結果(1, "text")}, {"素材": 能力結果(True, 3)},
                {"素材": 能力結果(True, "text", 根拠=["list"])},
@@ -166,7 +166,7 @@ class 能力合成契約試験(unittest.TestCase):
                 self.検査(self.runner.実行(self.p, d), "失敗")
         self.assertEqual(self.m.呼出, [])
 
-    def test_循環Dataは失敗として返す(self):
+    def test_循環資料は失敗として返す(self):
         d = {}
         d["cycle"] = d
         self.d["素材"] = 能力結果(True, "x", データ=d)
@@ -223,10 +223,10 @@ class 能力合成契約試験(unittest.TestCase):
                 self.assertEqual(m.呼出, [])
 
     def test_不正能力結果を昇格しない(self):
-        for result in (None, "answer", 能力結果(1, "文字"),
+        for 結果 in (None, "answer", 能力結果(1, "文字"),
                        能力結果(True, "文字", データ={"v": math.nan})):
-            with self.subTest(result=result):
-                m = 試験能力(処理=lambda c, v=result: v)
+            with self.subTest(結果=結果):
+                m = 試験能力(処理=lambda c, v=結果: v)
                 self.検査(能力合成器((登録能力(m),)).実行(self.p, self.d), "失敗")
 
     def test_部分成功を最終成功にしない(self):
@@ -317,7 +317,7 @@ class 能力合成契約試験(unittest.TestCase):
         self.検査(self.runner.実行(self.p, self.d, 停止要求=lambda: "false"), "失敗")
         self.assertEqual(self.m.呼出, [])
 
-    def test_文脈やDataを呼出先が変更しても原本不変(self):
+    def test_文脈や資料を呼出先が変更しても原本不変(self):
         def mutate(c):
             c.補助["利用者設定"]["v"].append(9)
             c.補助["合成入力"][0]["結果"]["データ"]["値"].append(99)

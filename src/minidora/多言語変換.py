@@ -1,7 +1,4 @@
-"""日本語を基底に、限定した数値記載と文書依頼を日英間で対訳する。
-
-語彙は呼出側のData。未知語・未知構文を部分訳で隠さない。翻訳と実行は別責任。
-"""
+'日本語を基底に、限定した数値記載と文書依頼を日英間で対訳する。\n\n語彙は呼出側の資料。未知語・未知構文を部分訳で隠さない。翻訳と実行は別責任。\n'
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -168,14 +165,14 @@ def _依頼を読む(text, lang, lex):
             ("要約", rf'(?P<対象>{_対象日本語})を(?:(?P<行数>[1-8])行(?P<上限>以内)?で)?要約して。?'),
             ("抽出", rf'(?P<対象>{_対象日本語})から(?P<抽出>数字|URL|キーワード)を抽出して。?'),
             ("整形", rf'(?P<対象>{_対象日本語})を箇条書きにして。?'))
-    for action, pattern in patterns:
+    for 作用, pattern in patterns:
         match = re.fullmatch(pattern, text)
         if match is None:
             continue
         fields = match.groupdict()
         target = fields["対象"]
         targets = {"the text": "本文", "the original text": "元の本文", "the previous answer": "前の回答",
-                   "the result": "その結果", "it": "それ"}
+                   '結果': "その結果", "it": "それ"}
         if lang == "en":
             target = targets.get(target, target)
             if target.startswith('document "'):
@@ -189,34 +186,34 @@ def _依頼を読む(text, lang, lex):
         kind = fields.get("抽出")
         if lang == "en" and kind:
             kind = {v: k for k, v in _抽出語.items()}[kind]
-        meaning = {"種別": "文書依頼", "操作": action, "対象": target, "抽出": kind,
+        meaning = {"種別": "文書依頼", "操作": 作用, "対象": target, "抽出": kind,
                    "行数": int(fields["行数"]) if fields.get("行数") is not None else None,
-                   "行数条件": ("以内" if fields.get("上限") in ("at most ", "以内") else "一致") if action == "要約" and fields.get("行数") is not None else None}
+                   "行数条件": ("以内" if fields.get("上限") in ("at most ", "以内") else "一致") if 作用 == "要約" and fields.get("行数") is not None else None}
         return meaning, {key: match.span(key) for key, val in match.groupdict().items() if val is not None}
     raise _未対応("文書依頼の未知構文・否定・追加条件")
 
 
 def _依頼を書く(value, lang, lex):
     del lex
-    target, action = value["対象"], value["操作"]
+    target, 作用 = value["対象"], value["操作"]
     if lang == "ja":
-        if action == "要約":
+        if 作用 == "要約":
             if value["行数"] is None:
                 return target + "を要約して"
             return f'{target}を{value["行数"]}行' + ("以内" if value["行数条件"] == "以内" else "") + "で要約して"
-        if action == "抽出":
+        if 作用 == "抽出":
             return target + "から" + value["抽出"] + "を抽出して"
         return target + "を箇条書きにして"
     names = {"本文": "the text", "元の本文": "the original text", "前の回答": "the previous answer",
-             "その結果": "the result", "それ": "it"}
+             "その結果": '結果', "それ": "it"}
     target = names.get(target, 'document "' + target[3:-1] + '"')
-    if action == "要約":
+    if 作用 == "要約":
         if value["行数"] is None:
             return "Summarize " + target + "."
         bound = "at most" if value["行数条件"] == "以内" else "exactly"
         noun = "line" if value["行数"] == 1 else "lines"
         return f'Summarize {target} in {bound} {value["行数"]} {noun}.'
-    if action == "抽出":
+    if 作用 == "抽出":
         return "Extract " + _抽出語[value["抽出"]] + " from " + target + "."
     return "Format " + target + " as bullet points."
 
@@ -286,35 +283,35 @@ def 対訳を変換(本文: str, 入力言語: str, 出力言語: str, *, 種別
         if len(body.encode("utf-8")) > 最大出力バイト数:
             return 能力結果(False, "", 保留理由="対訳の出力予算不足。途中切断しない",
                 データ={"必要バイト数": len(body.encode()), "指定上限": 最大出力バイト数})
-        data = {"版": 多言語版, "入力": {"本文": 本文, "入力言語": 入力言語,
+        資料 = {"版": 多言語版, "入力": {"本文": 本文, "入力言語": 入力言語,
                 "出力言語": 出力言語, "種別": 種別, "対訳": [asdict(w) for w in 対訳],
                 "最大出力バイト数": 最大出力バイト数},
                 "日本語基底": "\n".join(canonical), "意味列": meanings, "対応": records,
                 "表層変更": "空白・終止・依頼の丁寧表現は規定表層へ構成。原文は別途保持",
                 "保証範囲": "指定語彙・有限構文の役割保持。辞書の翻訳妥当性と事実性は未確認",
-                "実行権限": "なし。翻訳結果はData"}
-        raw = _符号({"本文": body, "データ": data})
+                "実行権限": 'なし。翻訳結果は資料'}
+        raw = _符号({"本文": body, "データ": 資料})
         if len(raw) > 500000:
             raise _未対応("翻訳記録サイズ上限")
-        data["記録SHA256"] = sha256(raw).hexdigest()
+        資料["記録SHA256"] = sha256(raw).hexdigest()
         stop()
-        return 能力結果(True, body, データ=data)
+        return 能力結果(True, body, データ=資料)
     except Exception as exc:
         return 能力結果(False, "", 保留理由="多言語契約・制御不成立:" + type(exc).__name__,
             データ={"診断": str(exc) if isinstance(exc, _未対応) else type(exc).__name__})
 
 
-def 翻訳記録整合(result: 能力結果) -> bool:
-    """元入力と語彙Dataから再構成する。同一実装の再検査であり独立した翻訳評価ではない。"""
+def 翻訳記録整合(結果: 能力結果) -> bool:
+    '元入力と語彙資料から再構成する。同一実装の再検査であり独立した翻訳評価ではない。'
     try:
-        _結果辞書(result)
-        if not result.成立 or result.保留理由 or result.根拠:
+        _結果辞書(結果)
+        if not 結果.成立 or 結果.保留理由 or 結果.根拠:
             return False
-        source = deepcopy(result.データ["入力"])
-        if set(source) != {"本文", "入力言語", "出力言語", "種別", "対訳", "最大出力バイト数"}:
+        情報源 = deepcopy(結果.データ["入力"])
+        if set(情報源) != {"本文", "入力言語", "出力言語", "種別", "対訳", "最大出力バイト数"}:
             return False
-        source["対訳"] = tuple(対訳語(**w) for w in source["対訳"])
-        expected = 対訳を変換(**source)
-        return expected.成立 and expected.本文 == result.本文 and expected.データ == result.データ
+        情報源["対訳"] = tuple(対訳語(**w) for w in 情報源["対訳"])
+        expected = 対訳を変換(**情報源)
+        return expected.成立 and expected.本文 == 結果.本文 and expected.データ == 結果.データ
     except Exception:
         return False

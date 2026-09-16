@@ -17,18 +17,18 @@ from .資料読解 import 資料読解版
 報告版 = {'命題': 意味拡張版, '仮説': 仮説探索版, '介入': 因果モデル版, '読解': 資料読解版}
 
 
-class 改善回答照合Module:
+class 改善回答照合モジュール:
     """報告自身の再計算に加え、依頼された原要求・表示条件・参照との一致を検査する。"""
     名前 = '監査改善回答照合'
     版 = 改善計画版
     優先度 = 0
 
-    def 判定(self, context):
+    def 判定(self, 文脈):
         return 1.0
 
-    def 実行(self, context):
+    def 実行(self, 文脈):
         try:
-            aux = context.補助
+            aux = 文脈.補助
             rows, settings = aux['合成入力'], aux['合成設定']
             if type(rows) is not tuple or len(rows) != 2:
                 raise ValueError('回答と原要求の二役割が必要')
@@ -65,7 +65,7 @@ class 改善回答照合Module:
 
 
 def 改善統合能力群():
-    return (*改善能力群(), 改善回答照合Module().登録())
+    return (*改善能力群(), 改善回答照合モジュール().登録())
 
 
 def 改善作用群():
@@ -82,8 +82,8 @@ def 改善作用群():
             lambda p: {'詳細': p['詳細']}, lambda p: True,
             保持事項=('根拠', '仮定', '由来', '留保')),
     ]
-    for kind, module in 能力名.items():
-        rules.append(役割作用('監査改善の検討:' + kind, module, '監査改善の検討:' + kind,
+    for kind, モジュール in 能力名.items():
+        rules.append(役割作用('監査改善の検討:' + kind, モジュール, '監査改善の検討:' + kind,
             lambda p: (('原要求', request_goal(p)),), lambda p: {}, lambda p: True,
             保持事項=('原文', '原要求', '出典', '仮説と事実の区別')))
     return tuple(rules)

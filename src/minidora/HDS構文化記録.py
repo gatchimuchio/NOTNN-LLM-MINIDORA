@@ -33,7 +33,7 @@ class HDS原理段階(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class HDS認知世界断片:
-    """公開Compilerが入力表層から観測できた認知世界の有限断片。"""
+    '公開構文化器が入力表層から観測できた認知世界の有限断片。'
 
     発話主体: tuple[str, ...] = ()
     作用主体: tuple[str, ...] = ()
@@ -52,14 +52,14 @@ class HDS監査項目:
     種別: str
     内容: str
     状態: HDS監査状態
-    由来: str = "公開HDS Compiler"
+    由来: str = '公開HDS 構文化器'
     必要情報: tuple[str, ...] = ()
     再開放条件: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class HDS監査要求:
-    """HDS判断側へ渡す監査入力要求。Compiler自身は合否を決めない。"""
+    'HDS判断側へ渡す監査入力要求。構文化器自身は合否を決めない。'
 
     要求ID: str
     種別: str
@@ -95,7 +95,7 @@ class HDS保持契約:
 
 
 @dataclass(frozen=True, slots=True)
-class HDSCompiler成果:
+class HDS構文化器成果:
     IR: HDSIR
     認知世界: HDS認知世界断片
     監査項目: tuple[HDS監査項目, ...]
@@ -119,7 +119,7 @@ class HDSCompiler成果:
         return tuple(dict.fromkeys(item.種別 for item in self.監査要求))
 
 
-HDS_COMPILER_META_PREFIXES = (
+HDS_構文化器_META_PREFIXES = (
     "監査.",
     "保持.",
     "暫定性.",
@@ -135,6 +135,6 @@ __all__ = [
     "HDS監査要求",
     "HDS原理探索要求",
     "HDS保持契約",
-    "HDSCompiler成果",
-    "HDS_COMPILER_META_PREFIXES",
+    'HDS構文化器成果',
+    'HDS_構文化器_META_PREFIXES',
 ]

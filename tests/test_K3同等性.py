@@ -1,24 +1,24 @@
 import json
 import unittest
 
-from minidora.K3評価 import run_k3_equivalence_benchmark
+from minidora.K3評価 import run_k3_equivalence_外部評価
 from minidora.実行系 import ミニドラ
 
 
 class K3機能相当試験(unittest.TestCase):
     def test_K3公開構造47項目を全通過する(self):
-        result = run_k3_equivalence_benchmark()
+        結果 = run_k3_equivalence_外部評価()
         print("K3_EQUIVALENCE_JSON=" + json.dumps({
-            "status": result["status"],
-            "pass_count": result["pass_count"],
-            "total_count": result["total_count"],
-            "failed_tests": [item["name"] for item in result["failed_tests"]],
-            "実行系": result["実行系"],
-            "fit_metrics": result["fit_metrics"],
+            "status": 結果["status"],
+            "pass_count": 結果["pass_count"],
+            "total_count": 結果["total_count"],
+            "failed_tests": [item["name"] for item in 結果["failed_tests"]],
+            "実行系": 結果["実行系"],
+            "fit_metrics": 結果["fit_metrics"],
         }, ensure_ascii=False, default=str))
-        self.assertEqual(result["total_count"], 47)
-        self.assertEqual(result["status"], "PASS", result["failed_tests"])
-        self.assertEqual(result["pass_count"], 47)
+        self.assertEqual(結果["total_count"], 47)
+        self.assertEqual(結果["status"], "PASS", 結果["failed_tests"])
+        self.assertEqual(結果["pass_count"], 47)
 
     def test_MINIDORA本体からK3能力核へ到達できる(self):
         body = ミニドラ()

@@ -98,14 +98,14 @@ def 資料を構造化(kind: str, name: str, body: str):
     if kind in ('命題', '本文'):
         return {'本文': body}, []
     if body.lstrip().startswith('{'):
-        data = JSONを厳格に読む(body, 最大バイト数=100_000)
+        資料 = JSONを厳格に読む(body, 最大バイト数=100_000)
         allowed = ({'事実', '規則', '観測', '仮説候補', '最大仮説数', '最大試行数', '最大操作数'}
                    if kind == '仮説' else {'外生', '方程式', '介入', '観測'})
         required = {'事実', '規則', '仮説候補'} if kind == '仮説' else {'外生', '方程式'}
-        if type(data) is not dict or not required <= set(data) <= allowed:
+        if type(資料) is not dict or not required <= set(資料) <= allowed:
             raise ValueError('資料JSONの必須欄不足又は未知欄')
-        return data, [{'欄': 'JSON', '開始': 0, '終了': len(body), '原文': body}]
-    data = {'事実': [], '規則': []} if kind == '仮説' else {'外生': {}, '方程式': []}
+        return 資料, [{'欄': 'JSON', '開始': 0, '終了': len(body), '原文': body}]
+    資料 = {'事実': [], '規則': []} if kind == '仮説' else {'外生': {}, '方程式': []}
     seen, spans, cursor = set(), [], 0
     empty_facts = False
     for number, raw in enumerate(body.splitlines(keepends=True), 1):
@@ -125,12 +125,12 @@ def 資料を構造化(kind: str, name: str, body: str):
         cursor += len(raw)
         if kind == '仮説':
             if field == '事実':
-                if (value == 'なし' and data['事実']) or (value != 'なし' and empty_facts):
+                if (value == 'なし' and 資料['事実']) or (value != 'なし' and empty_facts):
                     raise ValueError('事実なしと事実記載を併存させない')
                 empty_facts |= value == 'なし'
                 if value != 'なし':
                     for i, text in enumerate(命題列(value)):
-                        data['事実'].append({'識別子': 'f' + str(number) + '_' + str(i), '命題': text, '出典': origin})
+                        資料['事実'].append({'識別子': 'f' + str(number) + '_' + str(i), '命題': text, '出典': origin})
             elif field == '規則':
                 candidates = 命題を読む(value)
                 if len(candidates) != 1 or candidates[0].式.種別 != '含意':
@@ -138,31 +138,31 @@ def 資料を構造化(kind: str, name: str, body: str):
                 from .命題解釈 import 命題を表現
                 e = candidates[0].式
                 left = e.子[0].子 if e.子[0].種別 == '連言' else (e.子[0],)
-                data['規則'].append({'識別子': 'r' + str(number), '前件': [命題を表現(x) for x in left],
+                資料['規則'].append({'識別子': 'r' + str(number), '前件': [命題を表現(x) for x in left],
                                      '後件': 命題を表現(e.子[1]), '出典': origin})
             elif field in ('候補', '観測'):
-                data['仮説候補' if field == '候補' else field] = [] if value == 'なし' else 命題列(value)
+                資料['仮説候補' if field == '候補' else field] = [] if value == 'なし' else 命題列(value)
             elif field == '最大仮説数':
                 if not re.fullmatch('[0-6]', value):
                     raise ValueError('最大仮説数は0〜6')
-                data[field] = int(value)
+                資料[field] = int(value)
             else:
                 raise ValueError('未解釈の仮説資料欄:' + field)
         else:
             if field in ('外生', '介入', '観測'):
-                data[field] = 真偽割当(value)
+                資料[field] = 真偽割当(value)
             elif field == '構造':
                 m2 = re.fullmatch(r'([A-Za-z_][A-Za-z0-9_]{0,63})\s*[=＝]\s*(.+)', value)
                 if not m2:
                     raise ValueError('構造は変数=式で指定する')
-                data['方程式'].append({'変数': m2[1], '式': _式(m2[2]), '出典': origin})
+                資料['方程式'].append({'変数': m2[1], '式': _式(m2[2]), '出典': origin})
             else:
                 raise ValueError('未解釈の介入資料欄:' + field)
-    if kind == '仮説' and '仮説候補' not in data:
+    if kind == '仮説' and '仮説候補' not in 資料:
         raise ValueError('仮説資料には候補欄が必要')
-    if kind == '介入' and (not data['方程式'] or '外生' not in seen):
+    if kind == '介入' and (not 資料['方程式'] or '外生' not in seen):
         raise ValueError('介入資料には外生と構造が必要')
-    return data, spans
+    return 資料, spans
 
 
 def 改善発話を解釈(text: str) -> dict:
@@ -170,8 +170,8 @@ def 改善発話を解釈(text: str) -> dict:
         raise ValueError('会話原文の型・上限')
     original = text
     text = text.strip()
-    def out(action, **values):
-        return {'行為': action, '原文': original, **values}
+    def out(作用, **values):
+        return {'行為': 作用, '原文': original, **values}
     for kind in 種類名:
         prefix = kind + '資料'
         if text.startswith(prefix):
@@ -181,8 +181,8 @@ def 改善発話を解釈(text: str) -> dict:
             if not m:
                 raise ValueError('資料の登録・更新の語尾不正')
             body = suffix[m.end():]
-            data, spans = 資料を構造化(kind, name, body)
-            return out(m[1], 種類=kind, 資料=name, 本文=body, データ=data, 原文対応=spans)
+            資料, spans = 資料を構造化(kind, name, body)
+            return out(m[1], 種類=kind, 資料=name, 本文=body, データ=資料, 原文対応=spans)
     from .依頼表現 import 検討依頼を読む, 再説明依頼を読む
     expanded = 検討依頼を読む(original) or 再説明依頼を読む(original)
     if expanded is not None:
@@ -246,6 +246,6 @@ def 改善発話を解釈(text: str) -> dict:
                '短く説明して': ('再表現', {'詳細': False}), '詳しく説明して': ('再表現', {'詳細': True}),
                '監査改善の状態を表示して': ('状態', {}), '監査改善の確認を取り消して': ('取消', {})}
     if text in actions:
-        action, args = actions[text]
-        return out(action, **args)
+        作用, args = actions[text]
+        return out(作用, **args)
     raise ValueError('未対応の会話行為。未解釈部分を捨てず保留する')

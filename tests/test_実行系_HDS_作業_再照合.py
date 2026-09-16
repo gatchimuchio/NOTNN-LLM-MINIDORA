@@ -12,14 +12,14 @@ def _ir(text: str, coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ..
     return HDSIR(
         原文=text,
         正規化文=text,
-        認知世界ID="working-reconcile-実行系-test",
+        認知世界ID='作業-reconcile-実行系-test',
         座標=coords,
         関係=relations,
         残差=(),
         意味作用履歴=(),
         実行核=HDS実行核("意味構造転送"),
-        種別="knowledge_choice",
-        閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
+        種別='knowledge_選択肢',
+        閉包状態='CLOSED_FOR_意味_TRANSFER',
         入力言語="en",
         手順=None,
     )
@@ -31,12 +31,12 @@ def _question() -> HDSIR:
         (
             HDS座標("alpha", "対象.実体", "Alpha"),
             HDS座標("use", "関係.述語表層", "use"),
-            HDS座標("choice:A", "目的.候補", "engine"),
-            HDS座標("choice:B", "目的.候補", "stone"),
-            HDS座標("unknown", "目的.未知終点", "entity", 値状態.未観測),
+            HDS座標('選択肢:A', "目的.候補", "engine"),
+            HDS座標('選択肢:B', "目的.候補", "stone"),
+            HDS座標('未知', "目的.未知終点", "entity", 値状態.未観測),
         ),
         (HDS関係(
-            "question-use", ("alpha",), ("unknown",), "使用",
+            "question-use", ("alpha",), ('未知',), "使用",
             条件=("検索述語=use", "不足位置=終点", "英日意味射影=v0.5"),
             値状態=値状態.未観測,
         ),),
@@ -44,10 +44,10 @@ def _question() -> HDSIR:
 
 
 def _候補(text: str) -> HDSIR:
-    return _ir(text, (HDS座標("candidate", "対象.実体", text),))
+    return _ir(text, (HDS座標('候補', "対象.実体", text),))
 
 
-def _weak_data(*, negative: bool = False) -> HDSIR:
+def _weak_資料(*, negative: bool = False) -> HDSIR:
     conditions = ("極性=否定",) if negative else ()
     return _ir(
         "Alpha does not use engine." if negative else "Alpha uses engine.",
@@ -68,59 +68,59 @@ class _構文化器:
         if text in {"engine", "stone"}:
             return _候補(text)
         if text in {"weak-a", "weak-b"}:
-            return _weak_data()
+            return _weak_資料()
         if text == "weak-negative":
-            return _weak_data(negative=True)
+            return _weak_資料(negative=True)
         raise ValueError(text)
 
 
 class HDS再作用Runtime試験(unittest.TestCase):
     def _run(self, records: tuple[参照記録, ...]):
-        compiler = _構文化器()
+        構文化器 = _構文化器()
         return HDS選択推論実行(
             _question(),
             records,
-            コンパイル=compiler.コンパイル,
+            コンパイル=構文化器.コンパイル,
             基礎能力核=K3相当能力核(),
         )
 
     def test_二独立出典の未解有向関係を再照合して回答できる(self) -> None:
-        result = self._run(
+        結果 = self._run(
             (
                 参照記録("a", "weak-a", "weak-a", "fixture://a", "fixture"),
                 参照記録("b", "weak-b", "weak-b", "fixture://b", "fixture"),
             )
         )
-        self.assertEqual(result.状態, "APPROVE", result.理由)
-        self.assertEqual(result.回答ラベル, "A")
-        self.assertIn("LEGACY_WORKING_RECHECK", result.理由)
-        self.assertIn("LEGACY_RECHECK_SELECTED", result.理由)
-        self.assertGreaterEqual(result.一時証拠数, 2)
-        self.assertGreater(result.作業関係再利用数, 0)
-        self.assertEqual(result.作業関係K昇格数, 0)
-        self.assertEqual(result.checkpoint再活性数, 1)
-        self.assertEqual(result.大域再照合数, 1)
+        self.assertEqual(結果.状態, "APPROVE", 結果.理由)
+        self.assertEqual(結果.回答ラベル, "A")
+        self.assertIn('LEGACY_作業_RECHECK', 結果.理由)
+        self.assertIn("LEGACY_RECHECK_SELECTED", 結果.理由)
+        self.assertGreaterEqual(結果.一時証拠数, 2)
+        self.assertGreater(結果.作業関係再利用数, 0)
+        self.assertEqual(結果.作業関係K昇格数, 0)
+        self.assertEqual(結果.検査点再活性数, 1)
+        self.assertEqual(結果.大域再照合数, 1)
 
     def test_一出典だけでは再作用しても確定しない(self) -> None:
-        result = self._run((参照記録("a", "weak-a", "weak-a", "fixture://a", "fixture"),))
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIsNone(result.回答ラベル)
-        self.assertEqual(result.一時証拠数, 0)
-        self.assertEqual(result.checkpoint再活性数, 0)
-        self.assertEqual(result.作業関係K昇格数, 0)
+        結果 = self._run((参照記録("a", "weak-a", "weak-a", "fixture://a", "fixture"),))
+        self.assertEqual(結果.状態, "SUSPEND")
+        self.assertIsNone(結果.回答ラベル)
+        self.assertEqual(結果.一時証拠数, 0)
+        self.assertEqual(結果.検査点再活性数, 0)
+        self.assertEqual(結果.作業関係K昇格数, 0)
 
     def test_反対関係があれば再照合で正極性を確定しない(self) -> None:
-        result = self._run(
+        結果 = self._run(
             (
                 参照記録("a", "weak-a", "weak-a", "fixture://a", "fixture"),
                 参照記録("b", "weak-b", "weak-b", "fixture://b", "fixture"),
                 参照記録("n", "weak-negative", "weak-negative", "fixture://n", "fixture"),
             )
         )
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIsNone(result.回答ラベル)
-        self.assertEqual(result.一時証拠数, 0)
-        self.assertGreater(result.作業関係再検証後破棄数, 0)
+        self.assertEqual(結果.状態, "SUSPEND")
+        self.assertIsNone(結果.回答ラベル)
+        self.assertEqual(結果.一時証拠数, 0)
+        self.assertGreater(結果.作業関係再検証後破棄数, 0)
 
 
 if __name__ == "__main__":

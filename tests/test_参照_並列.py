@@ -73,7 +73,7 @@ class 複合参照並列試験(unittest.TestCase):
         self.assertEqual(provider.最後のエラー[0][0], "fail")
         self.assertIn("provider down", provider.最後のエラー[0][1])
 
-    def test_同一識別資料は独立sourceへ増やさず高品質記録へ統合する(self) -> None:
+    def test_同一識別資料は独立情報源へ増やさず高品質記録へ統合する(self) -> None:
         low = type(
             "LowProvider",
             (),
@@ -82,7 +82,7 @@ class 複合参照並列試験(unittest.TestCase):
                 "検索": lambda self, q, limit=8: (
                     参照記録(
                         "doi:10.1000/shared", "paper", "short title", "https://doi.org/10.1000/shared", "low",
-                        信頼=0.46, 条件=(("evidence_scope", "title"),),
+                        信頼=0.46, 条件=(('証拠_範囲', "title"),),
                     ),
                 ),
             },
@@ -95,7 +95,7 @@ class 複合参照並列試験(unittest.TestCase):
                 "検索": lambda self, q, limit=8: (
                     参照記録(
                         "doi:10.1000/shared", "paper", "paper title and a much richer abstract body", "https://doi.org/10.1000/shared", "high",
-                        信頼=0.82, 条件=(("evidence_scope", "abstract"),),
+                        信頼=0.82, 条件=(('証拠_範囲', "abstract"),),
                     ),
                 ),
             },

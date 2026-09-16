@@ -10,5 +10,5 @@ if __name__=='__main__':
     標準入出力をUTF8にする()
     print('対象：取得済み部分ソース。Windows・全製品・LIVE Webは別途未検証。',flush=True)
     suite=unittest.defaultTestLoader.discover(str(root/'tests'))
-    result=unittest.TextTestRunner(verbosity=2).run(suite)
-    raise SystemExit(0 if result.wasSuccessful() else 1)
+    結果=unittest.TextTestRunner(verbosity=2).run(suite)
+    raise SystemExit(0 if 結果.wasSuccessful() else 1)

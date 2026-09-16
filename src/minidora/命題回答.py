@@ -36,10 +36,10 @@ def 導出の表現(d, *, 形式='文章', 手順=False):
     sources = {row['識別子']: row for row in d['記載']}
     origins = []
     for pid in order:
-        p = nodes[pid]; source = sources.get(p['出典'])
-        if source:
-            a, b = source['範囲']
-            origins.append(f'資料「{source["資料"]}」[{a}:{b}]：{source["原文"]}')
+        p = nodes[pid]; 情報源 = sources.get(p['出典'])
+        if 情報源:
+            a, b = 情報源['範囲']
+            origins.append(f'資料「{情報源["資料"]}」[{a}:{b}]：{情報源["原文"]}')
     if 手順 or 形式 == '表':
         lines = []
         if 形式 == '表': lines.extend(('| 工程 | 作用 | 命題 | 依存工程 |', '|---:|---|---|---|'))

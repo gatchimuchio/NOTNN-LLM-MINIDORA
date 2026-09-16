@@ -173,17 +173,17 @@ def solve_lienard_wiechert(q, choices):
         if 'dc-' in cc and 'vec{d}.' in cc and ('vec{v}' in cc) and ('mu' in cc):
             return _結果(i, 'lienard_wiechert_potentials', 'dc-d·v')
     return None
-REGISTRY = (solve_pair_threshold, solve_two_body_decay, solve_relativistic_total_energy, solve_velocity_energy, solve_equal_annihilation, solve_proper_distance, solve_width_decay, solve_decay_resolution_generic, solve_relativistic_oscillator, solve_lienard_wiechert)
+登録簿 = (solve_pair_threshold, solve_two_body_decay, solve_relativistic_total_energy, solve_velocity_energy, solve_equal_annihilation, solve_proper_distance, solve_width_decay, solve_decay_resolution_generic, solve_relativistic_oscillator, solve_lienard_wiechert)
 
 def 解決(question: str, choices: Sequence[str]):
     hits = []
-    for solver in REGISTRY:
+    for 解決器 in 登録簿:
         try:
-            row = solver(question, choices)
+            row = 解決器(question, choices)
         except Exception:
             row = None
         if row is not None:
             hits.append(row)
     if not hits or len({row.index for row in hits}) != 1:
         return None
-    return max(hits, key=lambda row: row.confidence)
+    return max(hits, key=lambda row: row.信頼度)

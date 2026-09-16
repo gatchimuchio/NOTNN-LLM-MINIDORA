@@ -22,7 +22,7 @@ from minidora.有限仮説探索 import 仮説を検討, 仮説報告を検査
 from minidora.有限因果モデル import 介入を比較, 介入報告を検査
 from minidora.監査改善接続 import (
     拡張命題を検討, 拡張命題報告を検査, 改善回答を構成, 改善回答を検査,
-    改善報告を検査, 改善計画を実行, 監査改善Module,
+    改善報告を検査, 改善計画を実行, 監査改善モジュール,
 )
 
 
@@ -53,26 +53,26 @@ class 採用境界試験(unittest.TestCase):
     class 能力:
         名前, 版, 優先度 = '検査能力', '1', 0
         def __init__(self, 結果): self.結果 = 結果; self.count = 0
-        def 判定(self, context): return 1
-        def 実行(self, context): self.count += 1; return self.結果
+        def 判定(self, 文脈): return 1
+        def 実行(self, 文脈): self.count += 1; return self.結果
 
-    def run_composer(self, 結果, data=None):
-        module = self.能力(結果)
+    def run_composer(self, 結果, 資料=None):
+        モジュール = self.能力(結果)
         plan = 合成計画((合成工程('工程', ('検査能力',), '指示'),), ('工程',))
-        outcome = 能力合成器((登録能力(module),)).実行(plan, data or {'指示': 能力結果(True, '実行')})
-        return module, outcome
+        outcome = 能力合成器((登録能力(モジュール),)).実行(plan, 資料 or {'指示': 能力結果(True, '実行')})
+        return モジュール, outcome
 
     def test_成立と保留併存を型境界で拒否(self):
         with self.assertRaises(ValueError): _結果辞書(能力結果(True, '回答', 保留理由='意味未確定'))
 
     def test_矛盾した能力出力を採用しない(self):
-        module, out = self.run_composer(能力結果(True, '回答', 保留理由='意味未確定'))
-        self.assertEqual(module.count, 1); self.assertEqual(out.状態, '失敗')
+        モジュール, out = self.run_composer(能力結果(True, '回答', 保留理由='意味未確定'))
+        self.assertEqual(モジュール.count, 1); self.assertEqual(out.状態, '失敗')
         self.assertEqual(out.出力, ()); self.assertTrue(out.監査整合())
 
     def test_矛盾した初期入力では発火しない(self):
-        module, out = self.run_composer(能力結果(True, '回答'), {'指示': 能力結果(True, '実行', 保留理由='未確定')})
-        self.assertEqual(module.count, 0); self.assertEqual(out.状態, '失敗')
+        モジュール, out = self.run_composer(能力結果(True, '回答'), {'指示': 能力結果(True, '実行', 保留理由='未確定')})
+        self.assertEqual(モジュール.count, 0); self.assertEqual(out.状態, '失敗')
         self.assertTrue(out.監査整合())
 
     def test_正常な成功を退行させない(self):
@@ -365,10 +365,10 @@ class 仮説探索試験(unittest.TestCase):
 
     def test_導出に未定義親がない(self):
         report=仮説を検討(仮説要求())
-        for candidate in report['候補']:
-            graph=candidate['導出']
-            for node in graph.values(): self.assertTrue(set(node['親'])<=set(graph))
-            self.assertTrue(set(candidate['観測の根拠'].values())<=set(graph))
+        for 候補 in report['候補']:
+            関係図=候補['導出']
+            for node in 関係図.values(): self.assertTrue(set(node['親'])<=set(関係図))
+            self.assertTrue(set(候補['観測の根拠'].values())<=set(関係図))
 
     def test_開発生成六十問題を独立全探索と照合(self):
         rng=random.Random(220913)
@@ -447,7 +447,7 @@ class 介入比較試験(unittest.TestCase):
             with self.subTest(key=key),self.assertRaises(ValueError):介入を比較(req)
 
     def test_未知演算を拒否(self):
-        req=介入要求();req['方程式'][0]['式']={'eval':'1'}
+        req=介入要求();req['方程式'][0]['式']={'評価':'1'}
         with self.assertRaises(ValueError):介入を比較(req)
 
     def test_空連言を事実化しない(self):
@@ -560,11 +560,11 @@ class 回答合成試験(unittest.TestCase):
         self.assertTrue(out.監査整合())
 
     def test_直接実行で文脈を偽装できない(self):
-        module=監査改善Module('有限仮説検討')
-        self.assertFalse(module.実行(能力文脈('','test')).成立)
+        モジュール=監査改善モジュール('有限仮説検討')
+        self.assertFalse(モジュール.実行(能力文脈('','test')).成立)
 
     def test_未登録能力を拒否(self):
-        with self.assertRaises(ValueError):監査改善Module('任意実行')
+        with self.assertRaises(ValueError):監査改善モジュール('任意実行')
 
     def test_偽報告を作文で補わない(self):
         report=仮説を検討(仮説要求());report['候補']=[]
@@ -572,8 +572,8 @@ class 回答合成試験(unittest.TestCase):
 
     def test_短い回答にも仮定と留保を残す(self):
         out=改善回答を構成(仮説を検討(仮説要求()),詳細=False)
-        roles={s['役割'] for s in out['節']}
-        self.assertTrue({'仮定','条件付き結論','留保'}<=roles)
+        役割={s['役割'] for s in out['節']}
+        self.assertTrue({'仮定','条件付き結論','留保'}<=役割)
         self.assertIn('候補は事実ではありません',out['本文'])
 
     def test_条件説明に規則出典を含める(self):

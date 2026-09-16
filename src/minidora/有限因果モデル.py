@@ -73,7 +73,7 @@ def 介入を比較(要求: dict) -> dict:
 
     def 計算(置換):
         values = dict(外生)
-        trace = []
+        追跡 = []
 
         def 評価(e):
             if type(e) is bool:
@@ -88,10 +88,10 @@ def 介入を比較(要求: dict) -> dict:
 
         for name in 順序:
             values[name] = 置換[name] if name in 置換 else 評価(式[name])
-            trace.append({'変数': name, '値': values[name],
+            追跡.append({'変数': name, '値': values[name],
                           '作用': '介入置換' if name in 置換 else '構造式評価',
                           '式': 式[name], '出典': 出典[name]})
-        return values, trace
+        return values, 追跡
 
     現状, 現状導出 = 計算({})
     if any(現状[k] != v for k, v in 観測.items()):

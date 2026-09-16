@@ -9,8 +9,8 @@ from minidora.文脈命題 import 文脈資料を読む, 解釈場合を構成, 
 
 
 class 帰属試験(unittest.TestCase):
-    def judge(self, source, query):
-        return 命題推論器(命題資料を読む(source, '資料')).判定(命題を読む(query)[0].式)['判定']
+    def judge(self, 情報源, query):
+        return 命題推論器(命題資料を読む(情報源, '資料')).判定(命題を読む(query)[0].式)['判定']
     def test_発言の内容を事実にしない(self):
         self.assertEqual(self.judge('太郎は「P」と述べた。', 'P'), '未確定')
     def test_発言記載そのものは支持できる(self):
@@ -74,8 +74,8 @@ class 帰属試験(unittest.TestCase):
 
 
 class 文脈資料試験(unittest.TestCase):
-    def 結果(self, text, q, choice=0):
-        return 文脈判定((文脈資料を読む(text,'A'),), q, 資料候補=choice)
+    def 結果(self, text, q, 選択肢=0):
+        return 文脈判定((文脈資料を読む(text,'A'),), q, 資料候補=選択肢)
     def test_隣接主題へ照応(self):
         r=self.結果('太郎は猫である。彼は鳥である。','太郎は鳥である')
         self.assertEqual(r['判定'],'支持');self.assertEqual(r['場合別'][0]['照応解消'][0]['束縛先'],'太郎')

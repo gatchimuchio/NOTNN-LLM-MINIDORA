@@ -22,8 +22,8 @@ class 命題製品入口試験(unittest.TestCase):
     def test_標準監査台帳と命題追跡が対応(self):
         app=製品ミニドラ(汎用会話=True)
         app.応答('資料「規則」を登録:P。PならばQ。',セッションID='命題')
-        result=app.応答('資料「規則」から「Q」は言える？',セッションID='命題')
-        self.assertTrue(app.監査台帳.検証(result.追跡ID));self.assertEqual(result.経路,'汎用会話')
+        結果=app.応答('資料「規則」から「Q」は言える？',セッションID='命題')
+        self.assertTrue(app.監査台帳.検証(結果.追跡ID));self.assertEqual(結果.経路,'汎用会話')
     def test_実HTTPで意味候補から確認再開し根拠を返す(self):
         from http.server import ThreadingHTTPServer
         from http.client import HTTPConnection
@@ -38,12 +38,12 @@ class 命題製品入口試験(unittest.TestCase):
             steps=(('資料「規則」を登録:太郎は猫である。太郎は鳥ではない。','合格'),
                    ('資料「規則」から「すべての猫は鳥ではない」は言える？','確認待ち'),
                    ('解釈は2です','合格'),('根拠を説明して','合格'))
-            for text,state in steps:
+            for text,状態 in steps:
                 conn=HTTPConnection('127.0.0.1',server.server_address[1],timeout=10)
                 try:
                     conn.request('POST','/api/chat',body=json.dumps({'message':text,'session_id':'http-命題'},ensure_ascii=False).encode('utf-8'))
                     response=conn.getresponse();value=json.loads(response.read())
-                    self.assertEqual(response.status,200);self.assertEqual(value['status'],state,value)
+                    self.assertEqual(response.status,200);self.assertEqual(value['status'],状態,value)
                     self.assertIsNone(response.getheader('Access-Control-Allow-Origin'))
                 finally:conn.close()
             self.assertIn('存在証拠',value['response'])

@@ -20,60 +20,60 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
     v0.5では有限関係語彙外の**明示述語**を開放述語として保持し、命題選択・説明選択も
     「世界事実」へ誤変換せず問い関係として保持する。未知の意味を世界知識で補わない。
     """
-    language = str(getattr(ir, "入力言語", "") or "").casefold()
-    if not language.startswith("en"):
+    言語 = str(getattr(ir, "入力言語", "") or "").casefold()
+    if not 言語.startswith("en"):
         return ir
 
     text = str(ir.正規化文 or ir.原文)
     frame = 英日意味フレーム抽出(text)
-    boundary = 英語質問境界解析(text)
-    質問表示 = boundary.質問表示
-    if boundary.境界状態 == "when前置句境界未確定" and not 質問表示:
+    境界 = 英語質問境界解析(text)
+    質問表示 = 境界.質問表示
+    if 境界.境界状態 == "when前置句境界未確定" and not 質問表示:
         # 疑問と条件主節の境界が閉じない場合、質問でないことを事実の成立へ読み替えない。
-        if not any(residual.残差ID == "lang-sem:question-boundary-unresolved" for residual in ir.残差):
+        if not any(残差.残差ID == 'lang-sem:question-境界-unresolved' for 残差 in ir.残差):
             ir = replace(ir, 残差=(*ir.残差, HDS残差(
-                "lang-sem:question-boundary-unresolved", "semantic_loss", boundary.焦点,
+                'lang-sem:question-境界-unresolved', '意味_loss', 境界.焦点,
                 "when節の前置詞句と後続主節の境界を確定できない",
                 解消条件=("疑問の主節または条件の主節を構造として保持する",),
             )))
     if not frame.正本意味 and not frame.外部検索語 and frame.関係質問 is None:
-        if 質問表示 and not any(residual.種別 == "semantic_loss" for residual in ir.残差):
-            residual = HDS残差(
+        if 質問表示 and not any(残差.種別 == '意味_loss' for 残差 in ir.残差):
+            残差 = HDS残差(
                 "lang-sem:question-loss",
-                "semantic_loss",
+                '意味_loss',
                 text,
                 "質問の未知関係を意味IRへ保持できない",
                 解消条件=("開放述語または問い適合関係へ射影する",),
             )
-            return replace(ir, 残差=(*ir.残差, residual))
+            return replace(ir, 残差=(*ir.残差, 残差))
         return ir
 
     coords = list(ir.座標)
     existing_ids = {coord.座標ID for coord in coords}
     relations = list(ir.関係)
-    existing_relation_ids = {relation.関係ID for relation in relations}
+    existing_関係_ids = {関係.関係ID for 関係 in relations}
     operations = list(ir.意味作用履歴)
     residuals = list(ir.残差)
 
-    def add_coord(base: str, kind: str, content: str, state: 値状態 = 値状態.確定) -> str:
+    def add_coord(base: str, kind: str, content: str, 状態: 値状態 = 値状態.確定) -> str:
         value = _norm(content)
-        candidate = base
+        候補 = base
         serial = 1
-        while candidate in existing_ids:
-            candidate = f"{base}:{serial}"
+        while 候補 in existing_ids:
+            候補 = f"{base}:{serial}"
             serial += 1
-        existing_ids.add(candidate)
+        existing_ids.add(候補)
         coords.append(
             HDS座標(
-                candidate,
+                候補,
                 kind,
                 value,
-                state,
+                状態,
                 由来="共有言語基底P",
-                暫定性="EN_TO_JA_SEMANTIC_PROJECTION",
+                暫定性='EN_TO_JA_意味_射影',
             )
         )
-        return candidate
+        return 候補
 
     if frame.正本意味:
         operations.append(
@@ -90,7 +90,7 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
         )
 
     if frame.外部検索語:
-        external = " ".join(token for token in frame.外部検索語 if not token.startswith("rel:"))
+        external = " ".join(字句 for 字句 in frame.外部検索語 if not 字句.startswith("rel:"))
         if external:
             add_coord("lang-sem:search", "検索.英語正規化", external)
 
@@ -98,30 +98,30 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
     if question is not None:
         known = question.既知端点 or "問い対象"
         if question.未知位置 == "始点":
-            start_id = add_coord("lang-sem:unknown:start", "目的.未知始点", question.要求型 or "未特定", 値状態.未観測)
+            start_id = add_coord('lang-sem:未知:start', "目的.未知始点", question.要求型 or "未特定", 値状態.未観測)
             end_id = add_coord("lang-sem:known:end", "対象.終点", known)
         else:
             start_id = add_coord("lang-sem:known:start", "対象.始点", known)
-            end_id = add_coord("lang-sem:unknown:end", "目的.未知終点", question.要求型 or "未特定", 値状態.未観測)
+            end_id = add_coord('lang-sem:未知:end', "目的.未知終点", question.要求型 or "未特定", 値状態.未観測)
 
         add_coord("lang-sem:missing", "目的.不足位置", question.未知位置)
         if question.要求型:
             add_coord("lang-sem:type", "目的.要求型", question.要求型)
 
-        rid = "lang-sem:relation-question"
+        rid = 'lang-sem:関係-question'
         serial = 1
-        while rid in existing_relation_ids:
+        while rid in existing_関係_ids:
             rid = f"lang-sem:relation-question:{serial}"
             serial += 1
 
-        relation_conditions = [
+        関係_conditions = [
             f"検索述語={question.検索述語}",
             f"不足位置={question.未知位置}",
             f"英日意味射影={_VERSION}",
             f"受動態={str(question.受動).lower()}",
             f"選択意図={'反転' if question.反転 else '通常'}",
         ]
-        relation_conditions.extend(f"{key}={value}" for key, value in question.修飾)
+        関係_conditions.extend(f"{key}={value}" for key, value in question.修飾)
 
         relations.insert(
             0,
@@ -130,10 +130,10 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
                 (start_id,),
                 (end_id,),
                 question.種別,
-                条件=tuple(dict.fromkeys(relation_conditions)),
+                条件=tuple(dict.fromkeys(関係_conditions)),
                 値状態=値状態.未観測,
                 由来="共有言語基底P",
-                暫定性="EN_TO_JA_SEMANTIC_PROJECTION",
+                暫定性='EN_TO_JA_意味_射影',
             ),
         )
 
@@ -141,11 +141,11 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
             str(coord.種別) == "制御.選択意図" and str(coord.内容) == "反転" for coord in coords
         ):
             add_coord("lang-sem:selection", "制御.選択意図", "反転")
-    elif 質問表示 and not any(residual.種別 == "semantic_loss" for residual in residuals):
+    elif 質問表示 and not any(残差.種別 == '意味_loss' for 残差 in residuals):
         residuals.append(
             HDS残差(
                 "lang-sem:question-loss",
-                "semantic_loss",
+                '意味_loss',
                 text,
                 "質問の未知関係を意味IRへ保持できない",
                 解消条件=("開放述語または問い適合関係へ射影する",),

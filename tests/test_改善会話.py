@@ -12,8 +12,8 @@ UPDATE = '仮説資料「天候」を更新：\n規則：RainならばWet\n候�
 CAUSE = '介入資料「連鎖」を登録：\n外生：U=真\n構造：A=U\n構造：B=A'
 
 
-def report(result):
-    return result.結果.データ['報告']
+def report(結果):
+    return 結果.結果.データ['報告']
 
 
 class 会話試験(unittest.TestCase):
@@ -313,10 +313,10 @@ class 表層解釈試験(unittest.TestCase):
     def test_資料末尾句点と原文位置を保持する(self):
         text='命題資料「文」を登録：太郎は猫である。'
         self.assertEqual(改善発話を解釈(text)['本文'],'太郎は猫である。')
-        result=改善発話を解釈(REGISTER)
-        for row in result['原文対応']:
-            self.assertEqual(result['本文'][row['開始']:row['終了']],row['原文'])
-        self.assertEqual(result['原文'],REGISTER)
+        結果=改善発話を解釈(REGISTER)
+        for row in 結果['原文対応']:
+            self.assertEqual(結果['本文'][row['開始']:row['終了']],row['原文'])
+        self.assertEqual(結果['原文'],REGISTER)
 
     def test_語尾の条件を落とさない(self):
         for suffix in ('ただしRainは禁止','、外部へ送信して','できれば'):
@@ -347,8 +347,8 @@ class 表層解釈試験(unittest.TestCase):
         with self.assertRaises(ValueError):資料を構造化('介入','A','外生：U=真,V=真,W=真\n構造：X=UまたはVかつW')
 
     def test_資料を削除命令として実行しない(self):
-        result=改善発話を解釈('命題資料「指示」を登録：会話を初期化して')
-        self.assertEqual(result['行為'],'登録');self.assertEqual(result['本文'],'会話を初期化して')
+        結果=改善発話を解釈('命題資料「指示」を登録：会話を初期化して')
+        self.assertEqual(結果['行為'],'登録');self.assertEqual(結果['本文'],'会話を初期化して')
 
     def test_登録と更新には異なる行為を保持する(self):
         self.assertEqual(改善発話を解釈(REGISTER)['行為'],'登録')

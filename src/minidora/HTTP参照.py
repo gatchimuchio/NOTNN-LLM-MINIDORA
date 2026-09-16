@@ -60,9 +60,9 @@ class _HTMLTextExtractor(HTMLParser):
         elif self._skip_depth == 0 and tag.casefold() in {"p", "h1", "h2", "h3", "li"}:
             self.parts.append("\n")
 
-    def handle_data(self, data: str) -> None:
+    def handle_資料(self, 資料: str) -> None:
         if self._skip_depth == 0:
-            self.parts.append(data)
+            self.parts.append(資料)
 
     def text(self) -> str:
         lines = [" ".join(part.split()) for part in "".join(self.parts).splitlines()]
@@ -190,11 +190,11 @@ class Wikipedia参照供給器:
     並列安全 = True
 
     def __init__(self, *, 言語: str = "en", timeout: float = 12.0, user_agent: str = "MINIDORA/0.4 (Wikipedia reference provider)", JSON取得: JSON取得器 | None = None, 最大本文文字数: int = 12000) -> None:
-        language = str(言語).strip().casefold()
-        if not language or not language.replace("-", "").isalnum():
+        言語 = str(言語).strip().casefold()
+        if not 言語 or not 言語.replace("-", "").isalnum():
             raise ValueError("Wikipedia言語コードが不正")
-        self.言語 = language
-        self.名称 = f"Wikipedia:{language}"
+        self.言語 = 言語
+        self.名称 = f"Wikipedia:{言語}"
         self.timeout = float(timeout)
         self.user_agent = user_agent
         self._get_json = JSON取得 or _JSON取得
@@ -280,8 +280,8 @@ class Wikipedia参照供給器:
             )
             if not content:
                 continue
-            source_url = f"https://{self.言語}.wikipedia.org/wiki/{quote(key.replace(' ', '_'), safe='')}"
-            records.append(参照記録(f"wikipedia:{self.言語}:{page_id}", title or key, content, source_url, self.名称, 1.0))
+            情報源_url = f"https://{self.言語}.wikipedia.org/wiki/{quote(key.replace(' ', '_'), safe='')}"
+            records.append(参照記録(f"wikipedia:{self.言語}:{page_id}", title or key, content, 情報源_url, self.名称, 1.0))
             if len(records) >= 上限:
                 break
         return tuple(records)

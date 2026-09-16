@@ -76,12 +76,12 @@ def _ir() -> HDSIR:
     return HDSIR(
         原文="Which function belongs to ProteinX?",
         正規化文="Which function belongs to ProteinX?",
-        認知世界ID="reference:test",
+        認知世界ID='参照:test',
         座標=(
             HDS座標("protein", "対象.実体", "ProteinX"),
             HDS座標("function", "目的.属性", "function"),
-            HDS座標("choice:A", "目的.候補", "catalysis"),
-            HDS座標("choice:B", "目的.候補", "transport"),
+            HDS座標('選択肢:A', "目的.候補", "catalysis"),
+            HDS座標('選択肢:B', "目的.候補", "transport"),
         ),
         関係=(),
         残差=(),
@@ -109,7 +109,7 @@ class HDS参照拡張試験(unittest.TestCase):
         self.assertTrue(any("transport" in q for q in queries))
         self.assertEqual(sum("catalysis" in q for q in queries), sum("transport" in q for q in queries))
 
-    def test_問題文だけで0件でも候補展開でDataを取得する(self) -> None:
+    def test_問題文だけで0件でも候補展開で資料を取得する(self) -> None:
         provider = _記録Provider()
         records = HDS参照検索(provider, _ir(), 上限=8, 一問合せ上限=4)
         ids = {record.識別子 for record in records}
@@ -117,13 +117,13 @@ class HDS参照拡張試験(unittest.TestCase):
         self.assertTrue(any("catalysis" in q.casefold() for q in provider.queries))
         self.assertTrue(any("transport" in q.casefold() for q in provider.queries))
         conditions = {record.識別子: set(record.条件) for record in records}
-        self.assertIn(("hds_query_choice", "A"), conditions["doc:catalysis"])
-        self.assertIn(("hds_query_choice", "B"), conditions["doc:transport"])
+        self.assertIn(('hds_query_選択肢', "A"), conditions["doc:catalysis"])
+        self.assertIn(('hds_query_選択肢', "B"), conditions["doc:transport"])
 
     def test_同じ文書が複数候補queryで取れた場合は両候補provenanceを保持する(self) -> None:
         records = HDS参照検索(_共通記録Provider(), _ir(), 上限=8, 一問合せ上限=4)
         self.assertEqual(len(records), 1)
-        labels = {value for key, value in records[0].条件 if key == "hds_query_choice"}
+        labels = {value for key, value in records[0].条件 if key == 'hds_query_選択肢'}
         self.assertEqual(labels, {"A", "B"})
 
     def test_一部候補だけ主検索hitでも未被覆候補の縮退検索を継続する(self) -> None:
@@ -131,16 +131,16 @@ class HDS参照拡張試験(unittest.TestCase):
         records = HDS参照検索(provider, _ir(), 上限=8, 一問合せ上限=4)
         self.assertEqual({record.識別子 for record in records}, {"doc:catalysis", "doc:transport"})
         conditions = {record.識別子: set(record.条件) for record in records}
-        self.assertIn(("hds_query_choice", "A"), conditions["doc:catalysis"])
-        self.assertIn(("hds_query_choice", "B"), conditions["doc:transport"])
+        self.assertIn(('hds_query_選択肢', "A"), conditions["doc:catalysis"])
+        self.assertIn(('hds_query_選択肢', "B"), conditions["doc:transport"])
         self.assertIn("transport", provider.queries)
 
     def test_Runtime_HDS経路で展開検索を使用する(self) -> None:
         provider = _記録Provider()
-        result = ミニドラ(provider, HDSコンパイラ_=_構文化器()).実行(要求("surface query"))
-        self.assertEqual(result.採否.状態, 実行状態.合格)
-        self.assertIn(result.値, {"ProteinX supports catalysis.", "ProteinX transport hypothesis."})
-        self.assertEqual({r.識別子 for r in result.参照}, {"doc:catalysis", "doc:transport"})
+        結果 = ミニドラ(provider, HDSコンパイラ_=_構文化器()).実行(要求("surface query"))
+        self.assertEqual(結果.採否.状態, 実行状態.合格)
+        self.assertIn(結果.値, {"ProteinX supports catalysis.", "ProteinX transport hypothesis."})
+        self.assertEqual({r.識別子 for r in 結果.参照}, {"doc:catalysis", "doc:transport"})
         self.assertGreater(len(provider.queries), 1)
 
 

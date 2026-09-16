@@ -23,7 +23,7 @@ class HDS意味専用計画器:
 
 @dataclass(frozen=True, slots=True)
 class HDSコンパイル束:
-    """意味IR・計算計画・作用差分構造を混ぜず並列保持するCompiler成果。"""
+    '意味IR・計算計画・作用差分構造を混ぜず並列保持する構文化器成果。'
 
     意味IR: HDSIR
     計算計画: 言語計画
@@ -39,7 +39,7 @@ class HDSコンパイル束:
                 (),
                 "結果",
                 境界=("HDS-IR", "日本語基底", "互換橋"),
-                検証=("公開Compiler", "意味IRと計算Pを正本では分離"),
+                検証=('公開構文化器', "意味IRと計算Pを正本では分離"),
             ),
             初期状態=dict(plan.初期状態),
             参照必須=bool(plan.参照必須),
@@ -73,7 +73,7 @@ def HDS意味IR化(base: HDSIR, plan: 言語計画) -> HDSIR:
         初期状態={},
         参照必須=bool(plan.参照必須),
         種別=plan.種別,
-        閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
+        閉包状態='CLOSED_FOR_意味_TRANSFER',
         手順=None,
     )
 

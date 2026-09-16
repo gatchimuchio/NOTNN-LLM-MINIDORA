@@ -3,15 +3,15 @@ from __future__ import annotations
 from dataclasses import replace
 
 from .HDS選択実行系 import HDS選択問題
-from .hds統合実行系 import HDS駆動選択実行
+from .HDS統合実行系 import HDS駆動選択実行
 from .実行系 import ミニドラ as _MINIDORAV05
 from .実行系_v03 import 結果, 要求
 
 
 class HDS駆動ミニドラ(_MINIDORAV05):
-    """HDS Judgement Subjectを選択問題の唯一のCOMMIT主体に置くMINIDORA v1試作Runtime。"""
+    'HDS Judgement 主体を選択問題の唯一のCOMMIT主体に置くMINIDORA v1試作Runtime。'
 
-    版 = "v1-hds-judgement-subject-prototype"
+    版 = 'v1-hds-judgement-主体-prototype'
 
     def 実行(self, 要求_: 要求) -> 結果:
         if 要求_.手順 is not None or self.HDSコンパイラ is None:
@@ -38,10 +38,10 @@ class HDS駆動ミニドラ(_MINIDORAV05):
                 回答内容=None,
                 理由=driven.理由,
             )
-        result = self._HDS選択結果(要求_, ir, driven.参照, legacy_selection)
+        結果 = self._HDS選択結果(要求_, ir, driven.参照, legacy_selection)
 
-        state = dict(result.状態)
-        state["HDS判断主体Run"] = {
+        状態 = dict(結果.状態)
+        状態["HDS判断主体Run"] = {
             "run_id": driven.認知世界.run_id,
             "状態": driven.認知世界.状態,
             "版": driven.認知世界.版,
@@ -52,13 +52,13 @@ class HDS駆動ミニドラ(_MINIDORAV05):
             "残差": driven.認知世界.残差,
             "作用履歴": driven.認知世界.作用履歴,
         }
-        history = result.履歴 + ({
-            "op": "HDS_JUDGEMENT_SUBJECT_RUN",
+        history = 結果.履歴 + ({
+            "op": 'HDS_JUDGEMENT_主体_RUN',
             "run_id": driven.認知世界.run_id,
-            "state": driven.認知世界.状態,
-            "actions": tuple(action for action, _ in driven.認知世界.作用履歴),
+            '状態': driven.認知世界.状態,
+            "actions": tuple(作用 for 作用, _ in driven.認知世界.作用履歴),
         },)
-        return replace(result, 状態=state, 履歴=history)
+        return replace(結果, 状態=状態, 履歴=history)
 
 
 __all__ = ["HDS駆動ミニドラ"]

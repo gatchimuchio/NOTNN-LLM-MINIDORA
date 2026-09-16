@@ -11,7 +11,7 @@ def solve_teq_period_ratio(q, choices):
     ratios = [float(x) for x in re.findall('(?:approximately|about)\\s*([0-9]+(?:\\.[0-9]+)?)', q, re.I)]
     if len(ratios) >= 2 and 'planet3' in s and ('planet1' in s):
         target = (ratios[0] * ratios[1]) ** 3
-        return _結果(_nearest(choices, target, rel_tol=0.15), 'teq_period_chain', target)
+        return _結果(_nearest(choices, target, rel_tol=0.15), 'teq_period_連鎖', target)
     m = re.search('periods? in a ratio of\\s*([0-9.:]+)', q, re.I)
     if m and 'planet_4' in s and ('planet_2' in s):
         vals = [float(x) for x in m.group(1).split(':')]
@@ -165,17 +165,17 @@ def solve_abundance_generic(q, choices):
         return None
     target = 10 ** (float(a.group(1)) + float(b.group(1)) + float(fe.group(1)) - float(mg.group(1)))
     return _一般結果(_nearest(choices, target, rel_tol=0.15), 'abundance_dex_ratio', target)
-REGISTRY = (solve_teq_period_ratio, solve_parallax_distribution, solve_rv_teq_generic, solve_rv_period, solve_starspot, solve_black_hole, solve_lyman, solve_binary_mass, solve_transit_max, solve_abundance_generic)
+登録簿 = (solve_teq_period_ratio, solve_parallax_distribution, solve_rv_teq_generic, solve_rv_period, solve_starspot, solve_black_hole, solve_lyman, solve_binary_mass, solve_transit_max, solve_abundance_generic)
 
 def 解決(question: str, choices: Sequence[str]):
     hits = []
-    for solver in REGISTRY:
+    for 解決器 in 登録簿:
         try:
-            row = solver(question, choices)
+            row = 解決器(question, choices)
         except Exception:
             row = None
         if row is not None:
             hits.append(row)
     if not hits or len({row.index for row in hits}) != 1:
         return None
-    return max(hits, key=lambda row: row.confidence)
+    return max(hits, key=lambda row: row.信頼度)

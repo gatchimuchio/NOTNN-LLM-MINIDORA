@@ -16,20 +16,20 @@ def _edges(ir, relations):
 
 class ANDCoordinationCleanV09試験(unittest.TestCase):
     def setUp(self) -> None:
-        self.compiler = 公開HDSコンパイラ()
+        self.構文化器 = 公開HDSコンパイラ()
 
     def test_主語ANDを二本の関係へ展開する(self) -> None:
-        ir = self.compiler.コンパイル("Protein A and Protein B inhibit Enzyme X.")
+        ir = self.構文化器.コンパイル("Protein A and Protein B inhibit Enzyme X.")
         rows = _expanded(ir, "阻害")
         self.assertEqual(_edges(ir, rows), {("Protein A", "Enzyme X"), ("Protein B", "Enzyme X")})
 
     def test_目的語ANDを二本の関係へ展開する(self) -> None:
-        ir = self.compiler.コンパイル("Protein A inhibits Enzyme X and Enzyme Y.")
+        ir = self.構文化器.コンパイル("Protein A inhibits Enzyme X and Enzyme Y.")
         rows = _expanded(ir, "阻害")
         self.assertEqual(_edges(ir, rows), {("Protein A", "Enzyme X"), ("Protein A", "Enzyme Y")})
 
     def test_両端ANDは直積へ展開する(self) -> None:
-        ir = self.compiler.コンパイル("Protein A and Protein B inhibit Enzyme X and Enzyme Y.")
+        ir = self.構文化器.コンパイル("Protein A and Protein B inhibit Enzyme X and Enzyme Y.")
         rows = _expanded(ir, "阻害")
         self.assertEqual(len(rows), 4)
         self.assertEqual(
@@ -41,11 +41,11 @@ class ANDCoordinationCleanV09試験(unittest.TestCase):
         )
 
     def test_ORは両方成立とみなさない(self) -> None:
-        ir = self.compiler.コンパイル("Protein A or Protein B inhibits Enzyme X.")
+        ir = self.構文化器.コンパイル("Protein A or Protein B inhibits Enzyme X.")
         self.assertEqual(_expanded(ir, "阻害"), [])
 
     def test_複雑な非対称句は無理に分割しない(self) -> None:
-        ir = self.compiler.コンパイル("Research and Development Department inhibits Enzyme X.")
+        ir = self.構文化器.コンパイル("Research and Development Department inhibits Enzyme X.")
         self.assertEqual(_expanded(ir, "阻害"), [])
 
 

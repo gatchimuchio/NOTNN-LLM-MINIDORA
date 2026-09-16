@@ -75,8 +75,8 @@ class チャット応答:
     def API辞書(self) -> dict[str, str]:
         return {
             "response": self.本文,
-            "trace_id": self.追跡ID,
-            "trace_hash": self.監査ハッシュ,
-            "route": self.経路,
+            '追跡_id': self.追跡ID,
+            '追跡_hash': self.監査ハッシュ,
+            '経路': self.経路,
             "status": self.状態,
         }

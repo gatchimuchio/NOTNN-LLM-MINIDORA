@@ -21,10 +21,10 @@ _JA_PREMISE = (
 _EN_PREMISE = (
     re.compile(r"(?:assume|assuming|suppose|given that)\s+(?P<body>[^?!.;]{1,180})", re.I),
 )
-_JA_SCOPE = (
+_JA_範囲 = (
     re.compile(r"(?P<body>[^。！？]{1,180}?)(?:に限る|のみ有効|のみ適用|条件下のみ|対象外|非適用)"),
 )
-_EN_SCOPE = (
+_EN_範囲 = (
     re.compile(r"(?P<body>[^?!.;]{1,180}?)(?:only|limited to|applies only to|out of scope|not applicable)", re.I),
 )
 _UNCERTAINTY_MARKERS = (
@@ -46,26 +46,26 @@ def _clean(value: str | None) -> str | None:
 
 
 def HDS暗黙知抽出(text: str) -> tuple[HDS暗黙知記録, ...]:
-    source = " ".join(str(text).split()).strip()
+    情報源 = " ".join(str(text).split()).strip()
     records: list[HDS暗黙知記録] = []
 
     for pattern in (*_JA_DEF, *_EN_DEF):
-        for match in pattern.finditer(source):
-            subject = _clean(match.group("s"))
+        for match in pattern.finditer(情報源):
+            主体 = _clean(match.group("s"))
             content = _clean(match.group("o"))
-            if subject and content:
+            if 主体 and content:
                 records.append(
                     HDS暗黙知記録(
                         f"tacit:def:{len(records):03d}",
                         "定義",
-                        subject,
+                        主体,
                         content,
                         再開放条件=("定義変更・別文脈・反例で再監査する",),
                     )
                 )
 
     for pattern in (*_JA_PREMISE, *_EN_PREMISE):
-        for match in pattern.finditer(source):
+        for match in pattern.finditer(情報源):
             body = _clean(match.group("body"))
             if body:
                 records.append(
@@ -79,8 +79,8 @@ def HDS暗黙知抽出(text: str) -> tuple[HDS暗黙知記録, ...]:
                     )
                 )
 
-    for pattern in (*_JA_SCOPE, *_EN_SCOPE):
-        for match in pattern.finditer(source):
+    for pattern in (*_JA_範囲, *_EN_範囲):
+        for match in pattern.finditer(情報源):
             body = _clean(match.group("body"))
             if body:
                 records.append(
@@ -96,11 +96,11 @@ def HDS暗黙知抽出(text: str) -> tuple[HDS暗黙知記録, ...]:
                 )
 
     for classification, pattern in _UNCERTAINTY_MARKERS:
-        for match in pattern.finditer(source):
-            sentence_start = max(source.rfind("。", 0, match.start()), source.rfind(".", 0, match.start())) + 1
-            ends = [pos for pos in (source.find("。", match.end()), source.find(".", match.end())) if pos >= 0]
-            sentence_end = min(ends) if ends else len(source)
-            body = _clean(source[sentence_start:sentence_end])
+        for match in pattern.finditer(情報源):
+            sentence_start = max(情報源.rfind("。", 0, match.start()), 情報源.rfind(".", 0, match.start())) + 1
+            ends = [pos for pos in (情報源.find("。", match.end()), 情報源.find(".", match.end())) if pos >= 0]
+            sentence_end = min(ends) if ends else len(情報源)
+            body = _clean(情報源[sentence_start:sentence_end])
             if body:
                 records.append(
                     HDS暗黙知記録(
@@ -132,13 +132,13 @@ def HDS暗黙知IR射影(ir: HDSIR, records: tuple[HDS暗黙知記録, ...]) -> 
     relations = list(ir.関係)
     existing = {(str(coord.種別), str(coord.内容)): coord.座標ID for coord in coords}
 
-    def add(kind: str, content: str, *, state: 値状態 = 値状態.確定) -> str:
+    def add(kind: str, content: str, *, 状態: 値状態 = 値状態.確定) -> str:
         key = (kind, content)
         cid = existing.get(key)
         if cid is not None:
             return cid
         cid = f"archv11:tacit:{len(existing):03d}"
-        coords.append(HDS座標(cid, kind, content, state, 由来="公開HDS Compiler v1.1", 再開放条件=("新観測・文脈変更で再監査する",)))
+        coords.append(HDS座標(cid, kind, content, 状態, 由来='公開HDS 構文化器 v1.1', 再開放条件=("新観測・文脈変更で再監査する",)))
         existing[key] = cid
         return cid
 
@@ -146,13 +146,13 @@ def HDS暗黙知IR射影(ir: HDSIR, records: tuple[HDS暗黙知記録, ...]) -> 
         if record.種別 == "定義" and record.主語:
             sid = add("暗黙知.定義対象", record.主語)
             oid = add("暗黙知.定義内容", record.内容)
-            relations.append(HDS関係(f"archv11:{record.記録ID}", (sid,), (oid,), "定義", 値状態=値状態.確定, 由来="公開HDS Compiler v1.1"))
+            relations.append(HDS関係(f"archv11:{record.記録ID}", (sid,), (oid,), "定義", 値状態=値状態.確定, 由来='公開HDS 構文化器 v1.1'))
         elif record.種別 == "前提":
-            add("暗黙知.前提", record.内容, state=値状態.推定)
+            add("暗黙知.前提", record.内容, 状態=値状態.推定)
         elif record.種別 == "射程":
-            add("暗黙知.射程", record.内容, state=値状態.確定)
+            add("暗黙知.射程", record.内容, 状態=値状態.確定)
         elif record.種別 == "不確実性":
-            add("暗黙知.不確実性", record.分類 or record.内容, state=値状態.推定)
+            add("暗黙知.不確実性", record.分類 or record.内容, 状態=値状態.推定)
 
     return replace(ir, 座標=tuple(coords), 関係=tuple(dict.fromkeys(relations)))
 

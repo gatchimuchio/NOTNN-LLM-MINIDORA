@@ -71,8 +71,8 @@ class APIHandler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/api/trace/([a-f0-9]{32})", path)
         if m:
             r = self.app.監査台帳.取得(m.group(1))
-            if not r: return _json(self,404,{"error":"trace_not_found"})
-            return _json(self,200,{"trace":r.辞書化(),"valid":self.app.監査台帳.検証(m.group(1))})
+            if not r: return _json(self,404,{"error":'追跡_not_found'})
+            return _json(self,200,{'追跡':r.辞書化(),"valid":self.app.監査台帳.検証(m.group(1))})
         return _json(self,404,{"error":"not_found"})
 
     def do_POST(self):

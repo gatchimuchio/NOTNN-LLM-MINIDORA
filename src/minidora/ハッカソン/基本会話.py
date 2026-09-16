@@ -18,5 +18,5 @@ class 基本会話モジュール:
         if normalized in {"ありがとう", "ありがとうございます", "thx", "thanks", "thankyou"}:
             return "どういたしまして。"
         if normalized in {"あなたは誰", "誰", "自己紹介", "ミニドラとは"}:
-            return "ミニドラです。非ニューラルなMINIDORA Coreに、ハッカソン用の会話・ニュース・要約・監査モジュールを接続しています。"
+            return 'ミニドラです。非ニューラルなMINIDORA 模型核に、ハッカソン用の会話・ニュース・要約・監査モジュールを接続しています。'
         return None

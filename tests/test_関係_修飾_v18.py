@@ -3,9 +3,9 @@ from __future__ import annotations
 import unittest
 
 from minidora import 公開HDSコンパイラ
-from minidora.HDS資料K import HDSIR知識適合器, HDS修飾Fact, HDS証拠事実, HDS証拠状態複製
+from minidora.hds_data_k import HDSIR知識適合器, HDS修飾Fact, HDS証拠事実, HDS証拠状態複製
 from minidora.HDS実行系射影 import HDSK資料射影
-from minidora.K3機能 import K3相当能力核
+from minidora.k3_functional import K3相当能力核
 
 
 class 関係修飾V18試験(unittest.TestCase):

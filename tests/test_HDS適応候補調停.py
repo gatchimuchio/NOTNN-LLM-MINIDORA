@@ -7,7 +7,7 @@ from minidora.hds適応候補調停 import HDS適応候補調停
 
 
 def _結果(
-    state: str,
+    状態: str,
     label: str | None,
     content: str | None,
     *,
@@ -16,7 +16,7 @@ def _結果(
     reasons: tuple[str, ...] = ("TEST",),
 ) -> HDS選択実行結果:
     return HDS選択実行結果(
-        state,
+        状態,
         label,
         content,
         reasons,
@@ -34,7 +34,7 @@ def _結果(
 
 class HDS適応候補調停試験(unittest.TestCase):
     def test_raw候補横断更新だけでは能力提案を優先しない(self) -> None:
-        primary = _結果("PROPOSE", "A", "能力", cross_updates=3, reasons=("STATE_DELTA_CROSS_UPDATE",))
+        primary = _結果("PROPOSE", "A", "能力", cross_updates=3, reasons=('状態_DELTA_CROSS_UPDATE',))
         base = _結果("APPROVE", "B", "基礎", reasons=("BASE",))
 
         selected = HDS適応候補調停(primary, base)
@@ -52,7 +52,7 @@ class HDS適応候補調停試験(unittest.TestCase):
 
         self.assertEqual(selected.状態, "PROPOSE")
         self.assertEqual(selected.回答ラベル, "A")
-        self.assertIn("OBSERVATION_STATE_CHANGE_SUPPORTED", selected.理由)
+        self.assertIn('OBSERVATION_状態_CHANGE_SUPPORTED', selected.理由)
         self.assertIn("HDS_ADAPTIVE_PRIMARY_SELECTED", selected.理由)
 
     def test_専門作用実消費なら能力提案を優先する(self) -> None:
@@ -61,7 +61,7 @@ class HDS適応候補調停試験(unittest.TestCase):
             "A",
             "能力",
             specialist=1,
-            reasons=("HDS_ACTION_DELTA_CONSUMED",),
+            reasons=('HDS_作用_DELTA_CONSUMED',),
         )
         base = _結果("APPROVE", "B", "基礎", reasons=("BASE",))
 
@@ -79,7 +79,7 @@ class HDS適応候補調停試験(unittest.TestCase):
         self.assertEqual(selected.状態, "PROPOSE")
         self.assertEqual(selected.回答ラベル, "B")
         self.assertIn("HDS_ADAPTIVE_BASE_SELECTED", selected.理由)
-        self.assertIn("CANDIDATE_GENERATION_HAS_NO_COMMIT_AUTHORITY", selected.理由)
+        self.assertIn('候補_GENERATION_HAS_NO_COMMIT_AUTHORITY', selected.理由)
 
     def test_実観測変化も基礎閉包も無ければ単独primaryを救済しない(self) -> None:
         primary = _結果("PROPOSE", "A", "能力", reasons=("PRIMARY",))

@@ -79,9 +79,9 @@ def solve_phosphate(q, choices):
     vm = re.search('(?:volume(?:\\s+of)?|solution(?:\\s+which)?\\s+has\\s+the\\s+volume\\s+of)[^0-9]{0,30}([0-9.]+)\\s*(l|ml|cm3)', q, re.I)
     if len(salts) < 2 or not vm:
         return None
-    ka_tokens = re.findall('(?:[0-9.]+\\s*[x*]\\s*10\\s*\\^?\\s*[+-]?\\d+|[0-9.]+e[+-]?\\d+)', q, re.I)
+    ka_字句 = re.findall('(?:[0-9.]+\\s*[x*]\\s*10\\s*\\^?\\s*[+-]?\\d+|[0-9.]+e[+-]?\\d+)', q, re.I)
     kas = []
-    for tok in ka_tokens:
+    for tok in ka_字句:
         v = _num_expr(tok)
         if v is not None and 0 < v < 1:
             kas.append(v)
@@ -166,17 +166,17 @@ def solve_ksp(q, choices):
         return None
     best.sort()
     return _一般結果(best[0][1], 'ksp_acid_dissolution', (pH, acid_vol))
-REGISTRY = (solve_complex, solve_weak_acid, solve_phosphate, solve_neutralization, solve_ksp)
+登録簿 = (solve_complex, solve_weak_acid, solve_phosphate, solve_neutralization, solve_ksp)
 
 def 解決(question: str, choices: Sequence[str]):
     hits = []
-    for solver in REGISTRY:
+    for 解決器 in 登録簿:
         try:
-            row = solver(question, choices)
+            row = 解決器(question, choices)
         except Exception:
             row = None
         if row is not None:
             hits.append(row)
     if not hits or len({row.index for row in hits}) != 1:
         return None
-    return max(hits, key=lambda row: row.confidence)
+    return max(hits, key=lambda row: row.信頼度)

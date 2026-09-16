@@ -8,11 +8,11 @@ import sys
 _公開経路 = {
     'Crossref参照供給器': ('Crossref参照', 'Crossref参照供給器'),
     'EuropePMC参照供給器': ('EuropePMC参照', 'EuropePMC参照供給器'),
-    'HDSCompiler成果': ('HDS構文化記録', 'HDSCompiler成果'),
+    'HDS構文化器成果': ('HDS構文化記録', 'HDS構文化器成果'),
     'HDSIR': ('HDS中間表現', 'HDSIR'),
-    'HDSIRネイティブAdapter': ('K3_HDSネイティブ', 'HDSIRネイティブAdapter'),
+    'HDSIRネイティブ適合器': ('K3_HDSネイティブ', 'HDSIRネイティブ適合器'),
     'HDSIR復元': ('HDS再生', 'HDSIR復元'),
-    'HDSIR知識Adapter': ('HDS資料K', 'HDSIR知識Adapter'),
+    'HDSIR知識適合器': ('HDS資料K', 'HDSIR知識適合器'),
     'HDSIR辞書化': ('HDS再生', 'HDSIR辞書化'),
     'HDSK3結果': ('K3_HDSネイティブ', 'HDSK3結果'),
     'HDSコンパイラProtocol': ('HDS適合器', 'HDSコンパイラProtocol'),
@@ -20,7 +20,7 @@ _公開経路 = {
     'HDSコンパイル束': ('HDS構文化器_v1', 'HDSコンパイル束'),
     'HDSチェックリスト項目': ('HDS構文化記録_v1_1', 'HDSチェックリスト項目'),
     'HDS一時証拠統合': ('HDS作業状態', 'HDS一時証拠統合'),
-    'HDS作業Checkpoint': ('HDS作業状態', 'HDS作業Checkpoint'),
+    'HDS作業検査点': ('HDS作業状態', 'HDS作業検査点'),
     'HDS作業状態': ('HDS作業状態', 'HDS作業状態'),
     'HDS作業状態構築': ('HDS作業状態', 'HDS作業状態構築'),
     'HDS作業統計': ('HDS作業状態', 'HDS作業統計'),
@@ -52,7 +52,7 @@ _公開経路 = {
     'HDS失敗署名記録': ('HDS構文化記録_v1_2', 'HDS失敗署名記録'),
     'HDS失敗観測': ('HDS構文化記録_v1_2', 'HDS失敗観測'),
     'HDS実行核': ('HDS中間表現', 'HDS実行核'),
-    'HDS寄与Gate再照合': ('HDS作業状態', 'HDS寄与Gate再照合'),
+    'HDS寄与関門再照合': ('HDS作業状態', 'HDS寄与関門再照合'),
     'HDS座標': ('HDS中間表現', 'HDS座標'),
     'HDS後続利用記録': ('HDS構文化記録_v1_3', 'HDS後続利用記録'),
     'HDS意味IR化': ('HDS構文化処理系列_v1_4', 'HDS意味IR化'),
@@ -88,10 +88,10 @@ _公開経路 = {
     'HDS選択推論実行': ('HDS選択実行系', 'HDS選択推論実行'),
     'HDS関係': ('HDS中間表現', 'HDS関係'),
     'HDS駆動ミニドラ': ('実行系_HDS_v1', 'HDS駆動ミニドラ'),
-    'HDS駆動選択実行': ('hds統合実行系', 'HDS駆動選択実行'),
-    'HDS駆動選択結果': ('hds統合実行系', 'HDS駆動選択結果'),
+    'HDS駆動選択実行': ('HDS統合実行系', 'HDS駆動選択実行'),
+    'HDS駆動選択結果': ('HDS統合実行系', 'HDS駆動選択結果'),
     'K3相当能力核': ('K3機能', 'K3相当能力核'),
-    'K3能力結果': ('K3機能', 'SystemResult'),
+    'K3能力結果': ('K3機能', 'System結果'),
     'LAYER0仕様版': ('第0層', 'LAYER0仕様版'),
     'LAYER0参照コミット': ('第0層', 'LAYER0参照コミット'),
     'LAYER0機能責任': ('第0層', 'LAYER0機能責任'),
@@ -103,7 +103,7 @@ _公開経路 = {
     'Trinity文脈系': ('トリニティ文脈', 'Trinity文脈系'),
     'Trinity記憶監査': ('トリニティ文脈', 'Trinity記憶監査'),
     'Wikipedia参照供給器': ('HTTP参照', 'Wikipedia参照供給器'),
-    'run_k3_equivalence_benchmark': ('K3評価', 'run_k3_equivalence_benchmark'),
+    'run_k3_equivalence_外部評価': ('K3評価', 'run_k3_equivalence_外部評価'),
     'ミニドラ': ('実行系', 'ミニドラ'),
     '一般知識参照供給器': ('標準参照', '一般知識参照供給器'),
     '主体主幹': ('主体', '主体主幹'),
@@ -159,29 +159,29 @@ _公開経路 = {
 _互換ワイルドカード = ("模型_v05",)
 
 def _ロード済み公開名を正規化() -> None:
-    """submodule importがpackage属性へ置いた同名moduleを公開API実体へ戻す。"""
-    for public_name, (module_name, source_name) in _公開経路.items():
-        loaded = sys.modules.get(f"{__name__}.{module_name}")
-        if loaded is None or not hasattr(loaded, source_name):
+    'submodule importがpackage属性へ置いた同名モジュールを公開API実体へ戻す。'
+    for public_name, (モジュール_name, 情報源_name) in _公開経路.items():
+        loaded = sys.modules.get(f"{__name__}.{モジュール_name}")
+        if loaded is None or not hasattr(loaded, 情報源_name):
             continue
         current = globals().get(public_name)
         if current is loaded or public_name not in globals():
-            globals()[public_name] = getattr(loaded, source_name)
+            globals()[public_name] = getattr(loaded, 情報源_name)
 
 def __getattr__(name: str):
-    route = _公開経路.get(name)
-    if route is not None:
-        module_name, source_name = route
-        module = import_module(f".{module_name}", __name__)
-        value = getattr(module, source_name)
+    経路 = _公開経路.get(name)
+    if 経路 is not None:
+        モジュール_name, 情報源_name = 経路
+        モジュール = import_module(f".{モジュール_name}", __name__)
+        value = getattr(モジュール, 情報源_name)
         globals()[name] = value
         _ロード済み公開名を正規化()
         return globals().get(name, value)
-    for module_name in _互換ワイルドカード:
-        module = import_module(f".{module_name}", __name__)
+    for モジュール_name in _互換ワイルドカード:
+        モジュール = import_module(f".{モジュール_name}", __name__)
         _ロード済み公開名を正規化()
-        if name in getattr(module, "__all__", ()) and hasattr(module, name):
-            value = getattr(module, name)
+        if name in getattr(モジュール, "__all__", ()) and hasattr(モジュール, name):
+            value = getattr(モジュール, name)
             globals()[name] = value
             return value
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
@@ -191,10 +191,10 @@ class _遅延公開名(Sequence):
     def _names(self) -> tuple[str, ...]:
         if self._cache is None:
             names = set(_公開経路)
-            for module_name in _互換ワイルドカード:
-                module = import_module(f".{module_name}", __name__)
+            for モジュール_name in _互換ワイルドカード:
+                モジュール = import_module(f".{モジュール_name}", __name__)
                 _ロード済み公開名を正規化()
-                names.update(getattr(module, "__all__", ()))
+                names.update(getattr(モジュール, "__all__", ()))
             self._cache = tuple(sorted(names))
         return self._cache
     def __len__(self): return len(self._names())

@@ -54,14 +54,14 @@ def 一般知識参照供給器(
         )
 
     seen_languages: set[str] = set()
-    for raw_language in Wikipedia言語:
-        language = str(raw_language).strip().casefold()
-        if not language or language in seen_languages:
+    for raw_言語 in Wikipedia言語:
+        言語 = str(raw_言語).strip().casefold()
+        if not 言語 or 言語 in seen_languages:
             continue
-        seen_languages.add(language)
+        seen_languages.add(言語)
         providers.append(
             Wikipedia参照供給器(
-                言語=language,
+                言語=言語,
                 timeout=timeout,
                 最大本文文字数=最大本文文字数,
             )

@@ -29,7 +29,7 @@ _STOP = {
     "why", "how", "this", "that", "these", "those", "it", "its", "as", "by", "than", "then",
     "do", "does", "did", "have", "has", "had", "will", "shall", "would", "could", "should",
     "may", "might", "can", "about", "into", "through", "during", "after", "before", "between", "among",
-    "following", "statement", "statements", "answer", "answers", "option", "options", "choice", "choices",
+    "following", "statement", "statements", "answer", "answers", "option", "options", '選択肢', "choices",
     "correct", "incorrect", "true", "false", "most", "least", "likely", "unlikely", "best", "except",
     "select", "choose", "chosen", "consider", "considered", "describe", "describes", "described",
     "regarding", "according", "given", "respect", "respectively", "not",
@@ -109,9 +109,9 @@ def 意味語(text: object) -> frozenset[str]:
     for variable in (*_MATH_VAR_LEFT.findall(raw), *_MATH_VAR_RIGHT.findall(raw)):
         out.add(_記号語(variable))
 
-    for token in _WORD.findall(raw):
-        original = token
-        value = token.casefold().strip("._")
+    for 字句 in _WORD.findall(raw):
+        original = 字句
+        value = 字句.casefold().strip("._")
         if _数値語(value):
             out.add(value)
             continue
@@ -137,9 +137,9 @@ def 意味語(text: object) -> frozenset[str]:
         if len(normalized) <= 1 or normalized in _STOP:
             continue
         out.add(normalized)
-        relation = 英語関係概念(normalized)
-        if relation is not None:
-            out.add("rel:" + relation)
+        関係 = 英語関係概念(normalized)
+        if 関係 is not None:
+            out.add("rel:" + 関係)
     return frozenset(out)
 
 

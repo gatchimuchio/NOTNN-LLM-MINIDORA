@@ -8,14 +8,14 @@ from .HDS中間表現 import HDSIR
 from .多言語変換 import 対訳を変換
 
 
-def 依頼を準備(original, materials, language, session, history, maximum):
+def 依頼を準備(original, materials, 言語, session, history, maximum):
     if type(original) is not str or not original.strip() or len(original) > 8192:
         raise ValueError("依頼文不正")
-    if language not in ("ja", "en"):
+    if 言語 not in ("ja", "en"):
         raise ValueError("未対応言語")
-    detail = {"原文": original, "入力言語": language, "翻訳": None, "解釈": None}
+    detail = {"原文": original, "入力言語": 言語, "翻訳": None, "解釈": None}
     text = original
-    if language == "en":
+    if 言語 == "en":
         translation = 対訳を変換(original, "en", "ja", 種別="文書依頼")
         detail["翻訳"] = translation
         if not translation.成立:

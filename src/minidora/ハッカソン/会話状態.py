@@ -37,8 +37,8 @@ class 会話状態庫:
     def 取得(self, セッションID: str) -> 会話状態:
         key = str(セッションID or "default")
         with self._lock:
-            state = self._states.get(key)
-            if state is None:
-                state = 会話状態(key)
-                self._states[key] = state
-            return state
+            状態 = self._states.get(key)
+            if 状態 is None:
+                状態 = 会話状態(key)
+                self._states[key] = 状態
+            return 状態

@@ -11,28 +11,28 @@ def _ir() -> HDSIR:
     return HDSIR(
         原文="Which process involving ProteinX under severe hypoxic stress is correct?",
         正規化文="Which process involving ProteinX under severe hypoxic stress is correct?",
-        認知世界ID="fallback-test",
+        認知世界ID='代替経路-test',
         座標=(
             HDS座標("protein", "対象.実体", "ProteinX"),
-            HDS座標("relation", "関係.述語表層", "activates"),
-            HDS座標("state", "状態.環境", "severe hypoxic stress"),
-            HDS座標("choice:A", "目的.候補", "catalysis"),
-            HDS座標("choice:B", "目的.候補", "transport"),
-            HDS座標("choice:C", "目的.候補", "folding"),
-            HDS座標("choice:D", "目的.候補", "signaling"),
+            HDS座標('関係', "関係.述語表層", "activates"),
+            HDS座標('状態', "状態.環境", "severe hypoxic stress"),
+            HDS座標('選択肢:A', "目的.候補", "catalysis"),
+            HDS座標('選択肢:B', "目的.候補", "transport"),
+            HDS座標('選択肢:C', "目的.候補", "folding"),
+            HDS座標('選択肢:D', "目的.候補", "signaling"),
         ),
         関係=(),
         残差=(),
         意味作用履歴=(),
         実行核=HDS実行核("参照回答"),
         参照必須=True,
-        種別="knowledge_choice",
+        種別='knowledge_選択肢',
     )
 
 
-class _FallbackOnlyProvider:
+class _代替経路OnlyProvider:
     並列安全 = True
-    名称 = "fallback-only"
+    名称 = '代替経路-only'
 
     def __init__(self) -> None:
         self.calls: list[str] = []
@@ -47,14 +47,14 @@ class _FallbackOnlyProvider:
         return ()
 
 
-class HDS参照Fallback試験(unittest.TestCase):
-    def test_縮退queryは全choiceを対称に保持する(self) -> None:
+class HDS参照代替経路試験(unittest.TestCase):
+    def test_縮退queryは全選択肢を対称に保持する(self) -> None:
         queries = HDS参照縮退問合せ候補(_ir())
-        for choice in ("catalysis", "transport", "folding", "signaling"):
-            self.assertIn(f"ProteinX {choice}", queries)
+        for 選択肢 in ("catalysis", "transport", "folding", "signaling"):
+            self.assertIn(f"ProteinX {選択肢}", queries)
 
     def test_主検索が完全0件の時だけ縮退検索へ進む(self) -> None:
-        provider = _FallbackOnlyProvider()
+        provider = _代替経路OnlyProvider()
         primary = HDS参照問合せ候補(_ir())
         self.assertNotIn("ProteinX catalysis", primary)
 
@@ -66,7 +66,7 @@ class HDS参照Fallback試験(unittest.TestCase):
     def test_主検索で1件でも取れれば縮退検索を追加しない(self) -> None:
         target_primary = HDS参照問合せ候補(_ir())[0]
 
-        class PrimaryProvider(_FallbackOnlyProvider):
+        class PrimaryProvider(_代替経路OnlyProvider):
             def 検索(self, query: str, limit: int = 8):
                 self.calls.append(query)
                 if query == target_primary:

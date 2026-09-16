@@ -105,12 +105,12 @@ def 数量群を処理(values: tuple[能力結果,...], settings: dict) -> 能�
         claims.append({'ID':'演算:'+op,'種別':op,'依存':dependencies,
                        '結果':aggregates.get(op,ranks if op=='比較' else selected)})
     display={k:(有理数を表記(Fraction(v)/scale) if k!='件数' else v) for k,v in aggregates.items()}
-    data={'版':数量集合版,'種別':'数量集合','設定':deepcopy(settings),
+    資料={'版':数量集合版,'種別':'数量集合','設定':deepcopy(settings),
           '元結果':[_結果辞書(v) for v in values], '採用対象':selected,'順位':ranks,
           '集約':aggregates,'表示集約':display,'表示単位':unit,'生成関係':claims,
           '本文':f'{len(values)}対象から{len(selected)}対象の記載値を処理しました。'}
-    data['記録SHA256']=意味指紋(data)
-    return 能力結果(True,data['本文'],参照=_参照結合(r for v in values for r in v.参照),データ=data)
+    資料['記録SHA256']=意味指紋(資料)
+    return 能力結果(True,資料['本文'],参照=_参照結合(r for v in values for r in v.参照),データ=資料)
 
 
 def 集合記録整合(value) -> bool:
@@ -127,9 +127,9 @@ def 集合記録整合(value) -> bool:
 
 
 def _資料名(q):
-    result='資料「'+q['資料']+'」'
-    if q['時点'] is not None: result+='（'+q['時点']+'）'
-    return result
+    結果='資料「'+q['資料']+'」'
+    if q['時点'] is not None: 結果+='（'+q['時点']+'）'
+    return 結果
 
 
 def _セル(text):

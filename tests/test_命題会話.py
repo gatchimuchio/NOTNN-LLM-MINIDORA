@@ -110,9 +110,9 @@ class 命題会話試験(unittest.TestCase):
         p.応答('資料「規則」を登録:P。PならばQ。')
         r=p.応答('資料「規則」から「Q」は言える？')
         self.assertIn('支持されます',r.本文)
-    def test_元Coreにフォールバックしない(self):
+    def test_元模型核にフォールバックしない(self):
         class 模型核:
-            def 応答(self,*a,**kw):raise AssertionError('Core不可')
+            def 応答(self,*a,**kw):raise AssertionError('模型核不可')
         p=製品ミニドラ(汎用会話=True,基礎ミニドラ=模型核())
         r=p.応答('資料「未登録」から「P」は言える？');self.assertNotIn('支持されます',r.本文)
 
@@ -121,8 +121,8 @@ class 命題整合試験(unittest.TestCase):
     def setUp(self):
         self.s=汎用会話セッション('整合')
         self.s.応答('資料「規則」を登録:P。PならばQ。')
-        self.result=self.s.応答('資料「規則」から「Q」は言える？').結果
-        self.report=能力結果を復元(self.result.データ['元結果'][0])
+        self.結果=self.s.応答('資料「規則」から「Q」は言える？').結果
+        self.report=能力結果を復元(self.結果.データ['元結果'][0])
     def test_正本報告の整合(self):self.assertTrue(命題判定整合(self.report))
     def test_支持ラベルの書換を検知(self):
         v=deepcopy(self.report);v.データ['判定結果']['判定']='反証';self.assertFalse(命題判定整合(v))
@@ -137,12 +137,12 @@ class 命題整合試験(unittest.TestCase):
         self.assertFalse(命題判定整合(v))
     def test_外側参照削除を検知(self):self.assertFalse(命題判定整合(replace(self.report,参照=())))
     def test_外側根拠削除を検知(self):self.assertFalse(命題判定整合(replace(self.report,根拠=())))
-    def test_出力本文の書換を検知(self):self.assertFalse(回答記録整合(replace(self.result,本文='異なる結論')))
+    def test_出力本文の書換を検知(self):self.assertFalse(回答記録整合(replace(self.結果,本文='異なる結論')))
     def test_JSON通信後も内部報告を再検証できる(self):
         decoded=能力結果を復元(json.loads(json.dumps(_結果辞書(self.report),ensure_ascii=False)))
         self.assertTrue(命題判定整合(decoded))
     def test_JSON通信後も外側回答を再検証できる(self):
-        decoded=能力結果を復元(json.loads(json.dumps(_結果辞書(self.result),ensure_ascii=False)))
+        decoded=能力結果を復元(json.loads(json.dumps(_結果辞書(self.結果),ensure_ascii=False)))
         self.assertTrue(回答記録整合(decoded))
     def test_HDS未知座標を無視しない(self):
         q='資料「規則」から「Q」は言える？';r=会話を解釈(q,('規則',));ir=公開HDSコンパイラ().コンパイル(q)
@@ -150,7 +150,7 @@ class 命題整合試験(unittest.TestCase):
         with self.assertRaises(ValueError):HDS命題を照合(ir,r)
     def test_HDS未解釈残差を無視しない(self):
         q='資料「規則」から「Q」は言える？';r=会話を解釈(q,('規則',));ir=公開HDSコンパイラ().コンパイル(q)
-        ir=replace(ir,残差=(HDS残差('r','semantic_loss','Q','意味損失'),))
+        ir=replace(ir,残差=(HDS残差('r','意味_loss','Q','意味損失'),))
         with self.assertRaises(ValueError):HDS命題を照合(ir,r)
     def test_HDS原文の食違いを拒否(self):
         q='資料「規則」から「Q」は言える？';r=会話を解釈(q,('規則',));ir=公開HDSコンパイラ().コンパイル(q)

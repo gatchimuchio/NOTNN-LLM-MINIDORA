@@ -22,7 +22,7 @@ from minidora.計算実行器 import 計算実行器
 _現在Provider = None
 _通常MINIDORA選択推論 = _gpqa.HDS選択推論実行
 _直前baseline_key = None
-_直前baseline_result: HDS選択実行結果 | None = None
+_直前baseline_結果: HDS選択実行結果 | None = None
 
 
 def _baseline_key(question_ir, references):
@@ -58,7 +58,7 @@ def _通常MINIDORA推論(
 
 
 def _監督HDS選択推論実行(*args, **kwargs):
-    global _直前baseline_key, _直前baseline_result
+    global _直前baseline_key, _直前baseline_結果
 
     if len(args) < 2:
         raise TypeError("監督制御ベンチ経路は question_ir と references を必要とする")
@@ -83,13 +83,13 @@ def _監督HDS選択推論実行(*args, **kwargs):
             基礎能力核=基礎能力核,
         )
         _直前baseline_key = key
-        _直前baseline_result = baseline
+        _直前baseline_結果 = baseline
         return baseline
 
-    if _直前baseline_key == key and _直前baseline_result is not None:
-        initial = _直前baseline_result
+    if _直前baseline_key == key and _直前baseline_結果 is not None:
+        initial = _直前baseline_結果
         _直前baseline_key = None
-        _直前baseline_result = None
+        _直前baseline_結果 = None
     else:
         initial = _通常MINIDORA推論(
             question_ir,
@@ -117,7 +117,7 @@ _gpqa.HDS参照検索 = _監督初期参照検索
 _gpqa.HDS選択推論実行 = _監督HDS選択推論実行
 
 
-_original_result_payload = _benchmark._result_payload
+_original_結果_payload = _benchmark._result_payload
 
 
 def _介入統計(details):
@@ -133,7 +133,7 @@ def _介入統計(details):
                     found = int(text.rsplit(":", 1)[1])
                 except ValueError:
                     found = 0
-            elif text.startswith("HDS_INTERVENTION_ACTION:"):
+            elif text.startswith('HDS_INTERVENTION_作用:'):
                 actions[text.split(":", 1)[1]] += 1
         total += found
         cases += int(found > 0)
@@ -141,17 +141,17 @@ def _介入統計(details):
 
 
 def _監督結果構造(*args, **kwargs):
-    payload = _original_result_payload(*args, **kwargs)
+    payload = _original_結果_payload(*args, **kwargs)
     protocol = payload.setdefault("protocol", {})
     protocol["実行系"] = "minimal generic MINIDORA formal core + HDS supervisory intervention layer; specialist modules excluded"
-    protocol["hds_role"] = "通常MINIDORAを俯瞰監督し、未閉包・競合・観測不足等がある場合だけHDS介入として既存作用を起動。非介入時は完全透過"
-    protocol["hds_intervention_definition"] = "HDS監督は観測層、HDS介入はRUN_EXISTING_ACTIONによる外部作用起動。停止要求・非介入は監督判断であり介入件数に含めない"
-    protocol["initial_reference_route"] = "HDS投入前と同じ標準HDS参照検索。追加RはHDS介入時だけ"
-    protocol["current_additional_reference"] = "HDSが観測不足等を検出した場合だけ追加Rを許可"
-    protocol["candidate_resolution"] = "formal MINIDORA generic model core only; no specialist solver, no supervisory resolver, no HDS winner selection"
-    protocol["formal_model_core"] = True
+    protocol['hds_役割'] = "通常MINIDORAを俯瞰監督し、未閉包・競合・観測不足等がある場合だけHDS介入として既存作用を起動。非介入時は完全透過"
+    protocol["hds_intervention_definition"] = 'HDS監督は観測層、HDS介入はRUN_EXISTING_作用による外部作用起動。停止要求・非介入は監督判断であり介入件数に含めない'
+    protocol['initial_参照_経路'] = "HDS投入前と同じ標準HDS参照検索。追加RはHDS介入時だけ"
+    protocol['current_additional_参照'] = "HDSが観測不足等を検出した場合だけ追加Rを許可"
+    protocol['候補_resolution'] = "formal MINIDORA generic model core only; no specialist solver, no supervisory resolver, no HDS winner selection"
+    protocol['formal_模型_模型核'] = True
     protocol["final_hds_judgement_wrapper"] = False
-    protocol["gold_boundary"] = "gold used only after baseline/current inference for scoring"
+    protocol['gold_境界'] = "gold used only after baseline/current inference for scoring"
     protocol["non_intervention_invariant"] = "HDS interventions=0 => current selection object is the exact normal MINIDORA baseline result"
     if protocol.get("統制AB"):
         protocol["controlled_ab_definition"] = (
@@ -161,11 +161,11 @@ def _監督結果構造(*args, **kwargs):
         )
 
     details = payload.get("details", [])
-    interventions, intervention_cases, action_counts = _介入統計(details)
+    interventions, intervention_cases, 作用_counts = _介入統計(details)
     metrics = payload.setdefault("metrics", {})
     metrics["hds_supervisory_interventions"] = interventions
     metrics["hds_intervention_cases"] = intervention_cases
-    metrics["hds_intervention_action_counts"] = action_counts
+    metrics['hds_intervention_作用_counts'] = 作用_counts
     return payload
 
 

@@ -9,7 +9,7 @@ from .HDS中間表現 import HDSIR, 値状態
 
 
 class HDS作用種別(StrEnum):
-    参照観測 = "REFERENCE"
+    参照観測 = '参照'
     候補計算 = "EVALUATE"
     確定 = "COMMIT"
     留保 = "SUSPEND"
@@ -24,7 +24,7 @@ class HDS作用要求:
 
 @dataclass(frozen=True, slots=True)
 class MINIDORA認知世界:
-    """一回のMINIDORA判断Runに限定したCognitiveWorld Projection。"""
+    '一回のMINIDORA判断Runに限定したCognitiveWorld 射影。'
 
     run_id: str
     対象: str
@@ -52,23 +52,19 @@ _BLOCKING = frozenset({値状態.未確定, 値状態.未観測, 値状態.矛�
 def _入力阻害理由(ir: HDSIR) -> tuple[str, ...]:
     reasons: list[str] = []
     if not HDS選択問題(ir):
-        reasons.append("MINIDORA_HDS_SCOPE_NOT_CHOICE")
-    if any(item.種別 == "semantic_loss" for item in ir.残差):
-        reasons.append("HDS_QUESTION_SEMANTIC_LOSS")
+        reasons.append('MINIDORA_HDS_範囲_NOT_選択肢')
+    if any(item.種別 == '意味_loss' for item in ir.残差):
+        reasons.append('HDS_QUESTION_意味_LOSS')
     for item in ir.座標:
-        if item.座標ID.startswith("choice:") and item.値状態 in _BLOCKING:
+        if item.座標ID.startswith('選択肢:') and item.値状態 in _BLOCKING:
             reasons.append(f"HDS_CHOICE_{item.値状態.value}:{item.座標ID}")
     return tuple(reasons)
 
 
 class MINIDORAHDS判断主体:
-    """MINIDORA領域へ有限射影したHDS Judgement Subject。
+    'MINIDORA領域へ有限射影したHDS Judgement 主体。\n\n    候補生成系はPROPOSEまで。COMMIT/SUSPEND/STOPはこの主体だけが確定する。\n    HDS Framework Kernel全体やAGI全体を実装したとは主張しない。\n    '
 
-    候補生成系はPROPOSEまで。COMMIT/SUSPEND/STOPはこの主体だけが確定する。
-    HDS Framework Kernel全体やAGI全体を実装したとは主張しない。
-    """
-
-    版 = "v1-bounded-domain-projection"
+    版 = 'v1-bounded-domain-射影'
 
     def 開始(
         self,
@@ -99,17 +95,17 @@ class MINIDORAHDS判断主体:
         if blockers:
             return HDS作用要求(HDS作用種別.留保, blockers)
         if len(世界.作用履歴) >= 世界.作用予算:
-            return HDS作用要求(HDS作用種別.留保, ("HDS_ACTION_BUDGET_EXHAUSTED",))
+            return HDS作用要求(HDS作用種別.留保, ('HDS_作用_予算_EXHAUSTED',))
         if 世界.参照必須 and not 世界.参照利用可能 and not 世界.参照試行済み:
-            return HDS作用要求(HDS作用種別.留保, ("HDS_REQUIRED_REFERENCE_UNAVAILABLE",))
+            return HDS作用要求(HDS作用種別.留保, ('HDS_REQUIRED_参照_UNAVAILABLE',))
         if 世界.参照利用可能 and not 世界.参照試行済み:
-            return HDS作用要求(HDS作用種別.参照観測, ("OBSERVATION_BEFORE_COMMIT", "REFERENCE_AVAILABLE"))
+            return HDS作用要求(HDS作用種別.参照観測, ("OBSERVATION_BEFORE_COMMIT", '参照_AVAILABLE'))
         if 世界.評価状態 is None:
-            return HDS作用要求(HDS作用種別.候補計算, ("COMPUTE_CANDIDATE_DIFFERENCE", "NO_SELF_COMMIT"))
+            return HDS作用要求(HDS作用種別.候補計算, ('COMPUTE_候補_DIFFERENCE', "NO_SELF_COMMIT"))
         if 世界.評価状態 == "PROPOSE" and 世界.評価回答ラベル is not None and 世界.評価回答内容 is not None:
             return HDS作用要求(
                 HDS作用種別.確定,
-                ("CANDIDATE_GENERATION_SEPARATED_FROM_COMMIT", "LOCAL_CLOSURE_SUPPORTED"),
+                ('候補_GENERATION_SEPARATED_FROM_COMMIT', "LOCAL_CLOSURE_SUPPORTED"),
             )
         reasons = tuple(dict.fromkeys(世界.残差 + ("HDS_EVALUATION_NOT_COMMITTABLE",)))
         return HDS作用要求(HDS作用種別.留保, reasons)

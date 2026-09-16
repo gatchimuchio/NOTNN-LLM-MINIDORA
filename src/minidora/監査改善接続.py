@@ -30,16 +30,16 @@ def 拡張命題を検討(要求: dict) -> dict:
     要求 = deepcopy(要求)
     sources = _列(要求['資料'], '資料', 8, 1)
     docs = []
-    for source in sources:
-        _欄(source, {'名前', '本文'})
-        docs.append(文脈資料を読む(source['本文'], source['名前'], 照応距離=要求.get('照応距離', 1)))
+    for 情報源 in sources:
+        _欄(情報源, {'名前', '本文'})
+        docs.append(文脈資料を読む(情報源['本文'], 情報源['名前'], 照応距離=要求.get('照応距離', 1)))
     candidates = 命題を読む(要求['問い'])
     if len(candidates) != 1 and '問い候補' not in 要求:
         raise ValueError('問いの読みが複数。問い候補を明示して確認を継続する')
-    result = 文脈判定(tuple(docs), 要求['問い'], 要求.get('問い候補', 1), 要求.get('資料候補', 0),
+    結果 = 文脈判定(tuple(docs), 要求['問い'], 要求.get('問い候補', 1), 要求.get('資料候補', 0),
                     述語別名=要求.get('述語別名', ()))
-    report = {'版': 意味拡張版, '要求': 要求, '状態': result['判定'],
-              '資料候補': docs, '判定結果': result, '事実認定': False,
+    report = {'版': 意味拡張版, '要求': 要求, '状態': 結果['判定'],
+              '資料候補': docs, '判定結果': 結果, '事実認定': False,
               '限界': '提供資料の対応構文と明示した有界照応規約での判定。話者の意図、一般語義、実世界の真実性は未認定。'}
     report['記録SHA256'] = 意味指紋(report)
     return report
@@ -79,17 +79,17 @@ def 改善回答を構成(報告: dict, *, 詳細: bool = True) -> dict:
             追加('不整合', '背景事実・規則又は観測が整合しないため、仮説候補を採用していません。')
         elif not 報告['候補']:
             追加('未確定', '指定した候補集合と仮説数の範囲には、観測を説明する整合した組合せがありません。')
-        for number, candidate in enumerate(報告['候補'], 1):
-            assumption = '、'.join(candidate['仮説'])
+        for number, 候補 in enumerate(報告['候補'], 1):
+            assumption = '、'.join(候補['仮説'])
             追加('仮定', f'候補{number}：{assumption}を仮定します。' if assumption else f'候補{number}：追加仮説は不要です。')
             if 詳細:
-                graph, seen = candidate['導出'], set()
+                関係図, seen = 候補['導出'], set()
 
                 def 説明(pid):
                     if pid in seen:
                         return
                     seen.add(pid)
-                    node = graph[pid]
+                    node = 関係図[pid]
                     for parent in node['親']:
                         説明(parent)
                     if node['作用'] == '提供事実':
@@ -97,13 +97,13 @@ def 改善回答を構成(報告: dict, *, 詳細: bool = True) -> dict:
                     elif node['作用'] == '仮説導入':
                         追加('仮定', f"仮説として置く命題：{node['命題']}。", (pid,))
                     elif node['作用'] == '規則適用':
-                        premises = '、'.join(graph[parent]['命題'] for parent in node['親'])
+                        premises = '、'.join(関係図[parent]['命題'] for parent in node['親'])
                         追加('条件導出', f"{premises}から、規則 {node['入力ID']}（{node['出典']}）を適用して{node['命題']}を導きます。", (pid, *node['親']))
                     else:
                         raise ValueError('未知の導出作用を文章で補完しない')
-                for pid in candidate['観測の根拠'].values():
+                for pid in 候補['観測の根拠'].values():
                     説明(pid)
-            追加('条件付き結論', 'この仮定の下では、観測「' + '、'.join(candidate['観測の根拠']) + '」を説明できます。', tuple(candidate['観測の根拠'].values()))
+            追加('条件付き結論', 'この仮定の下では、観測「' + '、'.join(候補['観測の根拠']) + '」を説明できます。', tuple(候補['観測の根拠'].values()))
     elif 報告['版'] == 因果モデル版:
         追加('境界', '同じ外生状態を保ち、指定変数の構造式を介入値へ置き換えたモデル内比較です。')
         values = 報告['要求']['介入']
@@ -120,18 +120,18 @@ def 改善回答を構成(報告: dict, *, 詳細: bool = True) -> dict:
     elif 報告['版'] == 資料読解版:
         節.extend(読解説明節(報告, 詳細=詳細))
     else:
-        result = 報告['判定結果']
-        for definition in result.get('別名定義', ()):
+        結果 = 報告['判定結果']
+        for definition in 結果.get('別名定義', ()):
             追加('語彙条件', f"明示定義（{definition['出典']}）：{definition['表記']}を{definition['正規名']}の同義述語として扱います（引数数{definition['引数数']}）。帰属・引用の内部には適用しません。")
-        追加('資料内結論', f"提供資料内での判定は「{result['判定']}」です。資料の解釈状態は「{result['解釈状態']}」です。")
-        if result['資料候補']:
-            追加('選択条件', f"資料候補{result['資料候補']}を選んだ条件の下での結果です。")
+        追加('資料内結論', f"提供資料内での判定は「{結果['判定']}」です。資料の解釈状態は「{結果['解釈状態']}」です。")
+        if 結果['資料候補']:
+            追加('選択条件', f"資料候補{結果['資料候補']}を選んだ条件の下での結果です。")
         if len(命題を読む(報告['要求']['問い'])) > 1:
-            追加('選択条件', f"問い候補{result['問い候補']}を選んだ条件の下での結果です。")
-        for case in result['場合別']:
+            追加('選択条件', f"問い候補{結果['問い候補']}を選んだ条件の下での結果です。")
+        for case in 結果['場合別']:
             追加('場合条件', f"場合{case['場合']}：{case['判定結果']['判定']}。", tuple(case['判定結果']['導出']))
-            for choice in case['選択']:
-                追加('選択条件', f"記載{choice['記載']}の読み：{choice['読み']}。")
+            for 選択肢 in case['選択']:
+                追加('選択条件', f"記載{選択肢['記載']}の読み：{選択肢['読み']}。")
             for resolution in case['照応解消']:
                 追加('照応条件', f"「{resolution['原文']}」を「{resolution['束縛先']}」へ束縛：{resolution['理由']}。")
             explanation = 導出説明を構成(case['判定結果'], case['記載'])
@@ -166,17 +166,17 @@ def _合成素材(文脈: 能力文脈):
     if type(rows) is not tuple or len(rows) != 1:
         raise ValueError('単一の明示原データが必要')
     _欄(rows[0], {'参照', '結果'})
-    data = _欄(rows[0]['結果'], {'成立', '本文', '根拠', '参照', 'データ', '保留理由'})
+    資料 = _欄(rows[0]['結果'], {'成立', '本文', '根拠', '参照', 'データ', '保留理由'})
     refs = []
-    for ref in _列(data['参照'], '参照', 128):
+    for ref in _列(資料['参照'], '参照', 128):
         _欄(ref, {'識別子', '題名', '出典', 'URL', '公開時刻', '本文'})
         ref = dict(ref)
         if ref['公開時刻'] is not None:
             ref['公開時刻'] = datetime.fromisoformat(ref['公開時刻'])
         refs.append(参照資料(**ref))
-    if type(data['根拠']) not in (tuple, list):
+    if type(資料['根拠']) not in (tuple, list):
         raise ValueError('原データの根拠列型')
-    original = 能力結果(data['成立'], data['本文'], tuple(data['根拠']), tuple(refs), data['データ'], data['保留理由'])
+    original = 能力結果(資料['成立'], 資料['本文'], tuple(資料['根拠']), tuple(refs), 資料['データ'], 資料['保留理由'])
     _結果辞書(original)
     if not original.成立:
         raise ValueError('未成立の原データ')
@@ -186,7 +186,7 @@ def _合成素材(文脈: 能力文脈):
     return deepcopy(original.データ), deepcopy(settings)
 
 
-class 監査改善Module:
+class 監査改善モジュール:
     版 = 'MINIDORA-監査改善接続-v0.3'
     優先度 = 0
 
@@ -200,19 +200,19 @@ class 監査改善Module:
 
     def 実行(self, 文脈):
         try:
-            data, settings = _合成素材(文脈)
+            資料, settings = _合成素材(文脈)
             if self.名前 == '監査改善回答':
                 _欄(settings, set(), {'詳細'})
-                report = 改善回答を構成(data, 詳細=settings.get('詳細', True))
+                report = 改善回答を構成(資料, 詳細=settings.get('詳細', True))
                 body = report['本文']
             else:
                 if settings:
                     raise ValueError('検討能力の未知設定')
                 functions = {'拡張命題検討': 拡張命題を検討,
                              '有限仮説検討': 仮説を検討, '有限介入比較': 介入を比較, '資料読解': 資料を読解}
-                report = functions[self.名前](data)
+                report = functions[self.名前](資料)
                 body = '検討処理：' + report['状態']
-            return 能力結果(True, body, 根拠=('原データ:' + 意味指紋(data),),
+            return 能力結果(True, body, 根拠=('原データ:' + 意味指紋(資料),),
                             参照=文脈.直前参照, データ=report)
         except (ValueError, TypeError, KeyError, AttributeError, RecursionError) as exc:
             return 能力結果(False, '', 保留理由='監査改善:保留:' + str(exc))
@@ -222,7 +222,7 @@ class 監査改善Module:
 
 
 def 改善能力群():
-    return tuple(監査改善Module(name).登録() for name in
+    return tuple(監査改善モジュール(name).登録() for name in
                  ('拡張命題検討', '有限仮説検討', '有限介入比較', '資料読解', '監査改善回答'))
 
 
@@ -235,8 +235,8 @@ def 改善計画を実行(種類: str, 要求: dict, *, 詳細: bool = True):
         合成工程('検討', (names[種類],), '検討指示', (素材参照('入力', '要求'),)),
         合成工程('回答', ('監査改善回答',), '回答指示', (素材参照('工程', '検討'),), '表示設定'),
     ), ('回答',))
-    data = {'要求': 能力結果(True, '検討の原データ', データ=deepcopy(要求)),
+    資料 = {'要求': 能力結果(True, '検討の原データ', データ=deepcopy(要求)),
             '検討指示': 能力結果(True, '提供データの範囲で検討する'),
             '回答指示': 能力結果(True, '根拠・仮定・留保を保持して説明する'),
             '表示設定': 能力結果(True, '', データ={'詳細': 詳細})}
-    return 能力合成器(改善能力群()).実行(plan, data)
+    return 能力合成器(改善能力群()).実行(plan, 資料)

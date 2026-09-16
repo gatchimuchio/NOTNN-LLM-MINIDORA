@@ -70,7 +70,7 @@ class 照応束縛:
     応答番号: int
     出力番号: int
     出力ID: str
-    Dataキー: str
+    資料キー: str
     結果ハッシュ: str
 
 

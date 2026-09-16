@@ -8,8 +8,8 @@ from minidora.導出談話 import 導出説明節
 
 
 class 場合分け試験(unittest.TestCase):
-    def 結果(self, source, q):
-        return 命題推論器(命題資料を読む(source, 'A')).判定(命題を読む(q)[0].式)
+    def 結果(self, 情報源, q):
+        return 命題推論器(命題資料を読む(情報源, 'A')).判定(命題を読む(q)[0].式)
     def test_全ての場合で結論が成立(self):
         r=self.結果('PまたはQ。PならばR。QならばR。','R')
         self.assertEqual(r['判定'],'支持')
@@ -51,8 +51,8 @@ class 場合分け試験(unittest.TestCase):
         r=self.結果('PまたはQ。PならばR。QならばR。','R')
         for node in r['導出'].values(): self.assertTrue(set(node['親']) <= set(r['導出']))
     def test_同じ入力は同じ導出(self):
-        source='PまたはQ。PならばR。QならばR。'
-        self.assertEqual(self.結果(source,'R'),self.結果(source,'R'))
+        情報源='PまたはQ。PならばR。QならばR。'
+        self.assertEqual(self.結果(情報源,'R'),self.結果(情報源,'R'))
     def test_独立真理値表との人工対照(self):
         # 32反復は一つの試験。古典論理と一致させるのは整合した命題集合での健全性だけ。
         rng=random.Random(21)

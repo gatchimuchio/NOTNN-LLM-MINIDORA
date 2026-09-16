@@ -13,10 +13,10 @@ LAYER0参照コミット = "4adf86d13d7beb99fe5eaa9e240b22996ba3d3bc"
 LAYER0仕様版 = "v4.0-provisional"
 LAYER0機能責任 = (
     "LINGUISTIC_ADDRESSABILITY",
-    "CONTEXT_BOUND_STATE",
-    "TRANSFORMATION_OR_COMPOSITION_CORE",
-    "CONTEXT_DEPENDENT_RESULT_FORMATION",
-    "RESULT_SURFACE",
+    '文脈_BOUND_状態',
+    'TRANSFORMATION_OR_COMPOSITION_模型核',
+    '文脈_DEPENDENT_結果_FORMATION',
+    '結果_SURFACE',
 )
 
 
@@ -51,53 +51,53 @@ class Layer0:
     def _適用(self, 文脈: 実行文脈, 命令_: 命令) -> None:
         args = tuple(self._値(文脈, value) for value in 命令_.引数)
         op = 命令_.作用
-        result: Any = None
+        結果: Any = None
 
         if op == 作用.設定:
             if 命令_.更新先 is None or not args:
                 raise ValueError("設定には更新先と値が必要")
-            result = args[0]
-            文脈.状態[命令_.更新先] = result
+            結果 = args[0]
+            文脈.状態[命令_.更新先] = 結果
         elif op == 作用.取得:
             if 命令_.対象 is None:
                 raise ValueError("取得には対象が必要")
-            result = 文脈.状態.get(命令_.対象)
+            結果 = 文脈.状態.get(命令_.対象)
             if 命令_.更新先:
-                文脈.状態[命令_.更新先] = result
+                文脈.状態[命令_.更新先] = 結果
         elif op == 作用.抽出:
             if len(args) != 2:
                 raise ValueError("抽出は 対象, キー/位置 を取る")
-            source, key = args
-            if isinstance(source, Mapping):
-                result = source.get(key)
-            elif isinstance(key, int) and isinstance(source, (tuple, list, str)):
-                result = source[key] if -len(source) <= key < len(source) else None
-            elif isinstance(key, str) and hasattr(source, key):
-                result = getattr(source, key)
+            情報源, key = args
+            if isinstance(情報源, Mapping):
+                結果 = 情報源.get(key)
+            elif isinstance(key, int) and isinstance(情報源, (tuple, list, str)):
+                結果 = 情報源[key] if -len(情報源) <= key < len(情報源) else None
+            elif isinstance(key, str) and hasattr(情報源, key):
+                結果 = getattr(情報源, key)
             else:
                 try:
-                    result = source[key]
+                    結果 = 情報源[key]
                 except (KeyError, IndexError, TypeError):
-                    result = None
+                    結果 = None
             if 命令_.更新先:
-                文脈.状態[命令_.更新先] = result
+                文脈.状態[命令_.更新先] = 結果
         elif op in {作用.加算, 作用.減算, 作用.乗算, 作用.除算}:
             if len(args) < 2:
                 raise ValueError(f"{op}には2値以上が必要")
-            result = args[0]
+            結果 = args[0]
             for value in args[1:]:
                 if op == 作用.加算:
-                    result += value
+                    結果 += value
                 elif op == 作用.減算:
-                    result -= value
+                    結果 -= value
                 elif op == 作用.乗算:
-                    result *= value
+                    結果 *= value
                 else:
                     if value == 0:
                         raise ValueError("0では除算できない")
-                    result /= value
+                    結果 /= value
             if 命令_.更新先:
-                文脈.状態[命令_.更新先] = result
+                文脈.状態[命令_.更新先] = 結果
         elif op == 作用.比較:
             if len(args) != 3:
                 raise ValueError("比較は 左, 演算子, 右 を取る")
@@ -112,34 +112,34 @@ class Layer0:
             }
             if 演算子 not in 比較表:
                 raise ValueError(f"未対応比較: {演算子}")
-            result = 比較表[演算子]
+            結果 = 比較表[演算子]
             if 命令_.更新先:
-                文脈.状態[命令_.更新先] = result
+                文脈.状態[命令_.更新先] = 結果
         elif op == 作用.計数:
             if len(args) != 1:
                 raise ValueError("計数には一対象が必要")
-            result = len(args[0])
+            結果 = len(args[0])
             if 命令_.更新先:
-                文脈.状態[命令_.更新先] = result
+                文脈.状態[命令_.更新先] = 結果
         elif op == 作用.結合:
-            result = tuple(args)
+            結果 = tuple(args)
             if 命令_.更新先:
-                文脈.状態[命令_.更新先] = result
+                文脈.状態[命令_.更新先] = 結果
         elif op == 作用.交換:
             if len(args) != 2 or not all(isinstance(x, str) for x in args):
                 raise ValueError("交換は状態キー2個を取る")
             a, b = args
             文脈.状態[a], 文脈.状態[b] = 文脈.状態.get(b), 文脈.状態.get(a)
-            result = (文脈.状態[a], 文脈.状態[b])
+            結果 = (文脈.状態[a], 文脈.状態[b])
         elif op == 作用.反転:
             if len(args) != 1:
                 raise ValueError("反転には一値が必要")
-            result = not bool(args[0])
+            結果 = not bool(args[0])
             if 命令_.更新先:
-                文脈.状態[命令_.更新先] = result
+                文脈.状態[命令_.更新先] = 結果
         elif op == 作用.停止:
             文脈.停止済み = True
-            result = True
+            結果 = True
         else:
             raise ValueError(f"未対応作用: {op}")
 
@@ -148,6 +148,6 @@ class Layer0:
             "作用": op.value,
             "対象": 命令_.対象,
             "引数": args,
-            "結果": result,
+            "結果": 結果,
             "根拠": 命令_.根拠,
         })

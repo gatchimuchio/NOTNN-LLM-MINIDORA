@@ -88,12 +88,12 @@ def solve_zeeman(q, choices):
     lam = float(wm.group(1)) * (1000 if wm.group(2).casefold() in {'microm', 'um', 'µm'} else 1)
     z = 5.7883818e-05 * B
     photon = 1239.841984 / lam
-    relation = 'll' if z < photon / 10 else 'gg' if z > photon * 10 else 'sim'
+    関係 = 'll' if z < photon / 10 else 'gg' if z > photon * 10 else 'sim'
     for i, c in enumerate(choices):
         cc = c.replace(' ', '')
-        if relation == 'll' and ('\\ll' in cc or '≪' in cc or '<<' in cc):
+        if 関係 == 'll' and ('\\ll' in cc or '≪' in cc or '<<' in cc):
             return _一般結果(i, 'zeeman_vs_transition', z / photon)
-        if relation == 'gg' and ('\\gg' in cc or '≫' in cc or '>>' in cc):
+        if 関係 == 'gg' and ('\\gg' in cc or '≫' in cc or '>>' in cc):
             return _一般結果(i, 'zeeman_vs_transition', z / photon)
     return None
 
@@ -126,17 +126,17 @@ def solve_synchro(q, choices):
         return None
     target = E / (2 * U * math.cos(phi))
     return _一般結果(_nearest(choices, target, rel_tol=0.08), 'synchrocyclotron_revolutions', target)
-REGISTRY = (solve_gauss_radial, solve_loop_count, solve_partial_wave_forward_imag, solve_rhombohedral_metric, solve_conductor_sphere_external_generic, solve_zeeman, solve_synchro)
+登録簿 = (solve_gauss_radial, solve_loop_count, solve_partial_wave_forward_imag, solve_rhombohedral_metric, solve_conductor_sphere_external_generic, solve_zeeman, solve_synchro)
 
 def 解決(question: str, choices: Sequence[str]):
     hits = []
-    for solver in REGISTRY:
+    for 解決器 in 登録簿:
         try:
-            row = solver(question, choices)
+            row = 解決器(question, choices)
         except Exception:
             row = None
         if row is not None:
             hits.append(row)
     if not hits or len({row.index for row in hits}) != 1:
         return None
-    return max(hits, key=lambda row: row.confidence)
+    return max(hits, key=lambda row: row.信頼度)

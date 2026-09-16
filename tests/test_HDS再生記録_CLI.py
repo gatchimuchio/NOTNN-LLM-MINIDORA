@@ -12,59 +12,14 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-class HDSReplay収録CLI試験(unittest.TestCase):
+class HDS再生収録CLI試験(unittest.TestCase):
     def test_private_pluginからbundleだけ生成できる(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             plugin = root / "private_plugin.py"
             plugin.write_text(
                 textwrap.dedent(
-                    '''
-                    from minidora import HDSIR, HDS実行核, HDS座標, HDS関係, 参照記録
-
-                    class Compiler:
-                        def コンパイル(self, 入力, **kwargs):
-                            if 入力 == "Question?":
-                                coords = (
-                                    HDS座標("subject", "対象.実体", "Alpha"),
-                                    HDS座標("choice:A", "目的.候補", "engine"),
-                                    HDS座標("choice:B", "目的.候補", "stone"),
-                                )
-                                relations = ()
-                            elif 入力 in {"engine", "stone"}:
-                                coords = (HDS座標("candidate", "対象.実体", 入力),)
-                                relations = ()
-                            else:
-                                coords = (
-                                    HDS座標("alpha", "対象.実体", "Alpha"),
-                                    HDS座標("engine", "対象.実体", "engine"),
-                                )
-                                relations = (HDS関係("r", ("alpha",), ("engine",), "作用"),)
-                            return HDSIR(
-                                原文=入力,
-                                正規化文=入力,
-                                認知世界ID="private-plugin-test",
-                                座標=coords,
-                                関係=relations,
-                                残差=(),
-                                意味作用履歴=(),
-                                実行核=HDS実行核("意味構造転送"),
-                                参照必須=(入力 == "Question?"),
-                                種別="meaning",
-                                閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
-                            )
-
-                    class Provider:
-                        名称 = "private-fixture"
-                        def 検索(self, query, limit=8):
-                            return (参照記録("doc:1", "Alpha", "Alpha uses engine.", "private://doc1", self.名称, 信頼=0.7),)
-
-                    def make_compiler():
-                        return Compiler()
-
-                    def make_provider():
-                        return Provider()
-                    '''
+                    '\n                    from minidora import HDSIR, HDS実行核, HDS座標, HDS関係, 参照記録\n\n                    class 構文化器:\n                        def コンパイル(self, 入力, **kwargs):\n                            if 入力 == "Question?":\n                                coords = (\n                                    HDS座標("主体", "対象.実体", "Alpha"),\n                                    HDS座標("選択肢:A", "目的.候補", "engine"),\n                                    HDS座標("選択肢:B", "目的.候補", "stone"),\n                                )\n                                relations = ()\n                            elif 入力 in {"engine", "stone"}:\n                                coords = (HDS座標("候補", "対象.実体", 入力),)\n                                relations = ()\n                            else:\n                                coords = (\n                                    HDS座標("alpha", "対象.実体", "Alpha"),\n                                    HDS座標("engine", "対象.実体", "engine"),\n                                )\n                                relations = (HDS関係("r", ("alpha",), ("engine",), "作用"),)\n                            return HDSIR(\n                                原文=入力,\n                                正規化文=入力,\n                                認知世界ID="private-plugin-test",\n                                座標=coords,\n                                関係=relations,\n                                残差=(),\n                                意味作用履歴=(),\n                                実行核=HDS実行核("意味構造転送"),\n                                参照必須=(入力 == "Question?"),\n                                種別="meaning",\n                                閉包状態="CLOSED_FOR_意味_TRANSFER",\n                            )\n\n                    class Provider:\n                        名称 = "private-fixture"\n                        def 検索(self, query, limit=8):\n                            return (参照記録("doc:1", "Alpha", "Alpha uses engine.", "private://doc1", self.名称, 信頼=0.7),)\n\n                    def make_構文化器():\n                        return 構文化器()\n\n                    def make_provider():\n                        return Provider()\n                    '
                 ),
                 encoding="utf-8",
             )
@@ -86,13 +41,13 @@ class HDSReplay収録CLI試験(unittest.TestCase):
             completed = subprocess.run(
                 [
                     sys.executable,
-                    str(ROOT / "tools" / "HDS再生_capture.py"),
+                    str(ROOT / "tools" / 'HDS再生_記録.py'),
                     str(dataset),
                     str(bundle),
                     "--plugin-path",
                     str(root),
                     "--compiler",
-                    "private_plugin:make_compiler",
+                    'private_plugin:make_構文化器',
                     "--provider",
                     "private_plugin:make_provider",
                     "--stats",
@@ -107,14 +62,14 @@ class HDSReplay収録CLI試験(unittest.TestCase):
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
             row = json.loads(bundle.read_text(encoding="utf-8").splitlines()[0])
-            summary = json.loads(stats.read_text(encoding="utf-8"))
+            要約 = json.loads(stats.read_text(encoding="utf-8"))
 
         self.assertEqual(row["gold"], "A")
-        self.assertEqual(row["data"][0]["source_confidence"], 0.7)
-        self.assertNotIn("Compiler", json.dumps(row, ensure_ascii=False))
-        self.assertEqual(summary["problem_count"], 1)
-        self.assertEqual(summary["choice_compile_count"], 2)
-        self.assertEqual(summary["data_compile_count"], 1)
+        self.assertEqual(row['資料'][0]['情報源_信頼度'], 0.7)
+        self.assertNotIn('構文化器', json.dumps(row, ensure_ascii=False))
+        self.assertEqual(要約["problem_count"], 1)
+        self.assertEqual(要約['選択肢_compile_count'], 2)
+        self.assertEqual(要約['資料_compile_count'], 1)
 
 
 if __name__ == "__main__":

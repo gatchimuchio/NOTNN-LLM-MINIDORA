@@ -72,25 +72,25 @@ class _予算:
 
 
 class _多項式処理:
-    def __init__(self, names: tuple[str, ...], budget: _予算):
+    def __init__(self, names: tuple[str, ...], 予算: _予算):
         _変数確認(names)
-        self.変数, self.予算 = names, budget
+        self.変数, self.予算 = names, 予算
         self.零次数 = (0,) * len(names)
 
     def 定数(self, value: Fraction) -> 多項式:
         return {self.零次数: _係数(value)} if value else {}
 
     def 整理(self, value: 多項式) -> 多項式:
-        result = {}
+        結果 = {}
         for powers, coefficient in value.items():
             self.予算.進める()
             if len(powers) != len(self.変数) or sum(powers) > 64:
                 raise 数学境界違反("総次数上限")
             if coefficient:
-                result[powers] = _係数(coefficient)
-                if len(result) > 256:
+                結果[powers] = _係数(coefficient)
+                if len(結果) > 256:
                     raise 数学境界違反("多項式項数上限")
-        return result
+        return 結果
 
     def 加算(self, left: 多項式, right: 多項式, sign=1) -> 多項式:
         out = dict(left)
@@ -120,16 +120,16 @@ class _多項式処理:
             out = self.乗算(out, value)
         return out
 
-    def 読む(self, source: str | dict) -> 多項式:
-        if type(source) is dict:
-            return self.復元(source)
-        if type(source) is not str or not source.strip() or len(source.encode()) > 8192:
+    def 読む(self, 情報源: str | dict) -> 多項式:
+        if type(情報源) is dict:
+            return self.復元(情報源)
+        if type(情報源) is not str or not 情報源.strip() or len(情報源.encode()) > 8192:
             raise 数学境界違反("式の型・サイズ不正")
         # コメント、改行、暗黙の乗算などを部分的に読み飛ばさない。
-        if any(c in source for c in "#\n\r;\\"):
+        if any(c in 情報源 for c in "#\n\r;\\"):
             raise 数学境界違反("単一の数式のみを指定する")
-        text = source.strip()
-        tree = ast.parse(text, mode="eval", feature_version=(3, 11))
+        text = 情報源.strip()
+        tree = ast.parse(text, mode='評価', feature_version=(3, 11))
         allowed = {ast.Expression, ast.BinOp, ast.UnaryOp, ast.Name, ast.Load, ast.Constant,
                    ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.UAdd, ast.USub}
         pending = [(tree, 0)]
@@ -188,21 +188,21 @@ class _多項式処理:
     def 復元(self, raw: dict) -> 多項式:
         if (set(raw) != {"変数", "項"} or type(raw["変数"]) is not list
                 or tuple(raw["変数"]) != self.変数 or type(raw["項"]) is not list or len(raw["項"]) > 256):
-            raise 数学境界違反("多項式Dataの項目・宣言変数不一致")
+            raise 数学境界違反('多項式資料の項目・宣言変数不一致')
         out = {}
         for row in raw["項"]:
             if type(row) is not dict or set(row) != {"次数", "係数"} or type(row["次数"]) is not list:
-                raise 数学境界違反("項Data不正")
+                raise 数学境界違反('項資料不正')
             powers = tuple(row["次数"])
             if len(powers) != len(self.変数) or any(type(x) is not int or x < 0 for x in powers) or powers in out:
                 raise 数学境界違反("次数不正または重複項")
             coefficient = _有理(row["係数"])
             if not coefficient or str(coefficient) != row["係数"]:
-                raise 数学境界違反("係数Dataは非零の正規表記")
+                raise 数学境界違反('係数資料は非零の正規表記')
             out[powers] = coefficient
         out = self.整理(out)
         if self.保存(out) != raw:
-            raise 数学境界違反("多項式Dataの非正規順序")
+            raise 数学境界違反('多項式資料の非正規順序')
         return out
 
     def 表示(self, poly: 多項式) -> str:
@@ -248,15 +248,15 @@ class _多項式処理:
         return self.整理(out)
 
 
-def _署名結果(text: str, data: dict, budget: _予算) -> 能力結果:
-    budget.停止確認()
-    data = {"版": 数学能力版, **data, "演算数": budget.回数,
-            "最大演算数": budget.上限, "意味": "宣言された形式数式の処理。世界の事実認定ではない"}
-    raw = json.dumps({"本文": text, "データ": data}, ensure_ascii=False, sort_keys=True).encode()
+def _署名結果(text: str, 資料: dict, 予算: _予算) -> 能力結果:
+    予算.停止確認()
+    資料 = {"版": 数学能力版, **資料, "演算数": 予算.回数,
+            "最大演算数": 予算.上限, "意味": "宣言された形式数式の処理。世界の事実認定ではない"}
+    raw = json.dumps({"本文": text, "データ": 資料}, ensure_ascii=False, sort_keys=True).encode()
     if len(raw) > 1_000_000:
         raise 数学境界違反("数学記録サイズ上限")
-    data["記録SHA256"] = sha256(raw).hexdigest()
-    return 能力結果(True, text, データ=data)
+    資料["記録SHA256"] = sha256(raw).hexdigest()
+    return 能力結果(True, text, データ=資料)
 
 
 def _失敗(exc: Exception) -> 能力結果:
@@ -269,8 +269,8 @@ def 記号を処理(式: str | dict, 変数: tuple[str, ...] = (), *, 操作: st
                比較式: str | dict | None = None, 最大演算数: int = 100000,
                停止要求: Callable[[], bool] | None = None) -> 能力結果:
     try:
-        budget = _予算(最大演算数, 停止要求)
-        engine = _多項式処理(変数, budget)
+        予算 = _予算(最大演算数, 停止要求)
+        engine = _多項式処理(変数, 予算)
         required = {"正規化": (False, False, False), "微分": (True, False, False),
                     "積分": (True, False, False), "代入": (False, True, False),
                     "同値比較": (False, False, True)}
@@ -301,29 +301,29 @@ def 記号を処理(式: str | dict, 変数: tuple[str, ...] = (), *, 操作: st
             "式": deepcopy(式), "変数": list(変数), "操作": 操作, "対象変数": 対象変数,
             "代入値": deepcopy(代入値), "比較式": deepcopy(比較式)},
             "多項式": engine.保存(out), "定数値": str(out.get(engine.零次数, Fraction(0))) if constant else None,
-            **extra}, budget)
+            **extra}, 予算)
     except Exception as exc:
         return _失敗(exc)
 
 
-def 数学記録整合(result: 能力結果) -> bool:
+def 数学記録整合(結果: 能力結果) -> bool:
     """宣言入力から再計算する。来歴資料の真正性は検査しない。"""
     try:
-        if not isinstance(result, 能力結果) or result.成立 is not True or result.保留理由 or result.根拠:
+        if not isinstance(結果, 能力結果) or 結果.成立 is not True or 結果.保留理由 or 結果.根拠:
             return False
-        data = result.データ
-        if data["版"] != 数学能力版:
+        資料 = 結果.データ
+        if 資料["版"] != 数学能力版:
             return False
-        values = deepcopy(data["入力"])
+        values = deepcopy(資料["入力"])
         values["変数"] = tuple(values["変数"])
-        if data["処理"] == "記号演算":
-            expected = 記号を処理(**values, 最大演算数=data["最大演算数"])
-        elif data["処理"] == "線形方程式":
+        if 資料["処理"] == "記号演算":
+            expected = 記号を処理(**values, 最大演算数=資料["最大演算数"])
+        elif 資料["処理"] == "線形方程式":
             from .線形方程式 import 線形を解く
             values["方程式"] = tuple(values["方程式"])
-            expected = 線形を解く(**values, 最大演算数=data["最大演算数"])
+            expected = 線形を解く(**values, 最大演算数=資料["最大演算数"])
         else:
             return False
-        return expected.成立 and expected.本文 == result.本文 and expected.データ == data
+        return expected.成立 and expected.本文 == 結果.本文 and expected.データ == 資料
     except Exception:
         return False

@@ -95,7 +95,7 @@ def solve_energy_time_resolution(q, choices):
 
 def solve_spin_x_generic(q, choices):
     s = q.casefold()
-    if 'z-projection' not in s and 'z-spin' not in s and ('z projection' not in s) or ('matrix representation' not in s and 'operator matrix' not in s):
+    if 'z-射影' not in s and 'z-spin' not in s and ('z projection' not in s) or ('matrix representation' not in s and 'operator matrix' not in s):
         return None
     m = re.search('proportional\\s+to\\s*\\(([^()]*)\\)\\s*\\|?up[^+]{0,20}\\+\\s*\\(([^()]*)\\)\\s*\\|?down', q, re.I | re.S)
     if not m:
@@ -146,7 +146,7 @@ def solve_angular_momentum_sum(q, choices):
         return _一般結果(_nearest(choices, 0.0), 'angular_momentum_m_sum', 0.0)
     return None
 
-def solve_wavefunction_normalization_generic(q, choices):
+def solve_wavefunction_正規化_generic(q, choices):
     s = q.casefold()
     if 'wave function' not in s or 'sqrt' not in s or 'value' not in s:
         return None
@@ -167,7 +167,7 @@ def solve_wavefunction_normalization_generic(q, choices):
     if integral <= 0 or remainder <= 0:
         return None
     N = math.sqrt(remainder / integral)
-    return _一般結果(_nearest(choices, N, rel_tol=0.15), 'wavefunction_normalization', N)
+    return _一般結果(_nearest(choices, N, rel_tol=0.15), 'wavefunction_正規化', N)
 
 def solve_infinite_well_fermions_generic(q, choices):
     s = q.casefold()
@@ -177,8 +177,8 @@ def solve_infinite_well_fermions_generic(q, choices):
     if not nm:
         return None
     words = {'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10}
-    token = nm.group(1).casefold()
-    n_particles = words.get(token, int(token) if token.isdigit() else 0)
+    字句 = nm.group(1).casefold()
+    n_particles = words.get(字句, int(字句) if 字句.isdigit() else 0)
     if n_particles <= 0 or n_particles > 10:
         return None
     max_n = n_particles + 3
@@ -215,17 +215,17 @@ def solve_larmor_frequency(q, choices):
         if cc in {'gamma*b', 'γ*b', 'gamma* b'} or ('gamma*b' in cc and '/' not in cc and ('sqrt' not in cc)):
             return _結果(i, 'larmor_frequency', 'gamma B')
     return None
-REGISTRY = (solve_pauli_expectation, solve_pauli_hamiltonian, solve_maximally_mixed_bloch, solve_energy_time_resolution, solve_spin_x_generic, solve_angular_momentum_sum, solve_wavefunction_normalization_generic, solve_infinite_well_fermions_generic, solve_larmor_frequency)
+登録簿 = (solve_pauli_expectation, solve_pauli_hamiltonian, solve_maximally_mixed_bloch, solve_energy_time_resolution, solve_spin_x_generic, solve_angular_momentum_sum, solve_wavefunction_正規化_generic, solve_infinite_well_fermions_generic, solve_larmor_frequency)
 
 def 解決(question: str, choices: Sequence[str]):
     hits = []
-    for solver in REGISTRY:
+    for 解決器 in 登録簿:
         try:
-            row = solver(question, choices)
+            row = 解決器(question, choices)
         except Exception:
             row = None
         if row is not None:
             hits.append(row)
     if not hits or len({row.index for row in hits}) != 1:
         return None
-    return max(hits, key=lambda row: row.confidence)
+    return max(hits, key=lambda row: row.信頼度)

@@ -46,22 +46,22 @@ class HDS作用実効監査結果:
 
 def _view(payload: Mapping[str, Any] | object) -> dict[str, Any]:
     if isinstance(payload, Mapping):
-        data = dict(payload)
+        資料 = dict(payload)
     elif hasattr(payload, "辞書") and callable(getattr(payload, "辞書")):
-        data = dict(getattr(payload, "辞書")())
+        資料 = dict(getattr(payload, "辞書")())
     elif hasattr(payload, "辞書化") and callable(getattr(payload, "辞書化")):
-        data = dict(getattr(payload, "辞書化")())
+        資料 = dict(getattr(payload, "辞書化")())
     elif hasattr(payload, "__dict__"):
-        data = dict(getattr(payload, "__dict__"))
+        資料 = dict(getattr(payload, "__dict__"))
     else:
-        data = {"output": repr(payload)}
+        資料 = {"output": repr(payload)}
     return {
-        "state": data.get("state", data.get("状態")),
-        "references": data.get("references", data.get("参照集合", data.get("参照"))),
-        "path": data.get("path", data.get("経路", data.get("作用履歴"))),
-        "compute": data.get("compute", data.get("計算量", data.get("計算回数"))),
-        "output": data.get("output", data.get("出力", data.get("結果"))),
-        "raw": data,
+        '状態': 資料.get('状態', 資料.get("状態")),
+        "references": 資料.get("references", 資料.get("参照集合", 資料.get("参照"))),
+        "path": 資料.get("path", 資料.get("経路", 資料.get("作用履歴"))),
+        "compute": 資料.get("compute", 資料.get("計算量", 資料.get("計算回数"))),
+        "output": 資料.get("output", 資料.get("出力", 資料.get("結果"))),
+        "raw": 資料,
     }
 
 
@@ -71,10 +71,7 @@ def HDS作用実効監査(
     基準実行: Callable[[], object],
     変種実行: Mapping[str, Callable[[], object]],
 ) -> HDS作用実効監査結果:
-    """状態の存在ではなく、除去/固定/置換で後続が実際に変化するかを監査する。
-
-    変種名は自由だが、推奨は `removed`, `fixed`, `replaced`, `route_fixed`, `reference_fixed`。
-    """
+    '状態の存在ではなく、除去/固定/置換で後続が実際に変化するかを監査する。\n\n    変種名は自由だが、推奨は `removed`, `fixed`, `replaced`, `経路_fixed`, `参照_fixed`。\n    '
     baseline = _view(基準実行())
     base_sig = _sig(baseline["raw"])
     rows: list[HDS作用差分観測] = []
@@ -82,7 +79,7 @@ def HDS作用実効監査(
         variant = _view(runner())
         rows.append(HDS作用差分観測(
             str(name),
-            baseline["state"] != variant["state"],
+            baseline['状態'] != variant['状態'],
             baseline["references"] != variant["references"],
             baseline["path"] != variant["path"],
             baseline["compute"] != variant["compute"],

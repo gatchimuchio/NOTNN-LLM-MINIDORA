@@ -1,8 +1,4 @@
-"""追加能力の状態付き会話。既存の役割計画・統合採用・原記録失効を使う。
-
-単独時は改善統合能力群だけを明示登録する。既存の全能力構成へ接続するときは
-同じ統合セッションを渡す。別Core、疑似HDS、外部通信の代役を作らない。
-"""
+'追加能力の状態付き会話。既存の役割計画・統合採用・原記録失効を使う。\n\n単独時は改善統合能力群だけを明示登録する。既存の全能力構成へ接続するときは\n同じ統合セッションを渡す。別模型核、疑似HDS、外部通信の代役を作らない。\n'
 from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, asdict
@@ -39,10 +35,10 @@ class 改善会話応答:
                 '追跡': deepcopy(self.追跡 or {}), '結果': _結果辞書(self.結果) if self.結果 else None}
 
 
-def _返答印(result):
+def _返答印(結果):
     # 所有ID・実行時間は再構築ごとに変わる。回答の意味・本文・採否は省略しない。
-    return 意味指紋({'状態': result.状態, '本文': result.本文, '理由': result.理由,
-                    '結果': _結果辞書(result.結果) if result.結果 else None})
+    return 意味指紋({'状態': 結果.状態, '本文': 結果.本文, '理由': 結果.理由,
+                    '結果': _結果辞書(結果.結果) if 結果.結果 else None})
 
 
 class 監査改善会話セッション:
@@ -54,7 +50,7 @@ class 監査改善会話セッション:
             raise ValueError('同じセッションIDの実統合セッションが必要')
         actual = {r['名前']: r for r in self.統合.能力一覧()}
         for r in 改善統合能力群():
-            if actual.get(r.Module.名前) != {'名前': r.Module.名前, '版': r.Module.版, '外部読取': False}:
+            if actual.get(r.モジュール.名前) != {'名前': r.モジュール.名前, '版': r.モジュール.版, '外部読取': False}:
                 raise ValueError('改善能力の未登録・版不一致・外部作用化')
         self._単独 = 統合 is None
         point = self.統合.起点()
@@ -120,26 +116,26 @@ class 監査改善会話セッション:
              '述語別名を', '続けて', 'もう一度', '短く説明して', '詳しく説明して'))
 
     def _登録(self, command):
-        name, kind, action = command['資料'], command['種類'], command['行為']
-        if action == '登録' and name in self._資料:
+        name, kind, 作用 = command['資料'], command['種類'], command['行為']
+        if 作用 == '登録' and name in self._資料:
             raise ValueError('既存資料には更新を明示する')
-        if action == '更新' and name not in self._資料:
+        if 作用 == '更新' and name not in self._資料:
             raise ValueError('更新対象の資料がない')
         if name in self._資料 and self._資料[name]['種類'] != kind:
             raise ValueError('資料更新で種類を変更しない')
-        candidate = deepcopy(self._資料)
+        候補 = deepcopy(self._資料)
         packet = {k: deepcopy(command[k]) for k in ('種類', '本文', 'データ', '原文対応')}
         packet['版'] = 意味指紋({'名前': name, **packet})
-        candidate[name] = packet
-        if len(candidate) > 16 or len(_符号化(candidate)) > 300_000:
+        候補[name] = packet
+        if len(候補) > 16 or len(_符号化(候補)) > 300_000:
             raise ValueError('保持資料の数・バイト上限')
         stale = tuple(r['記録ID'] for r in self._成果 if name in r['資料版']
                       and r['資料版'][name] != packet['版'] and self._有効(r))
         if stale:
             self.統合.記録を失効(self.統合.起点(), stale, 理由='利用者の明示資料更新:' + name)
         # 上限・原記録失効の確定後だけ入替える。旧原記録は削除しない。
-        self._資料 = candidate
-        return 改善会話応答('合格', f'{kind}資料「{name}」を{action}しました。内容の真実性は認定していません。',
+        self._資料 = 候補
+        return 改善会話応答('合格', f'{kind}資料「{name}」を{作用}しました。内容の真実性は認定していません。',
                          追跡={'版': 改善会話版, '資料版': packet['版'], '失効成果数': len(stale),
                                '原文対応': packet['原文対応']})
 
@@ -149,16 +145,16 @@ class 監査改善会話セッション:
         return 改善会話応答('確認待ち', message, reason, {'版': 改善会話版, '保留目的': deepcopy(self._保留)})
 
     def _要求(self, task):
-        source, kind = self._資料[task['資料']], task['種類']
-        if not (source['種類'] in ('命題', '本文') if kind == '読解' else source['種類'] == kind):
+        情報源, kind = self._資料[task['資料']], task['種類']
+        if not (情報源['種類'] in ('命題', '本文') if kind == '読解' else 情報源['種類'] == kind):
             raise ValueError('目的と資料種類の不一致')
         permitted = {'命題': {'問い', '問い候補', '資料候補', '照応距離', '述語別名'},
                      '仮説': {'観測', '仮説候補'}, '介入': {'介入'},
                      '読解': {'問い', '述語別名'}}[kind]
         if not set(task['変更']) <= permitted:
             raise ValueError('この目的に適用できない訂正欄')
-        request = ({'資料': [{'名前': task['資料'], '本文': source['本文']}]}
-                   if kind in ('命題', '読解') else deepcopy(source['データ']))
+        request = ({'資料': [{'名前': task['資料'], '本文': 情報源['本文']}]}
+                   if kind in ('命題', '読解') else deepcopy(情報源['データ']))
         request.update(deepcopy(task['変更']))
         return request
 
@@ -188,8 +184,8 @@ class 監査改善会話セッション:
                               '資料版': {task['資料']: self._資料[task['資料']]['版']}, '候補': []}
                 return 改善会話応答('保留', '命題の未解釈部分を保持します。' + str(exc), '意味未確定',
                                    {'版': 改善会話版, '保留目的': deepcopy(self._保留)})
-        source = self._資料[task['資料']]
-        ref = 参照資料('改善資料:' + source['版'], task['資料'], '利用者提供資料', 本文=source['本文'])
+        情報源 = self._資料[task['資料']]
+        ref = 参照資料('改善資料:' + 情報源['版'], task['資料'], '利用者提供資料', 本文=情報源['本文'])
         value = 能力結果(True, original, 根拠=(ref.識別子,), 参照=(ref,), データ=request)
         report, dependencies = None, ()
         if previous is not None:
@@ -202,11 +198,11 @@ class 監査改善会話セッション:
             dependencies = (previous['記録ID'],)
         start = self.統合.起点()
         planned = 改善目的を計画(task['種類'], value, self.統合.能力一覧(), 詳細=detail, 元報告=report)
-        packed = self.統合.準備(planned.計画, planned.Data, 依頼文=original, 依存記録=dependencies)
+        packed = self.統合.準備(planned.計画, planned.資料, 依頼文=original, 依存記録=dependencies)
         if packed.起点 != start:
             raise ValueError('意味解釈中に統合状態が変更された')
         executed = self.統合.実行(packed, 停止要求=stop)
-        trace = {'版': 改善会話版, '意味目的': deepcopy(task), '要求': request, '資料版': source['版'],
+        追跡 = {'版': 改善会話版, '意味目的': deepcopy(task), '要求': request, '資料版': 情報源['版'],
                  '目的印': planned.目的印, '工程作用': list(planned.工程作用),
                  '採用記録ID': list(executed.採用記録ID), '起点': asdict(executed.起点),
                  '更新後': asdict(executed.更新後), '統合状態': executed.状態,
@@ -216,34 +212,34 @@ class 監査改善会話セッション:
             # 不成立を別の質問や弱い制約へ置換しない。停止時は会話目的も変えない。
             if executed.状態 != '中止':
                 self._保留 = {'目的': deepcopy(task), '理由': '実行不成立',
-                              '資料版': {task['資料']: source['版']}, '候補': []}
+                              '資料版': {task['資料']: 情報源['版']}, '候補': []}
             return 改善会話応答(executed.状態, '検討を採用できませんでした。' + executed.理由,
-                             executed.理由, trace)
-        result = executed.出力[0][1]
+                             executed.理由, 追跡)
+        結果 = executed.出力[0][1]
         receipt = executed.採用記録ID[0]
         self._成果.append({'記録ID': receipt, '目的': deepcopy(task), '詳細': detail,
-                           '資料版': {task['資料']: source['版']}, '回答印': 意味指紋(_結果辞書(result)),
+                           '資料版': {task['資料']: 情報源['版']}, '回答印': 意味指紋(_結果辞書(結果)),
                            '所有': [executed.更新後.所有ID, executed.更新後.世代]})
         self._目的, self._保留 = deepcopy(task), None
-        return 改善会話応答('合格', result.本文, 追跡=trace, 結果=result)
+        return 改善会話応答('合格', 結果.本文, 追跡=追跡, 結果=結果)
 
     def _処理(self, command, stop):
-        action, original = command['行為'], command['原文']
-        if action in ('登録', '更新'):
+        作用, original = command['行為'], command['原文']
+        if 作用 in ('登録', '更新'):
             return self._登録(command)
-        if action == '状態':
+        if 作用 == '状態':
             # 可変の所有IDではなく、意味状態を表示する。
             return 改善会話応答('合格', _符号化(self._意味状態()).decode('utf-8'))
-        if action == '取消':
+        if 作用 == '取消':
             self._保留 = None
             return 改善会話応答('合格', '監査改善の確認待ちを取り消しました。採用済み原記録は保持します。')
-        if action == '検討':
+        if 作用 == '検討':
             task = {k: deepcopy(command[k]) for k in ('種類', '資料', '変更')}
             task['起点発話'] = original
             if '詳細' in command:
                 task['詳細'] = command['詳細']
             return self._実行(task, original, stop, detail=task.get('詳細', True))
-        if action == '再表現':
+        if 作用 == '再表現':
             if self._保留:
                 raise ValueError('未解決の目的があります。確認を完了又は明示取消してから再説明する')
             if not self._成果:
@@ -257,7 +253,7 @@ class 監査改善会話セッション:
         target = deepcopy(self._保留['目的'] if self._保留 else self._目的)
         if target is None:
             raise ValueError('継続・訂正する目的がない')
-        if action == '選択':
+        if 作用 == '選択':
             pending = self._保留
             expected = command['欄'] + '未確定'
             if pending is None or pending['理由'] != expected:
@@ -268,19 +264,19 @@ class 監査改善会話セッション:
             if command['番号'] not in {c['番号'] for c in pending['候補']}:
                 raise ValueError('提示された候補番号の範囲外')
             target['変更'][command['欄']] = command['番号']
-        elif action == '訂正':
+        elif 作用 == '訂正':
             target['変更'].update(command['変更'])
             if set(command['変更']) & {'問い', '照応距離', '述語別名'}:
                 target['変更'].pop('資料候補', None)
                 if '問い' in command['変更']:
                     target['変更'].pop('問い候補', None)
-        elif action == '継続':
+        elif 作用 == '継続':
             if not self._保留:
                 raise ValueError('確認待ちの目的がない')
             versions = self._保留['資料版']
             if any(n not in self._資料 or self._資料[n]['版'] != v for n, v in versions.items()):
                 raise ValueError('確認中の資料版が変わっています。「もう一度」で再検討してください')
-        elif action == '再実行':
+        elif 作用 == '再実行':
             # 旧資料上の選択番号を新しい資料へ持ち越さない。
             if self._保留:
                 versions = self._保留['資料版']
@@ -305,18 +301,18 @@ class 監査改善会話セッション:
             try:
                 command = 改善発話を解釈(原文)
                 self.統合._停止(停止要求)
-                result = self._処理(command, 停止要求)
+                結果 = self._処理(command, 停止要求)
                 if '解釈根拠' in command:
                     from dataclasses import replace
-                    result = replace(result, 追跡={**(result.追跡 or {}), '依頼解釈': command['解釈根拠'], '原依頼': 原文})
+                    結果 = replace(結果, 追跡={**(結果.追跡 or {}), '依頼解釈': command['解釈根拠'], '原依頼': 原文})
             except (ValueError, TypeError, KeyError, AttributeError, RecursionError) as exc:
-                result = 改善会話応答('保留', '処理を確定しません。' + str(exc), '入力・意味・状態不成立')
-            if result.状態 != '中止':
-                event = {'原文': 原文, '状態': result.状態, '返答印': _返答印(result),
+                結果 = 改善会話応答('保留', '処理を確定しません。' + str(exc), '入力・意味・状態不成立')
+            if 結果.状態 != '中止':
+                event = {'原文': 原文, '状態': 結果.状態, '返答印': _返答印(結果),
                          '前ハッシュ': self._履歴[-1]['ハッシュ'] if self._履歴 else 意味指紋(契約版)}
                 event['ハッシュ'] = 意味指紋(event)
                 self._履歴.append(event)
-            return result
+            return 結果
         except InterruptedError:
             return 改善会話応答('中止', '停止要求により採用前に中止しました。', '停止要求')
         except (ValueError, TypeError, RecursionError) as exc:

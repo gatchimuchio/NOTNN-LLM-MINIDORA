@@ -136,7 +136,7 @@ def _修飾(text: str, conditions: tuple[str, ...] = ()) -> tuple[tuple[str, str
         out.append(("量化", "全称"))
     for condition in conditions:
         if condition:
-            out.append(("条件scope", condition))
+            out.append(('条件範囲', condition))
     return tuple(dict.fromkeys(out))
 
 
@@ -155,60 +155,60 @@ def _反転(text: str) -> bool:
     return bool(_判定反転.search(text))
 
 
-def _predicate_from_tokens(tokens: list[str], start: int) -> tuple[str, list[str]] | None:
-    for index in range(start, len(tokens)):
-        token = tokens[index].casefold().strip("?,.;:")
-        if token in _補助語 or token in _機能語 or token == "never":
+def _predicate_from_字句(字句: list[str], start: int) -> tuple[str, list[str]] | None:
+    for index in range(start, len(字句)):
+        字句 = 字句[index].casefold().strip("?,.;:")
+        if 字句 in _補助語 or 字句 in _機能語 or 字句 == "never":
             continue
-        if 英語関係概念(token) is not None or re.fullmatch(r"[a-z][a-z-]{2,}", token):
-            predicate = [tokens[index]]
-            if index + 1 < len(tokens) and tokens[index + 1].casefold().strip("?,.;:") in _前置詞:
-                predicate.append(tokens[index + 1])
-                return " ".join(predicate), tokens[index + 2:]
-            return " ".join(predicate), tokens[index + 1:]
+        if 英語関係概念(字句) is not None or re.fullmatch(r"[a-z][a-z-]{2,}", 字句):
+            predicate = [字句[index]]
+            if index + 1 < len(字句) and 字句[index + 1].casefold().strip("?,.;:") in _前置詞:
+                predicate.append(字句[index + 1])
+                return " ".join(predicate), 字句[index + 2:]
+            return " ".join(predicate), 字句[index + 1:]
     return None
 
 
 def _一般関係質問(raw: str, conditions: tuple[str, ...]) -> 英日関係質問 | None:
     body = _端点(raw)
-    tokens = body.split()
-    if not tokens or tokens[0].casefold() not in {"which", "what", "who"}:
+    字句 = body.split()
+    if not 字句 or 字句[0].casefold() not in {"which", "what", "who"}:
         return None
-    if len(tokens) == 1:
+    if len(字句) == 1:
         return None
 
-    aux_index = next((i for i, t in enumerate(tokens) if t.casefold() in {"does", "do", "did"}), None)
+    aux_index = next((i for i, t in enumerate(字句) if t.casefold() in {"does", "do", "did"}), None)
     if aux_index is not None and aux_index >= 1:
-        requested = " ".join(tokens[1:aux_index]).replace("of the following", "").strip() or "選択肢"
-        predicate_info = _predicate_from_tokens(tokens, aux_index + 1)
+        requested = " ".join(字句[1:aux_index]).replace("of the following", "").strip() or "選択肢"
+        predicate_info = _predicate_from_字句(字句, aux_index + 1)
         if predicate_info:
             predicate_surface, tail = predicate_info
-            relation_index = body.casefold().rfind(predicate_surface.casefold())
-            subject = body[len(" ".join(tokens[:aux_index + 1])):relation_index].strip() if relation_index >= 0 else " ".join(tokens[aux_index + 1:-1])
+            関係_index = body.casefold().rfind(predicate_surface.casefold())
+            主体 = body[len(" ".join(字句[:aux_index + 1])):関係_index].strip() if 関係_index >= 0 else " ".join(字句[aux_index + 1:-1])
             kind, predicate = _関係種別(predicate_surface)
-            return 英日関係質問(kind, "終点", requested, _端点(subject), predicate, _反転(body), False, _修飾(body, conditions))
+            return 英日関係質問(kind, "終点", requested, _端点(主体), predicate, _反転(body), False, _修飾(body, conditions))
 
     prefix = 1
-    if len(tokens) >= 4 and [t.casefold() for t in tokens[1:4]] == ["of", "the", "following"]:
+    if len(字句) >= 4 and [t.casefold() for t in 字句[1:4]] == ["of", "the", "following"]:
         requested = "選択肢"
         prefix = 4
     else:
-        requested_tokens: list[str] = []
-        while prefix < len(tokens):
-            low = tokens[prefix].casefold().strip("?,.;:")
+        requested_字句: list[str] = []
+        while prefix < len(字句):
+            low = 字句[prefix].casefold().strip("?,.;:")
             if low in _補助語 or low in {"never", "not", "most", "least", "likely", "unlikely"}:
                 break
-            if prefix + 1 < len(tokens):
-                next_low = tokens[prefix + 1].casefold().strip("?,.;:")
+            if prefix + 1 < len(字句):
+                next_low = 字句[prefix + 1].casefold().strip("?,.;:")
                 if 英語関係概念(next_low) is not None or next_low.endswith(("s", "ed", "ing")):
-                    requested_tokens.append(tokens[prefix])
+                    requested_字句.append(字句[prefix])
                     prefix += 1
                     break
-            requested_tokens.append(tokens[prefix])
+            requested_字句.append(字句[prefix])
             prefix += 1
-        requested = " ".join(requested_tokens).strip() or "選択肢"
+        requested = " ".join(requested_字句).strip() or "選択肢"
 
-    predicate_info = _predicate_from_tokens(tokens, prefix)
+    predicate_info = _predicate_from_字句(字句, prefix)
     if not predicate_info:
         return 英日関係質問("問い適合", "始点", requested, body, "match", _反転(body), False, _修飾(body, conditions))
     predicate_surface, tail = predicate_info
@@ -217,12 +217,12 @@ def _一般関係質問(raw: str, conditions: tuple[str, ...]) -> 英日関係�
     return 英日関係質問(kind, "始点", requested, known, predicate, _反転(body), False, _修飾(body, conditions))
 
 
-def _代替質問(focus: str, boundary: 英語質問境界 | None = None) -> 英日関係質問 | None:
-    boundary = boundary if boundary is not None else 英語質問境界解析(focus)
-    if not boundary.質問表示:
+def _代替質問(focus: str, 境界: 英語質問境界 | None = None) -> 英日関係質問 | None:
+    境界 = 境界 if 境界 is not None else 英語質問境界解析(focus)
+    if not 境界.質問表示:
         return None
-    body, conditions = boundary.本体, boundary.条件scope
-    if boundary.境界状態 == "括弧境界未確定":
+    body, conditions = 境界.本体, 境界.条件範囲
+    if 境界.境界状態 == "括弧境界未確定":
         return 英日関係質問("問い適合", "始点", "選択肢", body, "match", _反転(body), False, _修飾(body))
     proposition = _命題選択.fullmatch(body)
     if proposition:
@@ -251,11 +251,11 @@ def _代替質問(focus: str, boundary: 英語質問境界 | None = None) -> 英
 
     # 既知構文へ閉じられなくても、質問として明示された意味内容はtopic bagへ捨てない。
     # 世界事実を補わず、質問表層そのものを既知端点にした「問い適合」として保持する。
-    content_tokens = [
-        token for token in _語.findall(body)
-        if token.casefold() not in _機能語 and token.casefold() not in _補助語
+    content_字句 = [
+        字句 for 字句 in _語.findall(body)
+        if 字句.casefold() not in _機能語 and 字句.casefold() not in _補助語
     ]
-    if content_tokens:
+    if content_字句:
         return 英日関係質問(
             "問い適合", "始点", "選択肢", body, "match", _反転(body), False, _修飾(body, conditions),
         )
@@ -263,24 +263,24 @@ def _代替質問(focus: str, boundary: 英語質問境界 | None = None) -> 英
 
 
 def 英日意味フレーム抽出(text: str) -> 英日意味フレーム:
-    boundary = 英語質問境界解析(text)
-    focus = boundary.焦点
-    proposition = _命題選択.fullmatch(boundary.本体)
-    fallback = _代替質問(focus, boundary)
-    if proposition is not None and fallback is not None:
+    境界 = 英語質問境界解析(text)
+    focus = 境界.焦点
+    proposition = _命題選択.fullmatch(境界.本体)
+    代替経路 = _代替質問(focus, 境界)
+    if proposition is not None and 代替経路 is not None:
         base = _旧抽出(text)
-        canonical = tuple((*base.正本意味, f"関係:{fallback.種別}", f"述語:{fallback.検索述語}", f"不足位置:{fallback.未知位置}"))
-        return 英日意味フレーム(tuple(dict.fromkeys(canonical)), base.外部検索語, base.制御, fallback)
+        canonical = tuple((*base.正本意味, f"関係:{代替経路.種別}", f"述語:{代替経路.検索述語}", f"不足位置:{代替経路.未知位置}"))
+        return 英日意味フレーム(tuple(dict.fromkeys(canonical)), base.外部検索語, base.制御, 代替経路)
 
     base = _旧抽出(text)
     if base.関係質問 is not None:
-        conditions = boundary.条件scope
+        conditions = 境界.条件範囲
         modifiers = tuple(dict.fromkeys((*base.関係質問.修飾, *_修飾(focus, conditions))))
         return replace(base, 関係質問=replace(base.関係質問, 修飾=modifiers))
-    if fallback is None:
+    if 代替経路 is None:
         return base
-    canonical = tuple((*base.正本意味, f"関係:{fallback.種別}", f"述語:{fallback.検索述語}", f"不足位置:{fallback.未知位置}"))
-    return 英日意味フレーム(tuple(dict.fromkeys(canonical)), base.外部検索語, base.制御, fallback)
+    canonical = tuple((*base.正本意味, f"関係:{代替経路.種別}", f"述語:{代替経路.検索述語}", f"不足位置:{代替経路.未知位置}"))
+    return 英日意味フレーム(tuple(dict.fromkeys(canonical)), base.外部検索語, base.制御, 代替経路)
 
 
 def _declaration_conditions(text: str) -> tuple[str, tuple[tuple[str, str], ...]]:
@@ -292,36 +292,36 @@ def _declaration_one(sentence: str) -> 英語明示述語関係 | None:
     raw = _端点(sentence)
     if not raw or re.match(r"^(?:which|what|who|where|when|why|how)\b", raw, re.I):
         return None
-    polarity = "否定" if _否定.search(raw) else "肯定"
+    極性 = "否定" if _否定.search(raw) else "肯定"
     normalized = re.sub(r"\b(?:do|does|did|is|are|was|were|can|could|may|might|must|will|would|should|has|have|had)\s+not\b", lambda m: m.group(0).rsplit(None, 1)[0], raw, flags=re.I)
     passive = _受動.fullmatch(normalized)
     if passive:
         kind, predicate = _関係種別(passive.group("v"))
         obj, mods = _declaration_conditions(passive.group("s"))
-        return 英語明示述語関係(kind, _端点(passive.group("o")), obj, predicate, polarity, mods)
-    tokens = normalized.split()
-    if len(tokens) < 3:
+        return 英語明示述語関係(kind, _端点(passive.group("o")), obj, predicate, 極性, mods)
+    字句 = normalized.split()
+    if len(字句) < 3:
         return None
-    predicate_info = _predicate_from_tokens(tokens, 1)
+    predicate_info = _predicate_from_字句(字句, 1)
     if predicate_info:
         predicate_surface, tail = predicate_info
-        predicate_index = next((i for i, t in enumerate(tokens[1:], 1) if predicate_surface.casefold().startswith(t.casefold().strip("?,.;:"))), None)
+        predicate_index = next((i for i, t in enumerate(字句[1:], 1) if predicate_surface.casefold().startswith(t.casefold().strip("?,.;:"))), None)
         if predicate_index is not None and tail:
-            subject_surface = _端点(" ".join(tokens[:predicate_index]))
-            subject = _開放主語(subject_surface)
+            主体_surface = _端点(" ".join(字句[:predicate_index]))
+            主体 = _開放主語(主体_surface)
             object_text, mods = _declaration_conditions(" ".join(tail))
-            if subject and object_text:
+            if 主体 and object_text:
                 kind, predicate = _関係種別(predicate_surface)
                 if kind == "開放述語" and (
-                    _協調接続終端.search(subject_surface)
-                    or (_協調主語.search(subject) and _末尾補助語.search(subject_surface))
+                    _協調接続終端.search(主体_surface)
+                    or (_協調主語.search(主体) and _末尾補助語.search(主体_surface))
                 ):
                     return None
-                return 英語明示述語関係(kind, subject, object_text, predicate, polarity, mods)
+                return 英語明示述語関係(kind, 主体, object_text, predicate, 極性, mods)
     copula = re.match(r"^(?P<s>.+?)\s+(?:is|are|was|were)\s+(?P<o>.+)$", raw, re.I)
     if copula:
         obj, mods = _declaration_conditions(copula.group("o"))
-        return 英語明示述語関係("開放述語", _端点(copula.group("s")), obj, "be", polarity, mods)
+        return 英語明示述語関係("開放述語", _端点(copula.group("s")), obj, "be", 極性, mods)
     return None
 
 
@@ -330,13 +330,13 @@ def 英語明示述語関係抽出(text: str) -> tuple[英語明示述語関係,
     out: list[英語明示述語関係] = []
     seen: set[tuple[object, ...]] = set()
     for sentence in _文分割.split(raw):
-        relation = _declaration_one(sentence)
-        if relation is None:
+        関係 = _declaration_one(sentence)
+        if 関係 is None:
             continue
-        key = (relation.種別, relation.始点.casefold(), relation.終点.casefold(), relation.検索述語, relation.極性, relation.修飾)
+        key = (関係.種別, 関係.始点.casefold(), 関係.終点.casefold(), 関係.検索述語, 関係.極性, 関係.修飾)
         if key not in seen:
             seen.add(key)
-            out.append(relation)
+            out.append(関係)
     return tuple(out)
 
 

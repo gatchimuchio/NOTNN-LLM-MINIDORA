@@ -10,13 +10,13 @@ from typing import Any, Mapping
 def _load(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, Mapping):
-        raise ValueError("result JSON objectが必要")
+        raise ValueError('結果 JSON objectが必要')
     return dict(value)
 
 
-def _index(result: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+def _index(結果: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
-    for row in result.get("details", ()):
+    for row in 結果.get("details", ()):
         if not isinstance(row, Mapping):
             continue
         case_id = str(row.get("id", ""))
@@ -57,7 +57,7 @@ def _classify(before: Mapping[str, Any], after: Mapping[str, Any]) -> str:
     return "OTHER"
 
 
-def compare(before: Mapping[str, Any], after: Mapping[str, Any]) -> dict[str, Any]:
+def 比較(before: Mapping[str, Any], after: Mapping[str, Any]) -> dict[str, Any]:
     left = _index(before)
     right = _index(after)
     ids = sorted(set(left) | set(right))
@@ -95,7 +95,7 @@ def compare(before: Mapping[str, Any], after: Mapping[str, Any]) -> dict[str, An
         )
 
     return {
-        "契約形式": "minidora.hds-choice-replay.compare.v1",
+        "契約形式": 'minidora.hds-選択肢-再生.比較.v1',
         "before": {
             "total": before.get("total"),
             "correct": before.get("correct"),
@@ -123,14 +123,14 @@ def compare(before: Mapping[str, Any], after: Mapping[str, Any]) -> dict[str, An
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="2つのHDS Replay結果をcase単位で比較する。")
+    parser = argparse.ArgumentParser(description='2つのHDS 再生結果をcase単位で比較する。')
     parser.add_argument("before", type=Path)
     parser.add_argument("after", type=Path)
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
 
-    result = compare(_load(args.before), _load(args.after))
-    text = json.dumps(result, ensure_ascii=False, indent=2)
+    結果 = 比較(_load(args.before), _load(args.after))
+    text = json.dumps(結果, ensure_ascii=False, indent=2)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(text + "\n", encoding="utf-8")

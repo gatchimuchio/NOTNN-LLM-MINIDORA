@@ -10,7 +10,7 @@ import unittest
 
 from minidora.文章作成 import 文章を取り込む, 文章を作る, 文章仕様, 文章単位, 文章断片
 from minidora.文章編集 import 編集箇所を特定, 文章記録整合
-from minidora.文章能力接続 import 文章能力Module, 文章能力群
+from minidora.文章能力接続 import 文章能力モジュール, 文章能力群
 from minidora.能力合成 import 能力合成器, 合成計画, 合成工程, 素材参照, _結果辞書
 from minidora.能力合成_局所接続 import 局所能力群
 from minidora.多段解決 import 多段解決器, 多段問題, 解法, 解決目的, 問題素材
@@ -77,8 +77,8 @@ class 文章能力合成試験(unittest.TestCase):
         self.assertEqual(r.状態,'中止');self.assertEqual(r.実行数,0)
 
     def test_取込も既存合成契約から呼ぶ(self):
-        p=合成計画((合成工程('a',('文章取込',),'i',(素材参照('入力','source'),)),),('a',))
-        d={'i':能力結果(True,'取り込む'),'source':能力結果(True,'原文120')}
+        p=合成計画((合成工程('a',('文章取込',),'i',(素材参照('入力','情報源'),)),),('a',))
+        d={'i':能力結果(True,'取り込む'),'情報源':能力結果(True,'原文120')}
         r=self.runner.実行(p,d);self.assertTrue(r.成立,r.理由)
         self.assertTrue(文章記録整合(r.出力[0][1]))
 
@@ -87,8 +87,8 @@ class 文章能力合成試験(unittest.TestCase):
         a=編集箇所を特定(document,'120','999')
         b=編集箇所を特定(document,'草案','確認版')
         goal=解決目的('文章','成果検査','i','保持',('原文',))
-        methods=tuple(解法(k,'文章',(),'文章編集','i',(問題素材('入力','対象'),),k,priority)
-                      for k,priority in [('数値変更',0),('見出し変更',1)])
+        methods=tuple(解法(k,'文章',(),'文章編集','i',(問題素材('入力','対象'),),k,優先度)
+                      for k,優先度 in [('数値変更',0),('見出し変更',1)])
         p=多段問題(('文章',),(goal,),methods)
         d={'対象':document,'原文':能力結果(True,document.本文),'i':能力結果(True,'指定編集を検査'),
             '保持':能力結果(True,'',データ={'種別':'数値列保持'}),
@@ -104,9 +104,9 @@ class 文章能力合成試験(unittest.TestCase):
         document=文書を処理(document,'JSON選択',{'位置':'/本文'})
         material=文書を処理(document,'値取出',{'型':'文字列'})
         spec=文章仕様((文章単位('a','段落',(文章断片('本文',0,len(material.本文)),)),),('a',))
-        result=文章を作る({'本文':material},spec)
-        self.assertTrue(result.成立,result.データ);self.assertEqual(result.本文,'値731です。')
-        self.assertTrue(文章記録整合(result))
+        結果=文章を作る({'本文':material},spec)
+        self.assertTrue(結果.成立,結果.データ);self.assertEqual(結果.本文,'値731です。')
+        self.assertTrue(文章記録整合(結果))
 
     def test_作成済み文章を長文脈へ保存復元して使う(self):
         p,d=用意();r=self.runner.実行(p,d);revised=dict(r.出力)['編集']
@@ -122,9 +122,9 @@ class 文章能力合成試験(unittest.TestCase):
     def test_通常の文章を暗黙の編集命令にしない(self):
         c=能力文脈('全文をいい感じに直して','s')
         for reg in 文章能力群():
-            self.assertEqual(reg.Module.判定(c),0)
-            self.assertFalse(reg.Module.実行(c).成立)
-        with self.assertRaises(ValueError):文章能力Module('自由推測')
+            self.assertEqual(reg.モジュール.判定(c),0)
+            self.assertFalse(reg.モジュール.実行(c).成立)
+        with self.assertRaises(ValueError):文章能力モジュール('自由推測')
 
     def test_独立CLIの成功値変更保護違反(self):
         for args in ([],['--値','731'],['--保護違反']):

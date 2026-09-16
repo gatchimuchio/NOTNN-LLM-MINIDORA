@@ -17,18 +17,18 @@ def _登録簿(*names):
     return tuple({'名前':n,'版':'v1','外部読取':False} for n in names)
 
 
-class _Integration:
-    def __init__(self, registry, outcomes):
-        self.registry=registry
+class _統合:
+    def __init__(self, 登録簿, outcomes):
+        self.登録簿=登録簿
         self.outcomes=list(outcomes)
         self.calls=0
-        self.state=('s',0)
-    def 起点(self): return self.state
-    def 能力一覧(self): return self.registry
+        self.状態=('s',0)
+    def 起点(self): return self.状態
+    def 能力一覧(self): return self.登録簿
     def _停止(self,stop):
         if stop and stop(): raise InterruptedError()
-    def 準備(self,plan,data,依頼文=''):
-        return SimpleNamespace(起点=self.state,ハッシュ='plan-'+str(self.calls+1))
+    def 準備(self,plan,資料,依頼文=''):
+        return SimpleNamespace(起点=self.状態,ハッシュ='plan-'+str(self.calls+1))
     def 実行(self,packed,外部読取許可=False,停止要求=None):
         self.calls+=1
         row=self.outcomes[min(self.calls-1,len(self.outcomes)-1)]
@@ -37,10 +37,10 @@ class _Integration:
             run=SimpleNamespace(履歴=hist,中間結果=(),ルートハッシュ='run-'+str(self.calls))
             return SimpleNamespace(成立=True,状態='合格',理由='',実行=run)
         reason=row.get('reason','会話失敗:検証失敗:不成立')
-        hist=(SimpleNamespace(理由=reason,状態=row.get('state','保留'),工程=row.get('step','役割工程:0001'),
+        hist=(SimpleNamespace(理由=reason,状態=row.get('状態','保留'),工程=row.get('step','役割工程:0001'),
                               入力ハッシュ=row.get('input','in-'+str(self.calls))),)
         run=SimpleNamespace(履歴=hist,中間結果=(),ルートハッシュ='run-'+str(self.calls))
-        return SimpleNamespace(成立=False,状態=row.get('response_state','保留'),理由=reason,実行=run)
+        return SimpleNamespace(成立=False,状態=row.get('response_状態','保留'),理由=reason,実行=run)
 
 
 class 回復方針単体試験(unittest.TestCase):
@@ -86,8 +86,8 @@ class 回復方針単体試験(unittest.TestCase):
                      回復=(回復規則('実行環境'),))
         retry=replace(alt,回復=(回復規則('実行環境',方式='同一作用再試行',最大再試行=1),))
         reg=_登録簿('A')
-        a=会話実行監督(役割計画器((alt,),reg),_Integration(reg,({'ok':True},)))
-        b=会話実行監督(役割計画器((retry,),reg),_Integration(reg,({'ok':True},)))
+        a=会話実行監督(役割計画器((alt,),reg),_統合(reg,({'ok':True},)))
+        b=会話実行監督(役割計画器((retry,),reg),_統合(reg,({'ok':True},)))
         self.assertNotEqual(a._回復契約印(),b._回復契約印())
 
 
@@ -100,7 +100,7 @@ class 回復監督試験(unittest.TestCase):
                        回復=(回復規則('検証失敗'),))
         second=役割作用('第二','B','成果',lambda p:(),lambda p:{},lambda p:True,費用=2)
         planner=役割計画器((first,second),reg)
-        root=_Integration(reg,({'reason':'会話失敗:検証失敗:候補不適合'},{'ok':True}))
+        root=_統合(reg,({'reason':'会話失敗:検証失敗:候補不適合'},{'ok':True}))
         r=会話実行監督(planner,root).実行(意味目的('成果',{}),{},原文='成果')
         self.assertTrue(r.応答.成立);self.assertEqual(root.calls,2)
         self.assertEqual(r.失敗[0].回復方針,'代替作用')
@@ -109,13 +109,13 @@ class 回復監督試験(unittest.TestCase):
 
     def test_同一作用再試行は計画器を再評価せず同一計画を使う(self):
         reg=_登録簿('A')
-        action=役割作用('一時失敗','A','成果',lambda p:(),lambda p:{},lambda p:True,
+        作用=役割作用('一時失敗','A','成果',lambda p:(),lambda p:{},lambda p:True,
                          回復=(回復規則('実行環境',方式='同一作用再試行',最大再試行=1),))
-        planner=役割計画器((action,),reg)
+        planner=役割計画器((作用,),reg)
         original=planner.計画する;count={'n':0}
         def plan(*a,**k): count['n']+=1;return original(*a,**k)
         planner.計画する=plan
-        root=_Integration(reg,({'state':'失敗','response_state':'失敗','reason':'実装例外'},{'ok':True}))
+        root=_統合(reg,({'状態':'失敗','response_状態':'失敗','reason':'実装例外'},{'ok':True}))
         r=会話実行監督(planner,root).実行(意味目的('成果',{}),{},原文='成果')
         self.assertTrue(r.応答.成立);self.assertEqual((root.calls,count['n']),(2,1))
         self.assertEqual(r.失敗[0].回復方針,'同一作用再試行')
@@ -123,10 +123,10 @@ class 回復監督試験(unittest.TestCase):
 
     def test_同一作用再試行上限で停止(self):
         reg=_登録簿('A')
-        action=役割作用('一時失敗','A','成果',lambda p:(),lambda p:{},lambda p:True,
+        作用=役割作用('一時失敗','A','成果',lambda p:(),lambda p:{},lambda p:True,
                          回復=(回復規則('実行環境',方式='同一作用再試行',最大再試行=1),))
-        planner=役割計画器((action,),reg)
-        root=_Integration(reg,({'state':'失敗','response_state':'失敗','reason':'実装例外'},))
+        planner=役割計画器((作用,),reg)
+        root=_統合(reg,({'状態':'失敗','response_状態':'失敗','reason':'実装例外'},))
         r=会話実行監督(planner,root,最大試行=5).実行(意味目的('成果',{}),{},原文='成果')
         self.assertFalse(r.応答.成立);self.assertEqual(root.calls,2)
         self.assertEqual([x.回復方針 for x in r.失敗],['同一作用再試行','停止'])
@@ -140,7 +140,7 @@ class 回復監督試験(unittest.TestCase):
         first=役割作用('初期報告','初期','報告',lambda p:(),lambda p:{},lambda p:True)
         second=役割作用('代替報告','代替','報告',lambda p:(),lambda p:{},lambda p:True,費用=2)
         planner=役割計画器((adopt,first,second),reg)
-        root=_Integration(reg,({'step':'役割工程:0002','reason':'会話失敗:取得不足:空'}, {'ok':True,'step':'役割工程:0002'}))
+        root=_統合(reg,({'step':'役割工程:0002','reason':'会話失敗:取得不足:空'}, {'ok':True,'step':'役割工程:0002'}))
         r=会話実行監督(planner,root).実行(root_goal,{},原文='報告を採用')
         self.assertTrue(r.応答.成立)
         self.assertEqual(r.失敗[0].回復方針,'入力再取得')
@@ -161,10 +161,10 @@ class 回復監督試験(unittest.TestCase):
         r1=役割作用('右初期','R1','右',lambda p:(),lambda p:{},right1)
         r2=役割作用('右代替','R2','右',lambda p:(),lambda p:{},lambda p:True,費用=2)
         planner=役割計画器((root_rule,l1,l2,r1,r2),reg)
-        integration=_Integration(reg,({'step':'役割工程:0001','reason':'会話失敗:検証失敗:左失敗'}, {'ok':True}))
+        統合=_統合(reg,({'step':'役割工程:0001','reason':'会話失敗:検証失敗:左失敗'}, {'ok':True}))
         with self.assertRaisesRegex(ValueError,'回復対象外'):
-            会話実行監督(planner,integration).実行(goal,{},原文='左右を統合')
-        self.assertEqual(integration.calls,1)
+            会話実行監督(planner,統合).実行(goal,{},原文='左右を統合')
+        self.assertEqual(統合.calls,1)
 
     def test_局所再計画は失敗した左部分木だけ変更し親と右を固定(self):
         reg=_登録簿('ROOT','L1','L2','R1')
@@ -175,8 +175,8 @@ class 回復監督試験(unittest.TestCase):
         l2=役割作用('左代替','L2','左',lambda p:(),lambda p:{},lambda p:True,費用=2)
         r1=役割作用('右固定','R1','右',lambda p:(),lambda p:{},lambda p:True)
         planner=役割計画器((root_rule,l1,l2,r1),reg)
-        integration=_Integration(reg,({'step':'役割工程:0001','reason':'会話失敗:検証失敗:左失敗'}, {'ok':True,'step':'役割工程:0003'}))
-        r=会話実行監督(planner,integration).実行(goal,{},原文='左右を統合')
+        統合=_統合(reg,({'step':'役割工程:0001','reason':'会話失敗:検証失敗:左失敗'}, {'ok':True,'step':'役割工程:0003'}))
+        r=会話実行監督(planner,統合).実行(goal,{},原文='左右を統合')
         self.assertTrue(r.応答.成立)
         self.assertEqual(r.試行[1]['固定被覆数'],2)  # 根と右
         second=dict((key,act) for _,key,act in r.試行[1]['工程作用'])
@@ -189,7 +189,7 @@ class 回復監督試験(unittest.TestCase):
         a=役割作用('第一','A','成果',lambda p:(),lambda p:{},lambda p:True)
         b=役割作用('第二','B','成果',lambda p:(),lambda p:{},lambda p:True,費用=2)
         planner=役割計画器((a,b),reg)
-        root=_Integration(reg,({'reason':'会話失敗:意味未確定:対象曖昧'},))
+        root=_統合(reg,({'reason':'会話失敗:意味未確定:対象曖昧'},))
         r=会話実行監督(planner,root).実行(意味目的('成果',{}),{},原文='成果')
         self.assertEqual(root.calls,1);self.assertFalse(r.応答.成立)
         self.assertEqual(r.失敗[0].回復方針,'利用者確認')

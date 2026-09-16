@@ -3,13 +3,13 @@ from __future__ import annotations
 from dataclasses import replace
 from hashlib import sha256
 
-from .HDS構文化記録 import HDS_COMPILER_META_PREFIXES
+from .HDS構文化記録 import HDS_構文化器_META_PREFIXES
 from .HDS構文化記録_v1_1 import HDS認知世界差分
 from .HDS中間表現 import HDSIR, HDS座標, 値状態
 
 
 def _meta(kind: str) -> bool:
-    return str(kind).startswith(HDS_COMPILER_META_PREFIXES)
+    return str(kind).startswith(HDS_構文化器_META_PREFIXES)
 
 
 def _coord_signature(ir: HDSIR) -> tuple[str, ...]:
@@ -24,10 +24,10 @@ def _coord_signature(ir: HDSIR) -> tuple[str, ...]:
 def _関係署名(ir: HDSIR) -> tuple[str, ...]:
     coords = ir.座標辞書()
     values: list[str] = []
-    for relation in ir.関係:
-        starts = tuple(str(coords[cid].内容) for cid in relation.始点 if cid in coords)
-        ends = tuple(str(coords[cid].内容) for cid in relation.終点 if cid in coords)
-        values.append(f"{relation.種別}:{starts}->{ends}|{tuple(relation.条件)}|{relation.値状態.value}")
+    for 関係 in ir.関係:
+        starts = tuple(str(coords[cid].内容) for cid in 関係.始点 if cid in coords)
+        ends = tuple(str(coords[cid].内容) for cid in 関係.終点 if cid in coords)
+        values.append(f"{関係.種別}:{starts}->{ends}|{tuple(関係.条件)}|{関係.値状態.value}")
     return tuple(sorted(dict.fromkeys(values)))
 
 
@@ -66,11 +66,11 @@ def HDS認知世界差分IR射影(ir: HDSIR, diff: HDS認知世界差分) -> HDS
     coords = list(ir.座標)
     existing = {(str(coord.種別), str(coord.内容)) for coord in coords}
 
-    def add(kind: str, content: str, state: 値状態 = 値状態.推定) -> None:
+    def add(kind: str, content: str, 状態: 値状態 = 値状態.推定) -> None:
         key = (kind, content)
         if key in existing:
             return
-        coords.append(HDS座標(f"archv11:history:{len(coords):03d}", kind, content, state, 由来="公開HDS Compiler v1.1", 再開放条件=("次観測・時点変更・版変更で再評価する",)))
+        coords.append(HDS座標(f"archv11:history:{len(coords):03d}", kind, content, 状態, 由来='公開HDS 構文化器 v1.1', 再開放条件=("次観測・時点変更・版変更で再評価する",)))
         existing.add(key)
 
     if diff.前回世界参照:

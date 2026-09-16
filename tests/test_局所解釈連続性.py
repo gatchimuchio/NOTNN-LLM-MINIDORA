@@ -27,12 +27,12 @@ class 局所解釈連続性試験(unittest.TestCase):
         body = ミニドラ()
         body.実行(要求("2+3"))
 
-        context = body.HDS文脈
-        self.assertEqual(context.記憶版, 1)
-        self.assertEqual(context.直前入力, "2+3")
-        self.assertEqual(context.直前結果, 5)
-        self.assertEqual(context.現在焦点, 5)
-        self.assertEqual(context.直前採否, "合格")
+        文脈 = body.HDS文脈
+        self.assertEqual(文脈.記憶版, 1)
+        self.assertEqual(文脈.直前入力, "2+3")
+        self.assertEqual(文脈.直前結果, 5)
+        self.assertEqual(文脈.現在焦点, 5)
+        self.assertEqual(文脈.直前採否, "合格")
 
     def test_保留は採用済み焦点を無言上書きしない(self) -> None:
         body = ミニドラ()
@@ -69,8 +69,8 @@ class 局所解釈連続性試験(unittest.TestCase):
         self.assertEqual(second.状態["文脈0"], 5)
 
     def test_HDS接続でも局所解釈が意味IRから最終計算まで到達する(self) -> None:
-        compiler = 公開HDSコンパイラ()
-        body = ミニドラ(HDSコンパイラ_=compiler)
+        構文化器 = 公開HDSコンパイラ()
+        body = ミニドラ(HDSコンパイラ_=構文化器)
         first = body.実行(要求("2+3"))
         second = body.実行(要求("それに4を足して"))
 
@@ -90,16 +90,16 @@ class 局所解釈連続性試験(unittest.TestCase):
         self.assertIsNone(reset.値)
         self.assertNotEqual(reset.採否.状態.value, "合格")
 
-    def test_計算Pへ文脈Dataを埋め込まず状態参照で束縛する(self) -> None:
-        compiler = 公開HDSコンパイラ()
-        context = HDS文脈(
+    def test_計算Pへ文脈資料を埋め込まず状態参照で束縛する(self) -> None:
+        構文化器 = 公開HDSコンパイラ()
+        文脈 = HDS文脈(
             記憶版=1,
             現在焦点=5,
             直前結果=5,
             直前入力="2+3",
             直前採否="合格",
         )
-        bundle = compiler.コンパイル束("それに4を足して", 文脈=context, 前回結果=5)
+        bundle = 構文化器.コンパイル束("それに4を足して", 文脈=文脈, 前回結果=5)
         plan = bundle.計算計画
 
         self.assertEqual(plan.初期状態["文脈0"], 5)

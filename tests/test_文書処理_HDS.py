@@ -27,7 +27,7 @@ class 構造文書HDS接続試験(unittest.TestCase):
         self.assertTrue(b.成立,b.理由)
         self.assertEqual(b.出力[0][1].本文,'731')
 
-    def test_値の変更が既存Compiler結果へ到達(self):
+    def test_値の変更が既存構文化器結果へ到達(self):
         r=self.session.応答('本文から数字を抽出して',{'本文':self.material(222)})
         self.assertTrue(r.成立,r.理由)
         self.assertEqual(r.出力[0][1].本文,'222、75')

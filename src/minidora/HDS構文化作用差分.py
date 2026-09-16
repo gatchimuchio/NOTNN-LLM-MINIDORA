@@ -31,23 +31,19 @@ def _作用種別(edge: HDS遷移辺) -> str:
     return "・".join(values)
 
 
-def HDS作用差分構造生成(graph: HDS状態遷移図) -> HDS作用差分構造:
-    """状態遷移図から作用→状態差→後続利用の有限Projectionを生成する。
-
-    後続利用は「後状態が次作用の入力状態に一致する」ことだけを表す。
-    次作用の追加条件充足・採用・実行済みは確定しない。
-    """
+def HDS作用差分構造生成(関係図: HDS状態遷移図) -> HDS作用差分構造:
+    '状態遷移図から作用→状態差→後続利用の有限射影を生成する。\n\n    後続利用は「後状態が次作用の入力状態に一致する」ことだけを表す。\n    次作用の追加条件充足・採用・実行済みは確定しない。\n    '
 
     actions: list[HDS作用記録] = []
     deltas: list[HDS状態差記録] = []
     downstream: list[HDS後続利用記録] = []
-    unresolved = list(graph.未閉包)
+    unresolved = list(関係図.未閉包)
 
-    for index, edge in enumerate(graph.遷移):
-        action_id = f"作用:{index:03d}"
+    for index, edge in enumerate(関係図.遷移):
+        作用_id = f"作用:{index:03d}"
         actions.append(
             HDS作用記録(
-                action_id,
+                作用_id,
                 _作用種別(edge),
                 edge.始点,
                 edge.終点,
@@ -63,7 +59,7 @@ def HDS作用差分構造生成(graph: HDS状態遷移図) -> HDS作用差分構
         deltas.append(
             HDS状態差記録(
                 f"状態差:{len(deltas):03d}",
-                action_id,
+                作用_id,
                 edge.始点,
                 edge.終点,
                 edge.始点 != edge.終点,
@@ -72,23 +68,23 @@ def HDS作用差分構造生成(graph: HDS状態遷移図) -> HDS作用差分構
         )
 
     by_input: dict[str, list[HDS作用記録]] = {}
-    for action in actions:
-        if action.入力状態 is not None:
-            by_input.setdefault(action.入力状態, []).append(action)
+    for 作用 in actions:
+        if 作用.入力状態 is not None:
+            by_input.setdefault(作用.入力状態, []).append(作用)
 
     for delta in deltas:
         if not delta.変化有無:
             continue
-        for action in by_input.get(delta.後状態, ()):  # 到達状態が次作用の入力条件になる。
-            if action.作用ID == delta.原因作用ID:
+        for 作用 in by_input.get(delta.後状態, ()):  # 到達状態が次作用の入力条件になる。
+            if 作用.作用ID == delta.原因作用ID:
                 continue
             downstream.append(
                 HDS後続利用記録(
                     f"後続利用:{len(downstream):03d}",
                     delta.差分ID,
                     delta.後状態,
-                    action.作用ID,
-                    tuple(action.条件),
+                    作用.作用ID,
+                    tuple(作用.条件),
                     True,
                 )
             )

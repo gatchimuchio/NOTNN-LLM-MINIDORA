@@ -30,8 +30,8 @@ class _MarkupText(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
 
-    def handle_data(self, data: str) -> None:
-        self.parts.append(data)
+    def handle_資料(self, 資料: str) -> None:
+        self.parts.append(資料)
 
     def text(self) -> str:
         return " ".join("".join(self.parts).split()).strip()
@@ -81,12 +81,7 @@ def _date(row: Mapping[str, Any]) -> str | None:
 
 
 class Crossref参照供給器:
-    """Crossref REST APIを使う、分野横断のkey不要学術メタデータProvider。
-
-    公開poolの同時接続制限を超えないようProvider内部でHTTP呼出しを直列化する。
-    APIの検索順位・被引用数は真偽confidenceへ変換しない。DOIがある資料は他Providerと
-    共通識別子を使い、同一論文を複数独立sourceとして数えない。
-    """
+    'Crossref REST APIを使う、分野横断のkey不要学術メタデータProvider。\n\n    公開poolの同時接続制限を超えないようProvider内部でHTTP呼出しを直列化する。\n    APIの検索順位・被引用数は真偽信頼度へ変換しない。DOIがある資料は他Providerと\n    共通識別子を使い、同一論文を複数独立情報源として数えない。\n    '
 
     名称 = "Crossref"
     BASE_URL = "https://api.crossref.org/works"
@@ -169,14 +164,14 @@ class Crossref参照供給器:
                 content = "\n".join(pieces)[: self.最大本文文字数]
                 if not content:
                     continue
-                confidence = self.ABSTRACT信頼 if abstract else self.TITLE_ONLY信頼
+                信頼度 = self.ABSTRACT信頼 if abstract else self.TITLE_ONLY信頼
                 origin = "https://doi.org/" + quote(doi, safe="/:()-.;") if doi else "https://api.crossref.org/works"
 
                 conditions: list[tuple[str, str]] = [
-                    ("evidence_scope", "abstract" if abstract else "title"),
+                    ('証拠_範囲', "abstract" if abstract else "title"),
                 ]
                 if doi:
-                    conditions.append(("canonical_source", _doi_identifier(doi)))
+                    conditions.append(('canonical_情報源', _doi_identifier(doi)))
                 container = _text(row.get("container-title"))
                 work_type = _text(row.get("type"))
                 if container:
@@ -191,7 +186,7 @@ class Crossref参照供給器:
                         内容=content,
                         由来=origin,
                         供給器=self.名称,
-                        信頼=confidence,
+                        信頼=信頼度,
                         時点=_date(row),
                         条件=tuple(conditions),
                     )
@@ -200,9 +195,9 @@ class Crossref参照供給器:
                 if len(records) >= limit:
                     break
 
-            result = tuple(records)
-            self._cache[cache_key] = result
-            return result
+            結果 = tuple(records)
+            self._cache[cache_key] = 結果
+            return 結果
 
 
 __all__ = ["Crossref参照供給器"]

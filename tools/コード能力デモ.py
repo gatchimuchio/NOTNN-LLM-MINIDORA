@@ -27,7 +27,7 @@ def 二乗和仕様(比較="超"):
 
 def 問題を用意(代替あり=True):
     constants = {"初期値": 0, "閾値": 2}
-    data = {"候補A": 能力結果(True, "", データ={"仕様": 二乗和仕様("以上"), "定数": constants}),
+    資料 = {"候補A": 能力結果(True, "", データ={"仕様": 二乗和仕様("以上"), "定数": constants}),
             "候補B": 能力結果(True, "", データ={"仕様": 二乗和仕様("超"), "定数": constants}),
             "指示": 能力結果(True, "構造化された関数を生成"),
             "試験指示": 能力結果(True, "指定の入出力を確認"),
@@ -39,27 +39,27 @@ def 問題を用意(代替あり=True):
     if 代替あり:
         methods.append(解法("境界を含まない候補", "コード完成", (), "コード生成", "指示", (問題素材("入力", "候補B"),), 優先度=1))
     problem = 多段問題(("コード完成",), (解決目的("コード完成", "コード検証", "試験指示", "試験設定"),), tuple(methods))
-    return problem, data
+    return problem, 資料
 
 
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--代替なし", action="store_true")
+    parser.add_argument("--代替なし", 作用="store_true")
     args = parser.parse_args()
-    p, data = 問題を用意(not args.代替なし)
-    result = 多段解決器(コード能力群(), 純粋作用確認=True).実行(p, data)
-    code = result.出力[0][1] if result.成立 else None
+    p, 資料 = 問題を用意(not args.代替なし)
+    結果 = 多段解決器(コード能力群(), 純粋作用確認=True).実行(p, 資料)
+    code = 結果.出力[0][1] if 結果.成立 else None
     unseen = コードを評価(code.本文, {"数列": [-3, 2, 5, 8], "定数": code.データ["定数"]}) if code else None
-    print(json.dumps({"状態": result.状態, "コード": code.本文 if code else "", "理由": result.理由,
-        "採用解法": [s["解法"] for s in result.採用経路],
-        "検証で退けた解法": [s["解法"] for s in result.履歴 if s["作用"] == "目的条件未達"],
+    print(json.dumps({"状態": 結果.状態, "コード": code.本文 if code else "", "理由": 結果.理由,
+        "採用解法": [s["解法"] for s in 結果.採用経路],
+        "検証で退けた解法": [s["解法"] for s in 結果.履歴 if s["作用"] == "目的条件未達"],
         "選別に未使用の入力結果": unseen.データ.get("値") if unseen else None,
-        "監査整合": result.整合確認(),
+        "監査整合": 結果.整合確認(),
         "範囲": "明示候補からの生成と有限試験。未知解法の発見・一般的なコード修復ではない"}, ensure_ascii=False, indent=2))
-    ok = not result.成立 if args.代替なし else result.成立 and unseen.成立 and unseen.データ["値"] == 89
-    return 0 if ok and result.整合確認() else 1
+    ok = not 結果.成立 if args.代替なし else 結果.成立 and unseen.成立 and unseen.データ["値"] == 89
+    return 0 if ok and 結果.整合確認() else 1
 
 
 if __name__ == "__main__":

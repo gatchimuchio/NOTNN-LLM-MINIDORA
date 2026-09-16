@@ -11,7 +11,7 @@ import unittest
 
 from minidora.コード能力 import コードを読む, コードを評価, コードを検証
 from minidora.コード生成 import 関数を生成
-from minidora.コード能力接続 import コード能力群, コード能力Module
+from minidora.コード能力接続 import コード能力群, コード能力モジュール
 from minidora.多段解決 import 多段解決器
 from minidora.能力合成 import 能力合成器, 合成計画, 合成工程, 素材参照
 from minidora.製品版.能力契約 import 能力文脈
@@ -131,10 +131,10 @@ class 生成契約試験(unittest.TestCase):
         for threshold in (-1,2,5):
             for xs in product((-3,0,2,4,7),repeat=3):
                 constants={'初期値':0,'閾値':threshold}
-                result=コードを評価(r.本文,{'数列':list(xs),'定数':constants})
+                結果=コードを評価(r.本文,{'数列':list(xs),'定数':constants})
                 expected=sum(x*x for x in xs if x>threshold)
-                self.assertTrue(result.成立,result.保留理由)
-                self.assertEqual(result.データ['値'],expected)
+                self.assertTrue(結果.成立,結果.保留理由)
+                self.assertEqual(結果.データ['値'],expected)
                 self.assertEqual(env['条件付き二乗和'](list(xs),constants),expected)
                 count+=1
         self.assertEqual(count,375)
@@ -142,50 +142,50 @@ class 生成契約試験(unittest.TestCase):
 
 class コード合成試験(unittest.TestCase):
     def test_生成から評価へ実値を渡す(self):
-        data={'仕様':能力結果(True,'',データ={'仕様':仕様(),'定数':{'初期値':0,'閾値':2}}),
+        資料={'仕様':能力結果(True,'',データ={'仕様':仕様(),'定数':{'初期値':0,'閾値':2}}),
               '指示':能力結果(True,'生成'),
               '引数':能力結果(True,'',データ={'引数':{'数列':[1,2,3,4],'定数':{'初期値':0,'閾値':2}}})}
         plan=合成計画((合成工程('生成',('コード生成',),'指示',(素材参照('入力','仕様'),)),
                        合成工程('評価',('コード評価',),'指示',(素材参照('工程','生成'),),'引数')),('評価',))
-        r=能力合成器(コード能力群()).実行(plan,data)
+        r=能力合成器(コード能力群()).実行(plan,資料)
         self.assertTrue(r.成立,r.理由)
         self.assertEqual(r.出力[0][1].データ['値'],25)
         self.assertTrue(r.監査整合())
 
     def test_多段解決で境界バグ候補を退ける(self):
-        p,data=例題()
-        r=多段解決器(コード能力群(),純粋作用確認=True).実行(p,data)
+        p,資料=例題()
+        r=多段解決器(コード能力群(),純粋作用確認=True).実行(p,資料)
         self.assertTrue(r.成立,r.理由)
         self.assertEqual([s['解法'] for s in r.採用経路],['境界を含まない候補'])
         self.assertTrue(any(e['作用']=='目的条件未達' and e['解法']=='境界を含む候補' for e in r.履歴))
         self.assertEqual(r.呼出数,4)
 
     def test_代替なしは試験条件を緩めない(self):
-        p,data=例題(False)
-        r=多段解決器(コード能力群(),純粋作用確認=True).実行(p,data)
+        p,資料=例題(False)
+        r=多段解決器(コード能力群(),純粋作用確認=True).実行(p,資料)
         self.assertFalse(r.成立)
         self.assertEqual(r.出力,())
 
     def test_候補生成を既存検証が独立に監査(self):
-        p,data=例題()
-        r=多段解決器(コード能力群(),純粋作用確認=True).実行(p,data)
+        p,資料=例題()
+        r=多段解決器(コード能力群(),純粋作用確認=True).実行(p,資料)
         code=r.出力[0][1]
-        result=コードを検証(code.本文,({'引数':{'数列':[-3,2,5,8],'定数':code.データ['定数']},'期待値':89},))
-        self.assertTrue(result.成立)
+        結果=コードを検証(code.本文,({'引数':{'数列':[-3,2,5,8],'定数':code.データ['定数']},'期待値':89},))
+        self.assertTrue(結果.成立)
 
     def test_未知設定と任意の会話を実行しない(self):
-        for module in コード能力群():
+        for モジュール in コード能力群():
             c=能力文脈('勝手にファイルを実行して','s')
-            self.assertEqual(module.Module.判定(c),0)
-            self.assertFalse(module.Module.実行(c).成立)
+            self.assertEqual(モジュール.モジュール.判定(c),0)
+            self.assertFalse(モジュール.モジュール.実行(c).成立)
         with self.assertRaises(ValueError):
-            コード能力Module('任意実行')
+            コード能力モジュール('任意実行')
 
     def test_呼出者の試験データを候補書換えに使わない(self):
-        p,data=例題()
-        original=deepcopy(data)
-        多段解決器(コード能力群(),純粋作用確認=True).実行(p,data)
-        self.assertEqual(original,data)
+        p,資料=例題()
+        original=deepcopy(資料)
+        多段解決器(コード能力群(),純粋作用確認=True).実行(p,資料)
+        self.assertEqual(original,資料)
 
     def test_コード読解も同じ契約で呼べる(self):
         p=合成計画((合成工程('a',('コード読解',),'i',(素材参照('入力','c'),)),),('a',))

@@ -12,8 +12,8 @@ from minidora.参照 import 参照記録
 
 class 局所Window選択試験(unittest.TestCase):
     def setUp(self) -> None:
-        self.compiler = 公開HDSコンパイラ()
-        self.question = self.compiler.問題IR(
+        self.構文化器 = 公開HDSコンパイラ()
+        self.question = self.構文化器.問題IR(
             "Which machine uses engine X?",
             ("Alpha", "Beta", "Gamma", "Delta"),
         )
@@ -48,7 +48,7 @@ class 局所Window選択試験(unittest.TestCase):
         self.assertEqual(HDS局所Window候補(self.question, refs), ())
 
 
-class _全文だけ弱化Compiler:
+class _全文だけ弱化構文化器:
     並列安全 = True
 
     def __init__(self) -> None:
@@ -64,7 +64,7 @@ class _全文だけ弱化Compiler:
 class 局所再照合Runtime試験(unittest.TestCase):
     def test_全文で失った有向関係を局所再解析して回収する(self) -> None:
         base = 公開HDSコンパイラ()
-        compiler = _全文だけ弱化Compiler()
+        構文化器 = _全文だけ弱化構文化器()
         question = base.問題IR(
             "Which machine uses engine X?",
             ("Alpha", "Beta", "Gamma", "Delta"),
@@ -80,7 +80,7 @@ class 局所再照合Runtime試験(unittest.TestCase):
         baseline = HDS選択推論実行(
             question,
             refs,
-            コンパイル=compiler.コンパイル,
+            コンパイル=構文化器.コンパイル,
             基礎能力核=K3相当能力核(),
             作業再作用=False,
             局所再照合=False,
@@ -88,7 +88,7 @@ class 局所再照合Runtime試験(unittest.TestCase):
         reconstructed = HDS選択推論実行(
             question,
             refs,
-            コンパイル=compiler.コンパイル,
+            コンパイル=構文化器.コンパイル,
             基礎能力核=K3相当能力核(),
             作業再作用=True,
             局所再照合=True,

@@ -19,7 +19,7 @@ def main() -> int:
         if hasattr(stream, 'reconfigure'):
             stream.reconfigure(encoding='utf-8', errors='strict')
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--json',action='store_true',help='会話と実行記録をJSONで表示する')
+    parser.add_argument('--json',作用='store_true',help='会話と実行記録をJSONで表示する')
     args=parser.parse_args()
     session=汎用会話セッション('集合会話デモ')
     # Cだけ入れ子にし、直下取得の失敗が共通の回復契約へ戻ることも表示する。
@@ -37,20 +37,20 @@ def main() -> int:
         ('この3つの売上を円で比較して。表で', '合格', '差は45円'),
     )
     records=[]
-    for question,state,expected in examples:
-        result=session.応答(question)
-        if result.状態!=state or expected is not None and expected not in result.本文:
-            print('デモの想定した動作と不一致:'+question+' / '+result.本文,file=sys.stderr)
+    for question,状態,expected in examples:
+        結果=session.応答(question)
+        if 結果.状態!=状態 or expected is not None and expected not in 結果.本文:
+            print('デモの想定した動作と不一致:'+question+' / '+結果.本文,file=sys.stderr)
             return 1
-        if result.結果 is not None and not 回答記録整合(result.結果):
+        if 結果.結果 is not None and not 回答記録整合(結果.結果):
             print('デモの回答記録が不整合',file=sys.stderr)
             return 1
-        trace=result.追跡 or {}
-        row={'入力':question,'状態':result.状態,'本文':result.本文,
-             '試行数':len(trace.get('試行',[])),'再計画':trace.get('再計画',[])}
+        追跡=結果.追跡 or {}
+        row={'入力':question,'状態':結果.状態,'本文':結果.本文,
+             '試行数':len(追跡.get('試行',[])),'再計画':追跡.get('再計画',[])}
         records.append(row)
         if not args.json:
-            print('入力：'+question+'\n'+result.状態+'：'+result.本文)
+            print('入力：'+question+'\n'+結果.状態+'：'+結果.本文)
             if row['試行数']:print('実行試行数：'+str(row['試行数']))
             print()
     if args.json:

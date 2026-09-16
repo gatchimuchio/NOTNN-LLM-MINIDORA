@@ -60,7 +60,7 @@ class 命題独立対照試験(unittest.TestCase):
         src='2025年では(P)。2026年では(PならばQ)。2026年では(QならばR)。'
         r=命題推論器(命題資料を読む(src,'資料')).判定(命題を読む('2026年では(R)')[0].式)
         self.assertEqual(r['判定'],'未確定')
-    def test_構造Dataにある条件を捨てない(self):
+    def test_構造資料にある条件を捨てない(self):
         with self.assertRaises(ValueError):命題資料を構成(能力結果(True,'P。',データ={'条件':'未解釈'}),'資料')
     def test_旧数値回答もJSON往復後に検証できる(self):
         s=汎用会話セッション('旧回答');r=s.応答('「2+3」を計算して')

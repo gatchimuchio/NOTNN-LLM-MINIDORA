@@ -156,7 +156,7 @@ HDSが能力模型照合を起動する場合も、通常MINIDORAがSUSPENDし�
 
 - `hds判断主体.py` の output-only 関門
 - `実行系_HDS_v1.py`
-- `hds統合実行系.py`
+- `HDS統合実行系.py`
 - `hds統合判断主体.py`
 - `hds能力経路_v2.py` の別formal C
 - `hds適応候補調停.py`

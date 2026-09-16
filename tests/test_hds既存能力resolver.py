@@ -10,9 +10,9 @@ from minidora.hds既存能力resolver import (
 )
 
 
-def p(source, answer=None, *, valid=True, direct=False):
+def p(情報源, answer=None, *, valid=True, direct=False):
     return 既存能力提案(
-        source,
+        情報源,
         既存提案状態.承認候補 if valid else 既存提案状態.保留,
         answer if valid else None,
         根拠成立=valid,
@@ -40,7 +40,7 @@ class ExistingResolverTest(unittest.TestCase):
         ])
         self.assertEqual(out.状態, 既存提案状態.保留)
         self.assertIsNone(out.回答)
-        self.assertIn("CANDIDATE_CONFLICT", out.残差)
+        self.assertIn('候補_CONFLICT', out.残差)
 
     def test_直接関係検証は既存強証拠として利用できる(self):
         out = 既存MINIDORA提案解決([

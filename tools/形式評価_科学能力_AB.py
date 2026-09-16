@@ -1,18 +1,6 @@
 from __future__ import annotations
 
-"""現行正式GPQA経路に既存科学専門能力だけを重ねるcontrolled A/B入口。
-
-baseline:
-    現行 ``tools/benchmark_formal.py`` の正式MINIDORA + HDS監督介入層。
-
-current:
-    baselineと同じ質問IR・同じ取得参照に対して、リポジトリ既存の
-    ``科学専門能力を通常MINIDORAへ接続`` を先に適用する。
-    科学専門能力が一意かつ絶対支持できなければ、baselineで得た同一選択結果を
-    そのまま返す。したがって差分は科学専門能力の発火だけに限定される。
-
-GPQAのgoldは ``tools/benchmark.py`` が両推論完了後に採点へだけ使う。
-"""
+'現行正式GPQA経路に既存科学専門能力だけを重ねるcontrolled A/B入口。\n\nbaseline:\n    現行 ``tools/外部評価_formal.py`` の正式MINIDORA + HDS監督介入層。\n\ncurrent:\n    baselineと同じ質問IR・同じ取得参照に対して、リポジトリ既存の\n    ``科学専門能力を通常MINIDORAへ接続`` を先に適用する。\n    科学専門能力が一意かつ絶対支持できなければ、baselineで得た同一選択結果を\n    そのまま返す。したがって差分は科学専門能力の発火だけに限定される。\n\nGPQAのgoldは ``tools/外部評価.py`` が両推論完了後に採点へだけ使う。\n'
 
 from collections import Counter
 from types import ModuleType
@@ -27,7 +15,7 @@ from minidora.科学専門能力統合 import 科学専門能力を通常MINIDOR
 
 _正式現行推論 = _formal._監督HDS選択推論実行
 _直前baseline_key = None
-_直前baseline_result = None
+_直前baseline_結果 = None
 
 
 def _pair_key(question_ir, references):
@@ -38,7 +26,7 @@ def _pair_key(question_ir, references):
 
 
 def _正式現行を実行(question_ir, references, *, コンパイル, 基礎能力核):
-    """benchmark_formalのcurrent側を明示的に実行する。"""
+    '外部評価_formalのcurrent側を明示的に実行する。'
     return _正式現行推論(
         question_ir,
         tuple(references),
@@ -51,10 +39,10 @@ def _正式現行を実行(question_ir, references, *, コンパイル, 基礎�
 
 def _baseline透過(question_ir, references, *args, **kwargs):
     """科学専門能力が不発火なら、直前baselineを同一オブジェクトで返す。"""
-    global _直前baseline_key, _直前baseline_result
+    global _直前baseline_key, _直前baseline_結果
     key = _pair_key(question_ir, references)
-    if _直前baseline_key == key and _直前baseline_result is not None:
-        return _直前baseline_result
+    if _直前baseline_key == key and _直前baseline_結果 is not None:
+        return _直前baseline_結果
 
     コンパイル = kwargs.get("コンパイル")
     基礎能力核 = kwargs.get("基礎能力核")
@@ -77,7 +65,7 @@ _科学専門能力付き推論 = _科学能力実行系.HDS選択推論実行
 
 
 def _科学専門能力AB選択推論実行(*args, **kwargs):
-    global _直前baseline_key, _直前baseline_result
+    global _直前baseline_key, _直前baseline_結果
 
     if len(args) < 2:
         raise TypeError("科学専門能力A/B経路は question_ir と references を必要とする")
@@ -102,12 +90,12 @@ def _科学専門能力AB選択推論実行(*args, **kwargs):
             基礎能力核=基礎能力核,
         )
         _直前baseline_key = key
-        _直前baseline_result = baseline
+        _直前baseline_結果 = baseline
         return baseline
 
-    if _直前baseline_key != key or _直前baseline_result is None:
+    if _直前baseline_key != key or _直前baseline_結果 is None:
         _直前baseline_key = key
-        _直前baseline_result = _正式現行を実行(
+        _直前baseline_結果 = _正式現行を実行(
             question_ir,
             references,
             コンパイル=コンパイル,
@@ -123,7 +111,7 @@ def _科学専門能力AB選択推論実行(*args, **kwargs):
         )
     finally:
         _直前baseline_key = None
-        _直前baseline_result = None
+        _直前baseline_結果 = None
 
 
 # benchmark.pyが既に参照しているgpqa名前空間だけを差し替える。
@@ -131,41 +119,41 @@ def _科学専門能力AB選択推論実行(*args, **kwargs):
 _gpqa.HDS選択推論実行 = _科学専門能力AB選択推論実行
 
 
-_original_result_payload = _benchmark._result_payload
+_original_結果_payload = _benchmark._result_payload
 
 
-def _科学solver統計(details):
+def _科学解決器統計(details):
     counts: Counter[str] = Counter()
     fired_cases = 0
-    exact_fallback_cases = 0
-    prefix = "SCIENTIFIC_CAPABILITY_SOLVER:"
+    exact_代替経路_cases = 0
+    prefix = 'SCIENTIFIC_能力_解決器:'
     for row in details:
         reasons = tuple(str(x) for x in row.get("reasons", []))
-        solver = None
+        解決器 = None
         for reason in reasons:
             if reason.startswith(prefix):
-                solver = reason[len(prefix):]
+                解決器 = reason[len(prefix):]
                 break
-        if solver is not None:
-            counts[solver] += 1
+        if 解決器 is not None:
+            counts[解決器] += 1
             fired_cases += 1
         elif (
             row.get("predicted") == row.get("baseline_predicted")
             and row.get("status") == row.get("baseline_status")
         ):
-            exact_fallback_cases += 1
-    return dict(sorted(counts.items())), fired_cases, exact_fallback_cases
+            exact_代替経路_cases += 1
+    return dict(sorted(counts.items())), fired_cases, exact_代替経路_cases
 
 
 def _科学専門能力結果構造(*args, **kwargs):
-    payload = _original_result_payload(*args, **kwargs)
+    payload = _original_結果_payload(*args, **kwargs)
     protocol = payload.setdefault("protocol", {})
     protocol["実行系"] = "current formal MINIDORA + HDS supervisory intervention layer; repo-native scientific capability controlled A/B"
-    protocol["candidate_resolution"] = (
+    protocol['候補_resolution'] = (
         "baseline=current formal MINIDORA. specialist_on=existing scientific capability may close only a uniquely and absolutely supported candidate; otherwise exact baseline result is returned"
     )
-    protocol["specialist_source"] = "existing src/minidora/科学専門能力*.py via 科学専門能力を通常MINIDORAへ接続; no new GPQA solver in this wrapper"
-    protocol["gold_boundary"] = "gold used only after baseline and specialist_on inference for scoring"
+    protocol['specialist_情報源'] = 'existing src/minidora/科学専門能力*.py via 科学専門能力を通常MINIDORAへ接続; no new GPQA 解決器 in this wrapper'
+    protocol['gold_境界'] = "gold used only after baseline and specialist_on inference for scoring"
     protocol["non_intervention_invariant"] = "scientific specialist not fired => specialist_on returns the exact baseline selection object"
     if protocol.get("統制AB"):
         protocol["controlled_ab_definition"] = (
@@ -175,11 +163,11 @@ def _科学専門能力結果構造(*args, **kwargs):
         )
 
     details = payload.get("details", [])
-    solver_counts, fired_cases, exact_fallback_cases = _科学solver統計(details)
+    解決器_counts, fired_cases, exact_代替経路_cases = _科学解決器統計(details)
     payload["scientific_specialist"] = {
         "fired_cases": fired_cases,
-        "exact_fallback_cases": exact_fallback_cases,
-        "solver_counts": solver_counts,
+        'exact_代替経路_cases': exact_代替経路_cases,
+        '解決器_counts': 解決器_counts,
     }
     return payload
 

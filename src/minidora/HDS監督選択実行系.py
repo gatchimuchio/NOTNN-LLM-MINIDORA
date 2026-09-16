@@ -27,13 +27,13 @@ from .計算実行器 import 計算実行器
 
 
 _介入不能理由 = frozenset({
-    "HDS_CHOICE_SET_INCOMPLETE",
-    "HDS_CHOICE_LABEL_DUPLICATE",
-    "HDS_CHOICE_UNRESOLVED",
-    "HDS_QUESTION_SEMANTIC_LOSS",
-    "HDS_K_QUESTION_SEMANTIC_LOSS",
-    "HDS_CHOICE_COMPILE_FAILED",
-    "HDS_CHOICE_SEMANTIC_LOSS",
+    'HDS_選択肢_SET_INCOMPLETE',
+    'HDS_選択肢_LABEL_DUPLICATE',
+    'HDS_選択肢_UNRESOLVED',
+    'HDS_QUESTION_意味_LOSS',
+    'HDS_K_QUESTION_意味_LOSS',
+    'HDS_選択肢_COMPILE_FAILED',
+    'HDS_選択肢_意味_LOSS',
 })
 
 
@@ -46,48 +46,48 @@ def _choices(ir: HDSIR) -> dict[str, str]:
     return {
         coord.座標ID.split(":", 1)[1]: str(coord.内容)
         for coord in ir.座標
-        if coord.座標ID.startswith("choice:")
+        if coord.座標ID.startswith('選択肢:')
     }
 
 
-def _approved(result: HDS選択実行結果) -> bool:
-    return bool(result.状態 == "APPROVE" and result.回答ラベル is not None)
+def _approved(結果: HDS選択実行結果) -> bool:
+    return bool(結果.状態 == "APPROVE" and 結果.回答ラベル is not None)
 
 
 def _residuals(
-    result: HDS選択実行結果,
+    結果: HDS選択実行結果,
     references: tuple[参照記録, ...],
 ) -> frozenset[残差種別]:
     """通常MINIDORAの観測結果から、HDSへ渡す異常種別だけを抽出する。
 
     APPROVE済みの通常推論はHDS介入の対象外とし、診断文字列を理由に再解釈しない。
     """
-    if _approved(result):
+    if _approved(結果):
         return frozenset()
 
-    joined = "\n".join(str(x) for x in result.理由)
+    joined = "\n".join(str(x) for x in 結果.理由)
     out: set[残差種別] = set()
-    if "QUESTION_SEMANTIC_LOSS" in joined or "HDS_K_QUESTION_SEMANTIC_LOSS" in joined:
+    if 'QUESTION_意味_LOSS' in joined or 'HDS_K_QUESTION_意味_LOSS' in joined:
         out.add(残差種別.問題意味損失)
-    if "CHOICE_SEMANTIC_LOSS" in joined:
+    if '選択肢_意味_LOSS' in joined:
         out.add(残差種別.候補意味損失)
-    if "DATA_COMPILE_PARTIAL" in joined or result.Dataコンパイル失敗数 > 0:
-        out.add(残差種別.Data意味損失)
-    if any(token in joined for token in (
-        "NO_KNOWLEDGE_EVIDENCE",
-        "NO_CANDIDATE",
+    if '資料_COMPILE_PARTIAL' in joined or 結果.資料コンパイル失敗数 > 0:
+        out.add(残差種別.資料意味損失)
+    if any(字句 in joined for 字句 in (
+        'NO_KNOWLEDGE_証拠',
+        'NO_候補',
         "MINIDORA_OUTPUT_ABSENT",
         "NO_GUESS",
-        "EVIDENCE_INSUFFICIENT",
+        '証拠_INSUFFICIENT',
     )):
         out.add(残差種別.観測不足)
-    if "AMBIGUOUS_EVIDENCE" in joined or "EXCEPTION_NOT_RESOLVED" in joined:
+    if 'AMBIGUOUS_証拠' in joined or "EXCEPTION_NOT_RESOLVED" in joined:
         out.add(残差種別.候補競合)
-    if "HDS_ACTION_DELTA_ATTACHED" in joined and "HDS_ACTION_DELTA_CONSUMED" not in joined:
+    if 'HDS_作用_DELTA_ATTACHED' in joined and 'HDS_作用_DELTA_CONSUMED' not in joined:
         out.add(残差種別.状態差未消費)
     if not references:
         out.add(残差種別.観測不足)
-    if result.状態 == "FAIL":
+    if 結果.状態 == "FAIL":
         out.add(残差種別.未解残差)
     if not out:
         out.add(残差種別.候補識別不足)
@@ -127,7 +127,7 @@ class _Session:
         self.模型核 = 模型核
         self.参照供給器 = 参照供給器
         self.計算実行器 = 計算実行器_
-        self.choice_map = _choices(question_ir)
+        self.選択肢_map = _choices(question_ir)
         self.generation = 0
         self.extra_r_level = 0
         self.compute_done = False
@@ -140,9 +140,9 @@ class _Session:
     def _normal(
         self,
         *,
-        working: bool = True,
+        作業: bool = True,
         local: bool = True,
-        formal_model: bool = True,
+        formal_模型: bool = True,
     ) -> HDS選択実行結果:
         # 追加参照・計算後も同じ統一評価入口へ戻し、初回だけ新経路になる二重構造を防ぐ。
         if self.評価実行 is not None:
@@ -163,10 +163,10 @@ class _Session:
         if self.計算実行器 is None:
             return None
         owner = getattr(self.コンパイル, "__self__", None)
-        compiler = getattr(owner, "HDSコンパイラ", None)
-        if compiler is None and callable(getattr(owner, "計算コンパイル", None)):
-            compiler = owner
-        compile_compute = getattr(compiler, "計算コンパイル", None)
+        構文化器 = getattr(owner, "HDSコンパイラ", None)
+        if 構文化器 is None and callable(getattr(owner, "計算コンパイル", None)):
+            構文化器 = owner
+        compile_compute = getattr(構文化器, "計算コンパイル", None)
         if not callable(compile_compute):
             return None
         try:
@@ -183,16 +183,16 @@ class _Session:
         return _hash(tuple((r.識別子, r.信頼, r.条件) for r in self.references))
 
     def _候補署名(self) -> str:
-        result = self.current
+        結果 = self.current
         return _hash((
-            result.状態,
-            bool(result.回答ラベル),
-            tuple(sorted(set(result.理由))),
-            result.Dataコンパイル数,
-            result.Dataコンパイル失敗数,
-            result.K証拠事実数,
-            result.checkpoint再活性数,
-            result.候補横断更新数,
+            結果.状態,
+            bool(結果.回答ラベル),
+            tuple(sorted(set(結果.理由))),
+            結果.資料コンパイル数,
+            結果.資料コンパイル失敗数,
+            結果.K証拠事実数,
+            結果.検査点再活性数,
+            結果.候補横断更新数,
         ))
 
     def residuals(self) -> frozenset[残差種別]:
@@ -205,20 +205,20 @@ class _Session:
         return tuple(reason for reason in self.current.理由 if reason in _介入不能理由)
 
     def 監督状態(self) -> HDS監督状態:
-        result = self.current
-        approved = _approved(result)
-        failed = result.状態 == "FAIL"
-        direct = "DIRECTED_RELATION_VERIFIED" in result.理由
-        evidence = bool(
-            result.K証拠事実数 > 0
-            or (result.K3結果 is not None and result.K3結果.根拠事実数 > 0)
-            or "EVIDENCE_PRESENT" in result.理由
+        結果 = self.current
+        approved = _approved(結果)
+        failed = 結果.状態 == "FAIL"
+        direct = 'DIRECTED_関係_VERIFIED' in 結果.理由
+        証拠 = bool(
+            結果.K証拠事実数 > 0
+            or (結果.K3結果 is not None and 結果.K3結果.根拠事実数 > 0)
+            or '証拠_PRESENT' in 結果.理由
         )
         return HDS監督状態(
             既存判定.承認 if approved else 既存判定.失敗 if failed else 既存判定.保留,
             approved,
             direct,
-            evidence,
+            証拠,
             self._ref_sig(),
             self._候補署名(),
             frozenset() if approved else self.residuals(),
@@ -241,7 +241,7 @@ class _Session:
 
         if self.参照供給器 is not None and residuals.intersection({
             残差種別.観測不足,
-            残差種別.Data意味損失,
+            残差種別.資料意味損失,
             残差種別.候補識別不足,
             残差種別.候補競合,
         }):
@@ -249,25 +249,25 @@ class _Session:
                 既存作用.参照取得,
                 frozenset({
                     残差種別.観測不足,
-                    残差種別.Data意味損失,
+                    残差種別.資料意味損失,
                     残差種別.候補識別不足,
                     残差種別.候補競合,
                 }),
                 f"reference:{base_sig}:level{self.extra_r_level + 1}",
                 4,
                 True,
-                ("NORMAL_MINIDORA_REFERENCE_EXPANSION_AVAILABLE",),
+                ('NORMAL_MINIDORA_参照_EXPANSION_AVAILABLE',),
             ))
         return tuple(offers)
 
-    def 作用を実行(self, action: 既存作用) -> bool:
+    def 作用を実行(self, 作用: 既存作用) -> bool:
         before = (
             self._ref_sig(),
             self._候補署名(),
             tuple(sorted(x.value for x in self.residuals())),
         )
 
-        if action == 既存作用.計算実行:
+        if 作用 == 既存作用.計算実行:
             plan = self._計算機会()
             if plan is None or self.計算実行器 is None:
                 return False
@@ -296,7 +296,7 @@ class _Session:
             self.compute_done = True
             self.generation += 1
             self.current = self._normal()
-        elif action == 既存作用.参照取得:
+        elif 作用 == 既存作用.参照取得:
             if self.参照供給器 is None:
                 return False
             self.extra_r_level += 1
@@ -309,7 +309,7 @@ class _Session:
             merged = HDS候補被覆優先統合(
                 self.references,
                 observed,
-                tuple(self.choice_map),
+                tuple(self.選択肢_map),
                 limit,
             )
             if tuple((x.識別子, x.条件) for x in merged) == tuple(
@@ -344,7 +344,7 @@ class _Session:
             "HDS_SUPERVISORY_INTERVENTION",
             f"HDS_SUPERVISORY_INTERVENTIONS:{len(records)}",
         ]
-        reasons.extend("HDS_INTERVENTION_ACTION:" + row.作用.value for row in records)
+        reasons.extend('HDS_INTERVENTION_作用:' + row.作用.value for row in records)
         reasons.extend(stop_reasons)
         return replace(
             self.current,
@@ -390,12 +390,12 @@ def HDS監督選択実行(
     stop_reasons: tuple[str, ...] = session.intervention_blockers()
 
     while not stop_reasons:
-        state = session.監督状態()
-        if state.既存判定 == 既存判定.承認 and state.出力存在:
+        状態 = session.監督状態()
+        if 状態.既存判定 == 既存判定.承認 and 状態.出力存在:
             break
 
         observation = 介入観測(
-            state,
+            状態,
             session.offers(),
             tuple(records),
             max(0, int(HDS介入予算) - len(records)),

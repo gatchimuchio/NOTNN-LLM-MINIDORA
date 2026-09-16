@@ -13,7 +13,7 @@ from .参照 import 参照供給器, 参照記録
 
 
 @dataclass(frozen=True, slots=True)
-class Replay入力問題:
+class 再生入力問題:
     識別子: str
     問題文: str
     選択肢: Mapping[str, str]
@@ -21,19 +21,19 @@ class Replay入力問題:
 
 
 @dataclass(frozen=True, slots=True)
-class Replay収録統計:
+class 再生収録統計:
     問題数: int
     選択肢コンパイル数: int
-    Data件数: int
-    Dataコンパイル数: int
-    Dataコンパイル失敗数: int
+    資料件数: int
+    資料コンパイル数: int
+    資料コンパイル失敗数: int
 
 
-def _問題IR(compiler: HDSコンパイラProtocol, problem: Replay入力問題):
-    """利用可能なら通常choice Runtimeと同じ問題IR入口を使う。"""
-    builder = getattr(compiler, "問題IR", None)
+def _問題IR(構文化器: HDSコンパイラProtocol, problem: 再生入力問題):
+    '利用可能なら通常選択肢 Runtimeと同じ問題IR入口を使う。'
+    builder = getattr(構文化器, "問題IR", None)
     if not callable(builder):
-        return compiler.コンパイル(problem.問題文)
+        return 構文化器.コンパイル(problem.問題文)
 
     ordered = tuple(sorted((str(label), str(text)) for label, text in problem.選択肢.items()))
     labels = tuple(label for label, _ in ordered)
@@ -41,78 +41,73 @@ def _問題IR(compiler: HDSコンパイラProtocol, problem: Replay入力問題)
     generated = tuple(sorted(
         coord.座標ID.split(":", 1)[1]
         for coord in question_ir.座標
-        if coord.座標ID.startswith("choice:")
+        if coord.座標ID.startswith('選択肢:')
     ))
     if generated != labels:
         raise ValueError(
-            "Replay入力の選択肢labelとCompiler問題IRのchoice labelが一致しません: "
+            '再生入力の選択肢labelと構文化器問題IRの選択肢 labelが一致しません: '
             f"input={labels}, generated={generated}"
         )
     return question_ir
 
 
 def _参照provenance(record: 参照記録) -> list[str]:
-    """通常choice Runtimeと同じ検索経路provenanceをReplayへ固定する。"""
+    '通常選択肢 Runtimeと同じ検索経路provenanceを再生へ固定する。'
     markers: list[str] = []
     for key, value in record.条件:
         k = str(key)
-        if k == "hds_query_choice":
-            markers.append("query_choice:" + str(value))
+        if k == 'hds_query_選択肢':
+            markers.append('query_選択肢:' + str(value))
         elif k == "hds_query_kind":
             markers.append("query_kind:" + str(value))
     return [record.供給器, record.由来, record.識別子, *dict.fromkeys(markers)]
 
 
-def HDSChoiceReplay収録(
-    問題群: Iterable[Replay入力問題],
+def HDS選択肢再生収録(
+    問題群: Iterable[再生入力問題],
     *,
-    compiler: HDSコンパイラProtocol,
+    構文化器: HDSコンパイラProtocol,
     provider: 参照供給器 | None,
-) -> tuple[tuple[dict[str, Any], ...], Replay収録統計]:
-    """Compiler/Rを一度だけ使い、Runtime比較用HDS-IR bundleを作る。
-
-    goldはIR生成・検索・Dataコンパイルへ渡さず、最終行へ採点情報として付与するだけ。
-    外部Dataは生文字列のまま保存せず、HDS-IR・source confidence・検索経路provenanceを保存する。
-    Compilerがchoice問題専用入口を持つ場合は通常Runtimeと同じ問題IRを固定する。
-    """
+) -> tuple[tuple[dict[str, Any], ...], 再生収録統計]:
+    '構文化器/Rを一度だけ使い、Runtime比較用HDS-IR bundleを作る。\n\n    goldはIR生成・検索・資料コンパイルへ渡さず、最終行へ採点情報として付与するだけ。\n    外部資料は生文字列のまま保存せず、HDS-IR・情報源 信頼度・検索経路provenanceを保存する。\n    構文化器が選択肢問題専用入口を持つ場合は通常Runtimeと同じ問題IRを固定する。\n    '
     rows: list[dict[str, Any]] = []
-    choice_compiled = 0
-    data_count = 0
-    data_compiled = 0
-    data_failed = 0
+    選択肢_compiled = 0
+    資料_count = 0
+    資料_compiled = 0
+    資料_failed = 0
 
     for problem in 問題群:
-        question_ir = _問題IR(compiler, problem)
-        choice_irs: dict[str, Any] = {}
+        question_ir = _問題IR(構文化器, problem)
+        選択肢_irs: dict[str, Any] = {}
         for label, text in sorted(problem.選択肢.items(), key=lambda item: str(item[0])):
-            選択中間表現 = HDS独立コンパイル(compiler, str(text))
-            choice_irs[str(label)] = HDSIR辞書化(選択中間表現)
-            choice_compiled += 1
+            選択中間表現 = HDS独立コンパイル(構文化器, str(text))
+            選択肢_irs[str(label)] = HDSIR辞書化(選択中間表現)
+            選択肢_compiled += 1
 
         references = HDS参照検索(provider, question_ir) if provider is not None else ()
-        data_rows: list[dict[str, Any]] = []
-        data_count += len(references)
+        資料_rows: list[dict[str, Any]] = []
+        資料_count += len(references)
         for record in references:
             try:
-                data_ir = HDS独立コンパイル(compiler, record.内容)
+                資料_ir = HDS独立コンパイル(構文化器, record.内容)
             except Exception:
-                data_failed += 1
+                資料_failed += 1
                 continue
-            data_compiled += 1
-            data_rows.append(
+            資料_compiled += 1
+            資料_rows.append(
                 {
                     "provenance": _参照provenance(record),
-                    "source_confidence": float(record.信頼),
-                    "ir": HDSIR辞書化(data_ir),
+                    '情報源_信頼度': float(record.信頼),
+                    "ir": HDSIR辞書化(資料_ir),
                 }
             )
 
         row: dict[str, Any] = {
-            "契約形式": "minidora.hds-choice-replay.v1",
+            "契約形式": 'minidora.hds-選択肢-再生.v1',
             "id": problem.識別子,
             "question_ir": HDSIR辞書化(question_ir),
-            "choices_ir": choice_irs,
-            "data": data_rows,
+            "choices_ir": 選択肢_irs,
+            '資料': 資料_rows,
         }
         if problem.gold is not None:
             row["gold"] = str(problem.gold)
@@ -120,17 +115,17 @@ def HDSChoiceReplay収録(
 
     return (
         tuple(rows),
-        Replay収録統計(
+        再生収録統計(
             問題数=len(rows),
-            選択肢コンパイル数=choice_compiled,
-            Data件数=data_count,
-            Dataコンパイル数=data_compiled,
-            Dataコンパイル失敗数=data_failed,
+            選択肢コンパイル数=選択肢_compiled,
+            資料件数=資料_count,
+            資料コンパイル数=資料_compiled,
+            資料コンパイル失敗数=資料_failed,
         ),
     )
 
 
-def ReplayJSONL保存(rows: Iterable[Mapping[str, Any]], path: str | Path) -> None:
+def 再生JSONL保存(rows: Iterable[Mapping[str, Any]], path: str | Path) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     with target.open("w", encoding="utf-8", newline="\n") as handle:
@@ -139,8 +134,8 @@ def ReplayJSONL保存(rows: Iterable[Mapping[str, Any]], path: str | Path) -> No
 
 
 __all__ = [
-    "Replay入力問題",
-    "Replay収録統計",
-    "HDSChoiceReplay収録",
-    "ReplayJSONL保存",
+    '再生入力問題',
+    '再生収録統計',
+    'HDS選択肢再生収録',
+    '再生JSONL保存',
 ]

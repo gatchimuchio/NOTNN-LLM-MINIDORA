@@ -18,8 +18,8 @@ def qir() -> HDSIR:
         正規化文="Q",
         認知世界ID="q",
         座標=(
-            HDS座標("choice:A", "choice", "alpha"),
-            HDS座標("choice:B", "choice", "beta"),
+            HDS座標('選択肢:A', '選択肢', "alpha"),
+            HDS座標('選択肢:B', '選択肢', "beta"),
         ),
         関係=(),
         残差=(),
@@ -39,8 +39,8 @@ def 結果(status="SUSPEND", label=None, reasons=(), proof=0):
         理由=tuple(reasons),
         K3結果=k3,
         候補コンパイル数=2,
-        Dataコンパイル数=0,
-        Dataコンパイル失敗数=0,
+        資料コンパイル数=0,
+        資料コンパイル失敗数=0,
         K追加事実数=0,
         K証拠事実数=proof,
         K証拠阻害事実数=0,
@@ -52,7 +52,7 @@ class _StopControl:
         return HDS指令(HDS指令種別.停止要求, 理由=("TEST_STOP",))
 
 
-class _計算Compiler:
+class _計算構文化器:
     def 計算コンパイル(self, _text):
         return SimpleNamespace(
             参照必須=False,
@@ -63,18 +63,18 @@ class _計算Compiler:
 
 class _CompileOwner:
     def __init__(self):
-        self.HDSコンパイラ = _計算Compiler()
+        self.HDSコンパイラ = _計算構文化器()
 
     def コンパイル(self, _text):
         return qir()
 
 
 class _計算実行器:
-    def 計算実行(self, _ir, _state):
+    def 計算実行(self, _ir, _状態):
         return SimpleNamespace(出力=2)
 
 
-class SupervisoryChoiceRuntimeTest(unittest.TestCase):
+class Supervisory選択肢RuntimeTest(unittest.TestCase):
     @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
     def test_初期APPROVEは完全透過で再評価しない(self, mock_normal):
         initial = 結果("APPROVE", "A", ("NORMAL_MINIDORA",), proof=2)
@@ -88,7 +88,7 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
 
     @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
     def test_HDSなしはSUSPENDも完全透過(self, mock_normal):
-        initial = 結果("SUSPEND", None, ("AMBIGUOUS_EVIDENCE",))
+        initial = 結果("SUSPEND", None, ('AMBIGUOUS_証拠',))
         out = HDS監督選択実行(
             qir(), (), コンパイル=lambda x: qir(), 基礎能力核=None,
             模型核=標準能力模型核(), HDS制御=None, 初期選択=initial,
@@ -99,8 +99,8 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
 
     @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
     def test_閉包済み計算IRがある時だけ汎用計算を起動して通常MINIDORAへ戻す(self, mock_normal):
-        initial = 結果("SUSPEND", None, ("NO_KNOWLEDGE_EVIDENCE",))
-        mock_normal.return_value = 結果("APPROVE", "B", ("EVIDENCE_PRESENT",), proof=3)
+        initial = 結果("SUSPEND", None, ('NO_KNOWLEDGE_証拠',))
+        mock_normal.return_value = 結果("APPROVE", "B", ('証拠_PRESENT',), proof=3)
         owner = _CompileOwner()
         out = HDS監督選択実行(
             qir(), (), コンパイル=owner.コンパイル, 基礎能力核=None,
@@ -121,24 +121,24 @@ class SupervisoryChoiceRuntimeTest(unittest.TestCase):
     @patch("minidora.HDS監督選択実行系.HDS追加参照検索")
     @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
     def test_観測不足時だけ参照を広げて通常MINIDORAを再実行(self, mock_normal, mock_extra):
-        initial = 結果("SUSPEND", None, ("NO_KNOWLEDGE_EVIDENCE",))
-        extra = 参照記録("extra", "extra", "evidence", "fixture://extra", "fixture")
+        initial = 結果("SUSPEND", None, ('NO_KNOWLEDGE_証拠',))
+        extra = 参照記録("extra", "extra", '証拠', "fixture://extra", "fixture")
         mock_extra.return_value = (extra,)
-        mock_normal.return_value = 結果("APPROVE", "A", ("EVIDENCE_PRESENT",), proof=1)
+        mock_normal.return_value = 結果("APPROVE", "A", ('証拠_PRESENT',), proof=1)
         out = HDS監督選択実行(
             qir(), (), コンパイル=lambda x: qir(), 基礎能力核=None,
             模型核=標準能力模型核(), 参照供給器=object(),
             HDS制御=標準HDS介入制御(), 初期選択=initial,
         )
         self.assertEqual(out.選択.回答ラベル, "A")
-        self.assertEqual(out.HDS作用, ("REFERENCE",))
+        self.assertEqual(out.HDS作用, ('参照',))
         self.assertEqual(out.参照, (extra,))
         mock_extra.assert_called_once()
         mock_normal.assert_called_once()
 
     @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
     def test_STOPだけなら初期SUSPENDを改変しない(self, mock_normal):
-        initial = 結果("SUSPEND", None, ("AMBIGUOUS_EVIDENCE",))
+        initial = 結果("SUSPEND", None, ('AMBIGUOUS_証拠',))
         out = HDS監督選択実行(
             qir(), (), コンパイル=lambda x: qir(), 基礎能力核=None,
             模型核=標準能力模型核(), HDS制御=_StopControl(), 初期選択=initial,

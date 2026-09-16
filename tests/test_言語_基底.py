@@ -34,16 +34,16 @@ class 言語基底P試験(unittest.TestCase):
     def test_基底文法と基底P概念を世界知識と分けて保持する(self) -> None:
         self.assertEqual(標準言語基底P.文法機能("は"), "主題")
         self.assertEqual(標準言語基底P.文法機能("if"), "条件")
-        relation = 標準言語基底P.語彙知識("因果")
-        self.assertIsNotNone(relation)
-        self.assertEqual(relation.区分, "関係")
+        関係 = 標準言語基底P.語彙知識("因果")
+        self.assertIsNotNone(関係)
+        self.assertEqual(関係.区分, "関係")
         self.assertIsNone(標準言語基底P.語彙知識("東京都の人口"))
 
-    def test_HDS_Compilerが同じ言語基底Pを保持する(self) -> None:
-        compiler = 公開HDSコンパイラ()
-        self.assertIs(compiler.言語基底P, 標準言語基底P)
-        self.assertEqual(compiler.コンパイル("猫").入力言語, "ja")
-        self.assertEqual(compiler.コンパイル("What is a cat?").入力言語, "en")
+    def test_HDS_構文化器が同じ言語基底Pを保持する(self) -> None:
+        構文化器 = 公開HDSコンパイラ()
+        self.assertIs(構文化器.言語基底P, 標準言語基底P)
+        self.assertEqual(構文化器.コンパイル("猫").入力言語, "ja")
+        self.assertEqual(構文化器.コンパイル("What is a cat?").入力言語, "en")
 
     def test_ミニドラ意味処理が一文字漢字を意味記号として保持する(self) -> None:
         self.assertIn("猫", 意味語("猫"))

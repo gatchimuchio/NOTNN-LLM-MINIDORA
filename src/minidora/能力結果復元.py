@@ -24,7 +24,7 @@ def 能力結果を復元(raw: dict) -> 能力結果:
                 raise ValueError("公開時刻型不正")
             item["公開時刻"] = datetime.fromisoformat(item["公開時刻"])
         refs.append(参照資料(**item))
-    result = 能力結果(raw["成立"], raw["本文"], tuple(raw["根拠"]), tuple(refs),
+    結果 = 能力結果(raw["成立"], raw["本文"], tuple(raw["根拠"]), tuple(refs),
                         deepcopy(raw["データ"]), raw["保留理由"])
-    _結果辞書(result)
-    return result
+    _結果辞書(結果)
+    return 結果

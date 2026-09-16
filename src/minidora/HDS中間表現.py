@@ -114,8 +114,8 @@ class HDSIR:
         reasons: list[str] = []
         if self.手順 is None:
             reasons.append("実行手順未閉包")
-        if any(r.種別 == "semantic_loss" for r in self.残差):
-            reasons.append("semantic_loss残差")
+        if any(r.種別 == '意味_loss' for r in self.残差):
+            reasons.append('意味_loss残差')
 
         coordinates = self.座標辞書()
         for coordinate_id in self.実行核.入力座標:

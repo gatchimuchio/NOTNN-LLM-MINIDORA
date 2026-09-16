@@ -68,10 +68,10 @@ def 命題を読む(text: str, *, 最大候補=8) -> tuple[命題候補, ...]:
         inside = _外側(s)
         if inside is not None:
             return parse(inside, variables, depth + 1)
-        context = re.fullmatch(r'(?:時点「([^「」]+)」では|([0-9]{4})年では)([（(].*[）)])', s, re.S)
-        if context:
-            time = context[1] or context[2] + '年'
-            return tuple(文脈を付す(e, 時点=time) for e in parse(context[3], variables, depth + 1))
+        文脈 = re.fullmatch(r'(?:時点「([^「」]+)」では|([0-9]{4})年では)([（(].*[）)])', s, re.S)
+        if 文脈:
+            time = 文脈[1] or 文脈[2] + '年'
+            return tuple(文脈を付す(e, 時点=time) for e in parse(文脈[3], variables, depth + 1))
         modal = re.fullmatch(r'(可能性として|義務として)([（(].*[）)])', s, re.S)
         if modal:
             mood = '可能' if modal[1] == '可能性として' else '義務'
@@ -136,11 +136,11 @@ def 命題を読む(text: str, *, 最大候補=8) -> tuple[命題候補, ...]:
         endings = '|'.join(re.escape(v) for v in sorted((*肯定語尾, *否定語尾), key=len, reverse=True))
         categorical = re.fullmatch(r'(すべての|一部の)(.+?)は(.+?)(' + endings + ')', s)
         if categorical:
-            quantifier, subject, predicate, end = categorical.groups()
-            subject, predicate = _名(subject), _名(predicate)
+            quantifier, 主体, predicate, end = categorical.groups()
+            主体, predicate = _名(主体), _名(predicate)
             var = '_対象' + str(depth)
             t = 命題項(var, '変数')
-            left, right = 原子(subject, t), 原子(predicate, t)
+            left, right = 原子(主体, t), 原子(predicate, t)
             negative = end in 否定語尾
             if quantifier == '一部の':
                 return (結合('存在', 結合('連言', left, 反対(right) if negative else right), 変数=var),)
@@ -150,11 +150,11 @@ def 命題を読む(text: str, *, 最大候補=8) -> tuple[命題候補, ...]:
             return (universal,)
         copula = re.fullmatch(r'(.+?)は(.+?)(' + endings + ')', s)
         if copula:
-            subject, predicate, end = copula.groups()
-            subject, predicate = _名(subject), _名(predicate)
-            if subject in ('それ', 'これ', 'あれ', '彼', '彼女', '同者', '私', 'わたし'):
+            主体, predicate, end = copula.groups()
+            主体, predicate = _名(主体), _名(predicate)
+            if 主体 in ('それ', 'これ', 'あれ', '彼', '彼女', '同者', '私', 'わたし'):
                 raise ValueError('命題の指示対象を明示する')
-            atom = 原子(predicate, 命題項(subject, '変数' if subject in variables else '定数'))
+            atom = 原子(predicate, 命題項(主体, '変数' if 主体 in variables else '定数'))
             return (反対(atom) if end in 否定語尾 else atom,)
         functional = re.fullmatch(r'([^()（）]+)[(（]([^()（）]*)[)）]', s)
         if functional:

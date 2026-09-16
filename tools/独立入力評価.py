@@ -141,8 +141,8 @@ def main():
     parser.add_argument('--入力',type=Path,required=True)
     parser.add_argument('--出力',type=Path,required=True)
     args=parser.parse_args()
-    rows,data_hash=ケースを読む(args.入力)
-    report={'版':評価版,'入力SHA256':data_hash,'ソース':ソース指紋(),
+    rows,資料_hash=ケースを読む(args.入力)
+    report={'版':評価版,'入力SHA256':資料_hash,'ソース':ソース指紋(),
         '環境':{'Python':platform.python_version(),'OS':platform.system()},
         '評価UTC':datetime.now(timezone.utc).isoformat(),
         '外部汎化認定':False,

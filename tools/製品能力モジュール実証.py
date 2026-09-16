@@ -18,7 +18,7 @@ def 模型核():
             def 応答(self,q): return "未対応"
         return 代替経路()
 
-NEWS=(参照資料("n1","新制度発表","source","https://example/1",datetime.now(timezone.utc),"新制度が発表された。来月開始する。"),)
+NEWS=(参照資料("n1","新制度発表",'情報源',"https://example/1",datetime.now(timezone.utc),"新制度が発表された。来月開始する。"),)
 KNOW=(参照資料("k1","富士山","Wikipedia","https://example/fuji",None,"富士山は日本最高峰で標高3776メートル。"),)
 CASES=(
     Case("算術","(12+8)*3","calc",lambda r:"60" in r.本文),
@@ -32,12 +32,12 @@ CASES=(
 def run(on:bool):
     app=製品ミニドラ(基礎ミニドラ=模型核(),ニュース供給器=固定ニュース供給器(NEWS),知識供給器=固定知識供給器(KNOW))
     if not on:
-        for name in tuple(x for x in app.能力一覧() if x not in {"基礎Core","完全経路監査"}): app.Module解除(name)
+        for name in tuple(x for x in app.能力一覧() if x not in {'基礎模型核',"完全経路監査"}): app.モジュール解除(name)
     rows=[]; passed=0
     for c in CASES:
-        r=app.応答(c.prompt,セッションID=c.session); ok=bool(c.check(r)); passed+=int(ok); rows.append({"case":c.name,"ok":ok,"route":r.経路,"response":r.本文[:180]})
-    return {"module_on":on,"passed":passed,"total":len(CASES),"rows":rows}
+        r=app.応答(c.prompt,セッションID=c.session); ok=bool(c.check(r)); passed+=int(ok); rows.append({"case":c.name,"ok":ok,'経路':r.経路,"response":r.本文[:180]})
+    return {'モジュール_on':on,"passed":passed,"total":len(CASES),"rows":rows}
 
 if __name__=="__main__":
-    off=run(False); on=run(True); report={"module_off":off,"module_on":on,"delta":on["passed"]-off["passed"]}
+    off=run(False); on=run(True); report={'モジュール_off':off,'モジュール_on':on,"delta":on["passed"]-off["passed"]}
     print(json.dumps(report,ensure_ascii=False,indent=2))

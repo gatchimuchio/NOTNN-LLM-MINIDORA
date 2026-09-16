@@ -68,8 +68,8 @@ def _det3(a):
 def _density(a) -> bool:
     if not _hermitian(a):
         return False
-    trace = sum(a[i][i] for i in range(3))
-    if not _close(trace, 1):
+    追跡 = sum(a[i][i] for i in range(3))
+    if not _close(追跡, 1):
         return False
     if any(a[i][i].real < -1e-9 or abs(a[i][i].imag) > 1e-9 for i in range(3)):
         return False
@@ -85,16 +85,16 @@ def 解決(question: str, choices: Sequence[str]):
     s = question.casefold()
     if 'quantum mechanics' not in s or 'matrices' not in s:
         return None
-    if not any('e^x' in str(choice).casefold().replace(' ', '') for choice in choices):
+    if not any('e^x' in str(選択肢).casefold().replace(' ', '') for 選択肢 in choices):
         return None
     x = _matrix(question, 'X')
     y = _matrix(question, 'Y')
     if x is None or y is None or not _antihermitian(x) or not _density(y):
         return None
     hits = []
-    for i, choice in enumerate(choices):
-        c = str(choice).casefold().replace(' ', '')
-        if 'e^x' in c and 'y' in c and 'e^{-x}' in c and ('quantumstate' in c or 'state' in c):
+    for i, 選択肢 in enumerate(choices):
+        c = str(選択肢).casefold().replace(' ', '')
+        if 'e^x' in c and 'y' in c and 'e^{-x}' in c and ('quantumstate' in c or '状態' in c):
             hits.append(i)
     return _結果(
         hits[0] if len(hits) == 1 else None,

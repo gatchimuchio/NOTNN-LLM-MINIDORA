@@ -17,22 +17,22 @@ def _ir() -> HDSIR:
     return HDSIR(
         原文="Which process involving ProteinX under severe hypoxic stress is correct?",
         正規化文="Which process involving ProteinX under severe hypoxic stress is correct?",
-        認知世界ID="capability-route-v2",
+        認知世界ID='能力-経路-v2',
         座標=(
             HDS座標("protein", "対象.実体", "ProteinX"),
-            HDS座標("relation", "関係.述語表層", "activates"),
-            HDS座標("state", "状態.環境", "severe hypoxic stress"),
-            HDS座標("choice:A", "目的.候補", "catalysis"),
-            HDS座標("choice:B", "目的.候補", "transport"),
-            HDS座標("choice:C", "目的.候補", "folding"),
-            HDS座標("choice:D", "目的.候補", "signaling"),
+            HDS座標('関係', "関係.述語表層", "activates"),
+            HDS座標('状態', "状態.環境", "severe hypoxic stress"),
+            HDS座標('選択肢:A', "目的.候補", "catalysis"),
+            HDS座標('選択肢:B', "目的.候補", "transport"),
+            HDS座標('選択肢:C', "目的.候補", "folding"),
+            HDS座標('選択肢:D', "目的.候補", "signaling"),
         ),
         関係=(),
         残差=(),
         意味作用履歴=(),
         実行核=HDS実行核("参照回答"),
         参照必須=True,
-        種別="knowledge_choice",
+        種別='knowledge_選択肢',
         入力言語="en",
     )
 
@@ -41,7 +41,7 @@ def _問合せ選択肢(record: 参照記録) -> frozenset[str]:
     return frozenset(
         str(value)
         for key, value in record.条件
-        if str(key) == "hds_query_choice"
+        if str(key) == 'hds_query_選択肢'
     )
 
 
@@ -69,9 +69,9 @@ class _CoverageProvider:
         payload = mapping.get(query)
         if payload is None:
             return ()
-        source_id, content = payload
+        情報源_id, content = payload
         return (
-            参照記録(source_id, "ProteinX", content, f"fixture://{source_id}", self.名称, 0.82),
+            参照記録(情報源_id, "ProteinX", content, f"fixture://{情報源_id}", self.名称, 0.82),
         )
 
 
@@ -94,7 +94,7 @@ class HDS能力経路V2試験(unittest.TestCase):
         ):
             self.assertIn(query, provider.calls)
 
-    def test_同一sourceの複数候補queryは独立sourceへ増やさない(self) -> None:
+    def test_同一情報源の複数候補queryは独立情報源へ増やさない(self) -> None:
         provider = _CoverageProvider(shared_ab=True)
         records = HDS参照検索V2(provider, _ir(), 上限=4, 一問合せ上限=1, 最大問合せ並列=1)
 
@@ -106,27 +106,27 @@ class HDS能力経路V2試験(unittest.TestCase):
             coverage.update(_問合せ選択肢(record))
         self.assertEqual(coverage, set("ABCD"))
 
-    def test_local_viewは同source置換でconfidenceとprovenanceを保持する(self) -> None:
+    def test_local_viewは同情報源置換で信頼度とprovenanceを保持する(self) -> None:
         question = HDSIR(
             原文="Which ProteinX mechanism is correct?",
             正規化文="Which ProteinX mechanism is correct?",
             認知世界ID="local-view",
             座標=(
                 HDS座標("protein", "対象.実体", "ProteinX"),
-                HDS座標("choice:A", "目的.候補", "alpha signaling"),
-                HDS座標("choice:B", "目的.候補", "beta transport"),
-                HDS座標("choice:C", "目的.候補", "gamma folding"),
-                HDS座標("choice:D", "目的.候補", "delta catalysis"),
+                HDS座標('選択肢:A', "目的.候補", "alpha signaling"),
+                HDS座標('選択肢:B', "目的.候補", "beta transport"),
+                HDS座標('選択肢:C', "目的.候補", "gamma folding"),
+                HDS座標('選択肢:D', "目的.候補", "delta catalysis"),
             ),
             関係=(),
             残差=(),
             意味作用履歴=(),
             実行核=HDS実行核("参照回答"),
             参照必須=True,
-            種別="knowledge_choice",
+            種別='knowledge_選択肢',
             入力言語="en",
         )
-        reference = 参照記録(
+        参照 = 参照記録(
             "doi:test",
             "ProteinX",
             "ProteinX mechanism compares alpha signaling and beta transport in a broad overview. "
@@ -134,22 +134,22 @@ class HDS能力経路V2試験(unittest.TestCase):
             "fixture://doi-test",
             "fixture",
             0.82,
-            条件=(("hds_query_kind", "choice"), ("hds_query_choice", "B")),
+            条件=(("hds_query_kind", '選択肢'), ('hds_query_選択肢', "B")),
         )
 
-        projected, changed = HDS局所観測view(question, (reference,))
+        projected, changed = HDS局所観測view(question, (参照,))
 
         self.assertEqual(changed, 1)
         self.assertEqual(len(projected), 1)
-        self.assertEqual(projected[0].識別子, reference.識別子)
+        self.assertEqual(projected[0].識別子, 参照.識別子)
         self.assertEqual(projected[0].信頼, 0.82)
-        self.assertIn(("hds_query_choice", "B"), projected[0].条件)
+        self.assertIn(('hds_query_選択肢', "B"), projected[0].条件)
         self.assertIn(("hds_observation_view", "local"), projected[0].条件)
-        self.assertNotEqual(projected[0].内容, reference.内容)
+        self.assertNotEqual(projected[0].内容, 参照.内容)
 
-    def test_v2模型核は同Data候補縮小再投票を行わない(self) -> None:
-        core = HDS能力模型核V2()
-        result = core.評価言語状態(
+    def test_v2模型核は同資料候補縮小再投票を行わない(self) -> None:
+        模型核 = HDS能力模型核V2()
+        結果 = 模型核.評価言語状態(
             言語状態("which"),
             (
                 成立候補("A", 言語状態("alpha common x")),
@@ -162,11 +162,11 @@ class HDS能力経路V2試験(unittest.TestCase):
             ),
         )
 
-        self.assertEqual(result.統計.checkpoint再活性数, 0)
-        self.assertEqual(result.統計.大域再照合数, 0)
-        self.assertEqual(result.統計.候補横断更新数, 0)
-        self.assertEqual(result.統計.再作用回数, 0)
-        self.assertFalse(any(cp.段階.startswith("RECONCILE_") for cp in result.checkpoint))
+        self.assertEqual(結果.統計.検査点再活性数, 0)
+        self.assertEqual(結果.統計.大域再照合数, 0)
+        self.assertEqual(結果.統計.候補横断更新数, 0)
+        self.assertEqual(結果.統計.再作用回数, 0)
+        self.assertFalse(any(cp.段階.startswith("RECONCILE_") for cp in 結果.検査点))
 
 
 if __name__ == "__main__":

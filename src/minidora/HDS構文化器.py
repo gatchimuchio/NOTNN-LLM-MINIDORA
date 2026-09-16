@@ -133,10 +133,10 @@ def _条件表層除去(text: str, conditions: tuple[str, ...]) -> str:
     return value
 
 
-def _関係検索述語(kind: str, surface: str, language: str, *, reverse: bool) -> str:
+def _関係検索述語(kind: str, surface: str, 言語: str, *, reverse: bool) -> str:
     if not reverse:
         return " ".join(str(surface).split()).strip()
-    table = _日本語検索述語 if str(language).casefold().startswith("ja") else _英語検索述語
+    table = _日本語検索述語 if str(言語).casefold().startswith("ja") else _英語検索述語
     return table.get(kind, " ".join(str(surface).split()).strip())
 
 
@@ -150,12 +150,7 @@ class 公開HDSコンパイラ方針:
 
 
 class 公開HDSコンパイラ:
-    """MINIDORA公開標準HDS Compiler。
-
-    HDS本体の導出規則ではなく、自然言語を公開HDS-IR契約へ有限射影する実装。
-    内部の役割名・状態名・関係名は日本語を正本とし、外部入力の表層語は検索・出典照合の
-    精度を落とさないため必要な範囲で原言語を保持する。
-    """
+    'MINIDORA公開標準HDS 構文化器。\n\n    HDS本体の導出規則ではなく、自然言語を公開HDS-IR契約へ有限射影する実装。\n    内部の役割名・状態名・関係名は日本語を正本とし、外部入力の表層語は検索・出典照合の\n    精度を落とさないため必要な範囲で原言語を保持する。\n    '
 
     並列安全 = True
     基底言語 = "ja"
@@ -196,8 +191,8 @@ class 公開HDSコンパイラ:
     def _ordered_terms(text: str) -> tuple[str, ...]:
         out: list[str] = []
         seen: set[str] = set()
-        for token in _語.findall(text):
-            for term in sorted(意味語(token)):
+        for 字句 in _語.findall(text):
+            for term in sorted(意味語(字句)):
                 key = term.casefold()
                 if not term or key in seen:
                     continue
@@ -217,11 +212,11 @@ class 公開HDSコンパイラ:
     ) -> HDSIR:
         raw = str(入力)
         normalized = self._正規化(raw)
-        language = self._入力言語(normalized)
+        言語 = self._入力言語(normalized)
         coords: list[HDS座標] = [
-            HDS座標("src", "source_text", raw, 由来="公開HDS Compiler"),
-            HDS座標("normalized", "language.normalized", normalized, 由来="公開HDS Compiler"),
-            HDS座標("language", "文脈.言語", language, 由来="公開HDS Compiler"),
+            HDS座標("src", '情報源_text', raw, 由来='公開HDS 構文化器'),
+            HDS座標("normalized", '言語.normalized', normalized, 由来='公開HDS 構文化器'),
+            HDS座標('言語', "文脈.言語", 言語, 由来='公開HDS 構文化器'),
         ]
         relations: list[HDS関係] = []
         residuals: list[HDS残差] = []
@@ -237,9 +232,9 @@ class 公開HDSコンパイラ:
             )
         ]
         coordinate_index: dict[tuple[str, str], str] = {
-            ("source_text", raw): "src",
-            ("language.normalized", normalized): "normalized",
-            ("文脈.言語", language): "language",
+            ('情報源_text', raw): "src",
+            ('言語.normalized', normalized): "normalized",
+            ("文脈.言語", 言語): '言語',
         }
         counters: dict[str, int] = {}
 
@@ -247,8 +242,8 @@ class 公開HDSコンパイラ:
             kind: str,
             content: object,
             *,
-            state: 値状態 = 値状態.確定,
-            origin: str = "公開HDS Compiler",
+            状態: 値状態 = 値状態.確定,
+            origin: str = '公開HDS 構文化器',
         ) -> str:
             value = " ".join(str(content).split()).strip()
             key = (kind, value)
@@ -259,7 +254,7 @@ class 公開HDSコンパイラ:
             counters[prefix] = index + 1
             cid = f"{prefix}:{index}"
             coordinate_index[key] = cid
-            coords.append(HDS座標(cid, kind, value, state, 由来=origin))
+            coords.append(HDS座標(cid, kind, value, 状態, 由来=origin))
             return cid
 
         focus = self._焦点(normalized)
@@ -286,72 +281,72 @@ class 公開HDSコンパイラ:
                 condition_surfaces.append(condition)
                 add_coord("条件.前提", condition)
 
-        relation_count = 0
+        関係_count = 0
 
-        def 関係を追加(kind: str, subject: str, predicate_surface: str, object_: str, *, reverse: bool = False) -> None:
-            nonlocal relation_count
-            if relation_count >= self.方針.最大関係数:
+        def 関係を追加(kind: str, 主体: str, predicate_surface: str, object_: str, *, reverse: bool = False) -> None:
+            nonlocal 関係_count
+            if 関係_count >= self.方針.最大関係数:
                 return
-            subject = _条件表層除去(subject, tuple(condition_surfaces)).strip(" ,;:。！？")
+            主体 = _条件表層除去(主体, tuple(condition_surfaces)).strip(" ,;:。！？")
             object_ = _条件表層除去(object_, tuple(condition_surfaces)).strip(" ,;:。！？")
             predicate_surface = predicate_surface.strip()
-            if not subject or not object_ or not predicate_surface:
+            if not 主体 or not object_ or not predicate_surface:
                 return
             if reverse:
-                subject, object_ = object_, subject
+                主体, object_ = object_, 主体
 
-            subject_unknown, subject_type = _未知端点(subject)
-            object_unknown, object_type = _未知端点(object_)
-            if subject_unknown and object_unknown:
+            主体_未知, 主体_type = _未知端点(主体)
+            object_未知, object_type = _未知端点(object_)
+            if 主体_未知 and object_未知:
                 residuals.append(
                     HDS残差(
-                        f"residual:relation:{relation_count}",
+                        f"residual:relation:{関係_count}",
                         "未解関係両端",
-                        f"{subject} {predicate_surface} {object_}",
+                        f"{主体} {predicate_surface} {object_}",
                         "関係の始点と終点がともに未観測",
                         解消条件=("Rまたは文脈で少なくとも一方の端点を確定する",),
                     )
                 )
-                relation_count += 1
+                関係_count += 1
                 return
 
-            query_predicate = _関係検索述語(kind, predicate_surface, language, reverse=reverse)
-            relation_conditions: list[str] = [f"検索述語={query_predicate}"]
-            relation_state = 値状態.確定
+            query_predicate = _関係検索述語(kind, predicate_surface, 言語, reverse=reverse)
+            関係_conditions: list[str] = [f"検索述語={query_predicate}"]
+            関係_状態 = 値状態.確定
 
-            if subject_unknown:
-                sid = add_coord("目的.未知始点", subject_type or "未特定", state=値状態.未観測)
+            if 主体_未知:
+                sid = add_coord("目的.未知始点", 主体_type or "未特定", 状態=値状態.未観測)
                 add_coord("目的.不足位置", "始点")
-                if subject_type:
-                    add_coord("目的.要求型", subject_type)
+                if 主体_type:
+                    add_coord("目的.要求型", 主体_type)
                 oid = add_coord("対象.終点", object_)
-                relation_conditions.append("不足位置=始点")
-                relation_state = 値状態.未観測
-            elif object_unknown:
-                sid = add_coord("対象.始点", subject)
-                oid = add_coord("目的.未知終点", object_type or "未特定", state=値状態.未観測)
+                関係_conditions.append("不足位置=始点")
+                関係_状態 = 値状態.未観測
+            elif object_未知:
+                sid = add_coord("対象.始点", 主体)
+                oid = add_coord("目的.未知終点", object_type or "未特定", 状態=値状態.未観測)
                 add_coord("目的.不足位置", "終点")
                 if object_type:
                     add_coord("目的.要求型", object_type)
-                relation_conditions.append("不足位置=終点")
-                relation_state = 値状態.未観測
+                関係_conditions.append("不足位置=終点")
+                関係_状態 = 値状態.未観測
             else:
-                sid = add_coord("対象.始点", subject)
+                sid = add_coord("対象.始点", 主体)
                 oid = add_coord("対象.終点", object_)
 
             add_coord("関係.述語", predicate_surface)
             relations.append(
                 HDS関係(
-                    f"rel:{relation_count}",
+                    f"rel:{関係_count}",
                     (sid,),
                     (oid,),
                     kind,
-                    条件=tuple(relation_conditions),
-                    値状態=relation_state,
-                    由来="公開HDS Compiler",
+                    条件=tuple(関係_conditions),
+                    値状態=関係_状態,
+                    由来='公開HDS 構文化器',
                 )
             )
-            relation_count += 1
+            関係_count += 1
 
         symbol_map = {
             "→": "方向",
@@ -384,47 +379,47 @@ class 公開HDSコンパイラ:
                         (unit_id,),
                         "数量単位",
                         値状態=値状態.確定,
-                        由来="公開HDS Compiler",
+                        由来='公開HDS 構文化器',
                     )
                 )
 
-        role_terms: set[str] = set()
+        役割_terms: set[str] = set()
         for coord in coords:
             if coord.種別.startswith(("対象.", "関係.", "条件.", "状態.", "属性.", "値.", "目的.")):
-                role_terms.update(意味語(coord.内容))
+                役割_terms.update(意味語(coord.内容))
 
         topic_count = 0
         for term in self._ordered_terms(normalized):
-            if term in role_terms:
+            if term in 役割_terms:
                 continue
             add_coord("対象.主題語", term)
             topic_count += 1
             if topic_count >= self.方針.最大主題語数:
                 break
 
-        context_focus = getattr(文脈, "現在焦点", None) if 文脈 is not None else 前回結果
+        文脈_focus = getattr(文脈, "現在焦点", None) if 文脈 is not None else 前回結果
         coreference = _共参照.search(normalized)
-        context_refs: tuple[str, ...] = ()
+        文脈_refs: tuple[str, ...] = ()
         if coreference:
-            if context_focus is not None:
-                ref_id = add_coord("文脈.参照先", context_focus, state=値状態.推定)
-                pronoun_id = add_coord("文脈.指示語", coreference.group(0), state=値状態.推定)
+            if 文脈_focus is not None:
+                ref_id = add_coord("文脈.参照先", 文脈_focus, 状態=値状態.推定)
+                pronoun_id = add_coord("文脈.指示語", coreference.group(0), 状態=値状態.推定)
                 relations.append(
                     HDS関係(
-                        "context:coreference",
+                        '文脈:coreference',
                         (pronoun_id,),
                         (ref_id,),
                         "共参照",
                         値状態=値状態.推定,
-                        由来="公開HDS Compiler",
+                        由来='公開HDS 構文化器',
                     )
                 )
                 if 文脈 is not None:
-                    context_refs = tuple(str(x) for x in getattr(文脈, "記憶引用", ()) if str(x))
+                    文脈_refs = tuple(str(x) for x in getattr(文脈, "記憶引用", ()) if str(x))
             else:
                 residuals.append(
                     HDS残差(
-                        "residual:coreference",
+                        '残差:coreference',
                         "未解共参照",
                         coreference.group(0),
                         "参照先文脈が存在しない",
@@ -445,11 +440,11 @@ class 公開HDSコンパイラ:
             )
         )
 
-        plan = self._legacy.計画(normalized, 文脈参照=context_focus)
+        plan = self._legacy.計画(normalized, 文脈参照=文脈_focus)
         return HDSIR(
             原文=raw,
             正規化文=normalized,
-            認知世界ID="minidora:public-hds-compiler",
+            認知世界ID='minidora:public-hds-構文化器',
             座標=tuple(coords),
             関係=tuple(dict.fromkeys(relations)),
             残差=tuple(residuals),
@@ -459,7 +454,7 @@ class 公開HDSコンパイラ:
                 (),
                 "結果",
                 境界=("HDS-IR", "日本語基底"),
-                検証=("公開Compiler",),
+                検証=('公開構文化器',),
             ),
             初期状態=dict(plan.初期状態),
             参照必須=bool(plan.参照必須),
@@ -469,18 +464,18 @@ class 公開HDSコンパイラ:
             保持状態="全領域有効",
             暫定性状態="原則暫定",
             手順=plan.手順,
-            入力言語=language,
-            出力言語=language,
-            文脈引用=context_refs,
+            入力言語=言語,
+            出力言語=言語,
+            文脈引用=文脈_refs,
         )
 
     def 問題IR(self, question: str, choices: Sequence[str]) -> HDSIR:
         if len(choices) < 2:
             raise ValueError("選択問題には2件以上の候補が必要")
         if len(choices) > 26:
-            raise ValueError("公開Compilerの選択ラベル上限は26件")
+            raise ValueError('公開構文化器の選択ラベル上限は26件')
         base = self.コンパイル(question)
-        choice_coords = tuple(
+        選択肢_coords = tuple(
             HDS座標(
                 f"choice:{chr(ord('A') + index)}",
                 "目的.候補",
@@ -492,18 +487,18 @@ class 公開HDSコンパイラ:
         )
         return replace(
             base,
-            座標=base.座標 + choice_coords,
+            座標=base.座標 + 選択肢_coords,
             参照必須=True,
             種別="knowledge_query",
             実行核=HDS実行核(
-                "HDS_choice_selection",
+                'HDS_選択肢_selection',
                 (),
                 "結果",
                 境界=("NO_GUESS", "gold非参照"),
                 検証=("全候補対称",),
             ),
             手順=None,
-            閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
+            閉包状態='CLOSED_FOR_意味_TRANSFER',
         )
 
 

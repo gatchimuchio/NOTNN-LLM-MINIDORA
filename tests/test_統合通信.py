@@ -30,7 +30,7 @@ class 統合通信試験(unittest.TestCase):
         for raw in ('{"x":1,"x":2}','{"x":NaN}','{"x":Infinity}'):
             with self.assertRaises(ValueError):JSON要求を読む(raw)
 
-    def test_無効な素材を空Dataにしない(self):
+    def test_無効な素材を空資料にしない(self):
         req=math_request();req['入力']={'本文':None}
         self.assertEqual(統合要求を実行(統合セッション('s'),req)['状態'],'失敗')
 

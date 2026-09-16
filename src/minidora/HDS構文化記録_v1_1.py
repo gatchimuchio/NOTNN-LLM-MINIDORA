@@ -18,7 +18,7 @@ class HDS状態ノード:
     ノードID: str
     名称: str
     種別: str = "状態"
-    由来: str = "公開HDS Compiler"
+    由来: str = '公開HDS 構文化器'
     暫定性: str = "原則暫定"
 
 
@@ -31,7 +31,7 @@ class HDS遷移辺:
     作用: tuple[str, ...] = ()
     可逆: bool | None = None
     rollback先: str | None = None
-    由来: str = "公開HDS Compiler"
+    由来: str = '公開HDS 構文化器'
     暫定性: str = "原則暫定"
 
 
@@ -51,7 +51,7 @@ class HDS暗黙知記録:
     分類: str | None = None
     適用範囲: tuple[str, ...] = ()
     不確実性: str | None = None
-    由来: str = "公開HDS Compiler"
+    由来: str = '公開HDS 構文化器'
     暫定性: str = "原則暫定"
     再開放条件: tuple[str, ...] = ()
 
@@ -79,7 +79,7 @@ class HDSチェックリスト項目:
     失敗署名参照: str | None
     監査質問: str
     必要証拠: tuple[str, ...]
-    Gate対応: tuple[str, ...]
+    関門対応: tuple[str, ...]
     停止または回復規則: tuple[str, ...]
     次Run確認: tuple[str, ...]
     状態: HDS失敗署名状態 = HDS失敗署名状態.候補
@@ -100,7 +100,7 @@ class HDS認知世界差分:
 class HDS監査参照候補:
     問合せ: str
     種別: str
-    Gate対応: tuple[str, ...] = ()
+    関門対応: tuple[str, ...] = ()
     由来要求: str | None = None
     優先度: int = 0
 

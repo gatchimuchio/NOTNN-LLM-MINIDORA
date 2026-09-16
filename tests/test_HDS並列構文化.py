@@ -18,8 +18,8 @@ def _ir(text: str, coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ..
         意味作用履歴=(),
         実行核=HDS実行核("意味構造転送"),
         参照必須=refs,
-        種別="knowledge_choice",
-        閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
+        種別='knowledge_選択肢',
+        閉包状態='CLOSED_FOR_意味_TRANSFER',
         入力言語="en",
         手順=None,
     )
@@ -30,12 +30,12 @@ def _question() -> HDSIR:
         "What does Alpha use?",
         (
             HDS座標("alpha", "対象.実体", "Alpha"),
-            HDS座標("choice:A", "目的.候補", "engine"),
-            HDS座標("choice:B", "目的.候補", "stone"),
-            HDS座標("unknown", "目的.未知終点", "entity", 値状態.未観測),
+            HDS座標('選択肢:A', "目的.候補", "engine"),
+            HDS座標('選択肢:B', "目的.候補", "stone"),
+            HDS座標('未知', "目的.未知終点", "entity", 値状態.未観測),
         ),
         (HDS関係(
-            "question-use", ("alpha",), ("unknown",), "使用",
+            "question-use", ("alpha",), ('未知',), "使用",
             条件=("検索述語=use", "不足位置=終点", "英日意味射影=v0.5"),
             値状態=値状態.未観測,
         ),),
@@ -44,10 +44,10 @@ def _question() -> HDSIR:
 
 
 def _候補(text: str) -> HDSIR:
-    return _ir(text, (HDS座標("candidate", "対象.実体", text),))
+    return _ir(text, (HDS座標('候補', "対象.実体", text),))
 
 
-def _data() -> HDSIR:
+def _資料() -> HDSIR:
     return _ir(
         "Alpha uses engine.",
         (HDS座標("alpha", "対象.実体", "Alpha"), HDS座標("engine", "対象.実体", "engine")),
@@ -82,33 +82,33 @@ class _構文化器:
         if 入力 in {"engine", "stone"}:
             return _候補(入力)
         if 入力 == "Alpha uses engine.":
-            return _data()
+            return _資料()
         raise ValueError(入力)
 
 
-class HDSCompiler並列試験(unittest.TestCase):
-    def test_並列安全Compilerはchoice_Dataを複数threadで処理する(self) -> None:
-        compiler = _構文化器(True)
-        実行系 = ミニドラ(_Provider(), HDSコンパイラ_=compiler)
-        result = 実行系.実行(要求("What does Alpha use?"))
+class HDS構文化器並列試験(unittest.TestCase):
+    def test_並列安全構文化器は選択肢_資料を複数threadで処理する(self) -> None:
+        構文化器 = _構文化器(True)
+        実行系 = ミニドラ(_Provider(), HDSコンパイラ_=構文化器)
+        結果 = 実行系.実行(要求("What does Alpha use?"))
 
-        self.assertEqual(result.採否.状態, 実行状態.合格, result.採否.理由)
+        self.assertEqual(結果.採否.状態, 実行状態.合格, 結果.採否.理由)
         worker_threads = {
             thread_id
-            for text, thread_id in compiler.calls
+            for text, thread_id in 構文化器.calls
             if text != "What does Alpha use?"
         }
         self.assertGreaterEqual(len(worker_threads), 2)
 
-    def test_未宣言Compilerは従来どおり逐次処理する(self) -> None:
-        compiler = _構文化器(False)
-        実行系 = ミニドラ(_Provider(), HDSコンパイラ_=compiler)
-        result = 実行系.実行(要求("What does Alpha use?"))
+    def test_未宣言構文化器は従来どおり逐次処理する(self) -> None:
+        構文化器 = _構文化器(False)
+        実行系 = ミニドラ(_Provider(), HDSコンパイラ_=構文化器)
+        結果 = 実行系.実行(要求("What does Alpha use?"))
 
-        self.assertEqual(result.採否.状態, 実行状態.合格, result.採否.理由)
+        self.assertEqual(結果.採否.状態, 実行状態.合格, 結果.採否.理由)
         worker_threads = {
             thread_id
-            for text, thread_id in compiler.calls
+            for text, thread_id in 構文化器.calls
             if text != "What does Alpha use?"
         }
         self.assertEqual(len(worker_threads), 1)

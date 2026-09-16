@@ -9,7 +9,7 @@ import unittest
 
 from minidora.構造化文書 import 構造化文書を読む
 from minidora.構造化文書操作 import 文書記録整合
-from minidora.構造化文書接続 import 構造化文書Module,構造化文書能力群
+from minidora.構造化文書接続 import 構造化文書モジュール,構造化文書能力群
 from minidora.能力合成 import 能力合成器,合成計画,合成工程,素材参照
 from minidora.能力合成_局所接続 import 局所能力群
 from minidora.多段解決 import 多段解決器,多段問題,解法,解決目的,問題素材
@@ -115,9 +115,9 @@ class 文書合成接続試験(unittest.TestCase):
     def test_普通の自然言語を暗黙に構造文書へしない(self):
         c=能力文脈('ファイルを全部変換して','s')
         for reg in 構造化文書能力群():
-            self.assertEqual(reg.Module.判定(c),0)
-            self.assertFalse(reg.Module.実行(c).成立)
-        with self.assertRaises(ValueError):構造化文書Module('任意実行')
+            self.assertEqual(reg.モジュール.判定(c),0)
+            self.assertFalse(reg.モジュール.実行(c).成立)
+        with self.assertRaises(ValueError):構造化文書モジュール('任意実行')
 
     def test_独立CLIの値変更と欠落(self):
         for args in ([],['--値','731'],['--欠落列']):

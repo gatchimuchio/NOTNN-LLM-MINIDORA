@@ -35,8 +35,8 @@ _K3 = (
     構文化還元対応(
         "K3",
         "AttnRes depth checkpoints",
-        "過去処理checkpointを保持し後段から再選択する",
-        "能力状態差循環 / HDS作業Checkpoint",
+        '過去処理検査点を保持し後段から再選択する',
+        '能力状態差循環 / HDS作業検査点',
         "既存",
         "D4",
     ),
@@ -52,7 +52,7 @@ _K3 = (
         "K3",
         "MOPD effort policy",
         "同一処理核で計算予算を切り替える",
-        "HDS探索方針 / DistilledEffortPolicyController",
+        'HDS探索方針 / Distilled計算量PolicyController',
         "既存",
         "構造類似",
     ),
@@ -159,7 +159,7 @@ _GLM = (
         "HDS異種入力射影 / HDS共通入力表象",
         "追加・境界",
         "公開config",
-        "parser自体は外部adapter責任",
+        'parser自体は外部適合器責任',
     ),
     構文化還元対応(
         "GLM-5.2/5.3 post-training",

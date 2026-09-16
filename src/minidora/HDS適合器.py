@@ -9,7 +9,7 @@ from .HDS中間表現 import HDSIR
 
 @dataclass(frozen=True, slots=True)
 class HDS文脈:
-    """Runtime局所作業状態またはTrinity MからCompilerへ引用する現在文脈。"""
+    'Runtime局所作業状態またはTrinity Mから構文化器へ引用する現在文脈。'
 
     記憶版: int = 0
     現在焦点: Any = None
@@ -22,7 +22,7 @@ class HDS文脈:
 
 
 class HDSコンパイラProtocol(Protocol):
-    """外部HDS Compilerと公開MINIDORA RuntimeのLegacy互換接続契約。"""
+    '外部HDS 構文化器と公開MINIDORA RuntimeのLegacy互換接続契約。'
 
     def コンパイル(
         self,
@@ -47,16 +47,12 @@ def _独立呼出(compile_fn, 入力: str) -> HDSIR:
     return compile_fn(入力, **kwargs)
 
 
-def HDS独立コンパイル(compiler: HDSコンパイラProtocol, 入力: str) -> HDSIR:
-    """choice/Data等の独立文書を会話Mから切離して意味コンパイルする。
+def HDS独立コンパイル(構文化器: HDSコンパイラProtocol, 入力: str) -> HDSIR:
+    '選択肢/資料等の独立文書を会話Mから切離して意味コンパイルする。\n\n    処理系列 v1.3対応構文化器では ``意味コンパイル`` を優先し、計算Pを独立資料へ\n    混入させない。旧式構文化器だけ ``コンパイル`` へフォールバックする。\n    '
 
-    Pipeline v1.3対応Compilerでは ``意味コンパイル`` を優先し、計算Pを独立Dataへ
-    混入させない。旧式Compilerだけ ``コンパイル`` へフォールバックする。
-    """
-
-    compile_fn = getattr(compiler, "意味コンパイル", None)
+    compile_fn = getattr(構文化器, "意味コンパイル", None)
     if not callable(compile_fn):
-        compile_fn = compiler.コンパイル
+        compile_fn = 構文化器.コンパイル
     return _独立呼出(compile_fn, 入力)
 
 

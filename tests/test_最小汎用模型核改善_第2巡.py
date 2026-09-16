@@ -14,7 +14,7 @@ from minidora.計算中間表現 import 計算中間表現, 計算値, 計算作
 from minidora.計算実行境界 import 計算実行境界
 
 
-class 最小汎用Core改善Round2試験(unittest.TestCase):
+class 最小汎用模型核改善Round2試験(unittest.TestCase):
     def test_厳密LMはgenerator形成と増分形成で全量形成に一致(self) -> None:
         first = ("猫は本を見る。", "犬は水を飲む。")
         second = ("鳥は空を飛ぶ。", "猫は水を飲む。")
@@ -42,8 +42,8 @@ class 最小汎用Core改善Round2試験(unittest.TestCase):
             (計算値.即値({"a": 1}), 計算値.即値("同値"), 計算値.即値({"a": 1})),
             出力住所="結果",
         )
-        result = 計算実行境界().実行(計算中間表現("比較", (command,), "結果"))
-        self.assertIs(result.出力, True)
+        結果 = 計算実行境界().実行(計算中間表現("比較", (command,), "結果"))
+        self.assertIs(結果.出力, True)
 
     def test_算術作用は入力可変値を破壊しない(self) -> None:
         left = [1]
@@ -54,13 +54,13 @@ class 最小汎用Core改善Round2試験(unittest.TestCase):
             (計算値.状態値("left"), 計算値.状態値("right")),
             出力住所="結果",
         )
-        result = 計算実行境界().実行(計算中間表現("加算", (command,), "結果"), initial)
-        self.assertEqual(result.出力, [1, 2])
+        結果 = 計算実行境界().実行(計算中間表現("加算", (command,), "結果"), initial)
+        self.assertEqual(結果.出力, [1, 2])
         self.assertEqual(left, [1])
         self.assertEqual(right, [2])
         self.assertEqual(initial, {"left": [1], "right": [2]})
 
-    def test_日本語否定活用と文境界scopeを保持(self) -> None:
+    def test_日本語否定活用と文境界範囲を保持(self) -> None:
         relations = 言語関係抽出("AはBを阻害しない。CはDを活性化する。", "自然言語:ja")
         self.assertTrue(any(x.種別 == "阻害" and not x.肯定 for x in relations))
         self.assertTrue(any(x.種別 == "活性化" and x.肯定 for x in relations))
@@ -69,7 +69,7 @@ class 最小汎用Core改善Round2試験(unittest.TestCase):
             rows = 言語関係抽出(text, "自然言語:ja")
             self.assertTrue(any(x.種別 == "阻害" and not x.肯定 for x in rows), text)
 
-    def test_英語明示対比で否定scopeを局所化(self) -> None:
+    def test_英語明示対比で否定範囲を局所化(self) -> None:
         relations = 言語関係抽出("A does not inhibit B, but C activates D", "自然言語:en")
         self.assertTrue(any(x.種別 == "阻害" and not x.肯定 for x in relations))
         self.assertTrue(any(x.種別 == "活性化" and x.肯定 for x in relations))
@@ -89,27 +89,15 @@ class 最小汎用Core改善Round2試験(unittest.TestCase):
                 self.kwargs = {"前回結果": 前回結果, "HDS履歴": HDS履歴, "文脈": 文脈}
                 return "fixture-ir"
 
-        compiler = 構文化器()
-        body = ミニドラ(HDSコンパイラ_=compiler)
+        構文化器 = 構文化器()
+        body = ミニドラ(HDSコンパイラ_=構文化器)
         self.assertEqual(body.コンパイル("入力"), "fixture-ir")
-        self.assertIsNone(compiler.kwargs["前回結果"])
-        self.assertEqual(compiler.kwargs["HDS履歴"], ())
-        self.assertIsInstance(compiler.kwargs["文脈"], HDS文脈)
+        self.assertIsNone(構文化器.kwargs["前回結果"])
+        self.assertEqual(構文化器.kwargs["HDS履歴"], ())
+        self.assertIsInstance(構文化器.kwargs["文脈"], HDS文脈)
 
     def test_plain_importではlegacy_submoduleを起動しない(self) -> None:
-        script = r'''
-import json, sys
-import minidora
-blocked = [
-    "minidora.実行系_v03",
-    "minidora.トリニティ文脈",
-    "minidora.k3_functional",
-    "minidora.http_reference",
-    "minidora.europe_pmc_reference",
-    "minidora.crossref_reference",
-]
-print(json.dumps([name for name in blocked if name in sys.modules]))
-'''
+        script = r'\nimport json, sys\nimport minidora\nblocked = [\n    "minidora.実行系_v03",\n    "minidora.トリニティ文脈",\n    "minidora.k3_functional",\n    "minidora.http_参照",\n    "minidora.europe_pmc_参照",\n    "minidora.crossref_参照",\n]\nprint(json.dumps([name for name in blocked if name in sys.modules]))\n'
         proc = subprocess.run([sys.executable, "-c", script], check=True, capture_output=True, text=True)
         self.assertEqual(json.loads(proc.stdout), [])
 

@@ -12,8 +12,8 @@ def _stable(prefix: str, value: object) -> str:
 
 
 def _values(mapping: Mapping[str, float] | Iterable[tuple[str, float]]) -> tuple[tuple[str, float], ...]:
-    source = dict(mapping)
-    return tuple(sorted((str(key), float(value)) for key, value in source.items()))
+    情報源 = dict(mapping)
+    return tuple(sorted((str(key), float(value)) for key, value in 情報源.items()))
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,33 +99,33 @@ def HDS制約混合行列(
 
 
 def HDS並列状態混合(
-    state: HDS並列作業状態,
+    状態: HDS並列作業状態,
     raw_matrix: Sequence[Sequence[float]],
     *,
     反復回数: int = 20,
 ) -> HDS並列作業状態:
     matrix = HDS制約混合行列(raw_matrix, 反復回数=反復回数)
-    source = [lane.辞書() for lane in state.lane群]
-    keys = tuple(sorted({key for lane in source for key in lane}))
+    情報源 = [lane.辞書() for lane in 状態.lane群]
+    keys = tuple(sorted({key for lane in 情報源 for key in lane}))
     lanes: list[HDS状態Lane] = []
 
-    for target_index in range(state.lane数):
+    for target_index in range(状態.lane数):
         mixed: dict[str, float] = {}
-        for source_index in range(state.lane数):
-            weight = matrix[target_index][source_index]
+        for 情報源_index in range(状態.lane数):
+            weight = matrix[target_index][情報源_index]
             if weight == 0.0:
                 continue
             for key in keys:
-                mixed[key] = mixed.get(key, 0.0) + weight * source[source_index].get(key, 0.0)
+                mixed[key] = mixed.get(key, 0.0) + weight * 情報源[情報源_index].get(key, 0.0)
         lanes.append(HDS状態Lane(f"lane:{target_index}", _values(mixed)))
 
-    revision = state.revision + 1
-    payload = (state.状態ID, revision, tuple(lane.値 for lane in lanes), matrix)
+    revision = 状態.revision + 1
+    payload = (状態.状態ID, revision, tuple(lane.値 for lane in lanes), matrix)
     return HDS並列作業状態(_stable("PS-", payload), tuple(lanes), revision)
 
 
 def HDS並列状態読書混合(
-    state: HDS並列作業状態,
+    状態: HDS並列作業状態,
     読取行列: Sequence[Sequence[float]],
     書戻行列: Sequence[Sequence[float]],
     *,
@@ -133,8 +133,8 @@ def HDS並列状態読書混合(
 ) -> HDS並列作業状態:
     """read-mixとwrite-mixを分離した二段の制約混合。"""
 
-    read_state = HDS並列状態混合(state, 読取行列, 反復回数=反復回数)
-    return HDS並列状態混合(read_state, 書戻行列, 反復回数=反復回数)
+    read_状態 = HDS並列状態混合(状態, 読取行列, 反復回数=反復回数)
+    return HDS並列状態混合(read_状態, 書戻行列, 反復回数=反復回数)
 
 
 __all__ = [

@@ -10,7 +10,7 @@ from minidora.製品版.能力契約 import 能力文脈
 from minidora.製品版.api import APIHandler
 from http.server import ThreadingHTTPServer
 
-class FakeCore:
+class Fake模型核:
     def 応答(self, text: str) -> str:
         return f"CORE:{text}"
 
@@ -23,7 +23,7 @@ NEWS=(
 )
 
 class ProductTests(unittest.TestCase):
-    def setUp(self): self.app=製品ミニドラ(基礎ミニドラ=FakeCore(), ニュース供給器=固定ニュース供給器(NEWS), 知識供給器=固定知識供給器(KNOW))
+    def setUp(self): self.app=製品ミニドラ(基礎ミニドラ=Fake模型核(), ニュース供給器=固定ニュース供給器(NEWS), 知識供給器=固定知識供給器(KNOW))
     def test_ニュース後要約(self):
         a=self.app.応答("今日のニュースは？",セッションID="s")
         self.assertEqual(a.経路,"ニュース"); self.assertEqual(len(a.参照),3)
@@ -47,7 +47,7 @@ class ProductTests(unittest.TestCase):
         self.assertEqual(r.経路,"計算"); self.assertIn("60",r.本文)
     def test_模型核代替経路(self):
         r=self.app.応答("自由意志について説明して",セッションID="g")
-        self.assertEqual(r.経路,"基礎Core"); self.assertEqual(r.本文,"CORE:自由意志について説明して")
+        self.assertEqual(r.経路,'基礎模型核'); self.assertEqual(r.本文,'模型核:自由意志について説明して')
     def test_基本会話(self):
         r=self.app.応答("何ができる？",セッションID="b")
         self.assertEqual(r.経路,"基本会話"); self.assertIn("ニュース",r.本文)
@@ -71,29 +71,29 @@ class ProductTests(unittest.TestCase):
             名前="動的Echo"; 版="echo-v1"; 優先度=999
             def 判定(self,c): return 1.0 if c.入力文.startswith("echo:") else 0.0
             def 実行(self,c): return 能力結果(True,c.入力文.split(":",1)[1],根拠=("echo",))
-        self.app.Module登録(Echo())
+        self.app.モジュール登録(Echo())
         r=self.app.応答("echo:追加能力",セッションID="m")
         self.assertEqual(r.経路,"動的Echo"); self.assertEqual(r.本文,"追加能力")
 
 class APITests(unittest.TestCase):
     def setUp(self):
-        self.app=製品ミニドラ(基礎ミニドラ=FakeCore(), ニュース供給器=固定ニュース供給器(NEWS), 知識供給器=固定知識供給器(KNOW))
+        self.app=製品ミニドラ(基礎ミニドラ=Fake模型核(), ニュース供給器=固定ニュース供給器(NEWS), 知識供給器=固定知識供給器(KNOW))
         self.server=ThreadingHTTPServer(("127.0.0.1",0),APIHandler); self.server.app=self.app
         self.thread=threading.Thread(target=self.server.serve_forever,daemon=True); self.thread.start()
         self.port=self.server.server_address[1]
     def tearDown(self): self.server.shutdown(); self.server.server_close()
     def call(self,method,path,body=None):
         c=HTTPConnection("127.0.0.1",self.port,timeout=3)
-        data=json.dumps(body,ensure_ascii=False).encode() if body is not None else None
-        headers={"Content-Type":"application/json"} if data else {}
-        c.request(method,path,body=data,headers=headers); r=c.getresponse(); payload=json.loads(r.read().decode()); c.close(); return r.status,payload
+        資料=json.dumps(body,ensure_ascii=False).encode() if body is not None else None
+        headers={"Content-Type":"application/json"} if 資料 else {}
+        c.request(method,path,body=資料,headers=headers); r=c.getresponse(); payload=json.loads(r.read().decode()); c.close(); return r.status,payload
     def test_正常性(self): self.assertEqual(self.call("GET","/health")[0],200)
     def test_静的画面(self):
         c=HTTPConnection("127.0.0.1",self.port,timeout=3); c.request("GET","/"); r=c.getresponse(); body=r.read().decode(); c.close(); self.assertEqual(r.status,200); self.assertIn("MINIDORA",body)
     def test_会話と追跡記録(self):
         s,p=self.call("POST","/api/chat",{"session_id":"api","message":"今日のニュースは？"}); self.assertEqual(s,200)
-        self.assertEqual(p["route"],"ニュース")
-        s2,t=self.call("GET","/api/trace/"+p["trace_id"]); self.assertEqual(s2,200); self.assertTrue(t["valid"])
+        self.assertEqual(p['経路'],"ニュース")
+        s2,t=self.call("GET","/api/trace/"+p['追跡_id']); self.assertEqual(s2,200); self.assertTrue(t["valid"])
     def test_入力検証(self): self.assertEqual(self.call("POST","/api/chat",{"message":""})[0],400)
 
 if __name__ == "__main__": unittest.main()

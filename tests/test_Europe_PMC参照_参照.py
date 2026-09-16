@@ -15,10 +15,10 @@ class _FakeEuropePMC:
         parsed = urlparse(url)
         self.assertions(parsed)
         return {
-            "resultList": {
-                "result": [
+            '結果List': {
+                '結果': [
                     {
-                        "source": "MED",
+                        '情報源': "MED",
                         "id": "12345678",
                         "pmid": "12345678",
                         "doi": "10.1000/example",
@@ -29,14 +29,14 @@ class _FakeEuropePMC:
                         "pubTypeList": {"pubType": ["Journal Article"]},
                     },
                     {
-                        "source": "MED",
+                        '情報源': "MED",
                         "id": "87654321",
                         "title": "Title only observation",
                         "abstractText": "",
                         "pubYear": "2023",
                     },
                     {
-                        "source": "MED",
+                        '情報源': "MED",
                         "id": "99999999",
                         "title": "Retracted observation",
                         "abstractText": "This should not be used.",
@@ -51,7 +51,7 @@ class _FakeEuropePMC:
         if not parsed.path.endswith("/webservices/rest/search"):
             raise AssertionError(parsed.path)
         params = parse_qs(parsed.query)
-        if params.get("resultType") != ["core"]:
+        if params.get('結果Type') != ['模型核']:
             raise AssertionError("resultType=core missing")
         if params.get("format") != ["json"]:
             raise AssertionError("format=json missing")
@@ -60,7 +60,7 @@ class _FakeEuropePMC:
 
 
 class EuropePMC参照供給器試験(unittest.TestCase):
-    def test_core検索をabstract参照記録へ変換する(self) -> None:
+    def test_模型核検索をabstract参照記録へ変換する(self) -> None:
         fake = _FakeEuropePMC()
         provider = EuropePMC参照供給器(JSON取得=fake)
         records = provider.検索("ProteinX catalysis", 8)
@@ -72,20 +72,20 @@ class EuropePMC参照供給器試験(unittest.TestCase):
         self.assertEqual(first.信頼, provider.ABSTRACT信頼)
         self.assertEqual(first.時点, "2024-05-01")
         self.assertEqual(first.由来, "https://doi.org/10.1000/example")
-        self.assertIn(("canonical_source", "doi:10.1000/example"), first.条件)
-        self.assertIn(("evidence_scope", "abstract"), first.条件)
+        self.assertIn(('canonical_情報源', "doi:10.1000/example"), first.条件)
+        self.assertIn(('証拠_範囲', "abstract"), first.条件)
 
-    def test_DOIなしはEuropePMC固有識別へfallbackする(self) -> None:
+    def test_DOIなしはEuropePMC固有識別へ代替経路する(self) -> None:
         provider = EuropePMC参照供給器(JSON取得=_FakeEuropePMC())
         records = provider.検索("ProteinX catalysis", 8)
         self.assertEqual(records[1].識別子, "europepmc:MED:87654321")
 
-    def test_title_onlyはabstractより低confidence(self) -> None:
+    def test_title_onlyはabstractより低信頼度(self) -> None:
         provider = EuropePMC参照供給器(JSON取得=_FakeEuropePMC())
         records = provider.検索("ProteinX catalysis", 8)
         self.assertEqual(records[1].信頼, provider.TITLE_ONLY信頼)
         self.assertLess(records[1].信頼, records[0].信頼)
-        self.assertIn(("evidence_scope", "title"), records[1].条件)
+        self.assertIn(('証拠_範囲', "title"), records[1].条件)
 
     def test_retractedフラグ付きレコードを除外する(self) -> None:
         provider = EuropePMC参照供給器(JSON取得=_FakeEuropePMC())

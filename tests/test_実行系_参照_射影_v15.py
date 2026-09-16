@@ -18,22 +18,22 @@ class _空R:
 
 class Runtime参照射影V15試験(unittest.TestCase):
     def test_完全IRで予算を決めR射影IRでqueryを作る(self) -> None:
-        compiler = 公開HDSコンパイラ()
-        実行系 = ミニドラ(参照供給器_=_空R(), HDSコンパイラ_=compiler)
-        budget = HDS参照予算("max", 16, 4, 4)
+        構文化器 = 公開HDSコンパイラ()
+        実行系 = ミニドラ(参照供給器_=_空R(), HDSコンパイラ_=構文化器)
+        予算 = HDS参照予算("max", 16, 4, 4)
 
         # v0.5の通常実行責任はnative 実行系が所有する。
         # 旧実行系_v03ではなく現行責任moduleをpatchする。
         with (
-            patch("minidora.実行系.HDS参照予算選択", return_value=budget) as choose_budget,
+            patch("minidora.実行系.HDS参照予算選択", return_value=予算) as choose_予算,
             patch("minidora.実行系.HDS参照検索", return_value=()) as search,
         ):
             実行系.実行(
                 要求("Which molecule is least likely to inhibit Enzyme X?")
             )
 
-        self.assertEqual(choose_budget.call_count, 1)
-        full_ir = choose_budget.call_args.args[0]
+        self.assertEqual(choose_予算.call_count, 1)
+        full_ir = choose_予算.call_args.args[0]
         self.assertIn("least likely", str(full_ir.原文).casefold())
         self.assertTrue(any(str(c.種別).startswith("制御.") for c in full_ir.座標))
 

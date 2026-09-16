@@ -19,19 +19,19 @@ from test_多言語_合成 import 入力 as 翻訳入力
 ROOT = Path(__file__).resolve().parents[1]
 
 def 一工程(name, value, settings=None):
-    data = {"i": 能力結果(True, "指定処理を実行"), "v": value}
+    資料 = {"i": 能力結果(True, "指定処理を実行"), "v": value}
     if settings is not None:
-        data["c"] = 能力結果(True, "", データ=settings)
+        資料["c"] = 能力結果(True, "", データ=settings)
     return (合成計画((合成工程("out", (name,), "i", (素材参照("入力", "v"),),
-                          "c" if settings is not None else None),), ("out",)), data)
+                          "c" if settings is not None else None),), ("out",)), 資料)
 
 
 def 数学計画(value="2"):
     return runpy.run_path(str(ROOT/"tools/数学記号デモ.py"))["記号計画"](value)
 
 
-def 統計合計(result, name):
-    return sum(row[name] for row in result.計測["再利用差分"].values())
+def 統計合計(結果, name):
+    return sum(row[name] for row in 結果.計測["再利用差分"].values())
 
 
 class 統合経路試験(unittest.TestCase):
@@ -74,23 +74,23 @@ class 統合経路試験(unittest.TestCase):
         self.assertIn('the voltage', r.出力[0][1].参照[0].本文)
 
     def test_コード生成と多段の後戻りを一入口で実行(self):
-        problem, data = runpy.run_path(str(ROOT/'tools/コード能力デモ.py'))['問題を用意']()
-        payload = 能力結果(True, '', データ={'問題':asdict(problem), '初期Data':{k:_結果辞書(v) for k,v in data.items()}})
+        problem, 資料 = runpy.run_path(str(ROOT/'tools/コード能力デモ.py'))['問題を用意']()
+        payload = 能力結果(True, '', データ={'問題':asdict(problem), '初期資料':{k:_結果辞書(v) for k,v in 資料.items()}})
         r = self.ok(self.s.計画実行(*一工程('多段解決', payload)))
         self.assertIn('if 数 >', r.本文)
         self.assertEqual(r.出力[0][1].データ['採用経路'][0]['解法'], '境界を含まない候補')
 
     def test_目的検証失敗から子の別解へ戻る(self):
-        problem, data = runpy.run_path(str(ROOT/'tools/多段解決デモ.py'))['問題を用意'](731)
-        payload = 能力結果(True, '', データ={'問題':asdict(problem), '初期Data':{k:_結果辞書(v) for k,v in data.items()}})
+        problem, 資料 = runpy.run_path(str(ROOT/'tools/多段解決デモ.py'))['問題を用意'](731)
+        payload = 能力結果(True, '', データ={'問題':asdict(problem), '初期資料':{k:_結果辞書(v) for k,v in 資料.items()}})
         r = self.ok(self.s.計画実行(*一工程('多段解決', payload)))
         self.assertEqual(r.本文, '731、75、45')
 
     def test_コード評価と最終入出力検証(self):
-        source = 能力結果(True, 'def f(x):\n return x*x')
-        r = self.ok(self.s.計画実行(*一工程('コード評価', source, {'引数':{'x':7}})))
+        情報源 = 能力結果(True, 'def f(x):\n return x*x')
+        r = self.ok(self.s.計画実行(*一工程('コード評価', 情報源, {'引数':{'x':7}})))
         self.assertEqual(r.本文, '49')
-        r = self.ok(self.s.計画実行(*一工程('コード検証', source, {'試験':[{'引数':{'x':7},'期待値':49}]})))
+        r = self.ok(self.s.計画実行(*一工程('コード検証', 情報源, {'試験':[{'引数':{'x':7},'期待値':49}]})))
         self.assertIn('全件一致', r.本文)
 
     def test_証拠統合から応答を構成(self):
@@ -125,8 +125,8 @@ class 統合経路試験(unittest.TestCase):
         self.assertNotIn('汚染',self.s.原記録('応答:1:出力:0')['内容']['データ'])
 
     def test_旧入口の12項目切断を統合側だけ解消(self):
-        source = 能力結果(True,'。'.join('項目'+str(i) for i in range(20))+'。')
-        p,d = 一工程('文脈変換',source,{'形式':'箇条書き'})
+        情報源 = 能力結果(True,'。'.join('項目'+str(i) for i in range(20))+'。')
+        p,d = 一工程('文脈変換',情報源,{'形式':'箇条書き'})
         old = 能力合成器(局所能力群()).実行(p,d)
         new = self.ok(self.s.計画実行(p,d))
         self.assertEqual(len(old.出力[0][1].本文.splitlines()),12)
@@ -198,8 +198,8 @@ class 採用制御試験(unittest.TestCase):
         self.assertTrue(self.s.実行(prepared).成立)
         self.assertFalse(self.s.実行(prepared).成立)
 
-    def test_準備後のData変更を拒否(self):
-        prepared=self.s.準備(*数学計画());prepared.Data['指示']=能力結果(True,'改変')
+    def test_準備後の資料変更を拒否(self):
+        prepared=self.s.準備(*数学計画());prepared.資料['指示']=能力結果(True,'改変')
         r=self.s.実行(prepared)
         self.assertFalse(r.成立);self.assertIsNone(r.実行)
 

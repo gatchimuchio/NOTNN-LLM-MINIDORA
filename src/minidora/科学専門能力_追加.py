@@ -38,11 +38,11 @@ def _real_expr(raw: str) -> float | None:
     return None
 
 
-def _number_before_unit(question: str, unit_pattern: str, *, context: str = '') -> float | None:
+def _number_before_unit(question: str, unit_pattern: str, *, 文脈: str = '') -> float | None:
     q = question.replace('\\times', 'x').replace('×', 'x').replace('{', '').replace('}', '')
-    prefix = context + r'[^0-9+\-.]{0,80}' if context else ''
-    token = r'((?:\d+(?:\.\d+)?\s*[x*]\s*10\s*\^?\s*[+-]?\d+)|(?:\d+(?:\.\d+)?e[+-]?\d+)|(?:10\s*\^?\s*[+-]?\d+)|(?:\d+(?:\.\d+)?))'
-    m = re.search(prefix + token + r'\s*' + unit_pattern, q, re.I | re.S)
+    prefix = 文脈 + r'[^0-9+\-.]{0,80}' if 文脈 else ''
+    字句 = r'((?:\d+(?:\.\d+)?\s*[x*]\s*10\s*\^?\s*[+-]?\d+)|(?:\d+(?:\.\d+)?e[+-]?\d+)|(?:10\s*\^?\s*[+-]?\d+)|(?:\d+(?:\.\d+)?))'
+    m = re.search(prefix + 字句 + r'\s*' + unit_pattern, q, re.I | re.S)
     if not m:
         return None
     raw = m.group(1).replace(' ', '').replace('^', '')
@@ -90,8 +90,8 @@ def solve_spinor_xz_eigenvector(q: str, choices: Sequence[str]):
     if 'hbar/2' not in _compact(q) and '\\hbar/2' not in _compact(q):
         return None
     hits = []
-    for i, choice in enumerate(choices):
-        c = _compact(choice)
+    for i, 選択肢 in enumerate(choices):
+        c = _compact(選択肢)
         half = ('cos(\\theta/2)' in c or 'cos(theta/2)' in c) and ('sin(\\theta/2)' in c or 'sin(theta/2)' in c)
         if half and 'hbar' not in c and '\\hbar' not in c:
             hits.append(i)
@@ -114,8 +114,8 @@ def solve_anisotropic_oscillator_spectrum(q: str, choices: Sequence[str]):
     ix, iy = int(round(wx)), int(round(wy))
     zero = (wx + wy) / 2
     hits = []
-    for i, choice in enumerate(choices):
-        c = _compact(choice).replace('*', '')
+    for i, 選択肢 in enumerate(choices):
+        c = _compact(選択肢).replace('*', '')
         x_ok = (f'{ix}n_x' in c) if ix != 1 else ('n_x' in c and not re.search(r'\d+n_x', c))
         y_ok = (f'{iy}n_y' in c) if iy != 1 else ('n_y' in c and not re.search(r'\d+n_y', c))
         zero_ok = ('3/2' in c) if abs(zero - 1.5) < 1e-9 else str(zero) in c
@@ -128,7 +128,7 @@ def solve_gamma_gamma_pair_threshold_latex(q: str, choices: Sequence[str]):
     s = q.casefold()
     if 'electron-positron' not in s or 'photon' not in s or ('gamma' not in s and '\\gamma' not in q):
         return None
-    eps = _number_before_unit(q, r'e\s*v', context=r'(?:average\s+)?photon\s+energy')
+    eps = _number_before_unit(q, r'e\s*v', 文脈=r'(?:average\s+)?photon\s+energy')
     if eps is None or eps <= 0:
         return None
     target_ev = 510998.95 ** 2 / eps
@@ -152,7 +152,7 @@ def solve_edta_dissociation_typo_tolerant(q: str, choices: Sequence[str]):
     return _一般結果(_nearest(choices, target, log=True, rel_tol=0.12), 'edta_complex_dissociation', target)
 
 
-def solve_wavefunction_normalization_symbol(q: str, choices: Sequence[str]):
+def solve_wavefunction_正規化_symbol(q: str, choices: Sequence[str]):
     s = q.casefold()
     if 'wave function' not in s or 'sqrt' not in s or ('numerical value' not in s and 'normal' not in s):
         return None
@@ -170,7 +170,7 @@ def solve_wavefunction_normalization_symbol(q: str, choices: Sequence[str]):
     if integral <= 0 or remainder <= 0:
         return None
     target = math.sqrt(remainder / integral)
-    return _一般結果(_nearest(choices, target, rel_tol=0.08), 'wavefunction_normalization_symbol', target)
+    return _一般結果(_nearest(choices, target, rel_tol=0.08), 'wavefunction_正規化_symbol', target)
 
 
 def solve_decay_resolution_latex(q: str, choices: Sequence[str]):
@@ -210,8 +210,8 @@ def solve_qpcr_direction_consistency(q: str, choices: Sequence[str]):
     if direction_ok:
         return None
     hits = []
-    for i, choice in enumerate(choices):
-        c = choice.casefold()
+    for i, 選択肢 in enumerate(choices):
+        c = 選択肢.casefold()
         if ('not in agreement' in c or 'inconsistent' in c) and ('amount' in c or 'copy' in c or 'nucleic acid' in c):
             hits.append(i)
     return _結果(hits[0] if len(hits) == 1 else None, 'qpcr_direction_consistency', 'Ct must decrease as log(copy number) increases')
@@ -239,8 +239,8 @@ def solve_black_hole_entropy_from_angular_size(q: str, choices: Sequence[str]):
     entropy = math.pi * k_b * radius * radius / (l_planck * l_planck)
     target_order = int(round(math.log10(entropy)))
     scored = []
-    for i, choice in enumerate(choices):
-        mexp = re.search(r'10\^\(?([+-]?\d+)\)?', str(choice).replace(' ', ''))
+    for i, 選択肢 in enumerate(choices):
+        mexp = re.search(r'10\^\(?([+-]?\d+)\)?', str(選択肢).replace(' ', ''))
         if mexp:
             scored.append((abs(int(mexp.group(1)) - target_order), i))
     if not scored:
@@ -306,8 +306,8 @@ def solve_pauli_hamiltonian_exact_eigenvalues(q: str, choices: Sequence[str]):
     if 'unit vector' not in s or ('varepsilon' not in s and 'ε' not in q and 'epsilon' not in s):
         return None
     hits = []
-    for i, choice in enumerate(choices):
-        c = _compact(choice)
+    for i, 選択肢 in enumerate(choices):
+        c = _compact(選択肢)
         eps = 'varepsilon' in c or 'epsilon' in c or 'ε' in c
         extra_scale = 'hbar' in c or '\\hbar' in c or '/2' in c
         if eps and '+' in c and '-' in c and not extra_scale:
@@ -336,8 +336,8 @@ def solve_conducting_sphere_external_field_latex(q: str, choices: Sequence[str])
     if 'spherical conductor' not in s or 'cavity' not in s or 'outside' not in s:
         return None
     hits = []
-    for i, choice in enumerate(choices):
-        raw = str(choice).replace(' ', '').replace('{', '').replace('}', '')
+    for i, 選択肢 in enumerate(choices):
+        raw = str(選択肢).replace(' ', '').replace('{', '').replace('}', '')
         q_over_L2 = bool(re.search(r'q/(?:\(?L\)?\^?2|L2)', raw)) or ('q' in raw and ('L^2' in raw or 'L2' in raw))
         if q_over_L2 and 'cos' not in raw.casefold():
             hits.append(i)
@@ -358,8 +358,8 @@ def solve_uncertainty_energy_relativistic(q: str, choices: Sequence[str]):
         return None
     target = v * hbar / (2 * dx)
     scored = []
-    for i, choice in enumerate(choices):
-        mexp = re.search(r'10\^\(?([+-]?\d+)\)?', str(choice).replace(' ', ''))
+    for i, 選択肢 in enumerate(choices):
+        mexp = re.search(r'10\^\(?([+-]?\d+)\)?', str(選択肢).replace(' ', ''))
         if mexp:
             value = 10.0 ** int(mexp.group(1))
             scored.append((abs(math.log10(value / target)), i))
@@ -376,8 +376,8 @@ def solve_three_spin_partition(q: str, choices: Sequence[str]):
     if 'e=-j[s1s2+s1s3+s2s3]' not in s:
         return None
     hits = []
-    for i, choice in enumerate(choices):
-        c = _compact(choice).replace('{', '').replace('}', '')
+    for i, 選択肢 in enumerate(choices):
+        c = _compact(選択肢).replace('{', '').replace('}', '')
         aligned = '2e^(3j' in c or '2e^3j' in c
         mixed = '6e^(-j' in c or '6e^-j' in c
         if aligned and mixed:
@@ -385,13 +385,13 @@ def solve_three_spin_partition(q: str, choices: Sequence[str]):
     return _結果(hits[0] if len(hits) == 1 else None, 'three_spin_ising_partition', '2 exp(3 beta J) + 6 exp(-beta J)')
 
 
-REGISTRY = (
+登録簿 = (
     solve_pauli_superposition_expectation,
     solve_spinor_xz_eigenvector,
     solve_anisotropic_oscillator_spectrum,
     solve_gamma_gamma_pair_threshold_latex,
     solve_edta_dissociation_typo_tolerant,
-    solve_wavefunction_normalization_symbol,
+    solve_wavefunction_正規化_symbol,
     solve_decay_resolution_latex,
     solve_qpcr_direction_consistency,
     solve_black_hole_entropy_from_angular_size,
@@ -407,16 +407,16 @@ REGISTRY = (
 
 def 解決(question: str, choices: Sequence[str]):
     hits = []
-    for solver in REGISTRY:
+    for 解決器 in 登録簿:
         try:
-            row = solver(question, choices)
+            row = 解決器(question, choices)
         except Exception:
             row = None
         if row is not None:
             hits.append(row)
     if not hits or len({row.index for row in hits}) != 1:
         return None
-    return max(hits, key=lambda row: row.confidence)
+    return max(hits, key=lambda row: row.信頼度)
 
 
 __all__ = ['解決']

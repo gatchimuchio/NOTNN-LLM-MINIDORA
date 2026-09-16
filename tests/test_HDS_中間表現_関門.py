@@ -36,7 +36,7 @@ def _加算IR() -> HDSIR:
         座標=(
             HDS座標("a", "対象.現在状態", 2),
             HDS座標("b", "対象.現在状態", 3),
-            HDS座標("action", "手段.作用", "加算"),
+            HDS座標('作用', "手段.作用", "加算"),
         ),
         関係=(),
         残差=(),
@@ -49,7 +49,7 @@ def _加算IR() -> HDSIR:
     )
 
 
-class _固定Compiler:
+class _固定構文化器:
     def __init__(self, ir: HDSIR) -> None:
         self.ir = ir
 
@@ -74,10 +74,10 @@ class HDSIR実行境界試験(unittest.TestCase):
         self.assertFalse(uncertain_ir.実行可能)
         self.assertIn("実行入力未確定:a", uncertain_ir.実行阻害理由)
 
-        result = ミニドラ(HDSコンパイラ_=_固定Compiler(uncertain_ir)).実行(要求("実行して"))
-        self.assertIsNone(result.値)
-        self.assertEqual(result.採否.状態, 実行状態.保留)
-        self.assertIn("実行入力未確定:a", result.採否.理由)
+        結果 = ミニドラ(HDSコンパイラ_=_固定構文化器(uncertain_ir)).実行(要求("実行して"))
+        self.assertIsNone(結果.値)
+        self.assertEqual(結果.採否.状態, 実行状態.保留)
+        self.assertIn("実行入力未確定:a", 結果.採否.理由)
 
     def test_実行核が参照する座標欠落は実行不能(self):
         ir = replace(_加算IR(), 座標=(HDS座標("a", "対象.現在状態", 2),))
@@ -86,13 +86,13 @@ class HDSIR実行境界試験(unittest.TestCase):
 
     def test_実行核外の未確定座標だけでは局所閉包を壊さない(self):
         ir = _加算IR()
-        open_context = HDS座標(
-            "context:unknown",
+        open_文脈 = HDS座標(
+            '文脈:未知',
             "文脈.未解",
             None,
             値状態=値状態.未確定,
         )
-        projected = replace(ir, 座標=ir.座標 + (open_context,))
+        projected = replace(ir, 座標=ir.座標 + (open_文脈,))
         self.assertTrue(projected.実行可能)
         self.assertEqual(projected.実行阻害理由, ())
 

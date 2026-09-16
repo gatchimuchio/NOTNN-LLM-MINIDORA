@@ -20,10 +20,10 @@ class 読解製品試験(unittest.TestCase):
     def test_既定入口から実HDSと採用境界へ接続(self):
         self.ok(登録); r = self.ok(依頼)
         self.assertEqual(r.経路, '汎用会話')
-        trace = r.メタデータ['汎用追跡']
-        self.assertEqual(trace['HDS原文'], 依頼)
-        self.assertTrue(trace['監査改善']['合成監査整合'])
-        self.assertEqual(len(trace['監査改善']['工程作用']), 3)
+        追跡 = r.メタデータ['汎用追跡']
+        self.assertEqual(追跡['HDS原文'], 依頼)
+        self.assertTrue(追跡['監査改善']['合成監査整合'])
+        self.assertEqual(len(追跡['監査改善']['工程作用']), 3)
         self.assertIn('資料全体の判定ではありません', r.本文)
         self.assertIn('「支持」', r.本文)
         self.assertTrue(r.参照)
@@ -47,10 +47,10 @@ class 読解製品試験(unittest.TestCase):
         other = self.p.応答(依頼, セッションID='two')
         self.assertNotEqual(other.経路, '汎用会話')
         self.assertNotIn('「支持」', other.本文)
-    def test_不明条件をCoreへ逃がさない(self):
-        class 禁止Core:
-            def 応答(self, text): raise AssertionError('Core透過は禁止')
-        self.p = self.factory(基礎ミニドラ=禁止Core())
+    def test_不明条件を模型核へ逃がさない(self):
+        class 禁止模型核:
+            def 応答(self, text): raise AssertionError('模型核透過は禁止')
+        self.p = self.factory(基礎ミニドラ=禁止模型核())
         self.ok(登録)
         r = self.p.応答('資料「文」を要約して、根拠は隠して')
         self.assertEqual(r.状態, '保留')

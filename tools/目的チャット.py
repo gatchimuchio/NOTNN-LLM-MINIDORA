@@ -14,9 +14,9 @@ def main():
         if hasattr(stream, 'reconfigure'): stream.reconfigure(encoding='utf-8', errors='strict')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('依頼', nargs='?')
-    parser.add_argument('--資料', action='append', default=[], metavar='名前=パス')
-    parser.add_argument('--json', action='store_true', help='追跡情報もJSONで表示')
-    parser.add_argument('--一覧', action='store_true')
+    parser.add_argument('--資料', 作用='append', default=[], metavar='名前=パス')
+    parser.add_argument('--json', 作用='store_true', help='追跡情報もJSONで表示')
+    parser.add_argument('--一覧', 作用='store_true')
     options = parser.parse_args()
     session = 目的会話セッション('目的チャット')
     if options.一覧:
@@ -29,7 +29,7 @@ def main():
         for spec in options.資料:
             name, path = spec.split('=', 1)
             if not name or name in materials or len(materials) >= 32: raise ValueError('資料名の空値・重複・件数上限')
-            with Path(path).open('rb') as source: raw = source.read(1000001)
+            with Path(path).open('rb') as 情報源: raw = 情報源.read(1000001)
             if len(raw) > 1000000: raise ValueError('資料は1MB以内')
             materials[name] = 能力結果(True, raw.decode('utf-8-sig'))
     except (ValueError, OSError, UnicodeError) as exc:
@@ -37,10 +37,10 @@ def main():
         return 2
 
     def respond(text):
-        result = session.応答(text, materials)
-        print(json.dumps(result.辞書化(), ensure_ascii=False) if options.json else
-              result.本文 if result.成立 else result.状態 + ': ' + result.理由)
-        return 0 if result.成立 else 2
+        結果 = session.応答(text, materials)
+        print(json.dumps(結果.辞書化(), ensure_ascii=False) if options.json else
+              結果.本文 if 結果.成立 else 結果.状態 + ': ' + 結果.理由)
+        return 0 if 結果.成立 else 2
 
     if options.依頼 is not None: return respond(options.依頼)
     if sys.stdin.isatty(): print('日本語の依頼を入力。/終了 で終了、/初期化 で履歴を消去します。')

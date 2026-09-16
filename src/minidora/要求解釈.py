@@ -52,7 +52,7 @@ class 要求解釈結果:
     HDS保持: HDSIR | None
     要求: tuple[要求工程, ...]
     計画: 合成計画 | None
-    初期Data: dict[str, 能力結果]
+    初期資料: dict[str, 能力結果]
     残差: tuple[要求残差, ...]
     局所解消: tuple[str, ...] = ()
     ハッシュ: str = ""
@@ -64,7 +64,7 @@ class 要求解釈結果:
         return self.状態 == "合格" and self.計画 is not None and not self.残差
 
     def 整合確認(self) -> bool:
-        """入力・解釈・計画・Dataの意図しない変更を検出する。署名ではない。"""
+        '入力・解釈・計画・資料の意図しない変更を検出する。署名ではない。'
         try:
             return self.ハッシュ == _指紋(replace(self, ハッシュ=""))
         except (TypeError, ValueError, RecursionError):
@@ -153,9 +153,9 @@ class 要求計画器:
         起点 = None
         束縛: list[照応束縛] = []
 
-        def 終了(状態: str, 計画=None, Data=None, 残差=(), 解消=()):
+        def 終了(状態: str, 計画=None, 資料=None, 残差=(), 解消=()):
             結果 = 要求解釈結果(状態, 保持, tuple(要求), 計画,
-                                deepcopy(Data or {}), tuple(残差), tuple(解消),
+                                deepcopy(資料 or {}), tuple(残差), tuple(解消),
                                 文脈識別子=起点.識別子 if 起点 is not None else None,
                                 文脈束縛=tuple(束縛))
             return replace(結果, ハッシュ=_指紋(replace(結果, ハッシュ="")))
@@ -187,7 +187,7 @@ class 要求計画器:
             座標 = 保持.座標辞書()
             if len(座標) != len(保持.座標):
                 raise ValueError("HDS座標重複")
-            原典 = [c for c in 保持.座標 if c.種別 == "source_text"]
+            原典 = [c for c in 保持.座標 if c.種別 == '情報源_text']
             if len(原典) != 1 or 原典[0].内容 != 原文 or 原典[0].値状態 != 値状態.確定:
                 raise ValueError("HDS原文座標不一致")
             if not isinstance(資料, Mapping):
@@ -207,7 +207,7 @@ class 要求計画器:
                 raise ValueError("資料サイズ上限")
             if not 原文.strip():
                 raise _未解(0, len(原文), "要求が空", "処理要求を指定する")
-            Data: dict[str, 能力結果] = {}
+            資料: dict[str, 能力結果] = {}
             資料キー = {n: f"資料:{i:04d}" for i, n in enumerate(sorted(素材))}
             最初の素材: 素材参照 | None = None
             位置 = len(原文) - len(原文.lstrip())
@@ -242,8 +242,8 @@ class 要求計画器:
                     except ValueError as exc:
                         raise _未解(*一致.span("対象"), str(exc), "参照する応答・出力番号を明示する") from exc
                     束縛.append(接続)
-                    Data[接続.Dataキー] = 値
-                    入力, 解決 = 素材参照("入力", 接続.Dataキー), "会話成果への明示照応"
+                    資料[接続.資料キー] = 値
+                    入力, 解決 = 素材参照("入力", 接続.資料キー), "会話成果への明示照応"
                     if 最初の素材 is None:
                         最初の素材 = 入力
                 elif 対象 in ("その結果", "それ"):
@@ -268,7 +268,7 @@ class 要求計画器:
                     if not 素材[名前].成立 or not 素材[名前].本文.strip():
                         raise _未解(位置, 終点, f"資料が未成立または空:{名前}", "成立した処理対象を渡す")
                     キー = 資料キー[名前]
-                    Data[キー] = 素材[名前]
+                    資料[キー] = 素材[名前]
                     入力, 解決 = 素材参照("入力", キー), f"提供資料:{名前}"
                     if 最初の素材 is None:
                         最初の素材 = 入力
@@ -295,15 +295,15 @@ class 要求計画器:
                 ID = f"要求:{len(要求) + 1:04d}"
                 要求.append(要求工程(ID, 能力, 入力, 設定, (位置, 終点), 対象範囲,
                                        解決, 行条件, 行数, 既定))
-                Data[f"指示:{ID}"] = 能力結果(True, 原文[位置:終点])
-                Data[f"設定:{ID}"] = 能力結果(True, "", データ=dict(設定))
+                資料[f"指示:{ID}"] = 能力結果(True, 原文[位置:終点])
+                資料[f"設定:{ID}"] = 能力結果(True, "", データ=dict(設定))
                 位置 = 次
             解消 = self._HDS照合(保持, tuple(要求), 起点, tuple(束縛))
             工程 = tuple(合成工程(t.識別子, (t.能力,), f"指示:{t.識別子}",
                                     (t.素材,), f"設定:{t.識別子}") for t in 要求)
             消費 = {t.素材.識別子 for t in 要求 if t.素材.領域 == "工程"}
             出力 = tuple(t.識別子 for t in 要求 if t.識別子 not in 消費)
-            return 終了("合格", 合成計画(工程, 出力), Data, 解消=解消)
+            return 終了("合格", 合成計画(工程, 出力), 資料, 解消=解消)
         except _未解 as exc:
             a, b = exc.範囲
             return 終了("保留", 残差=(要求残差((a, b), 原文[a:b], str(exc), exc.解消条件),))
@@ -326,7 +326,7 @@ class 要求計画器:
 
         if IR.入力言語 != "ja" or IR.出力言語 not in (None, "ja"):
             保留("この局所降下は日本語入出力のみ")
-        許容座標 = {"source_text", "language.normalized", "文脈.言語", "制御.選択意図",
+        許容座標 = {'情報源_text', '言語.normalized', "文脈.言語", "制御.選択意図",
                     "値.数量", "属性.単位", "対象.主題語", "目的.検索焦点",
                     "文脈.参照先", "文脈.指示語"}
         指示範囲 = ([t.対象範囲 for t in 要求 if t.対象解決 == "前工程への明示照応"]

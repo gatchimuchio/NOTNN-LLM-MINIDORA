@@ -21,14 +21,14 @@ from .HDS構文化処理系列_v1_4 import (
     HDS計算コンパイル成果,
     HDS計算降下バックエンド,
 )
-from .HDS構文化記録 import HDSCompiler成果
+from .HDS構文化記録 import HDS構文化器成果
 from .HDS構文化記録_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規則改善候補
 from .HDS構文化記録_v1_3 import HDS作用差分構造
 from .HDS構文化暗黙知 import HDS暗黙知IR射影, HDS暗黙知抽出
 from .HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
 from .HDS言語協調 import HDS英語AND展開
 from .HDS言語関係 import HDS英語基底関係射影
-from .HDS言語範囲 import HDS英語関係scope射影
+from .HDS言語範囲 import HDS英語関係範囲射影
 from .HDS言語意味橋渡し import HDS英日意味射影
 from .HDS意味主題射影 import HDS問い主題射影
 from .意味字句 import 意味語
@@ -37,7 +37,7 @@ from .言語基底 import 言語基底P, 標準言語基底P
 
 
 class _意味基礎HDSコンパイラ(_基礎HDSコンパイラ):
-    """旧基礎Compilerの意味抽出だけを利用し、計算計画を無作用化する内部前段。"""
+    '旧基礎構文化器の意味抽出だけを利用し、計算計画を無作用化する内部前段。'
 
     def __init__(self, 親: "公開HDSコンパイラ") -> None:
         super().__init__(親.方針)
@@ -49,16 +49,10 @@ class _意味基礎HDSコンパイラ(_基礎HDSコンパイラ):
 
 
 class 公開HDSコンパイラ(_基礎HDSコンパイラ):
-    """MINIDORA公開標準HDS Compiler。
+    'MINIDORA公開標準HDS 構文化器。\n\n    構造 v1.3ではMeaning/Audit v1.2を維持しつつ、状態遷移から\n    作用→状態差→後続利用の構造を並列成果として保持する。\n    処理系列 v1.4では意味IR・計算計画・作用差分構造を分離する。\n    構文化器自身は最終採否・後続作用実行を行わない。\n    '
 
-    Architecture v1.3ではMeaning/Audit v1.2を維持しつつ、状態遷移から
-    作用→状態差→後続利用の構造を並列成果として保持する。
-    Pipeline v1.4では意味IR・計算計画・作用差分構造を分離する。
-    Compiler自身は最終採否・後続作用実行を行わない。
-    """
-
-    Architecture版 = "v1.3"
-    Pipeline版 = "v1.4"
+    構造版 = "v1.3"
+    処理系列版 = "v1.4"
     規定言語 = "日本語"
     基底言語 = "日本語"
     基底言語コード = "ja"
@@ -73,17 +67,17 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
     def _入力言語(self, text: str) -> str:
         return self.言語基底P.入力言語判定(text)
 
-    def _完成(self, base: HDSIR, *, HDS履歴: tuple[HDSIR, ...] = ()) -> HDSCompiler成果:
+    def _完成(self, base: HDSIR, *, HDS履歴: tuple[HDSIR, ...] = ()) -> HDS構文化器成果:
         base = HDS英日意味射影(base)
         base = HDS英語基底関係射影(base, self.言語基底P)
         base = HDS英語AND展開(base)
-        base = HDS英語関係scope射影(base)
+        base = HDS英語関係範囲射影(base)
         base = HDS問い主題射影(base, 上限=self.方針.最大主題語数)
 
         first = 公開HDSフロントエンド射影(base)
-        graph = HDS状態遷移抽出(first.IR.正規化文 or first.IR.原文)
-        action_delta = HDS作用差分構造生成(graph)
-        ir = HDS状態遷移IR射影(first.IR, graph)
+        関係図 = HDS状態遷移抽出(first.IR.正規化文 or first.IR.原文)
+        作用_delta = HDS作用差分構造生成(関係図)
+        ir = HDS状態遷移IR射影(first.IR, 関係図)
         tacit = HDS暗黙知抽出(ir.正規化文 or ir.原文)
         ir = HDS暗黙知IR射影(ir, tacit)
 
@@ -97,13 +91,13 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         return replace(
             refreshed,
             IR=final_ir,
-            状態遷移=graph,
+            状態遷移=関係図,
             暗黙知構造=tacit,
             失敗署名候補=signatures,
             チェックリスト=checklist,
             認知世界差分=world_diff,
             監査参照候補=audit_queries,
-            作用差分構造=action_delta,
+            作用差分構造=作用_delta,
         )
 
     def _意味基礎IR(
@@ -115,10 +109,10 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         文脈: HDS文脈 | None = None,
     ) -> tuple[HDSIR, 言語計画]:
         normalized = self._正規化(str(入力))
-        context_focus = (
+        文脈_focus = (
             getattr(文脈, "現在焦点", None) if 文脈 is not None else 前回結果
         )
-        plan = self._計算計画器.計画(normalized, 文脈参照=context_focus)
+        plan = self._計算計画器.計画(normalized, 文脈参照=文脈_focus)
         base = self._意味基礎.コンパイル(
             入力,
             前回結果=前回結果,
@@ -134,17 +128,17 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         前回結果: object = None,
         HDS履歴: tuple[HDSIR, ...] = (),
         文脈: HDS文脈 | None = None,
-    ) -> tuple[HDSコンパイル束, HDSCompiler成果]:
-        semantic_base, plan = self._意味基礎IR(
+    ) -> tuple[HDSコンパイル束, HDS構文化器成果]:
+        意味_base, plan = self._意味基礎IR(
             入力,
             前回結果=前回結果,
             HDS履歴=HDS履歴,
             文脈=文脈,
         )
-        detailed = self._完成(semantic_base, HDS履歴=HDS履歴)
-        semantic_ir = replace(detailed.IR, 手順=None, 初期状態={})
-        detailed = replace(detailed, IR=semantic_ir)
-        return HDSコンパイル束(semantic_ir, plan, detailed.作用差分構造), detailed
+        detailed = self._完成(意味_base, HDS履歴=HDS履歴)
+        意味_ir = replace(detailed.IR, 手順=None, 初期状態={})
+        detailed = replace(detailed, IR=意味_ir)
+        return HDSコンパイル束(意味_ir, plan, detailed.作用差分構造), detailed
 
     def 意味コンパイル(
         self,
@@ -238,7 +232,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         前回結果: object = None,
         HDS履歴: tuple[HDSIR, ...] = (),
         文脈: HDS文脈 | None = None,
-    ) -> HDSCompiler成果:
+    ) -> HDS構文化器成果:
         _, detailed = self._意味束(
             入力,
             前回結果=前回結果,
@@ -249,8 +243,8 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
 
     @staticmethod
     def _問い関係を持つ(ir: HDSIR) -> bool:
-        for relation in ir.関係:
-            for raw in relation.条件:
+        for 関係 in ir.関係:
+            for raw in 関係.条件:
                 key, sep, payload = str(raw).partition("=")
                 if sep and key.strip() == "不足位置" and payload.strip() in {"始点", "終点"}:
                     return True
@@ -260,7 +254,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         """明示された選択問題型で、表層だけでは閉じなかった問いを世界知識なしで保持する。"""
         if self._問い関係を持つ(ir):
             return ir
-        choices = tuple(coord for coord in ir.座標 if coord.座標ID.startswith("choice:"))
+        choices = tuple(coord for coord in ir.座標 if coord.座標ID.startswith('選択肢:'))
         if len(choices) < 2:
             return ir
         text = self._正規化(str(question))
@@ -276,26 +270,26 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             return ir
 
         existing_coord_ids = {coord.座標ID for coord in ir.座標}
-        existing_relation_ids = {relation.関係ID for relation in ir.関係}
+        existing_関係_ids = {関係.関係ID for 関係 in ir.関係}
 
         def unique(base: str, existing: set[str]) -> str:
-            candidate = base
+            候補 = base
             serial = 1
-            while candidate in existing:
-                candidate = f"{base}:{serial}"
+            while 候補 in existing:
+                候補 = f"{base}:{serial}"
                 serial += 1
-            existing.add(candidate)
-            return candidate
+            existing.add(候補)
+            return 候補
 
-        unknown_id = unique("selection-query:unknown", existing_coord_ids)
+        未知_id = unique('selection-query:未知', existing_coord_ids)
         known_id = unique("selection-query:surface", existing_coord_ids)
-        relation_id = unique("selection-query:relation", existing_relation_ids)
+        関係_id = unique('selection-query:関係', existing_関係_ids)
         selection = "反転" if intent.種別 == "EXCEPTION" else "通常"
 
         coords = (
             *ir.座標,
             HDS座標(
-                unknown_id,
+                未知_id,
                 "目的.未知始点",
                 "選択肢",
                 値状態.未観測,
@@ -311,9 +305,9 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
                 暫定性="SELECTION_QUERY_GENERIC_CLOSURE",
             ),
         )
-        relation = HDS関係(
-            relation_id,
-            (unknown_id,),
+        関係 = HDS関係(
+            関係_id,
+            (未知_id,),
             (known_id,),
             "問い適合",
             条件=(
@@ -327,22 +321,22 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             暫定性="SELECTION_QUERY_GENERIC_CLOSURE",
         )
         residuals = tuple(
-            residual
-            for residual in ir.残差
+            残差
+            for 残差 in ir.残差
             if not (
-                str(residual.残差ID) == "lang-sem:question-loss"
-                and str(residual.種別) == "semantic_loss"
+                str(残差.残差ID) == "lang-sem:question-loss"
+                and str(残差.種別) == '意味_loss'
             )
         )
-        return replace(ir, 座標=coords, 関係=(*ir.関係, relation), 残差=residuals)
+        return replace(ir, 座標=coords, 関係=(*ir.関係, 関係), 残差=residuals)
 
     def _問題基礎(self, question: str, choices: Sequence[str]) -> HDSIR:
         if len(choices) < 2:
             raise ValueError("選択問題には2件以上の候補が必要")
         if len(choices) > 26:
-            raise ValueError("公開Compilerの選択ラベル上限は26件")
+            raise ValueError('公開構文化器の選択ラベル上限は26件')
         base, _ = self._意味基礎IR(question)
-        choice_coords = tuple(
+        選択肢_coords = tuple(
             HDS座標(
                 f"choice:{chr(ord('A') + index)}",
                 "目的.候補",
@@ -354,29 +348,29 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         )
         return replace(
             base,
-            座標=base.座標 + choice_coords,
+            座標=base.座標 + 選択肢_coords,
             参照必須=True,
             種別="knowledge_query",
             実行核=HDS実行核(
-                "HDS_choice_selection",
+                'HDS_選択肢_selection',
                 (),
                 "結果",
-                境界=("NO_GUESS", "gold非参照", "HDS-SEMANTIC"),
+                境界=("NO_GUESS", "gold非参照", 'HDS-意味'),
                 検証=("全候補対称", "計算P非内包"),
             ),
             手順=None,
             初期状態={},
-            閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
+            閉包状態='CLOSED_FOR_意味_TRANSFER',
         )
 
     def 問題IR(self, question: str, choices: Sequence[str]) -> HDSIR:
         completed = self._完成(self._問題基礎(question, choices)).IR
         return self._選択問題問い閉包(completed, question)
 
-    def 詳細問題IR(self, question: str, choices: Sequence[str]) -> HDSCompiler成果:
+    def 詳細問題IR(self, question: str, choices: Sequence[str]) -> HDS構文化器成果:
         return self._完成(self._問題基礎(question, choices))
 
-    def 失敗帰還(self, 成果: HDSCompiler成果, Bank: HDS失敗署名Bank, *, Run参照: str) -> HDS失敗署名BankSnapshot:
+    def 失敗帰還(self, 成果: HDS構文化器成果, Bank: HDS失敗署名Bank, *, Run参照: str) -> HDS失敗署名BankSnapshot:
         return Bank.観測(成果.失敗署名候補, Run参照=Run参照)
 
     def 改善候補(self, Bank: HDS失敗署名Bank) -> tuple[HDS抽出規則改善候補, ...]:
@@ -386,7 +380,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
 __all__ = [
     "公開HDSコンパイラ方針",
     "公開HDSコンパイラ",
-    "HDSCompiler成果",
+    'HDS構文化器成果',
     "HDS失敗署名Bank",
     "HDSコンパイル束",
     "HDS計算コンパイル成果",

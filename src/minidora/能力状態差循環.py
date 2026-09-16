@@ -12,7 +12,7 @@ from .模型 import (
     成立候補,
     成立差,
     文脈付き言語状態,
-    模型Checkpoint,
+    模型検査点,
     模型結果,
     模型統計,
     関係寄与,
@@ -98,7 +98,7 @@ def _寄与同一性(item: 関係寄与) -> tuple[object, ...]:
 @dataclass
 class _循環作業状態:
     寄与: dict[str, list[関係寄与]]
-    checkpoint: list[模型Checkpoint]
+    検査点: list[模型検査点]
     既訪問: set[tuple[object, ...]]
     生成数: int = 0
     再利用数: int = 0
@@ -171,8 +171,8 @@ class _循環作業状態:
         )
 
     def 記録(self, 段階: str, active: Sequence[str] = (), reuse: Sequence[str] = ()) -> None:
-        self.checkpoint.append(
-            模型Checkpoint(
+        self.検査点.append(
+            模型検査点(
                 段階,
                 tuple(sorted(self.得点().items())),
                 tuple(active),
@@ -182,11 +182,7 @@ class _循環作業状態:
 
 
 class 参照状態差連結作用:
-    """参照Dataの明示状態差から、追加条件なしで接続できる終端状態だけを候補差へ使う。
-
-    Compilerが「状態条件は満たすが追加条件は未確認」と残した接続は証拠化しない。
-    単一遷移だけでも証拠化せず、状態差が別作用を成立可能にした連結がある場合だけ使う。
-    """
+    '参照資料の明示状態差から、追加条件なしで接続できる終端状態だけを候補差へ使う。\n\n    構文化器が「状態条件は満たすが追加条件は未確認」と残した接続は証拠化しない。\n    単一遷移だけでも証拠化せず、状態差が別作用を成立可能にした連結がある場合だけ使う。\n    '
 
     名称 = "候補共同参照:状態差連結"
 
@@ -196,7 +192,7 @@ class 参照状態差連結作用:
         作用構造群: Sequence[能力作用構造],
     ) -> dict[str, 関係寄与]:
         scores = {cid: 0 for cid, _ in 候補群}
-        evidence: dict[str, list[str]] = {cid: [] for cid, _ in 候補群}
+        証拠: dict[str, list[str]] = {cid: [] for cid, _ in 候補群}
 
         for structure_index, structure in enumerate(作用構造群):
             actions = {item.作用ID: item for item in structure.作用}
@@ -206,12 +202,12 @@ class 参照状態差連結作用:
                 if not link.状態条件充足 or link.追加条件:
                     continue
                 delta = deltas.get(link.原因差分ID)
-                next_action = actions.get(link.後続作用ID)
-                if delta is None or next_action is None:
+                next_作用 = actions.get(link.後続作用ID)
+                if delta is None or next_作用 is None:
                     continue
                 if delta.後状態 != link.成立状態:
                     continue
-                edges.append((delta.原因作用ID, next_action.作用ID))
+                edges.append((delta.原因作用ID, next_作用.作用ID))
 
             if not edges:
                 continue
@@ -223,19 +219,19 @@ class 参照状態差連結作用:
 
             terminal_states = tuple(
                 dict.fromkeys(
-                    actions[action_id].出力状態
-                    for action_id in terminal_ids
-                    if action_id in actions and actions[action_id].出力状態
+                    actions[作用_id].出力状態
+                    for 作用_id in terminal_ids
+                    if 作用_id in actions and actions[作用_id].出力状態
                 )
             )
             if not terminal_states:
                 continue
 
             rank: dict[str, int] = {}
-            for cid, candidate in 候補群:
+            for cid, 候補 in 候補群:
                 overlap = 0
-                for state in terminal_states:
-                    overlap = max(overlap, len(意味語(state).intersection(candidate.意味語集合)))
+                for 状態 in terminal_states:
+                    overlap = max(overlap, len(意味語(状態).intersection(候補.意味語集合)))
                 rank[cid] = overlap
             maximum = max(rank.values(), default=0)
             top = sorted(cid for cid, value in rank.items() if value == maximum and value > 0)
@@ -243,12 +239,12 @@ class 参照状態差連結作用:
                 continue
             cid = top[0]
             scores[cid] += 1
-            evidence[cid].append(
+            証拠[cid].append(
                 f"状態差連結:{structure_index}:{'|'.join(terminal_states)}"
             )
 
         return {
-            cid: 関係寄与(self.名称, score, tuple(evidence[cid]))
+            cid: 関係寄与(self.名称, score, tuple(証拠[cid]))
             for cid, score in scores.items()
             if score > 0
         }
@@ -275,10 +271,10 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
             raise ValueError("候補IDは評価内で一意である必要がある")
 
         内部候補群: list[tuple[str, 内部言語状態]] = []
-        for candidate in 候補群:
-            if candidate.状態.言語体系 != 文脈.現在.言語体系:
+        for 候補 in 候補群:
+            if 候補.状態.言語体系 != 文脈.現在.言語体系:
                 raise ValueError("候補と言語文脈の言語体系が一致しない")
-            内部候補群.append((candidate.候補ID, self.言語対応.内部化(candidate.状態)))
+            内部候補群.append((候補.候補ID, self.言語対応.内部化(候補.状態)))
 
         incomplete = _不成立入力の留保結果(文脈, tuple(内部候補群))
         if incomplete is not None:
@@ -286,16 +282,16 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
         work = _循環作業状態({cid: [] for cid in 候補ID群}, [], set())
         状態差履歴: list[能力候補状態差] = []
 
-        for cid, state in 内部候補群:
-            for relation in self._関係群:
-                item = relation.評価(文脈, state)
+        for cid, 状態 in 内部候補群:
+            for 関係 in self._関係群:
+                item = 関係.評価(文脈, 状態)
                 if item:
                     work.追加(cid, item)
         work.記録("標準関係", 候補ID群)
 
-        for cid, state in 内部候補群:
-            for relation in self._形成済み関係群:
-                item = relation.評価(文脈, state)
+        for cid, 状態 in 内部候補群:
+            for 関係 in self._形成済み関係群:
+                item = 関係.評価(文脈, 状態)
                 if item:
                     work.追加(cid, item)
         work.記録("形成済み関係", 候補ID群)
@@ -303,18 +299,18 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
         一次作用前状態 = work.状態署名()
 
         if 作用構造群:
-            result = 参照状態差連結作用().評価群(tuple(内部候補群), tuple(作用構造群))
-            for cid, item in result.items():
+            結果 = 参照状態差連結作用().評価群(tuple(内部候補群), tuple(作用構造群))
+            for cid, item in 結果.items():
                 work.追加(cid, item)
 
-        for action in self._能力作用群:
-            if hasattr(action, "評価群"):
-                result = action.評価群(文脈, tuple(内部候補群))
-                for cid, item in result.items():
+        for 作用 in self._能力作用群:
+            if hasattr(作用, "評価群"):
+                結果 = 作用.評価群(文脈, tuple(内部候補群))
+                for cid, item in 結果.items():
                     work.追加(cid, item)
             else:
-                for cid, state in 内部候補群:
-                    item = action.評価(文脈, state)
+                for cid, 状態 in 内部候補群:
+                    item = 作用.評価(文脈, 状態)
                     if item:
                         work.追加(cid, item)
 
@@ -363,11 +359,11 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
                 break
 
             再作用群 = tuple(
-                action
-                for action in self._能力作用群
-                if hasattr(action, "再評価群")
+                作用
+                for 作用 in self._能力作用群
+                if hasattr(作用, "再評価群")
                 and not (
-                    isinstance(action, 候補共同参照作用)
+                    isinstance(作用, 候補共同参照作用)
                     and not 文脈.参照状態
                 )
             )
@@ -377,7 +373,7 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
             再作用署名 = (
                 未処理状態差.状態差署名,
                 再作用候補群,
-                tuple(getattr(action, "名称", type(action).__name__) for action in 再作用群),
+                tuple(getattr(作用, "名称", type(作用).__name__) for 作用 in 再作用群),
             )
             if 再作用署名 in work.既訪問:
                 break
@@ -389,18 +385,18 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
             再作用前状態 = work.状態署名()
             再作用候補行 = tuple(row for row in 内部候補群 if row[0] in 再作用候補群)
             再利用記録: list[str] = [未処理状態差.差分ID]
-            for action in 再作用群:
-                作用名 = str(getattr(action, "名称", type(action).__name__))
+            for 作用 in 再作用群:
+                作用名 = str(getattr(作用, "名称", type(作用).__name__))
                 再利用記録.append(作用名)
                 # 意味anchorを持つ通常問題では元の全候補を維持し、候補除外による人工差を作らない。
                 # 意味anchorを持たない制御的入力だけは、既存の状態差循環契約どおりactive境界を再照合する。
                 作用対象 = (
                     tuple(内部候補群)
-                    if isinstance(action, 候補共同参照作用) and 文脈.現在.意味語集合
+                    if isinstance(作用, 候補共同参照作用) and 文脈.現在.意味語集合
                     else 再作用候補行
                 )
-                result = action.再評価群(文脈, 作用対象, 循環番号)
-                for cid, item in result.items():
+                結果 = 作用.再評価群(文脈, 作用対象, 循環番号)
+                for cid, item in 結果.items():
                     if work.追加(cid, item):
                         work.再利用数 += 1
 
@@ -430,7 +426,7 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
         top = tuple(item.候補ID for item in differences if item.差 == maximum)
         winner = top[0] if maximum > 0 and len(top) == 1 else None
 
-        reference_prefixes = (
+        参照_prefixes = (
             "参照関係寄与",
             "候補共同参照",
             "候補共同再照合",
@@ -439,7 +435,7 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
             row.候補ID: sum(
                 contribution.差
                 for contribution in row.寄与
-                if contribution.関係名.startswith(reference_prefixes)
+                if contribution.関係名.startswith(参照_prefixes)
             )
             for row in differences
         }
@@ -454,14 +450,14 @@ class MINIDORA能力状態差模型核(MINIDORA模型核):
             work.大域再照合数,
             work.候補横断更新数,
             work.再作用回数,
-            len(work.checkpoint),
+            len(work.検査点),
         )
         return 模型結果(
             文脈,
             differences,
             winner,
             top if len(top) > 1 else (),
-            tuple(work.checkpoint),
+            tuple(work.検査点),
             stats,
             ref_winner,
             ref_top if len(ref_top) > 1 else (),

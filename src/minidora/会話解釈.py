@@ -111,9 +111,9 @@ def 会話を解釈(原文: str, 資料名: tuple[str,...]=()) -> 会話要求:
             head,verb=split
             m=re.fullmatch(r'(.+?)の(.+?)を([^「」\s]+)で',head)
             if m:
-                subject,attribute,unit=m.groups()
+                主体,attribute,unit=m.groups()
                 return 会話要求(原文,'取得',属性=_名前(attribute),単位=_名前(unit),詳細=detailed,
-                    外部禁止=forbid,補助={'主題':_名前(subject)},対応=(('取得要求',0,len(原文)),)).固定複製()
+                    外部禁止=forbid,補助={'主題':_名前(主体)},対応=(('取得要求',0,len(原文)),)).固定複製()
     # 第17バッチが理解する対象・目的の文法へだけ明示的に戻す。
     # 新しい言い換えは数学の結果質問と語順に限定。生成した文と原文を両方保持する。
     if len(task)==1 and re.fullmatch(r'[0-9+*/(). \-]+(?:は)?',task[0]):
@@ -144,9 +144,9 @@ def HDS会話を照合(ir, request: 会話要求, *, 文脈解消=False):
         raise ValueError('実HDS原文の不一致')
     coords=ir.座標辞書()
     if len(coords)!=len(ir.座標): raise ValueError('HDS座標重複')
-    sources=[x for x in ir.座標 if x.種別=='source_text']
+    sources=[x for x in ir.座標 if x.種別=='情報源_text']
     if len(sources)!=1 or sources[0].内容!=request.原文: raise ValueError('HDS原文座標不一致')
-    allowed={'source_text','language.normalized','文脈.言語','制御.選択意図','値.数量','属性.単位','対象.主題語','目的.検索焦点'}
+    allowed={'情報源_text','言語.normalized','文脈.言語','制御.選択意図','値.数量','属性.単位','対象.主題語','目的.検索焦点'}
     for x in ir.座標:
         if x.種別 not in allowed or x.値状態!=値状態.確定:
             raise ValueError('未処理HDS座標:'+x.種別)

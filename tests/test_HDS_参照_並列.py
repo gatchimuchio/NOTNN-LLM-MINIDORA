@@ -15,8 +15,8 @@ def _ir() -> HDSIR:
         座標=(
             HDS座標("alpha", "対象.実体", "Alpha"),
             HDS座標("use", "関係.述語表層", "use"),
-            HDS座標("choice:A", "目的.候補", "engine"),
-            HDS座標("choice:B", "目的.候補", "stone"),
+            HDS座標('選択肢:A', "目的.候補", "engine"),
+            HDS座標('選択肢:B', "目的.候補", "stone"),
         ),
         関係=(),
         残差=(),
@@ -47,8 +47,8 @@ class _ParallelSafeProvider:
         # 最初の2 callだけ同期し、奇数個の後続queryを単独Barrier待ちにしない。
         if call_no <= 2:
             self.barrier.wait(timeout=1.0)
-        token = str(abs(hash(query)))
-        return (参照記録(token, query, query, "fixture://" + token, self.名称),)
+        字句 = str(abs(hash(query)))
+        return (参照記録(字句, query, query, "fixture://" + 字句, self.名称),)
 
 
 class _SequentialOnlyProvider:

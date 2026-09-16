@@ -5,14 +5,14 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 import re
 
-from .HDS構文化記録 import HDS_COMPILER_META_PREFIXES
+from .HDS構文化記録 import HDS_構文化器_META_PREFIXES
 from .HDS探索方針 import HDS努力水準
 from .HDS中間表現 import HDSIR, 値状態
 from .意味字句 import 意味語
 from .参照 import 参照供給器, 参照記録
 
-_SURFACE_ONLY_KINDS = {"source_text", "language.input", "language.normalized", "対象.原文保持", "文脈.言語"}
-_QUERY_META_PREFIXES = HDS_COMPILER_META_PREFIXES + ("制御.", "目的.不足位置", "条件.検索極性")
+_SURFACE_ONLY_KINDS = {'情報源_text', '言語.input', '言語.normalized', "対象.原文保持", "文脈.言語"}
+_QUERY_META_PREFIXES = HDS_構文化器_META_PREFIXES + ("制御.", "目的.不足位置", "条件.検索極性")
 _BLOCKING_STATES = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
 _FOCUS_SPLIT = re.compile(r"(?<=[?!.。？！])\s+|\n+")
 _EN_QUESTION_TAIL = re.compile(r"(?P<q>\b(?:which|what|why|how|who|when|where)\b[^?？]{0,320}[?？])\s*$", re.I)
@@ -82,7 +82,7 @@ def _役割語群(ir: HDSIR) -> tuple[dict[str, tuple[str, ...]], tuple[tuple[st
         content = " ".join(str(coord.内容).split()).strip()
         if not content:
             continue
-        if coord.座標ID.startswith("choice:"):
+        if coord.座標ID.startswith('選択肢:'):
             choices.append((coord.座標ID.split(":", 1)[1], content))
             continue
         kind = str(coord.種別)
@@ -99,14 +99,14 @@ def _切詰め(text: str, limit: int) -> str:
     parts = value.split()
     if not parts or limit <= 0:
         return ""
-    head_budget = max(1, int(limit * 0.58))
-    tail_budget = max(1, limit - head_budget - 1)
+    head_予算 = max(1, int(limit * 0.58))
+    tail_予算 = max(1, limit - head_予算 - 1)
     head: list[str] = []
     size = 0
     split_index = 0
     for index, part in enumerate(parts):
         extra = len(part) + (1 if head else 0)
-        if size + extra > head_budget:
+        if size + extra > head_予算:
             split_index = index
             break
         head.append(part)
@@ -116,7 +116,7 @@ def _切詰め(text: str, limit: int) -> str:
     size = 0
     for part in reversed(parts[split_index:]):
         extra = len(part) + (1 if tail_rev else 0)
-        if size + extra > tail_budget:
+        if size + extra > tail_予算:
             break
         tail_rev.append(part)
         size += extra
@@ -141,11 +141,11 @@ def _焦点抽出(text: str, *, limit: int = 180) -> str:
     return _切詰め(" ".join(raw.split()[-32:]), limit)
 
 
-def _検索表層(token: str) -> str:
+def _検索表層(字句: str) -> str:
     for prefix in ("math:", "atom:", "sym:"):
-        if token.startswith(prefix):
-            return token[len(prefix):]
-    return token
+        if 字句.startswith(prefix):
+            return 字句[len(prefix):]
+    return 字句
 
 
 def _候補差分語(choices: tuple[tuple[str, str], ...]) -> dict[str, tuple[str, ...]]:
@@ -164,18 +164,18 @@ def _候補差分語(choices: tuple[tuple[str, str], ...]) -> dict[str, tuple[st
             distinctive = signatures[label]
         ordered = sorted(
             distinctive,
-            key=lambda token: (
-                0 if token.startswith("math:") else 1 if any(ch.isdigit() for ch in token) else 2,
-                token,
+            key=lambda 字句: (
+                0 if 字句.startswith("math:") else 1 if any(ch.isdigit() for ch in 字句) else 2,
+                字句,
             ),
         )
-        out[label] = tuple(_検索表層(token) for token in ordered[:16])
+        out[label] = tuple(_検索表層(字句) for 字句 in ordered[:16])
     return out
 
 
-def _候補query片(choice: str, distinctive: tuple[str, ...]) -> str:
+def _候補query片(選択肢: str, distinctive: tuple[str, ...]) -> str:
     """短い候補は原表層を保持し、長文候補だけ差分語へ圧縮する。"""
-    surface = " ".join(str(choice).split()).strip()
+    surface = " ".join(str(選択肢).split()).strip()
     if len(surface) <= 96 and len(surface.split()) <= 14:
         return surface
     differential = " ".join(distinctive)
@@ -183,33 +183,33 @@ def _候補query片(choice: str, distinctive: tuple[str, ...]) -> str:
 
 
 
-def _関係条件値(relation: object, key: str) -> str:
+def _関係条件値(関係: object, key: str) -> str:
     prefix = key + "="
-    for raw in getattr(relation, "条件", ()):
+    for raw in getattr(関係, "条件", ()):
         value = str(raw)
         if value.startswith(prefix):
             return value[len(prefix):].strip()
     return ""
 
 
-def _不足スロット候補query(ir: HDSIR, choice: str) -> str:
-    """Compilerが確定した関係の未知端点だけを候補で埋め、R用表層へ戻す。"""
+def _不足スロット候補query(ir: HDSIR, 選択肢: str) -> str:
+    '構文化器が確定した関係の未知端点だけを候補で埋め、R用表層へ戻す。'
     coords = ir.座標辞書()
     groups, _ = _役割語群(ir)
     conditions = groups["条件"]
-    for relation in ir.関係:
-        position = _関係条件値(relation, "不足位置")
-        predicate = _関係条件値(relation, "検索述語")
+    for 関係 in ir.関係:
+        position = _関係条件値(関係, "不足位置")
+        predicate = _関係条件値(関係, "検索述語")
         if position not in {"始点", "終点"} or not predicate:
             continue
-        starts = [coords[cid] for cid in relation.始点 if cid in coords]
-        ends = [coords[cid] for cid in relation.終点 if cid in coords]
+        starts = [coords[cid] for cid in 関係.始点 if cid in coords]
+        ends = [coords[cid] for cid in 関係.終点 if cid in coords]
         if position == "始点":
             known = next((str(coord.内容) for coord in ends if coord.値状態 not in _BLOCKING_STATES), "")
-            parts = (choice, predicate, known, *conditions)
+            parts = (選択肢, predicate, known, *conditions)
         else:
             known = next((str(coord.内容) for coord in starts if coord.値状態 not in _BLOCKING_STATES), "")
-            parts = (known, predicate, choice, *conditions)
+            parts = (known, predicate, 選択肢, *conditions)
         query = _切詰め(" ".join(_unique(parts)), 360)
         if query:
             return query
@@ -225,23 +225,23 @@ def _問合せ仕様(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[_HDS問合
         " ".join(_unique((*groups["焦点"], *groups["対象"], *groups["関係"], *groups["状態"], *groups["条件"], *groups["その他"]))),
         240,
     )
-    entity_relation = _切詰め(" ".join(_unique((*groups["対象"], *groups["関係"], *groups["状態"]))), 200)
+    entity_関係 = _切詰め(" ".join(_unique((*groups["対象"], *groups["関係"], *groups["状態"]))), 200)
     entity_only = _切詰め(" ".join(groups["対象"]), 160)
-    structural_anchor = structured or entity_relation or entity_only
+    structural_anchor = structured or entity_関係 or entity_only
     anchor = _切詰め(" ".join(_unique((structural_anchor, focus))), 220) or focus or structural_anchor or base
-    budget = max(int(最大候補数), len(choices))
-    nonchoice_slots = max(0, budget - len(choices))
+    予算 = max(int(最大候補数), len(choices))
+    nonchoice_欄 = max(0, 予算 - len(choices))
     nonchoice_raw = (
         (structured, "structured"),
         (focus, "focus"),
-        (entity_relation, "entity_relation"),
+        (entity_関係, 'entity_関係'),
         (base, "surface"),
         (entity_only, "entity"),
     )
     specs: list[_HDS問合せ仕様] = []
     seen: set[str] = set()
     for query, kind in nonchoice_raw:
-        if len(specs) >= nonchoice_slots:
+        if len(specs) >= nonchoice_欄:
             break
         key = query.casefold()
         if not query or key in seen:
@@ -250,17 +250,17 @@ def _問合せ仕様(ir: HDSIR, *, 最大候補数: int = 6) -> tuple[_HDS問合
         specs.append(_HDS問合せ仕様(query, kind))
 
     distinctive = _候補差分語(choices)
-    for label, choice in choices:
-        query = _不足スロット候補query(ir, choice)
+    for label, 選択肢 in choices:
+        query = _不足スロット候補query(ir, 選択肢)
         if not query:
-            suffix = _候補query片(choice, distinctive.get(label, ()))
+            suffix = _候補query片(選択肢, distinctive.get(label, ()))
             query = _切詰め(" ".join(_unique((anchor, suffix))), 360)
         if not query:
             continue
         key = query.casefold()
         if key not in seen:
             seen.add(key)
-            specs.append(_HDS問合せ仕様(query, "choice", label))
+            specs.append(_HDS問合せ仕様(query, '選択肢', label))
     return tuple(specs)
 
 
@@ -286,7 +286,7 @@ def _監査probe仕様(ir: HDSIR) -> tuple[_HDS問合せ仕様, ...]:
 def _縮退仕様(ir: HDSIR) -> tuple[_HDS問合せ仕様, ...]:
     groups, choices = _役割語群(ir)
     entity = _切詰め(" ".join(groups["対象"]), 160)
-    relation = _切詰め(" ".join(_unique((*groups["関係"], *groups["状態"]))), 160)
+    関係 = _切詰め(" ".join(_unique((*groups["関係"], *groups["状態"]))), 160)
     contextual = _切詰め(" ".join(_unique((*groups["条件"], *groups["焦点"]))), 160)
     distinctive = _候補差分語(choices)
     primary = {q.casefold() for q in HDS参照問合せ候補(ir)}
@@ -301,11 +301,11 @@ def _縮退仕様(ir: HDSIR) -> tuple[_HDS問合せ仕様, ...]:
         seen.add(key)
         specs.append(spec)
 
-    for label, choice in choices:
-        suffix = _候補query片(choice, distinctive.get(label, ()))
+    for label, 選択肢 in choices:
+        suffix = _候補query片(選択肢, distinctive.get(label, ()))
         for query, kind in (
-            (_切詰め(" ".join(_unique((entity, suffix))), 280), "fallback_choice"),
-            (_切詰め(suffix, 180), "fallback_choice_only"),
+            (_切詰め(" ".join(_unique((entity, suffix))), 280), '代替経路_選択肢'),
+            (_切詰め(suffix, 180), '代替経路_選択肢_only'),
         ):
             key = query.casefold()
             if not query or key in seen:
@@ -313,9 +313,9 @@ def _縮退仕様(ir: HDSIR) -> tuple[_HDS問合せ仕様, ...]:
             seen.add(key)
             specs.append(_HDS問合せ仕様(query, kind, label))
     for query, kind in (
-        (" ".join(_unique((entity, relation))), "fallback_relation"),
-        (" ".join(_unique((entity, contextual))), "fallback_context"),
-        (entity, "fallback_entity"),
+        (" ".join(_unique((entity, 関係))), '代替経路_関係'),
+        (" ".join(_unique((entity, contextual))), '代替経路_文脈'),
+        (entity, '代替経路_entity'),
     ):
         query = _切詰め(query, 280)
         key = query.casefold()
@@ -334,7 +334,7 @@ def _条件追加(record: 参照記録, spec: _HDS問合せ仕様) -> 参照記�
     conditions = list(record.条件)
     additions = [("hds_query_kind", spec.種別)]
     if spec.候補 is not None:
-        additions.append(("hds_query_choice", spec.候補))
+        additions.append(('hds_query_選択肢', spec.候補))
     for item in additions:
         if item not in conditions:
             conditions.append(item)
@@ -367,7 +367,7 @@ def _query_pools(
         pools = []
         for future in futures:
             try:
-                pools.append(tuple(future.result()))
+                pools.append(tuple(future.結果()))
             except Exception:
                 pools.append(())
         return pools
@@ -383,7 +383,7 @@ def _記録統合(old: 参照記録, new: 参照記録) -> 参照記録:
 
 def _round_robin(pools: Iterable[tuple[参照記録, ...]], limit: int) -> tuple[参照記録, ...]:
     pools_tuple = tuple(pools)
-    result: list[参照記録] = []
+    結果: list[参照記録] = []
     index_by_id: dict[str, int] = {}
     depth = 0
     while True:
@@ -395,40 +395,40 @@ def _round_robin(pools: Iterable[tuple[参照記録, ...]], limit: int) -> tuple
             record = pool[depth]
             existing = index_by_id.get(record.識別子)
             if existing is not None:
-                result[existing] = _記録統合(result[existing], record)
+                結果[existing] = _記録統合(結果[existing], record)
                 continue
-            if len(result) >= limit:
+            if len(結果) >= limit:
                 continue
-            index_by_id[record.識別子] = len(result)
-            result.append(record)
+            index_by_id[record.識別子] = len(結果)
+            結果.append(record)
         if not progressed:
             break
         depth += 1
-    return tuple(result)
+    return tuple(結果)
 
 
 def _候補被覆(records: Iterable[参照記録]) -> frozenset[str]:
     labels: set[str] = set()
     for record in records:
         for key, value in record.条件:
-            if str(key) == "hds_query_choice" and str(value):
+            if str(key) == 'hds_query_選択肢' and str(value):
                 labels.add(str(value))
     return frozenset(labels)
 
 
 def _記録群統合(first: Iterable[参照記録], second: Iterable[参照記録], limit: int) -> tuple[参照記録, ...]:
-    result: list[参照記録] = []
+    結果: list[参照記録] = []
     index_by_id: dict[str, int] = {}
     for record in (*tuple(first), *tuple(second)):
         existing = index_by_id.get(record.識別子)
         if existing is not None:
-            result[existing] = _記録統合(result[existing], record)
+            結果[existing] = _記録統合(結果[existing], record)
             continue
-        if len(result) >= limit:
+        if len(結果) >= limit:
             continue
-        index_by_id[record.識別子] = len(result)
-        result.append(record)
-    return tuple(result)
+        index_by_id[record.識別子] = len(結果)
+        結果.append(record)
+    return tuple(結果)
 
 
 def HDS参照検索(
@@ -439,10 +439,10 @@ def HDS参照検索(
     一問合せ上限: int | None = None,
     最大問合せ並列: int | None = None,
 ) -> tuple[参照記録, ...]:
-    budget = HDS参照予算選択(ir)
-    total_limit = budget.取得上限 if 上限 is None else max(0, int(上限))
-    per_query = budget.一問合せ上限 if 一問合せ上限 is None else max(1, int(一問合せ上限))
-    parallel = budget.最大問合せ並列 if 最大問合せ並列 is None else max(1, int(最大問合せ並列))
+    予算 = HDS参照予算選択(ir)
+    total_limit = 予算.取得上限 if 上限 is None else max(0, int(上限))
+    per_query = 予算.一問合せ上限 if 一問合せ上限 is None else max(1, int(一問合せ上限))
+    parallel = 予算.最大問合せ並列 if 最大問合せ並列 is None else max(1, int(最大問合せ並列))
     if total_limit <= 0:
         return ()
 
@@ -458,24 +458,24 @@ def HDS参照検索(
 
     # 完全0件なら縮退する。候補専用queryが一部だけ当たった場合も未被覆候補だけ補う。
     # 一般の構造queryだけで1件以上取れている場合は、検索量を無闇に増やさない。
-    needs_fallback = not primary_records or bool(coverage and (expected_labels - coverage))
-    if not needs_fallback:
+    needs_代替経路 = not primary_records or bool(coverage and (expected_labels - coverage))
+    if not needs_代替経路:
         return primary_records
 
-    fallback_specs = _縮退仕様(ir)
-    if not fallback_specs:
+    代替経路_specs = _縮退仕様(ir)
+    if not 代替経路_specs:
         return primary_records
     filtered_specs = tuple(
-        spec for spec in fallback_specs
+        spec for spec in 代替経路_specs
         if spec.候補 is None or spec.候補 not in coverage
     )
     if not filtered_specs:
         return primary_records
-    fallback_records = _round_robin(
+    代替経路_records = _round_robin(
         _query_pools(provider, filtered_specs, per_query, max_parallel=parallel),
         total_limit,
     )
-    return _記録群統合(primary_records, fallback_records, total_limit)
+    return _記録群統合(primary_records, 代替経路_records, total_limit)
 
 
 __all__ = [

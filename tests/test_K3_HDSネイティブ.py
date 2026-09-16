@@ -2,7 +2,7 @@ import unittest
 
 from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標
 from minidora.K3機能 import K3相当能力核
-from minidora.K3_HDSネイティブ import HDSIRネイティブAdapter
+from minidora.K3_HDSネイティブ import HDSIRネイティブ適合器
 
 
 def _ir(question: str, choices: dict[str, str]) -> HDSIR:
@@ -17,39 +17,39 @@ def _ir(question: str, choices: dict[str, str]) -> HDSIR:
         意味作用履歴=(),
         実行核=HDS実行核("意味構造転送"),
         種別="意味構造",
-        閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
+        閉包状態='CLOSED_FOR_意味_TRANSFER',
         入力言語="en",
     )
 
 
 class HDSIRネイティブK3試験(unittest.TestCase):
     def test_K根拠が無ければ推測せず保留(self):
-        result = HDSIRネイティブAdapter(K3相当能力核()).実行(
+        結果 = HDSIRネイティブ適合器(K3相当能力核()).実行(
             _ir("What does alpha use?", {"A": "engine", "B": "stone"})
         )
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIsNone(result.回答ラベル)
-        self.assertIn("NO_KNOWLEDGE_EVIDENCE", result.理由)
+        self.assertEqual(結果.状態, "SUSPEND")
+        self.assertIsNone(結果.回答ラベル)
+        self.assertIn('NO_KNOWLEDGE_証拠', 結果.理由)
 
     def test_HDS候補をK根拠で一意選択(self):
-        core = K3相当能力核()
-        core.知識投入(("alpha uses engine.",))
-        result = HDSIRネイティブAdapter(core).実行(
+        模型核 = K3相当能力核()
+        模型核.知識投入(("alpha uses engine.",))
+        結果 = HDSIRネイティブ適合器(模型核).実行(
             _ir("What does alpha use?", {"A": "engine", "B": "stone"})
         )
-        self.assertEqual(result.状態, "APPROVE")
-        self.assertEqual(result.回答ラベル, "A")
-        self.assertGreater(result.根拠事実数, 0)
+        self.assertEqual(結果.状態, "APPROVE")
+        self.assertEqual(結果.回答ラベル, "A")
+        self.assertGreater(結果.根拠事実数, 0)
 
     def test_同率根拠は選ばない(self):
-        core = K3相当能力核()
-        core.知識投入(("alpha uses engine.", "alpha uses stone."))
-        result = HDSIRネイティブAdapter(core).実行(
+        模型核 = K3相当能力核()
+        模型核.知識投入(("alpha uses engine.", "alpha uses stone."))
+        結果 = HDSIRネイティブ適合器(模型核).実行(
             _ir("What does alpha use?", {"A": "engine", "B": "stone"})
         )
-        self.assertEqual(result.状態, "SUSPEND")
-        self.assertIsNone(result.回答ラベル)
-        self.assertIn("AMBIGUOUS_EVIDENCE", result.理由)
+        self.assertEqual(結果.状態, "SUSPEND")
+        self.assertIsNone(結果.回答ラベル)
+        self.assertIn('AMBIGUOUS_証拠', 結果.理由)
 
 
 if __name__ == "__main__":

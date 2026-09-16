@@ -148,10 +148,10 @@ def HDS参照計画作成(
     ordered_ids: list[str] = []
     seen: set[str] = set()
     for _overlap, _position, bucket in scored:
-        for source_id in bucket.参照ID群:
-            if source_id not in seen:
-                seen.add(source_id)
-                ordered_ids.append(source_id)
+        for 情報源_id in bucket.参照ID群:
+            if 情報源_id not in seen:
+                seen.add(情報源_id)
+                ordered_ids.append(情報源_id)
 
     limit = len(ordered_ids) if 参照上限 is None else max(0, int(参照上限))
     selected = tuple(ordered_ids[:limit])
@@ -181,10 +181,10 @@ def HDS参照計画適用(
         raise ValueError("参照正本が変化しているため計画を再利用できない")
 
     by_id = {str(record.識別子): record for record in records}
-    missing = tuple(source_id for source_id in plan.参照ID群 if source_id not in by_id)
+    missing = tuple(情報源_id for 情報源_id in plan.参照ID群 if 情報源_id not in by_id)
     if missing:
         raise KeyError("参照計画の正本参照が欠落している: " + ",".join(missing))
-    return tuple(by_id[source_id] for source_id in plan.参照ID群)
+    return tuple(by_id[情報源_id] for 情報源_id in plan.参照ID群)
 
 
 def HDS参照計画再利用可能(

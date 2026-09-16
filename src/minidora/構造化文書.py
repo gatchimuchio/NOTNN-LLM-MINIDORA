@@ -40,11 +40,11 @@ def _位置名(name: str) -> str:
     return name.replace("~", "~0").replace("/", "~1")
 
 
-def _数値検査(token: str) -> None:
-    if type(token) is not str or not _数値.fullmatch(token) or len(token) > 256:
+def _数値検査(字句: str) -> None:
+    if type(字句) is not str or not _数値.fullmatch(字句) or len(字句) > 256:
         raise 文書境界違反("数値表記の型・長さ不正")
-    if re.search('[eE]', token):
-        exponent = re.split('[eE]', token)[1]
+    if re.search('[eE]', 字句):
+        exponent = re.split('[eE]', 字句)[1]
         if len(exponent.lstrip('+-')) > 4 or abs(int(exponent)) > 1000:
             raise 文書境界違反("数値指数上限")
 
@@ -130,10 +130,10 @@ class _JSON読取:
                 match = _数値.match(self.text, self.pos)
                 if match is None:
                     raise 文書境界違反("未対応または不正なJSON値", self.pos)
-                token = match[0]
-                _数値検査(token)
+                字句 = match[0]
+                _数値検査(字句)
                 self.pos = match.end()
-                node = _節("数値", token)
+                node = _節("数値", 字句)
         self.spans[pointer] = {"原位置": pointer, "開始": start, "終了": self.pos}
         return node
 
@@ -257,8 +257,8 @@ def _失敗(exc: Exception) -> 能力結果:
 def 構造化文書を読む(原文: str, 形式: str, *, 区切り: str = ',', 見出し: bool = True) -> 能力結果:
     from .構造化文書操作 import _結果
     try:
-        source = {"原文": 原文, "形式": 形式, "区切り": 区切り, "見出し": 見出し}
+        情報源 = {"原文": 原文, "形式": 形式, "区切り": 区切り, "見出し": 見出し}
         doc = _読む(原文, 形式, 区切り, 見出し)
-        return _結果(source, [], doc, 原文)
+        return _結果(情報源, [], doc, 原文)
     except (ValueError, TypeError, KeyError, RecursionError, OverflowError) as exc:
         return _失敗(exc)

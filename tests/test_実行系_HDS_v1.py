@@ -11,10 +11,10 @@ from minidora.採否 import 実行状態
 
 def _ir(text, coords, relations=(), *, required=False):
     return HDSIR(
-        原文=text, 正規化文=text, 認知世界ID="hds-v1-integration",
+        原文=text, 正規化文=text, 認知世界ID='hds-v1-統合',
         座標=coords, 関係=relations, 残差=(), 意味作用履歴=(),
         実行核=HDS実行核("意味構造転送"), 参照必須=required,
-        種別="knowledge_choice", 閉包状態="CLOSED_FOR_SEMANTIC_TRANSFER",
+        種別='knowledge_選択肢', 閉包状態='CLOSED_FOR_意味_TRANSFER',
         入力言語="en", 手順=None,
     )
 
@@ -25,12 +25,12 @@ def _question():
         (
             HDS座標("alpha", "対象.実体", "Alpha", 原文範囲=(10, 15)),
             HDS座標("use", "関係.述語表層", "use", 原文範囲=(16, 19)),
-            HDS座標("choice:A", "目的.候補", "engine"),
-            HDS座標("choice:B", "目的.候補", "stone"),
-            HDS座標("unknown", "目的.未知終点", "entity", 値状態.未観測),
+            HDS座標('選択肢:A', "目的.候補", "engine"),
+            HDS座標('選択肢:B', "目的.候補", "stone"),
+            HDS座標('未知', "目的.未知終点", "entity", 値状態.未観測),
         ),
         (HDS関係(
-            "question-use", ("alpha",), ("unknown",), "使用",
+            "question-use", ("alpha",), ('未知',), "使用",
             条件=("検索述語=use", "不足位置=終点", "英日意味射影=v0.5"),
             値状態=値状態.未観測,
         ),),
@@ -39,10 +39,10 @@ def _question():
 
 
 def _候補(text):
-    return _ir(text, (HDS座標("candidate", "対象.実体", text, 原文範囲=(0, len(text))),))
+    return _ir(text, (HDS座標('候補', "対象.実体", text, 原文範囲=(0, len(text))),))
 
 
-def _data():
+def _資料():
     return _ir(
         "Alpha uses engine.",
         (
@@ -60,7 +60,7 @@ class 構文化器:
         if 入力 in {"engine", "stone"}:
             return _候補(入力)
         if 入力 == "Alpha uses engine.":
-            return _data()
+            return _資料()
         raise ValueError(入力)
 
 
@@ -72,25 +72,25 @@ class Provider:
 
 
 class RuntimeHDSV1試験(unittest.TestCase):
-    def test_実RuntimeでREFERENCE_EVALUATE_COMMITが成立する(self):
+    def test_実Runtimeで参照_EVALUATE_COMMITが成立する(self):
         実行系 = HDS駆動ミニドラ(Provider(), HDSコンパイラ_=構文化器())
-        result = 実行系.実行(要求("What does Alpha use?"))
+        結果 = 実行系.実行(要求("What does Alpha use?"))
 
-        self.assertEqual(result.採否.状態, 実行状態.合格, result.採否.理由)
-        self.assertEqual(result.値, "engine")
-        run = result.状態["HDS判断主体Run"]
+        self.assertEqual(結果.採否.状態, 実行状態.合格, 結果.採否.理由)
+        self.assertEqual(結果.値, "engine")
+        run = 結果.状態["HDS判断主体Run"]
         self.assertEqual(run["状態"], "COMMITTED")
         self.assertEqual(
-            tuple(action for action, _ in run["作用履歴"]),
-            ("REFERENCE", "EVALUATE", "COMMIT"),
+            tuple(作用 for 作用, _ in run["作用履歴"]),
+            ('参照', "EVALUATE", "COMMIT"),
         )
         self.assertEqual(run["評価状態"], "PROPOSE")
-        self.assertIn("HDS_JUDGEMENT_SUBJECT_COMMIT", result.採否.理由)
+        self.assertIn('HDS_JUDGEMENT_主体_COMMIT', 結果.採否.理由)
         # このfixtureには専門作用・local viewの実観測変化が無いので、能力v2は無理にoverrideしない。
         # 閉じた基礎workerをPROPOSEへ落とし、最終COMMITは統合HDS判断主体だけが行う。
-        self.assertIn("HDS_ADAPTIVE_BASE_SELECTED", result.採否.理由)
-        self.assertIn("CANDIDATE_GENERATION_HAS_NO_COMMIT_AUTHORITY", result.採否.理由)
-        self.assertNotIn("HDS_ADAPTIVE_PRIMARY_SELECTED", result.採否.理由)
+        self.assertIn("HDS_ADAPTIVE_BASE_SELECTED", 結果.採否.理由)
+        self.assertIn('候補_GENERATION_HAS_NO_COMMIT_AUTHORITY', 結果.採否.理由)
+        self.assertNotIn("HDS_ADAPTIVE_PRIMARY_SELECTED", 結果.採否.理由)
 
 
 if __name__ == "__main__":

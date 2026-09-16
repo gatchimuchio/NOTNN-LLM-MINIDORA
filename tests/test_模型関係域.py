@@ -11,21 +11,21 @@ class 模型関係域試験(unittest.TestCase):
     def setUp(self) -> None:
         self.kernel = 標準模型核()
 
-    def _winner(self, context: str, a: str, b: str, *, history=()):
-        result = self.kernel.評価言語状態(
-            言語状態(context, "自然言語:en"),
+    def _winner(self, 文脈: str, a: str, b: str, *, history=()):
+        結果 = self.kernel.評価言語状態(
+            言語状態(文脈, "自然言語:en"),
             (
                 成立候補("A", 言語状態(a, "自然言語:en")),
                 成立候補("B", 言語状態(b, "自然言語:en")),
             ),
             履歴=tuple(言語状態(item, "自然言語:en") for item in history),
         )
-        return result
+        return 結果
 
     def test_有向関係は逆向きを同一視しない(self) -> None:
-        result = self._winner("A causes B", "A causes B", "B causes A")
-        self.assertEqual(result.最有力候補ID, "A")
-        self.assertGreater(result.候補辞書()["A"], result.候補辞書()["B"])
+        結果 = self._winner("A causes B", "A causes B", "B causes A")
+        self.assertEqual(結果.最有力候補ID, "A")
+        self.assertGreater(結果.候補辞書()["A"], 結果.候補辞書()["B"])
 
     def test_肯定と否定を別構造として保持する(self) -> None:
         positive = self.kernel.言語対応.内部化(言語状態("A causes B", "自然言語:en"))
@@ -46,12 +46,12 @@ class 模型関係域試験(unittest.TestCase):
         plain = 言語関係抽出("A causes B", "自然言語:en")
         self.assertTrue(conditioned[0].条件)
         self.assertFalse(plain[0].条件)
-        result = self._winner(
+        結果 = self._winner(
             "if catalyst, A causes B",
             "if catalyst, A causes B",
             "if inhibitor, A causes B",
         )
-        self.assertEqual(result.最有力候補ID, "A")
+        self.assertEqual(結果.最有力候補ID, "A")
 
     def test_一般関係族は個別世界知識なしで構造化できる(self) -> None:
         representatives = {
@@ -69,8 +69,8 @@ class 模型関係域試験(unittest.TestCase):
 
     def test_模型核はHDSを必要とせず関係域を形成する(self) -> None:
         self.assertGreaterEqual(len(self.kernel.関係群), 6)
-        module_names = {type(item).__module__ for item in self.kernel.関係群}
-        self.assertTrue(all("hds" not in name.casefold() for name in module_names))
+        モジュール_names = {type(item).__module__ for item in self.kernel.関係群}
+        self.assertTrue(all("hds" not in name.casefold() for name in モジュール_names))
 
 
 if __name__ == "__main__":

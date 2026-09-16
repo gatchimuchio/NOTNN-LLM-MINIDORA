@@ -1,4 +1,4 @@
-"""文脈・照応の契約試験。契約CompilerはIR境界用で、実Compiler実測ではない。"""
+'文脈・照応の契約試験。契約構文化器はIR境界用で、実構文化器実測ではない。'
 from copy import deepcopy
 from dataclasses import replace
 import re
@@ -15,23 +15,23 @@ from minidora.製品版.型 import 能力結果, 参照資料
 from minidora.製品版.能力契約 import 能力文脈
 
 
-class 契約Compiler:
+class 契約構文化器:
     def __init__(self):
         self.呼出 = []
 
     def コンパイル(self, 入力, *, 文脈=None, HDS履歴=()):
         self.呼出.append((入力, deepcopy(文脈), deepcopy(HDS履歴)))
-        座標 = (HDS座標("src", "source_text", 入力),)
+        座標 = (HDS座標("src", '情報源_text', 入力),)
         関係, 残差, 引用 = (), (), ()
         match = re.search("それ|その", 入力)
         if match:
             if 文脈 is not None and 文脈.現在焦点 is not None:
                 座標 += (HDS座標("p", "文脈.指示語", match[0], 値状態.推定),
                           HDS座標("f", "文脈.参照先", 文脈.現在焦点, 値状態.推定))
-                関係 = (HDS関係("context", ("p",), ("f",), "共参照", 値状態=値状態.推定),)
+                関係 = (HDS関係('文脈', ("p",), ("f",), "共参照", 値状態=値状態.推定),)
                 引用 = 文脈.記憶引用
             else:
-                残差 = (HDS残差("residual", "未解共参照", match[0], "参照未解"),)
+                残差 = (HDS残差('残差', "未解共参照", match[0], "参照未解"),)
         return HDSIR(入力, 入力, "入力契約試験", 座標, 関係, 残差, (), HDS実行核(), 文脈引用=引用)
 
 
@@ -41,7 +41,7 @@ def 資料(n=120):
 
 
 def セッション(名前="s", **kwargs):
-    return 文脈付き要求セッション(名前, コンパイラ=契約Compiler(), **kwargs)
+    return 文脈付き要求セッション(名前, コンパイラ=契約構文化器(), **kwargs)
 
 
 class 文脈要求契約試験(unittest.TestCase):
@@ -170,16 +170,16 @@ class 文脈要求契約試験(unittest.TestCase):
         self.assertEqual(r.実行.合成.実行数, 0)
 
     def test_複数出力のそれは曖昧(self):
-        data = {"A": 能力結果(True, "値10"), "B": 能力結果(True, "値22")}
-        self.s.応答("資料「A」から数字を抽出して、資料「B」から数字を抽出して", data)
+        資料 = {"A": 能力結果(True, "値10"), "B": 能力結果(True, "値22")}
+        self.s.応答("資料「A」から数字を抽出して、資料「B」から数字を抽出して", 資料)
         r = self.s.応答("それを箇条書きにして")
         self.assertEqual(r.状態, "保留")
         self.assertTrue(any("複数" in v for v in r.理由))
         self.assertIsNone(r.実行.合成)
 
     def test_番号付き出力を選択(self):
-        data = {"A": 能力結果(True, "値10"), "B": 能力結果(True, "値22")}
-        self.s.応答("資料「A」から数字を抽出して、資料「B」から数字を抽出して", data)
+        資料 = {"A": 能力結果(True, "値10"), "B": 能力結果(True, "値22")}
+        self.s.応答("資料「A」から数字を抽出して、資料「B」から数字を抽出して", 資料)
         r = self.s.応答("さっきの2番を箇条書きにして")
         self.assertTrue(r.成立, r.理由)
         self.assertEqual(r.出力[0][1].本文, "- 22")
@@ -258,12 +258,12 @@ class 文脈要求契約試験(unittest.TestCase):
         self.assertNotIn("売上", repr(r.解釈.計画))
 
     def test_HDSへ局所起点の版と引用を渡す(self):
-        compiler = 契約Compiler()
-        s = 文脈付き要求セッション("test", コンパイラ=compiler)
+        構文化器 = 契約構文化器()
+        s = 文脈付き要求セッション("test", コンパイラ=構文化器)
         s.応答("1行で要約して", 資料())
         before = s.起点()
         s.応答("それを要約して")
-        text, c, h = compiler.呼出[-1]
+        text, c, h = 構文化器.呼出[-1]
         self.assertEqual(c.記憶版, before.局所起点.版)
         self.assertEqual(c.記憶引用, (before.識別子,))
         self.assertEqual(c.現在焦点, before.識別子)
@@ -274,12 +274,12 @@ class 文脈要求契約試験(unittest.TestCase):
         r = self.s.応答("それを要約して")
         self.assertTrue(r.成立, r.理由)
         self.assertTrue(any(c.値状態 == 値状態.推定 for c in r.解釈.HDS保持.座標))
-        self.assertIn("関係:context", r.解釈.局所解消)
+        self.assertIn('関係:文脈', r.解釈.局所解消)
 
     def test_誤ったHDS引用は保留(self):
         self.起動()
         s = self.s.起点()
-        ir = 契約Compiler().コンパイル("それを要約して", 文脈=s.HDS文脈へ())
+        ir = 契約構文化器().コンパイル("それを要約して", 文脈=s.HDS文脈へ())
         for bad in (replace(ir, 文脈引用=("他の状態",)),
                     replace(ir, 座標=ir.座標[:-1]+(replace(ir.座標[-1], 内容="違う焦点"),))):
             with self.subTest():
@@ -289,8 +289,8 @@ class 文脈要求契約試験(unittest.TestCase):
     def test_HDSの未知損失を共参照として消さない(self):
         self.起動()
         s = self.s.起点()
-        ir = 契約Compiler().コンパイル("それを要約して", 文脈=s.HDS文脈へ())
-        ir = replace(ir, 残差=(HDS残差("lost", "semantic_loss", "それ", "条件脱落"),))
+        ir = 契約構文化器().コンパイル("それを要約して", 文脈=s.HDS文脈へ())
+        ir = replace(ir, 残差=(HDS残差("lost", '意味_loss', "それ", "条件脱落"),))
         r = 要求計画器().コンパイル(ir, {}, 文脈=s)
         self.assertEqual(r.状態, "保留")
         self.assertEqual(r.HDS保持, ir)
@@ -314,7 +314,7 @@ class 文脈要求契約試験(unittest.TestCase):
         r = self.起動()
         before = self.s.起点()
         r.出力[0][1].データ["改変"] = [1]
-        r.解釈.初期Data.clear()
+        r.解釈.初期資料.clear()
         self.assertEqual(self.s.起点(), before)
 
     def test_スナップショットの変異も原本へ波及しない(self):
@@ -325,10 +325,10 @@ class 文脈要求契約試験(unittest.TestCase):
         self.assertFalse(s.整合確認())
         self.assertEqual(self.s.起点(), before)
 
-    def test_改変計画のDataを実行しない(self):
+    def test_改変計画の資料を実行しない(self):
         self.起動()
         p = self.s.準備("それを要約して")
-        p.解釈.初期Data["設定:要求:0001"].データ["行数"] = 7
+        p.解釈.初期資料["設定:要求:0001"].データ["行数"] = 7
         self.assertFalse(self.s.実行(p).成立)
         self.assertEqual(self.s.起点().局所起点.版, 1)
 
@@ -390,8 +390,8 @@ class 文脈要求契約試験(unittest.TestCase):
         r = self.s.応答("さっきの3番を要約して")
         self.assertEqual(r.状態, "保留")
 
-    def test_Compilerの別原文を実行しない(self):
-        class 原文誤り(契約Compiler):
+    def test_構文化器の別原文を実行しない(self):
+        class 原文誤り(契約構文化器):
             def コンパイル(self, 入力, **kwargs):
                 return super().コンパイル("1行で要約して", **kwargs)
         s = 文脈付き要求セッション("s", コンパイラ=原文誤り())
@@ -400,8 +400,8 @@ class 文脈要求契約試験(unittest.TestCase):
         self.assertIsNone(r.実行)
         self.assertEqual(s.起点().局所起点.版, 0)
 
-    def test_過大依頼をCompilerへ渡さない(self):
-        c = 契約Compiler()
+    def test_過大依頼を構文化器へ渡さない(self):
+        c = 契約構文化器()
         s = 文脈付き要求セッション("s", コンパイラ=c)
         self.assertFalse(s.応答("あ" * 8193).成立)
         self.assertEqual(c.呼出, [])
@@ -409,8 +409,8 @@ class 文脈要求契約試験(unittest.TestCase):
     def test_共参照と同じIDの未知関係で検査を迂回できない(self):
         self.起動()
         s = self.s.起点()
-        ir = 契約Compiler().コンパイル("それを要約して", 文脈=s.HDS文脈へ())
-        ir = replace(ir, 関係=ir.関係+(HDS関係("context", ("src",), ("src",), "未知"),))
+        ir = 契約構文化器().コンパイル("それを要約して", 文脈=s.HDS文脈へ())
+        ir = replace(ir, 関係=ir.関係+(HDS関係('文脈', ("src",), ("src",), "未知"),))
         r = 要求計画器().コンパイル(ir, {}, 文脈=s)
         self.assertEqual(r.状態, "失敗")
 

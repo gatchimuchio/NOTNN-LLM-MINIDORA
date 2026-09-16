@@ -10,8 +10,8 @@ def main():
     for stream in (sys.stdin,sys.stdout,sys.stderr):
         if hasattr(stream,'reconfigure'): stream.reconfigure(encoding='utf-8',errors='strict')
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('発話',nargs='?');p.add_argument('--資料',action='append',default=[],metavar='名前=パス')
-    p.add_argument('--外部読取',action='store_true');p.add_argument('--json',action='store_true')
+    p.add_argument('発話',nargs='?');p.add_argument('--資料',作用='append',default=[],metavar='名前=パス')
+    p.add_argument('--外部読取',作用='store_true');p.add_argument('--json',作用='store_true')
     args=p.parse_args();materials={}
     try:
         for spec in args.資料:

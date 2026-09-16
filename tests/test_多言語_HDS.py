@@ -10,11 +10,11 @@ from minidora.製品版.型 import 能力結果
 class 多言語HDS接続試験(unittest.TestCase):
     def setUp(self):
         self.session = 文脈付き要求セッション("多言語-HDS")
-        self.data = {"本文": 能力結果(True, "売上は731です。費用は75です。利益は45です。")}
+        self.資料 = {"本文": 能力結果(True, "売上は731です。費用は75です。利益は45です。")}
 
-    def test_英語から日本語原文の実Compilerへ(self):
+    def test_英語から日本語原文の実構文化器へ(self):
         original = "Extract numbers from the text."
-        r = 外部言語要求を実行(self.session, original, 資料=self.data)
+        r = 外部言語要求を実行(self.session, original, 資料=self.資料)
         self.assertTrue(r.成立, (r.理由, r.応答))
         self.assertEqual(r.応答.出力[0][1].本文, "731、75、45")
         self.assertEqual(r.要求翻訳.データ["入力"]["本文"], original)
@@ -22,7 +22,7 @@ class 多言語HDS接続試験(unittest.TestCase):
         self.assertTrue(翻訳記録整合(r.要求翻訳))
 
     def test_英語の次ターン照応が実行結果を再利用(self):
-        first = 外部言語要求を実行(self.session, "Summarize the text in exactly 1 line.", 資料=self.data)
+        first = 外部言語要求を実行(self.session, "Summarize the text in exactly 1 line.", 資料=self.資料)
         self.assertTrue(first.成立, first.応答)
         second = 外部言語要求を実行(self.session, "Extract numbers from it.")
         self.assertTrue(second.成立, second.応答)
@@ -36,18 +36,18 @@ class 多言語HDS接続試験(unittest.TestCase):
 
     def test_未知条件は翻訳前の状態を保持(self):
         start = self.session.起点()
-        r = 外部言語要求を実行(self.session, "Extract numbers from the text, but omit negatives.", 資料=self.data)
+        r = 外部言語要求を実行(self.session, "Extract numbers from the text, but omit negatives.", 資料=self.資料)
         self.assertFalse(r.成立)
         self.assertIsNone(r.応答)
         self.assertEqual(start, self.session.起点())
 
     def test_複数工程の依頼内照応(self):
-        r = 外部言語要求を実行(self.session, "Summarize the text in exactly 1 line.\nExtract numbers from the result.", 資料=self.data)
+        r = 外部言語要求を実行(self.session, "Summarize the text in exactly 1 line.\nExtract numbers from the result.", 資料=self.資料)
         self.assertTrue(r.成立, r.応答)
         self.assertEqual(r.応答.出力[0][1].本文, "731")
 
     def test_名前付き資料を英語から参照(self):
-        r = 外部言語要求を実行(self.session, 'Extract numbers from document "資料A".', 資料={"資料A": self.data["本文"]})
+        r = 外部言語要求を実行(self.session, 'Extract numbers from document "資料A".', 資料={"資料A": self.資料["本文"]})
         self.assertTrue(r.成立, r.応答)
         self.assertEqual(r.応答.出力[0][1].本文, "731、75、45")
 
@@ -58,23 +58,23 @@ class 多言語HDS接続試験(unittest.TestCase):
         self.assertEqual([x.能力 for x in r.応答.解釈.要求], ["情報抽出"])
 
     def test_別セッションには過去の成果を補完しない(self):
-        first = 外部言語要求を実行(self.session, "Summarize the text in exactly 1 line.", 資料=self.data)
+        first = 外部言語要求を実行(self.session, "Summarize the text in exactly 1 line.", 資料=self.資料)
         self.assertTrue(first.成立)
         other = 文脈付き要求セッション("別セッション")
-        result = 外部言語要求を実行(other, "Extract numbers from it.")
-        self.assertFalse(result.成立)
+        結果 = 外部言語要求を実行(other, "Extract numbers from it.")
+        self.assertFalse(結果.成立)
 
     def test_停止時は会話へ入力を渡さない(self):
         start = self.session.起点()
-        r = 外部言語要求を実行(self.session, "Extract numbers from the text.", 資料=self.data, 停止要求=lambda: True)
+        r = 外部言語要求を実行(self.session, "Extract numbers from the text.", 資料=self.資料, 停止要求=lambda: True)
         self.assertFalse(r.成立)
         self.assertIsNone(r.応答)
         self.assertEqual(start, self.session.起点())
 
     def test_行数の厳密条件を以内に読み替えない(self):
-        data = {"本文": 能力結果(True, "値は120です。")}
-        exact = 外部言語要求を実行(self.session, "Summarize the text in exactly 2 lines.", 資料=data)
-        bound = 外部言語要求を実行(self.session, "Summarize the text in at most 2 lines.", 資料=data)
+        資料 = {"本文": 能力結果(True, "値は120です。")}
+        exact = 外部言語要求を実行(self.session, "Summarize the text in exactly 2 lines.", 資料=資料)
+        bound = 外部言語要求を実行(self.session, "Summarize the text in at most 2 lines.", 資料=資料)
         self.assertFalse(exact.成立)
         self.assertTrue(bound.成立, bound.応答)
 

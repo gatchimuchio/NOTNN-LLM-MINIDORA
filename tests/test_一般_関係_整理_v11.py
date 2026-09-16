@@ -6,9 +6,9 @@ from minidora import 公開HDSコンパイラ
 from minidora.HDS参照 import HDS参照問合せ候補
 
 
-def _条件値(relation, key: str) -> str:
+def _条件値(関係, key: str) -> str:
     prefix = key + "="
-    for raw in relation.条件:
+    for raw in 関係.条件:
         value = str(raw)
         if value.startswith(prefix):
             return value[len(prefix):].strip()
@@ -24,10 +24,10 @@ def _関係(ir, kind: str):
 
 class 一般関係CleanV11試験(unittest.TestCase):
     def setUp(self) -> None:
-        self.compiler = 公開HDSコンパイラ()
+        self.構文化器 = 公開HDSコンパイラ()
 
     def _edge(self, text: str, kind: str, start: str, end: str) -> None:
-        ir = self.compiler.コンパイル(text)
+        ir = self.構文化器.コンパイル(text)
         rel = _関係(ir, kind)
         coords = ir.座標辞書()
         self.assertEqual(coords[rel.始点[0]].内容, start)
@@ -49,14 +49,14 @@ class 一般関係CleanV11試験(unittest.TestCase):
         self._edge("Entity A is derived from Source B.", "由来", "Entity A", "Source B")
 
     def test_is_derived_fromでA_is偽始点を作らない(self) -> None:
-        ir = self.compiler.コンパイル("Entity A is derived from Source B.")
+        ir = self.構文化器.コンパイル("Entity A is derived from Source B.")
         derived = [r for r in ir.関係 if str(r.種別) == "由来" and str(r.由来) == "共有言語基底P"]
         self.assertEqual(len(derived), 1)
         coords = ir.座標辞書()
         self.assertNotEqual(str(coords[derived[0].始点[0]].内容).casefold(), "entity a is")
 
     def test_interact質問を未知始点へ落とす(self) -> None:
-        ir = self.compiler.コンパイル("Which protein interacts with receptor X?")
+        ir = self.構文化器.コンパイル("Which protein interacts with receptor X?")
         rel = next(r for r in ir.関係 if str(r.種別) == "相互作用" and _条件値(r, "不足位置") == "始点")
         coords = ir.座標辞書()
         self.assertEqual(coords[rel.始点[0]].内容, "protein")
@@ -64,12 +64,12 @@ class 一般関係CleanV11試験(unittest.TestCase):
         self.assertEqual(_条件値(rel, "検索述語"), "interact with")
 
     def test_consist_of質問を未知始点へ落とす(self) -> None:
-        ir = self.compiler.コンパイル("Which structure consists of component X?")
+        ir = self.構文化器.コンパイル("Which structure consists of component X?")
         rel = next(r for r in ir.関係 if str(r.種別) == "構成" and _条件値(r, "不足位置") == "始点")
         self.assertEqual(_条件値(rel, "検索述語"), "consist of")
 
     def test_R_queryも新関係を英語へ戻す(self) -> None:
-        ir = self.compiler.問題IR(
+        ir = self.構文化器.問題IR(
             "Which protein interacts with receptor X?",
             ("Protein A", "Protein B", "Protein C", "Protein D"),
         )

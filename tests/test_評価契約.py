@@ -30,17 +30,17 @@ def canonical_protocol() -> dict:
     }
 
 
-class BenchmarkContractTest(unittest.TestCase):
+class 外部評価契約Test(unittest.TestCase):
     def test_実参照GPQAが正本で固定参照は禁止(self) -> None:
-        contract = GPQA実参照E2E契約(canonical_protocol())
-        self.assertEqual(contract["契約形式"], 契約形式)
-        self.assertEqual(contract["外部評価識別子"], GPQA実参照E2E識別子)
-        self.assertEqual(contract["評価種別"], "GENERIC_E2E_CANONICAL")
-        self.assertEqual(contract["参照方式"], "LIVE_ONLY")
-        self.assertFalse(contract["固定参照資料許可"])
-        self.assertTrue(contract["正本全数実行"])
-        self.assertTrue(contract["スナップショット得点時系列保存許可"])
-        self.assertFalse(contract["実行間コード差直接比較"])
+        契約 = GPQA実参照E2E契約(canonical_protocol())
+        self.assertEqual(契約["契約形式"], 契約形式)
+        self.assertEqual(契約["外部評価識別子"], GPQA実参照E2E識別子)
+        self.assertEqual(契約["評価種別"], "GENERIC_E2E_CANONICAL")
+        self.assertEqual(契約["参照方式"], "LIVE_ONLY")
+        self.assertFalse(契約["固定参照資料許可"])
+        self.assertTrue(契約["正本全数実行"])
+        self.assertTrue(契約["スナップショット得点時系列保存許可"])
+        self.assertFalse(契約["実行間コード差直接比較"])
 
     def test_正本手順はMINIDORA30条件を受理する(self) -> None:
         self.assertEqual(GPQA正本手順を検証(canonical_protocol()), ())

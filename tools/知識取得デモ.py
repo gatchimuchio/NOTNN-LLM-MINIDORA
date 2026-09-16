@@ -29,9 +29,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--検索語", required=True)
     parser.add_argument("--必要語", nargs="+", required=True)
-    parser.add_argument("--url", action="append", default=[])
+    parser.add_argument("--url", 作用="append", default=[])
     parser.add_argument("--searxng", default=None)
-    parser.add_argument("--外部読取許可", action="store_true")
+    parser.add_argument("--外部読取許可", 作用="store_true")
     args = parser.parse_args()
     try:
         request = 知識取得要求(args.検索語, tuple(args.必要語))
@@ -39,13 +39,13 @@ def main() -> int:
         if args.url and args.searxng:
             raise ValueError("URL指定と検索接続先の同時指定は不可")
         provider = _指定URL(args.url) if args.url else SearXNG検索供給器(args.searxng)
-        result = 知識取得器(provider).実行(request, 外部読取許可=args.外部読取許可)
+        結果 = 知識取得器(provider).実行(request, 外部読取許可=args.外部読取許可)
     except ValueError as exc:
         parser.error(str(exc))
-    print(json.dumps({"取得方式": "指定URL" if args.url else "SearXNG検索", "成立": result.成立,
-                      "本文": result.本文, "保留理由": result.保留理由,
-                      "参照": [r.辞書化() for r in result.参照], "記録": result.データ}, ensure_ascii=False, indent=2))
-    return 0 if result.成立 else 2
+    print(json.dumps({"取得方式": "指定URL" if args.url else "SearXNG検索", "成立": 結果.成立,
+                      "本文": 結果.本文, "保留理由": 結果.保留理由,
+                      "参照": [r.辞書化() for r in 結果.参照], "記録": 結果.データ}, ensure_ascii=False, indent=2))
+    return 0 if 結果.成立 else 2
 
 
 if __name__ == "__main__":

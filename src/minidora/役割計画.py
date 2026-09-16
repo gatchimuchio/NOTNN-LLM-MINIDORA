@@ -51,7 +51,7 @@ class 役割被覆項:
 @dataclass(frozen=True, slots=True)
 class 役割計画結果:
     計画: 合成計画
-    Data: dict[str, 能力結果]
+    資料: dict[str, 能力結果]
     工程作用: tuple[tuple[str, str, str], ...]  # 工程ID・目的鍵・作用ID
     目的印: str
     費用: int
@@ -67,7 +67,7 @@ class _経路:
     作用: 役割作用 | None
     子: tuple[tuple[str, '_経路'], ...]
     費用: int
-    設定Data: dict | None = None
+    設定資料: dict | None = None
     契約印: str = ''
 
     def 署名(self):
@@ -139,54 +139,54 @@ class 役割計画器:
                 applicable=rule.適用(deepcopy(goal.引数))
                 if type(applicable) is not bool: raise ValueError('適用条件はbool')
                 if not applicable: continue
-                roles=rule.必要役割(deepcopy(goal.引数))
-                if (type(roles) is not tuple or len(roles)>8 or len({n for n,_ in roles})!=len(roles)
+                役割=rule.必要役割(deepcopy(goal.引数))
+                if (type(役割) is not tuple or len(役割)>8 or len({n for n,_ in 役割})!=len(役割)
                         or any(type(item) is not tuple or len(item)!=2 or type(item[0]) is not str
-                               or not item[0] or len(item[0])>128 or type(item[1]) is not 意味目的 for item in roles)):
+                               or not item[0] or len(item[0])>128 or type(item[1]) is not 意味目的 for item in 役割)):
                     raise ValueError('入力役割の型・重複・上限')
-                role_keys=tuple((name,child.鍵()) for name,child in roles)
+                役割_keys=tuple((name,child.鍵()) for name,child in 役割)
                 settings=rule.設定(deepcopy(goal.引数))
-                if type(settings) is not dict: raise ValueError('作用設定はData辞書')
+                if type(settings) is not dict: raise ValueError('作用設定は資料辞書')
                 # 設定と入力役割をここで一度だけ実体化し、emit時に再評価しない。
-                contract_seal=意味指紋({
-                    '静的':rule.静的契約(), '目的':key, '入力役割':role_keys, '設定':settings,
+                契約_seal=意味指紋({
+                    '静的':rule.静的契約(), '目的':key, '入力役割':役割_keys, '設定':settings,
                 })
                 try:
-                    children=tuple((name,solve(child,stack+(key,))) for name,child in roles)
+                    children=tuple((name,solve(child,stack+(key,))) for name,child in 役割)
                 except _経路なし:
                     continue
                 cost=rule.費用+sum(c.費用 for _,c in children)
-                paths.append(_経路(goal,rule,children,cost,deepcopy(settings),contract_seal))
+                paths.append(_経路(goal,rule,children,cost,deepcopy(settings),契約_seal))
             if not paths: raise _経路なし('目的に適合する作用経路がない:'+goal.種別)
             bestcost=min(p.費用 for p in paths)
             best={p.署名():p for p in paths if p.費用==bestcost}
             if len(best)!=1: raise ValueError('同順位の意味経路が複数ある')
             memo[key]=next(iter(best.values())); return memo[key]
         chosen=solve(root,())
-        data={}; steps=[]; trace=[]; external=[]; refs={}; roles_record=[]; coverage=[]
+        資料={}; steps=[]; 追跡=[]; external=[]; refs={}; 役割_record=[]; coverage=[]
         def emit(path):
             signature=path.署名()
             if signature in refs: return refs[signature]
             key=path.目的.鍵()
             if path.作用 is None:
                 name=path.目的.引数['資料']; ident='素材:'+name
-                data[ident]=deepcopy(素材[name]); out=素材参照('入力',ident)
+                資料[ident]=deepcopy(素材[name]); out=素材参照('入力',ident)
                 coverage.append(役割被覆項(key,path.目的.種別,'素材',素材=name))
             else:
                 children=tuple((name,emit(p)) for name,p in path.子)
                 if len(steps)>=64: raise ValueError('合成工程数上限')
                 sid=f'役割工程:{len(steps)+1:04d}'; inst='指示:'+sid; config='設定:'+sid
-                data[inst]=能力結果(True,'要求された成果を得る')
-                settings=deepcopy(path.設定Data)
+                資料[inst]=能力結果(True,'要求された成果を得る')
+                settings=deepcopy(path.設定資料)
                 if type(settings) is not dict: raise ValueError('作用設定の固定失敗')
-                data[config]=能力結果(True,'',データ=settings)
+                資料[config]=能力結果(True,'',データ=settings)
                 steps.append(合成工程(sid,(path.作用.能力,),inst,tuple(r for _,r in children),config))
-                trace.append((sid,key,path.作用.識別子))
-                roles_record.append((sid,children))
+                追跡.append((sid,key,path.作用.識別子))
+                役割_record.append((sid,children))
                 if path.作用.外部読取: external.append(sid)
-                role_keys=tuple((name,p.目的.鍵()) for name,p in path.子)
+                役割_keys=tuple((name,p.目的.鍵()) for name,p in path.子)
                 coverage.append(役割被覆項(key,path.目的.種別,'作用',path.作用.識別子,
-                                             path.作用.能力,'',role_keys,path.契約印))
+                                             path.作用.能力,'',役割_keys,path.契約印))
                 out=素材参照('工程',sid)
             refs[signature]=out; return out
         final=emit(chosen)
@@ -213,13 +213,13 @@ class 役割計画器:
         covered_inputs={'素材:'+x.素材 for x in coverage if x.解決=='素材'}
         if input_ids != covered_inputs:
             raise ValueError('計画入力と要求被覆が不一致')
-        contract_seal=意味指紋({
+        契約_seal=意味指紋({
             '静的契約印':self.契約印,
             '実体契約':tuple((x.目的鍵,x.契約印) for x in coverage if x.解決=='作用'),
         })
-        return 役割計画結果(合成計画(tuple(steps),(final.識別子,)),data,tuple(trace),
-                               root_key,chosen.費用,expanded,tuple(external),tuple(roles_record),
-                               tuple(coverage),contract_seal)
+        return 役割計画結果(合成計画(tuple(steps),(final.識別子,)),資料,tuple(追跡),
+                               root_key,chosen.費用,expanded,tuple(external),tuple(役割_record),
+                               tuple(coverage),契約_seal)
 
 class _経路なし(ValueError):
     pass

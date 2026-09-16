@@ -11,12 +11,12 @@ from minidora.文章編集 import 文章記録整合
 from minidora.製品版.型 import 能力結果, 参照資料
 
 
-def unit(key, role='段落', *pieces, **kwargs):
-    return 文章単位(key, role, tuple(pieces), **kwargs)
+def unit(key, 役割='段落', *pieces, **kwargs):
+    return 文章単位(key, 役割, tuple(pieces), **kwargs)
 
 
-def full(key, text, role='段落', **kwargs):
-    return unit(key, role, 文章断片(key,0,len(text)), **kwargs)
+def full(key, text, 役割='段落', **kwargs):
+    return unit(key, 役割, 文章断片(key,0,len(text)), **kwargs)
 
 
 class 文章構成試験(unittest.TestCase):
@@ -25,17 +25,17 @@ class 文章構成試験(unittest.TestCase):
         units=tuple(units or [full(k,v.本文) for k,v in materials.items()])
         return 文章を作る(materials,文章仕様(units,tuple(order or [u.識別子 for u in units]),limit))
 
-    def ok(self,result):
-        self.assertTrue(result.成立,(result.保留理由,result.データ))
-        self.assertTrue(文章記録整合(result))
+    def ok(self,結果):
+        self.assertTrue(結果.成立,(結果.保留理由,結果.データ))
+        self.assertTrue(文章記録整合(結果))
         previous=0
-        for s in result.データ['対応']:
+        for s in 結果.データ['対応']:
             self.assertEqual(s['開始'],previous)
-            o=s['由来'];raw=_由来原文(o,result.データ['原本'],result.データ['編集履歴'])
-            self.assertEqual(result.本文[s['開始']:s['終了']],raw[o['開始']:o['終了']])
+            o=s['由来'];raw=_由来原文(o,結果.データ['原本'],結果.データ['編集履歴'])
+            self.assertEqual(結果.本文[s['開始']:s['終了']],raw[o['開始']:o['終了']])
             previous=s['終了']
-        self.assertEqual(previous,len(result.本文))
-        return result
+        self.assertEqual(previous,len(結果.本文))
+        return 結果
 
     def test_複数素材を役割に応じた文章へ構成(self):
         values={'題':'設備メモ','a':'値は120です。','b':'次の手順です。'}
@@ -61,8 +61,8 @@ class 文章構成試験(unittest.TestCase):
     def test_一部の引用範囲は元の位置へ対応(self):
         text='前置き。引用する範囲。後置き。'
         r=self.ok(self.create({'a':text},[unit('引用','引用',文章断片('a',5,12))]))
-        source=[x for x in r.データ['対応'] if x['由来']['種別']=='素材'][0]
-        self.assertEqual(source['由来']['開始'],5)
+        情報源=[x for x in r.データ['対応'] if x['由来']['種別']=='素材'][0]
+        self.assertEqual(情報源['由来']['開始'],5)
         self.assertTrue(r.データ['初期未使用素材範囲'])
 
     def test_明示順序を保持し未採用単位は別記録(self):
@@ -109,7 +109,7 @@ class 文章構成試験(unittest.TestCase):
 
     def test_番号は見出しを数えず連続箇所で再開(self):
         vals={'h':'題','a':'甲','b':'乙','p':'段落','c':'丙'}
-        units=[full(k,vals[k],role) for k,role in [('h','見出し'),('a','番号付き'),('b','番号付き'),('p','段落'),('c','番号付き')]]
+        units=[full(k,vals[k],役割) for k,役割 in [('h','見出し'),('a','番号付き'),('b','番号付き'),('p','段落'),('c','番号付き')]]
         r=self.ok(self.create(vals,units))
         self.assertEqual(r.本文,'# 題\n\n1. 甲\n\n2. 乙\n\n段落\n\n1. 丙')
 
@@ -157,7 +157,7 @@ class 文章構成試験(unittest.TestCase):
         with self.assertRaises(ValueError):文章仕様を復元({**asdict(s),'追加':True})
 
     def test_不正役割や範囲は補修しない(self):
-        for u in (full('a','甲',role='自由生成'),unit('a','段落',文章断片('a',True,1)),
+        for u in (full('a','甲',役割='自由生成'),unit('a','段落',文章断片('a',True,1)),
                   unit('a','段落',文章断片('a',0,2)),unit('a','段落',文章断片('none',0,1))):
             self.assertFalse(self.create({'a':'甲'},[u]).成立)
 
@@ -170,8 +170,8 @@ class 文章構成試験(unittest.TestCase):
             self.assertFalse(self.create({'a':text}).成立)
 
     def test_空単位と複数行見出しを拒否(self):
-        for text,role in [(' ','段落'),('甲\n乙','見出し')]:
-            self.assertFalse(self.create({'a':text},[full('a',text,role)]).成立)
+        for text,役割 in [(' ','段落'),('甲\n乙','見出し')]:
+            self.assertFalse(self.create({'a':text},[full('a',text,役割)]).成立)
 
     def test_取込時の明示保護と原文不一致(self):
         text='甲120乙'

@@ -23,7 +23,7 @@ class 目的計画契約試験(unittest.TestCase):
     def execute(self, req):
         r = self.p.計画する(req)
         self.assertTrue(r.成立, r.理由)
-        value = self.s.計画実行(r.計画, r.Data, 依頼文=req.原文)
+        value = self.s.計画実行(r.計画, r.資料, 依頼文=req.原文)
         self.assertTrue(value.成立, value.理由)
         return r, value
 
@@ -75,10 +75,10 @@ class 目的計画契約試験(unittest.TestCase):
         self.assertTrue(r.成立); self.assertEqual(before, self.s.保存文脈())
         self.assertEqual(self.s.再利用統計()['能力別'], {})
 
-    def test_入力Data変更は既成計画に波及しない(self):
+    def test_入力資料変更は既成計画に波及しない(self):
         req = 要求(); r = self.p.計画する(req)
         req.素材['a'].データ['式'] = '99'
-        self.assertEqual(r.Data['素材:a'].データ['式'], '2+3')
+        self.assertEqual(r.資料['素材:a'].データ['式'], '2+3')
 
     def test_残差付き要求は停止(self):
         self.assertFalse(self.p.計画する(replace(要求(), 残差=('条件未解決',))).成立)
@@ -99,7 +99,7 @@ class 目的計画契約試験(unittest.TestCase):
 
     def test_出力に繋がらない目的を捨てない(self):
         req = 要求(); g = replace(req.目的[0], 識別子='h', 引数参照='q')
-        self.assertFalse(self.p.計画する(replace(req, 目的=(*req.目的,g), 引数Data={'p':{},'q':{}})).成立)
+        self.assertFalse(self.p.計画する(replace(req, 目的=(*req.目的,g), 引数資料={'p':{},'q':{}})).成立)
 
     def test_対象欠落は停止(self):
         req=要求();g=replace(req.目的[0],対象='不在')
@@ -109,7 +109,7 @@ class 目的計画契約試験(unittest.TestCase):
         self.assertFalse(self.p.計画する(replace(要求(),出力目的=('不在',))).成立)
 
     def test_未使用の引数を拒否(self):
-        self.assertFalse(self.p.計画する(replace(要求(),引数Data={'p':{},'余計':{}})).成立)
+        self.assertFalse(self.p.計画する(replace(要求(),引数資料={'p':{},'余計':{}})).成立)
 
     def test_探索予算を超えた候補は成功としない(self):
         p=目的計画器(self.catalog,最大展開数=1)
@@ -124,14 +124,14 @@ class 目的計画契約試験(unittest.TestCase):
     def test_別対象の結果で目的を満たさない(self):
         req=要求();g=replace(req.目的[0],識別子='h',対象='b',引数参照='q')
         req=replace(req,素材={**req.素材,'b':能力結果(True,'8',データ={'式':'8','変数':[]})},
-                    素材種別={'a':'数式','b':'数式'},目的=(*req.目的,g),引数Data={'p':{},'q':{}},出力目的=('g','h'))
+                    素材種別={'a':'数式','b':'数式'},目的=(*req.目的,g),引数資料={'p':{},'q':{}},出力目的=('g','h'))
         r,value=self.execute(req)
         self.assertEqual([v.本文 for _,v in value.出力],['5','8'])
 
     def test_同じ出力型でも操作を省略しない(self):
         req=要求('微分結果',value=能力結果(True,'x**3',データ={'式':'x**3','変数':['x']}),args={'変数':'x'})
         g=目的指定('h','g','微分結果','q',(0,6))
-        req=replace(req,目的=(*req.目的,g),引数Data={'p':{'変数':'x'},'q':{'変数':'x'}},出力目的=('h',))
+        req=replace(req,目的=(*req.目的,g),引数資料={'p':{'変数':'x'},'q':{'変数':'x'}},出力目的=('h',))
         r,value=self.execute(req)
         self.assertEqual(value.本文,'6*x')
         self.assertEqual(len(r.計画.工程),2)
@@ -145,14 +145,14 @@ class 目的計画契約試験(unittest.TestCase):
         req=要求('定数値','数式',能力結果(True,'not math'))
         r=self.p.計画する(req);self.assertTrue(r.成立)
         before=self.s.保存文脈()
-        result=self.s.計画実行(r.計画,r.Data)
-        self.assertFalse(result.成立);self.assertEqual(before,self.s.保存文脈())
+        結果=self.s.計画実行(r.計画,r.資料)
+        self.assertFalse(結果.成立);self.assertEqual(before,self.s.保存文脈())
 
     def test_一次式を定数値として採用しない(self):
         req=要求(value=能力結果(True,'x+1',データ={'式':'x+1','変数':['x']}))
         r=self.p.計画する(req);self.assertTrue(r.成立)
-        result=self.s.計画実行(r.計画,r.Data)
-        self.assertFalse(result.成立)
+        結果=self.s.計画実行(r.計画,r.資料)
+        self.assertFalse(結果.成立)
 
     def test_コード本文の構造読解(self):
         _,value=self.execute(要求('コード構造報告','コード本文',能力結果(True,'def f(x):\n    return x + 1\n')))
@@ -163,10 +163,10 @@ class 目的計画契約試験(unittest.TestCase):
             '種別':'算術','演算':'加算','左':{'種別':'参照','名前':'x'},
             '右':{'種別':'定数参照','キー':'step'}}}]}
         value = 能力結果(True,'',データ={'仕様':spec,'定数':{'step':1}})
-        r,result = self.execute(要求('コード評価結果','コード仕様',value,
+        r,結果 = self.execute(要求('コード評価結果','コード仕様',value,
                                     {'引数':{'x':2,'定数':{'step':1}}}))
         self.assertEqual(r.作用経路[0][1],('仕様からコード生成','コード引数評価'))
-        self.assertEqual(result.本文,'3')
+        self.assertEqual(結果.本文,'3')
 
     def test_許可の整数偽装を拒否(self):
         rows=list(self.s.能力一覧()); rows[0]={**rows[0],'外部読取':0}

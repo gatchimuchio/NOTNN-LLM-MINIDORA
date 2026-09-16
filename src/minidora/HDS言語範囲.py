@@ -29,24 +29,24 @@ def _norm(value: object) -> str:
     return " ".join(unicodedata.normalize("NFKC", str(value)).split()).strip(" ,;:。！？?.")
 
 
-def _条件値(relation: HDS関係, key: str) -> str:
+def _条件値(関係: HDS関係, key: str) -> str:
     prefix = key + "="
-    for raw in relation.条件:
+    for raw in 関係.条件:
         value = str(raw)
         if value.startswith(prefix):
             return value[len(prefix):].strip()
     return ""
 
 
-def _条件追加(relation: HDS関係, *items: str) -> HDS関係:
-    conditions = list(relation.条件)
+def _条件追加(関係: HDS関係, *items: str) -> HDS関係:
+    conditions = list(関係.条件)
     for item in items:
         if item and item not in conditions:
             conditions.append(item)
-    return replace(relation, 条件=tuple(conditions))
+    return replace(関係, 条件=tuple(conditions))
 
 
-def _端点scope(content: str) -> tuple[str, tuple[str, ...]]:
+def _端点範囲(content: str) -> tuple[str, tuple[str, ...]]:
     """関係regexが実体へ吸収した助動/否定だけを実体から分離する。"""
     value = _norm(content)
     match = _AUX_TAIL.fullmatch(value)
@@ -68,21 +68,21 @@ def _端点scope(content: str) -> tuple[str, tuple[str, ...]]:
     return base, tuple(conditions)
 
 
-def _条件scope(text: str, start: str, end: str, predicate: str) -> tuple[str, ...]:
+def _条件範囲(text: str, start: str, end: str, predicate: str) -> tuple[str, ...]:
     """同じ文の関係節より前にある明示条件句だけを関係へ結ぶ。"""
     if not start or not end or not predicate:
         return ()
     start_p = re.escape(start)
     end_p = re.escape(end)
     pred_head = re.escape(predicate.split()[0])
-    relation = re.search(
+    関係 = re.search(
         rf"\b{start_p}\b[^.;!?]{{0,120}}\b{pred_head}(?:s|ed|ing)?\b[^.;!?]{{0,160}}\b{end_p}\b",
         text,
         re.I,
     )
-    if relation is None:
+    if 関係 is None:
         return ()
-    prefix = text[: relation.start()]
+    prefix = text[: 関係.start()]
     condition = re.search(
         r"(?:^|[.;]\s*)(?P<c>(?:if|when|under|given|assuming)\b[^.;,]{1,180})\s*,\s*$",
         prefix,
@@ -90,17 +90,11 @@ def _条件scope(text: str, start: str, end: str, predicate: str) -> tuple[str, 
     )
     if condition is None:
         return ()
-    return ("条件scope=" + _norm(condition.group("c")),)
+    return ('条件範囲=' + _norm(condition.group("c")),)
 
 
-def HDS英語関係scope射影(ir: HDSIR) -> HDSIR:
-    """英語関係の実体端点と作用scopeをCompiler内で分離・結合する。
-
-    新しい世界関係は作らない。既存relationの汚染端点を正規化し、明示された極性・様相・
-    条件をrelation.条件へ移す。汚染された元端点は完全IRから消さず `表層.端点原形` へ
-    降格し、意味対象として下流へ再流入しないようにする。Runtimeは自然言語を再解析しない。
-    疑問文は質問意味Compilerへ委ねる。
-    """
+def HDS英語関係範囲射影(ir: HDSIR) -> HDSIR:
+    '英語関係の実体端点と作用範囲を構文化器内で分離・結合する。\n\n    新しい世界関係は作らない。既存関係の汚染端点を正規化し、明示された極性・様相・\n    条件を関係.条件へ移す。汚染された元端点は完全IRから消さず `表層.端点原形` へ\n    降格し、意味対象として下流へ再流入しないようにする。Runtimeは自然言語を再解析しない。\n    疑問文は質問意味構文化器へ委ねる。\n    '
     if not str(getattr(ir, "入力言語", "")).casefold().startswith("en"):
         return ir
     raw = str(ir.正規化文 or ir.原文)
@@ -140,7 +134,7 @@ def HDS英語関係scope射影(ir: HDSIR) -> HDSIR:
                 normalized,
                 original.値状態,
                 原文範囲=original.原文範囲,
-                由来="公開HDS Compiler.scope分離",
+                由来='公開HDS 構文化器.範囲分離',
                 暫定性=original.暫定性,
                 再開放条件=original.再開放条件,
             )
@@ -150,31 +144,31 @@ def HDS英語関係scope射影(ir: HDSIR) -> HDSIR:
 
     changed = False
     relations: list[HDS関係] = []
-    for relation in ir.関係:
-        if len(relation.始点) != 1 or len(relation.終点) != 1:
-            relations.append(relation)
+    for 関係 in ir.関係:
+        if len(関係.始点) != 1 or len(関係.終点) != 1:
+            relations.append(関係)
             continue
-        sid, oid = relation.始点[0], relation.終点[0]
+        sid, oid = 関係.始点[0], 関係.終点[0]
         start_coord = coord_map.get(sid)
         end_coord = coord_map.get(oid)
         if start_coord is None or end_coord is None:
-            relations.append(relation)
+            relations.append(関係)
             continue
 
-        start, start_scope = _端点scope(str(start_coord.内容))
-        end, end_scope = _端点scope(str(end_coord.内容))
-        scope = tuple(dict.fromkeys((*start_scope, *end_scope)))
-        predicate = _条件値(relation, "検索述語")
-        scope = tuple(dict.fromkeys((*scope, *_条件scope(text, start, end, predicate))))
+        start, start_範囲 = _端点範囲(str(start_coord.内容))
+        end, end_範囲 = _端点範囲(str(end_coord.内容))
+        範囲 = tuple(dict.fromkeys((*start_範囲, *end_範囲)))
+        predicate = _条件値(関係, "検索述語")
+        範囲 = tuple(dict.fromkeys((*範囲, *_条件範囲(text, start, end, predicate))))
 
         new_sid = endpoint_coord(sid, start)
         new_oid = endpoint_coord(oid, end)
-        updated = relation
+        updated = 関係
         if (new_sid, new_oid) != (sid, oid):
             updated = replace(updated, 始点=(new_sid,), 終点=(new_oid,))
-        if scope:
-            updated = _条件追加(updated, *scope, "scope結合=Compiler")
-        changed = changed or updated != relation
+        if 範囲:
+            updated = _条件追加(updated, *範囲, '範囲結合=構文化器')
+        changed = changed or updated != 関係
         relations.append(updated)
 
     if demote_ids:
@@ -182,8 +176,8 @@ def HDS英語関係scope射影(ir: HDSIR) -> HDSIR:
             replace(
                 coord,
                 種別="表層.端点原形",
-                由来="公開HDS Compiler.scope分離",
-                暫定性="SURFACE_ENDPOINT_BEFORE_SCOPE_SEPARATION",
+                由来='公開HDS 構文化器.範囲分離',
+                暫定性='SURFACE_ENDPOINT_BEFORE_範囲_SEPARATION',
             )
             if coord.座標ID in demote_ids
             else coord
@@ -196,4 +190,4 @@ def HDS英語関係scope射影(ir: HDSIR) -> HDSIR:
     return replace(ir, 座標=tuple(coords), 関係=tuple(relations))
 
 
-__all__ = ["HDS英語関係scope射影"]
+__all__ = ['HDS英語関係範囲射影']

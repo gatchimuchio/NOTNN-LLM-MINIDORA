@@ -11,7 +11,7 @@ from .HDS構文化記録_v1_1 import (
 from .HDS中間表現 import HDSIR, 値状態
 
 
-_GATE_MAP: dict[str, tuple[str, ...]] = {
+_関門_MAP: dict[str, tuple[str, ...]] = {
     "座標固定要求": ("G00",),
     "未定義・未解参照要求": ("G01",),
     "閉包要求": ("G02",),
@@ -41,21 +41,21 @@ _STOP_RECOVERY: dict[str, tuple[str, ...]] = {
     "反論強度要求": ("弱い一般論だけで強い観測命題を棄却しない", "証拠・具体性・射程を比較"),
     "証拠要求": ("必要証拠が無ければSUSPENDまたはPROBE候補", "独立出典・観測条件・反証を取得"),
     "論証要求": ("循環・飛躍が未解消ならSUSPEND候補", "前提・推論・結論を分離して再監査"),
-    "投影境界要求": ("Projectionを世界本体へ昇格しない", "表現限界・残差・別Projectionを保持"),
-    "可逆性要求": ("不可逆作用はrollback条件なしで自動実行しない", "checkpoint・撤回条件・回復コストを固定"),
+    "投影境界要求": ('射影を世界本体へ昇格しない', '表現限界・残差・別射影を保持'),
+    "可逆性要求": ("不可逆作用はrollback条件なしで自動実行しない", '検査点・撤回条件・回復コストを固定'),
     "時間帰属要求": ("結果帰属が不明なら単一因果へ確定しない", "遅延・外生変化・観測誤差をPROBE"),
     "資源要求": ("保持契約を満たせない場合はHOLD/SUSPEND候補", "資源追加または可逆分割実行"),
     "原理探索要求": ("パターン/機構候補を原理へ自動昇格しない", "反対モデル・反証・摂動・反実仮想へ送る"),
     "保持要求": ("不可逆剪定しない", "全座標・全関係・残差・旧解釈を保存"),
-    "意味損失要求": ("無損失を装わない", "Residualへ損失と影響を記録"),
+    "意味損失要求": ("無損失を装わない", '残差へ損失と影響を記録'),
     "暫定性要求": ("局所安定をFINALへ昇格しない", "再開放条件を保持"),
     "自己適用要求": ("HDS自身を自己例外化しない", "旧版保持と改訂可能性を確認"),
-    "最終採否委譲": ("Compiler自身はCOMMITしない", "判断境界へ委譲"),
+    "最終採否委譲": ('構文化器自身はCOMMITしない', "判断境界へ委譲"),
 }
 
 
-def HDSGate対応(要求種別: str) -> tuple[str, ...]:
-    return _GATE_MAP.get(str(要求種別), ())
+def HDS関門対応(要求種別: str) -> tuple[str, ...]:
+    return _関門_MAP.get(str(要求種別), ())
 
 
 def _sig_id(kind: str, symptom: str) -> str:
@@ -83,32 +83,32 @@ def HDS失敗署名候補生成(ir: HDSIR, world: HDS認知世界断片) -> tupl
             )
         )
 
-    for residual in ir.残差:
-        if residual.種別 == "semantic_loss":
-            failure_class = "semantic_loss_failure"
+    for 残差 in ir.残差:
+        if 残差.種別 == '意味_loss':
+            failure_class = '意味_loss_failure'
             cause = "有限射影で意味・関係・文脈の一部が失われた"
             gates = ("G18 Semantic Loss Gate",)
-        elif "遷移" in residual.種別:
-            failure_class = "relation_failure"
+        elif "遷移" in 残差.種別:
+            failure_class = '関係_failure'
             cause = "状態遷移の端点または条件が未固定"
             gates = ("G00 Coordinate Gate", "G11 Temporal Attribution Gate")
-        elif "未解" in residual.種別 or "未閉包" in residual.種別:
+        elif "未解" in 残差.種別 or "未閉包" in 残差.種別:
             failure_class = "closure_failure"
             cause = "参照・関係・閉包条件の一部が未解決"
             gates = ("G01 Open-Term Gate", "G02 Closure Gate")
         else:
             continue
-        symptom = f"{residual.種別}:{residual.原文}"
+        symptom = f"{残差.種別}:{残差.原文}"
         signatures.append(
             HDS失敗署名候補(
                 _sig_id(failure_class, symptom),
                 failure_class,
                 symptom,
                 cause,
-                起動条件=(residual.理由,),
-                影響範囲=tuple(residual.影響座標),
-                回復=tuple(residual.解消条件) or ("追加観測または再射影",),
-                次探索軸=("residual",),
+                起動条件=(残差.理由,),
+                影響範囲=tuple(残差.影響座標),
+                回復=tuple(残差.解消条件) or ("追加観測または再射影",),
+                次探索軸=('残差',),
                 再利用チェック=gates,
             )
         )
@@ -141,8 +141,8 @@ def HDSチェックリスト生成(requirements: tuple[HDS監査要求, ...], si
         if requirement.種別 in {"座標固定要求", "閉包要求", "未定義・未解参照要求"}:
             linked = signature_by_class.get("coordinate_unfixed") or signature_by_class.get("closure_failure")
         elif requirement.種別 == "意味損失要求":
-            linked = signature_by_class.get("semantic_loss_failure")
-        gates = HDSGate対応(requirement.種別)
+            linked = signature_by_class.get('意味_loss_failure')
+        gates = HDS関門対応(requirement.種別)
         question = f"{requirement.種別}: {requirement.理由}"
         out.append(
             HDSチェックリスト項目(
@@ -166,35 +166,35 @@ def HDS監査参照候補生成(ir: HDSIR, checklist: tuple[HDSチェックリ�
         return ()
     if len(base) > 220:
         base = base[-220:]
-    language = (ir.入力言語 or "ja").casefold()
-    ja = language.startswith("ja")
+    言語 = (ir.入力言語 or "ja").casefold()
+    ja = 言語.startswith("ja")
     suffixes: list[tuple[str, str, tuple[str, ...], int]] = []
     for item in checklist:
-        gates = set(item.Gate対応)
+        gates = set(item.関門対応)
         if "G03" in gates:
-            suffixes.extend((("反例" if ja else "counterexample", "impossibility_counterexample", item.Gate対応, 100), ("不成立条件" if ja else "failure conditions", "impossibility_conditions", item.Gate対応, 95)))
+            suffixes.extend((("反例" if ja else "counterexample", "impossibility_counterexample", item.関門対応, 100), ("不成立条件" if ja else "failure conditions", "impossibility_conditions", item.関門対応, 95)))
         if "G04" in gates or "G05" in gates:
-            suffixes.append(("代替説明" if ja else "alternative explanation", "countermodel", item.Gate対応, 85))
+            suffixes.append(("代替説明" if ja else "alternative explanation", "countermodel", item.関門対応, 85))
         if "G06" in gates:
-            suffixes.append(("証拠" if ja else "evidence", "evidence", item.Gate対応, 80))
+            suffixes.append(("証拠" if ja else '証拠', '証拠', item.関門対応, 80))
         if "G13" in gates:
-            suffixes.append(("機構 境界条件" if ja else "mechanism boundary conditions", "principle_probe", item.Gate対応, 75))
+            suffixes.append(("機構 境界条件" if ja else "mechanism boundary conditions", "principle_probe", item.関門対応, 75))
     out: list[HDS監査参照候補] = []
     seen: set[str] = set()
-    for suffix, kind, gates, priority in sorted(suffixes, key=lambda item: -item[3]):
+    for suffix, kind, gates, 優先度 in sorted(suffixes, key=lambda item: -item[3]):
         query = f"{base} {suffix}".strip()
         key = query.casefold()
         if key in seen:
             continue
         seen.add(key)
-        out.append(HDS監査参照候補(query, kind, gates, kind, priority))
+        out.append(HDS監査参照候補(query, kind, gates, kind, 優先度))
         if len(out) >= 5:
             break
     return tuple(out)
 
 
 __all__ = [
-    "HDSGate対応",
+    'HDS関門対応',
     "HDS失敗署名候補生成",
     "HDSチェックリスト生成",
     "HDS監査参照候補生成",

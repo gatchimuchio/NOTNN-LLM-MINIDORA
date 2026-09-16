@@ -1,4 +1,4 @@
-"""コードの読解・生成・評価・試験を既存Capabilityと多段解決へ接続する。"""
+'コードの読解・生成・評価・試験を既存能力と多段解決へ接続する。'
 from __future__ import annotations
 
 from .コード能力 import コード能力版, コードを読む, コードを評価, コードを検証
@@ -9,7 +9,7 @@ from .製品版.能力契約 import 能力文脈
 from .製品版.型 import 能力結果
 
 
-class コード能力Module:
+class コード能力モジュール:
     版 = コード能力版
     優先度 = 0
 
@@ -18,11 +18,11 @@ class コード能力Module:
             raise ValueError("未対応のコード能力")
         self.名前 = 操作
 
-    def _入力(self, context):
-        if not isinstance(context, 能力文脈) or type(context.補助) is not dict:
+    def _入力(self, 文脈):
+        if not isinstance(文脈, 能力文脈) or type(文脈.補助) is not dict:
             raise ValueError("明示入力が必要")
-        rows = context.補助.get("合成入力", ())
-        settings = context.補助.get("合成設定", {})
+        rows = 文脈.補助.get("合成入力", ())
+        settings = 文脈.補助.get("合成設定", {})
         if type(rows) is not tuple or len(rows) != 1 or type(settings) is not dict:
             raise ValueError("単一のコード素材と設定が必要")
         value = 能力結果を復元(rows[0]["結果"])
@@ -34,19 +34,19 @@ class コード能力Module:
         if set(settings) - allowed or not required <= set(settings):
             raise ValueError("設定項目不正")
         if self.名前 == "コード生成" and set(value.データ) != {"仕様", "定数"}:
-            raise ValueError("構造化仕様と定数Dataが必要")
+            raise ValueError('構造化仕様と定数資料が必要')
         return value, settings
 
-    def 判定(self, context):
+    def 判定(self, 文脈):
         try:
-            self._入力(context)
+            self._入力(文脈)
             return 1.0
         except (ValueError, TypeError, KeyError, AttributeError):
             return 0.0
 
-    def 実行(self, context):
+    def 実行(self, 文脈):
         try:
-            value, settings = self._入力(context)
+            value, settings = self._入力(文脈)
             if self.名前 == "コード生成":
                 return 関数を生成(value.データ["仕様"], value.データ["定数"])
             if self.名前 == "コード読解":
@@ -65,4 +65,4 @@ class コード能力Module:
 
 
 def コード能力群() -> tuple[登録能力, ...]:
-    return tuple(コード能力Module(name).登録() for name in ("コード読解", "コード生成", "コード評価", "コード検証"))
+    return tuple(コード能力モジュール(name).登録() for name in ("コード読解", "コード生成", "コード評価", "コード検証"))

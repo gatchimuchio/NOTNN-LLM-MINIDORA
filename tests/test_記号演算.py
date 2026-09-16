@@ -13,10 +13,10 @@ from minidora.記号演算 import 記号を処理, 数学記録整合
 
 class 記号演算試験(unittest.TestCase):
     def run_expr(self, text, names=(), **kwargs):
-        result = 記号を処理(text, names, **kwargs)
-        self.assertTrue(result.成立, (result.保留理由, result.データ))
-        self.assertTrue(数学記録整合(result))
-        return result
+        結果 = 記号を処理(text, names, **kwargs)
+        self.assertTrue(結果.成立, (結果.保留理由, 結果.データ))
+        self.assertTrue(数学記録整合(結果))
+        return 結果
 
     def test_十進小数を浮動小数点誤差にしない(self):
         self.assertEqual(self.run_expr('0.1+0.2-0.3').データ['定数値'], '0')
@@ -29,62 +29,62 @@ class 記号演算試験(unittest.TestCase):
         self.assertEqual(self.run_expr('(x+1)**3-x**3-3*x**2', ('x',)).本文, '3*x + 1')
 
     def test_多変数の積と次数(self):
-        result = self.run_expr('(x+y)*(x-y)', ('x','y'))
-        self.assertEqual(result.本文, 'x**2 - y**2')
+        結果 = self.run_expr('(x+y)*(x-y)', ('x','y'))
+        self.assertEqual(結果.本文, 'x**2 - y**2')
 
     def test_一変数微分(self):
         self.assertEqual(self.run_expr('x**3+2*x-1', ('x',), 操作='微分', 対象変数='x').本文, '3*x**2 + 2')
 
     def test_偏微分と日本語変数(self):
-        result = self.run_expr('速度**2*時間+3*時間', ('速度','時間'), 操作='微分', 対象変数='時間')
-        self.assertEqual(result.本文, '速度**2 + 3')
+        結果 = self.run_expr('速度**2*時間+3*時間', ('速度','時間'), 操作='微分', 対象変数='時間')
+        self.assertEqual(結果.本文, '速度**2 + 3')
 
     def test_微分して零(self):
-        result = self.run_expr('y**2+7', ('x','y'), 操作='微分', 対象変数='x')
-        self.assertEqual(result.データ['多項式']['項'], [])
-        self.assertEqual(result.データ['定数値'], '0')
+        結果 = self.run_expr('y**2+7', ('x','y'), 操作='微分', 対象変数='x')
+        self.assertEqual(結果.データ['多項式']['項'], [])
+        self.assertEqual(結果.データ['定数値'], '0')
 
     def test_原始関数の代表と一般解の区別(self):
-        result = self.run_expr('x**2+y', ('x','y'), 操作='積分', 対象変数='x')
-        self.assertIn('原始関数の一つ', result.本文)
-        self.assertIn('任意関数', result.データ['積分の範囲'])
-        back = self.run_expr(result.データ['多項式'], ('x','y'), 操作='微分', 対象変数='x')
+        結果 = self.run_expr('x**2+y', ('x','y'), 操作='積分', 対象変数='x')
+        self.assertIn('原始関数の一つ', 結果.本文)
+        self.assertIn('任意関数', 結果.データ['積分の範囲'])
+        back = self.run_expr(結果.データ['多項式'], ('x','y'), 操作='微分', 対象変数='x')
         self.assertEqual(back.本文, 'x**2 + y')
 
     def test_部分代入は未確定変数を残す(self):
-        result = self.run_expr('x*y+x', ('x','y'), 操作='代入', 代入値={'x':'2'})
-        self.assertEqual(result.本文, '2*y + 2')
-        self.assertIsNone(result.データ['定数値'])
+        結果 = self.run_expr('x*y+x', ('x','y'), 操作='代入', 代入値={'x':'2'})
+        self.assertEqual(結果.本文, '2*y + 2')
+        self.assertIsNone(結果.データ['定数値'])
 
     def test_同時代入を正確な分数で扱う(self):
-        result = self.run_expr('x*y+x', ('x','y'), 操作='代入', 代入値={'x':'1/3','y':'1/2'})
-        self.assertEqual(result.データ['定数値'], '1/2')
+        結果 = self.run_expr('x*y+x', ('x','y'), 操作='代入', 代入値={'x':'1/3','y':'1/2'})
+        self.assertEqual(結果.データ['定数値'], '1/2')
 
     def test_全変数を代入しなくても相殺した定数は確定(self):
-        result = self.run_expr('x*y-x*y+7', ('x','y'), 操作='代入', 代入値={})
-        self.assertEqual(result.データ['定数値'], '7')
+        結果 = self.run_expr('x*y-x*y+7', ('x','y'), 操作='代入', 代入値={})
+        self.assertEqual(結果.データ['定数値'], '7')
 
     def test_未宣言の変数を自動補完しない(self):
         self.assertFalse(記号を処理('x+y', ('x',)).成立)
         self.assertFalse(記号を処理('1', ('x',), 操作='代入', 代入値={'z':'1'}).成立)
 
     def test_同値比較は全点での恒等性(self):
-        result = self.run_expr('(x+1)**2', ('x',), 操作='同値比較', 比較式='x**2+2*x+1')
-        self.assertEqual(result.データ['判定'], '恒等')
+        結果 = self.run_expr('(x+1)**2', ('x',), 操作='同値比較', 比較式='x**2+2*x+1')
+        self.assertEqual(結果.データ['判定'], '恒等')
 
     def test_非恒等を全点の不一致と誤認しない(self):
-        result = self.run_expr('x*x', ('x',), 操作='同値比較', 比較式='x')
-        self.assertEqual(result.データ['判定'], '非恒等')
-        self.assertIn('全点不一致を意味しない', result.データ['比較の範囲'])
-        self.assertEqual(self.run_expr(result.データ['多項式'], ('x',), 操作='代入', 代入値={'x':'1'}).本文, '0')
+        結果 = self.run_expr('x*x', ('x',), 操作='同値比較', 比較式='x')
+        self.assertEqual(結果.データ['判定'], '非恒等')
+        self.assertIn('全点不一致を意味しない', 結果.データ['比較の範囲'])
+        self.assertEqual(self.run_expr(結果.データ['多項式'], ('x',), 操作='代入', 代入値={'x':'1'}).本文, '0')
 
     def test_一つの一致点だけで恒等判定しない(self):
-        result = self.run_expr('x**2', ('x',), 操作='同値比較', 比較式='x**2+x*(x-1)*(x+1)')
-        self.assertEqual(result.データ['判定'], '非恒等')
+        結果 = self.run_expr('x**2', ('x',), 操作='同値比較', 比較式='x**2+x*(x-1)*(x+1)')
+        self.assertEqual(結果.データ['判定'], '非恒等')
 
     def test_微小差を丸めて消さない(self):
-        result = self.run_expr('0.1*x', ('x',), 操作='同値比較', 比較式='0.10000000000000001*x')
-        self.assertEqual(result.データ['判定'], '非恒等')
+        結果 = self.run_expr('0.1*x', ('x',), 操作='同値比較', 比較式='0.10000000000000001*x')
+        self.assertEqual(結果.データ['判定'], '非恒等')
 
     def test_変数分母を約分して定義域を落とさない(self):
         for text in ('x/x','(x**2-1)/(x-1)','0*(1/x)','1/(x-x+1)'):
@@ -113,7 +113,7 @@ class 記号演算試験(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertFalse(記号を処理(text, ('x','y')).成立)
 
-    def test_exec_evalに入力を渡さない(self):
+    def test_exec_評価に入力を渡さない(self):
         with patch('builtins.exec', side_effect=AssertionError()), patch('builtins.eval', side_effect=AssertionError()):
             self.assertEqual(記号を処理('(x+1)*(x-1)', ('x',)).本文, 'x**2 - 1')
 
@@ -142,12 +142,12 @@ class 記号演算試験(unittest.TestCase):
     def test_予算と停止で途中結果を返さない(self):
         for kw in ({'最大演算数':1},{'最大演算数':True},{'停止要求':lambda:True},{'停止要求':lambda:'false'},
                    {'停止要求':lambda:1/0}):
-            result=記号を処理('(x+1)**8',('x',),**kw)
-            self.assertFalse(result.成立)
-            self.assertEqual(result.本文,'')
-            self.assertNotIn('多項式',result.データ)
+            結果=記号を処理('(x+1)**8',('x',),**kw)
+            self.assertFalse(結果.成立)
+            self.assertEqual(結果.本文,'')
+            self.assertNotIn('多項式',結果.データ)
 
-    def test_多項式Dataの往復と後続利用(self):
+    def test_多項式資料の往復と後続利用(self):
         r=self.run_expr('(x+1)**2',('x',))
         raw=json.loads(json.dumps(r.データ['多項式']))
         out=self.run_expr(raw,('x',),操作='微分',対象変数='x')
@@ -166,29 +166,29 @@ class 記号演算試験(unittest.TestCase):
 
     def test_大きい分子分母を持つ結果の往復(self):
         a,b,c,d=2**500+1,2**500-1,2**499+3,2**499+1
-        result=self.run_expr(f'({a}/{b})*({c}/{d})*x',('x',))
-        raw=result.データ['多項式']
+        結果=self.run_expr(f'({a}/{b})*({c}/{d})*x',('x',))
+        raw=結果.データ['多項式']
         self.assertGreater(len(raw['項'][0]['係数']),320)
         self.assertEqual(self.run_expr(raw,('x',)).データ['多項式'],raw)
 
     def test_元入力と返却値は分離(self):
         raw=self.run_expr('x+1',('x',)).データ['多項式'];before=deepcopy(raw)
-        result=self.run_expr(raw,('x',))
-        result.データ['入力']['式']['項'][0]['係数']='999'
+        結果=self.run_expr(raw,('x',))
+        結果.データ['入力']['式']['項'][0]['係数']='999'
         self.assertEqual(raw,before)
-        self.assertFalse(数学記録整合(result))
+        self.assertFalse(数学記録整合(結果))
 
     def test_採用値を変えてハッシュを付け直しても検出(self):
-        result=self.run_expr('1+2')
-        result.データ['定数値']='999'
-        result.データ.pop('記録SHA256')
-        result.データ['記録SHA256']=sha256(json.dumps({'本文':result.本文,'データ':result.データ},ensure_ascii=False,sort_keys=True).encode()).hexdigest()
-        self.assertFalse(数学記録整合(result))
+        結果=self.run_expr('1+2')
+        結果.データ['定数値']='999'
+        結果.データ.pop('記録SHA256')
+        結果.データ['記録SHA256']=sha256(json.dumps({'本文':結果.本文,'データ':結果.データ},ensure_ascii=False,sort_keys=True).encode()).hexdigest()
+        self.assertFalse(数学記録整合(結果))
 
     def test_報告本文の改変を検出(self):
-        result=self.run_expr('x+1',('x',))
-        self.assertFalse(数学記録整合(replace(result,本文='正解は999')))
-        self.assertFalse(数学記録整合(replace(result,成立=False)))
+        結果=self.run_expr('x+1',('x',))
+        self.assertFalse(数学記録整合(replace(結果,本文='正解は999')))
+        self.assertFalse(数学記録整合(replace(結果,成立=False)))
         self.assertFalse(数学記録整合(None))
 
     def test_同一入力の再現性(self):
@@ -196,17 +196,17 @@ class 記号演算試験(unittest.TestCase):
 
     def test_結果の表示を再解析できる(self):
         for expr in ('-x/3+2*y-4','0','(x-y)**5','(x**16)**4'):
-            result=self.run_expr(expr,('x','y'))
-            self.assertEqual(result.データ['多項式'],self.run_expr(result.本文,('x','y')).データ['多項式'])
+            結果=self.run_expr(expr,('x','y'))
+            self.assertEqual(結果.データ['多項式'],self.run_expr(結果.本文,('x','y')).データ['多項式'])
 
 
 class 記号独立対照試験(unittest.TestCase):
     def test_二項展開を係数公式で対照(self):
         from math import comb
         for n in range(9):
-            result=記号を処理(f'(x+y)**{n}',('x','y'))
-            self.assertTrue(result.成立)
-            actual={tuple(t['次数']):F(t['係数']) for t in result.データ['多項式']['項']}
+            結果=記号を処理(f'(x+y)**{n}',('x','y'))
+            self.assertTrue(結果.成立)
+            actual={tuple(t['次数']):F(t['係数']) for t in 結果.データ['多項式']['項']}
             expected={(n-k,k):F(comb(n,k)) for k in range(n+1)}
             self.assertEqual(actual,expected)
 
@@ -215,19 +215,19 @@ class 記号独立対照試験(unittest.TestCase):
         for a,b in product(range(-2,3),repeat=2):
             expr=f'({a}*x+y/3)**3-({b}*x-y)**2'
             for x,y in product(('0','1/2','-3'),repeat=2):
-                result=記号を処理(expr,('x','y'),操作='代入',代入値={'x':x,'y':y})
-                self.assertTrue(result.成立,result.データ)
+                結果=記号を処理(expr,('x','y'),操作='代入',代入値={'x':x,'y':y})
+                self.assertTrue(結果.成立,結果.データ)
                 expected=(a*F(x)+F(y)/3)**3-(b*F(x)-F(y))**2
-                self.assertEqual(F(result.データ['定数値']),expected)
+                self.assertEqual(F(結果.データ['定数値']),expected)
                 count+=1
         self.assertEqual(count,225)
 
     def test_積分微分往復と積の微分則(self):
         for n in range(1,9):
-            source=f'x**{n}*y+2*x-3'
-            primitive=記号を処理(source,('x','y'),操作='積分',対象変数='x')
+            情報源=f'x**{n}*y+2*x-3'
+            primitive=記号を処理(情報源,('x','y'),操作='積分',対象変数='x')
             back=記号を処理(primitive.データ['多項式'],('x','y'),操作='微分',対象変数='x')
-            self.assertEqual(back.データ['多項式'],記号を処理(source,('x','y')).データ['多項式'])
+            self.assertEqual(back.データ['多項式'],記号を処理(情報源,('x','y')).データ['多項式'])
             derivative=記号を処理(f'(x+y)**{n}*(x-y)',('x','y'),操作='微分',対象変数='x')
             expected=記号を処理(f'{n}*(x+y)**{n-1}*(x-y)+(x+y)**{n}',('x','y'))
             self.assertEqual(derivative.データ['多項式'],expected.データ['多項式'])

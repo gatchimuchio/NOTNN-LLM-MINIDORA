@@ -32,15 +32,15 @@ class 参照試験(unittest.TestCase):
             ),
             名称="B",
         )
-        result = 複合参照供給器(p1, p2).検索("Alpha", 上限=4)
-        self.assertEqual([r.識別子 for r in result], ["a0", "b0", "a1", "b1"])
-        self.assertEqual({r.供給器 for r in result}, {"A", "B"})
+        結果 = 複合参照供給器(p1, p2).検索("Alpha", 上限=4)
+        self.assertEqual([r.識別子 for r in 結果], ["a0", "b0", "a1", "b1"])
+        self.assertEqual({r.供給器 for r in 結果}, {"A", "B"})
 
     def test_空Providerがあっても他Providerを取得する(self):
         empty = 固定参照供給器((), 名称="empty")
         record = 参照記録("b", "Alpha", "Alpha evidence", "fixture://b", "B")
-        result = 複合参照供給器(empty, 固定参照供給器((record,), 名称="B")).検索("Alpha")
-        self.assertEqual(result, (record,))
+        結果 = 複合参照供給器(empty, 固定参照供給器((record,), 名称="B")).検索("Alpha")
+        self.assertEqual(結果, (record,))
 
 
 if __name__ == "__main__":

@@ -9,10 +9,10 @@ def _sig(*terms: str) -> HDS意味署名:
     return HDS意味署名(frozenset(terms), frozenset(), frozenset())
 
 
-def _evidence(*terms: str) -> _証拠群:
+def _証拠(*terms: str) -> _証拠群:
     return _証拠群(
         "e",
-        "source:e",
+        '情報源:e',
         frozenset(terms),
         frozenset(),
         frozenset(),
@@ -35,11 +35,11 @@ class K3候補差分意味試験(unittest.TestCase):
 
     def test_共通語だけの証拠より候補固有語まで含む証拠を強く評価する(self) -> None:
         question = _sig("question")
-        candidate = _sig("shared", "alpha")
-        common = _evidence("question", "shared")
-        specific = _evidence("question", "shared", "alpha")
-        common_score = _group_score(question, candidate, common, 識別語=frozenset({"alpha"}))
-        specific_score = _group_score(question, candidate, specific, 識別語=frozenset({"alpha"}))
+        候補 = _sig("shared", "alpha")
+        common = _証拠("question", "shared")
+        specific = _証拠("question", "shared", "alpha")
+        common_score = _group_score(question, 候補, common, 識別語=frozenset({"alpha"}))
+        specific_score = _group_score(question, 候補, specific, 識別語=frozenset({"alpha"}))
         self.assertGreater(specific_score, common_score)
         self.assertGreater(common_score, 0.0)
 
@@ -50,7 +50,7 @@ class K3候補差分意味試験(unittest.TestCase):
         })
         self.assertEqual(distinctive["A"], frozenset())
         self.assertEqual(distinctive["B"], frozenset())
-        score = _group_score(_sig("question"), _sig("same"), _evidence("question", "same"))
+        score = _group_score(_sig("question"), _sig("same"), _証拠("question", "same"))
         self.assertGreater(score, 0.0)
 
 

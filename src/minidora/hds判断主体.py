@@ -14,7 +14,7 @@ class MINIDORA出力:
     候補差: tuple[tuple[str, int], ...]
     参照候補差: tuple[tuple[str, int], ...]
     参照同率候補ID: tuple[str, ...]
-    checkpoint数: int
+    検査点数: int
     再作用回数: int
     終端遍歴数: int
 
@@ -42,32 +42,25 @@ class HDS判断結果:
 
 
 
-def MINIDORA出力化(result: 模型結果) -> MINIDORA出力:
-    """模型結果を後段HDSの入力へ固定する。
+def MINIDORA出力化(結果: 模型結果) -> MINIDORA出力:
+    '模型結果を後段HDSの入力へ固定する。\n\n    knowledge 選択肢の正式出力は参照由来の一意な正差だけとし、一般表層差へ代替経路しない。\n    '
 
-    knowledge choiceの正式出力は参照由来の一意な正差だけとし、一般表層差へfallbackしない。
-    """
-
-    candidate = result.参照最有力候補ID
-    state = "OUTPUT" if candidate is not None else "NO_OUTPUT"
+    候補 = 結果.参照最有力候補ID
+    状態 = "OUTPUT" if 候補 is not None else "NO_OUTPUT"
     return MINIDORA出力(
-        状態=state,
-        候補ID=candidate,
-        候補差=tuple(sorted(result.候補辞書().items())),
-        参照候補差=tuple(sorted(result.参照候補辞書().items())),
-        参照同率候補ID=tuple(result.参照同率候補ID),
-        checkpoint数=len(result.checkpoint),
-        再作用回数=int(result.統計.再作用回数),
-        終端遍歴数=int(result.統計.終端遍歴数),
+        状態=状態,
+        候補ID=候補,
+        候補差=tuple(sorted(結果.候補辞書().items())),
+        参照候補差=tuple(sorted(結果.参照候補辞書().items())),
+        参照同率候補ID=tuple(結果.参照同率候補ID),
+        検査点数=len(結果.検査点),
+        再作用回数=int(結果.統計.再作用回数),
+        終端遍歴数=int(結果.統計.終端遍歴数),
     )
 
 
 class HDS判断主体:
-    """MINIDORA出力だけを採用・留保・拒否する後段HDS。
-
-    Question / Candidate / Data / Referenceを受け取らない。再検索・再計算・差し戻しも行わない。
-    それらはMINIDORA単体LLMの責務外であり、必要なら上位AGI全体HDSが担う。
-    """
+    'MINIDORA出力だけを採用・留保・拒否する後段HDS。\n\n    Question / 候補 / 資料 / 参照を受け取らない。再検索・再計算・差し戻しも行わない。\n    それらはMINIDORA単体LLMの責務外であり、必要なら上位AGI全体HDSが担う。\n    '
 
     版 = "v2-output-only"
 
@@ -89,8 +82,8 @@ class HDS判断主体:
             )
 
         ref_scores = dict(出力.参照候補差)
-        candidate = 出力.候補ID
-        if len(ref_scores) != len(出力.参照候補差) or candidate not in ref_scores:
+        候補 = 出力.候補ID
+        if len(ref_scores) != len(出力.参照候補差) or 候補 not in ref_scores:
             gates.append(HDS判定門結果("出力整合", "REJECT", ("MALFORMED_OUTPUT",)))
             gates.append(HDS判定門結果("終端", "SILENT", ("NO_FEEDBACK_LOOP",)))
             return HDS判断結果(
@@ -104,7 +97,7 @@ class HDS判断主体:
 
         maximum = max(ref_scores.values(), default=0)
         top = tuple(sorted(cid for cid, score in ref_scores.items() if score == maximum))
-        if maximum <= 0 or len(top) != 1 or top[0] != candidate or 出力.参照同率候補ID:
+        if maximum <= 0 or len(top) != 1 or top[0] != 候補 or 出力.参照同率候補ID:
             gates.append(HDS判定門結果("出力整合", "REJECT", ("OUTPUT_NOT_UNIQUE_POSITIVE",)))
             gates.append(HDS判定門結果("終端", "SILENT", ("NO_FEEDBACK_LOOP",)))
             return HDS判断結果(
@@ -120,7 +113,7 @@ class HDS判断主体:
         gates.append(HDS判定門結果("終端", "OUTPUT", ("NO_FEEDBACK_LOOP",)))
         return HDS判断結果(
             "APPROVE",
-            candidate,
+            候補,
             "OUTPUT",
             "COMMIT",
             tuple(gates),

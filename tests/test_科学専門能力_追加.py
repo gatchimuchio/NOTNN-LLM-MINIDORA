@@ -7,9 +7,9 @@ from minidora.科学専門能力 import 科学専門能力解決
 
 class 追加科学専門能力健全性試験(unittest.TestCase):
     def 解決器を確認(self, question, choices, expected):
-        result = 科学専門能力解決(question, choices)
-        self.assertIsNotNone(result)
-        self.assertEqual(result.index, expected)
+        結果 = 科学専門能力解決(question, choices)
+        self.assertIsNotNone(結果)
+        self.assertEqual(結果.index, expected)
 
     def test_LaTeX指数付き光子対生成閾値(self):
         q = r'For gamma gamma electron-positron pair creation, the average photon energy is $2\times10^{-3}eV$. What gamma-ray threshold follows?'
@@ -70,8 +70,8 @@ class 追加科学専門能力健全性試験(unittest.TestCase):
         self.解決器を確認(q, choices, 1)
 
     def test_無関係な一般科学文へ誤発火しない(self):
-        result = 科学専門能力解決('A black hole is mentioned in a qualitative history question.', ('one', 'two', 'three', 'four'))
-        self.assertIsNone(result)
+        結果 = 科学専門能力解決('A black hole is mentioned in a qualitative history question.', ('one', 'two', 'three', 'four'))
+        self.assertIsNone(結果)
 
 
 if __name__ == '__main__':

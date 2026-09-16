@@ -29,7 +29,7 @@ SEED = 0
 LABELS = ("A", "B", "C", "D")
 
 # 旧ベンチ入口との互換名。実体は公開標準HDS Compiler。
-汎用意味射影Compiler = 公開HDSコンパイラ
+汎用意味射影構文化器 = 公開HDSコンパイラ
 
 
 def _sha256(path: Path) -> str:
@@ -95,37 +95,37 @@ def main() -> int:
             並列=True,
             最大並列=4,
         )
-        compiler = 公開HDSコンパイラ()
-        base_core = K3相当能力核()
+        構文化器 = 公開HDSコンパイラ()
+        base_模型核 = K3相当能力核()
 
         correct_count = 0
         answered = 0
         suspended = 0
-        retrieval_empty = 0
+        取得_empty = 0
         docs_total = 0
-        data_compiled = 0
-        data_failed = 0
+        資料_compiled = 0
+        資料_failed = 0
         k_facts_added = 0
-        evidence_facts = 0
-        blocked_evidence = 0
+        証拠_facts = 0
+        blocked_証拠 = 0
         reason_counts: Counter[str] = Counter()
-        effort_counts: Counter[str] = Counter()
-        source_counts: Counter[str] = Counter()
+        計算量_counts: Counter[str] = Counter()
+        情報源_counts: Counter[str] = Counter()
         details: list[dict[str, object]] = []
 
         for index, (question, choices, gold) in enumerate(cases):
-            question_ir = compiler.問題IR(question, choices)
+            question_ir = 構文化器.問題IR(question, choices)
             references = HDS参照検索(provider, question_ir)
             if not references:
-                retrieval_empty += 1
+                取得_empty += 1
             docs_total += len(references)
-            source_counts.update(r.供給器 for r in references)
+            情報源_counts.update(r.供給器 for r in references)
 
             inference = HDS選択推論実行(
                 question_ir,
                 tuple(references),
-                コンパイル=compiler.コンパイル,
-                基礎能力核=base_core,
+                コンパイル=構文化器.コンパイル,
+                基礎能力核=base_模型核,
             )
             predicted = inference.回答ラベル
             is_answered = inference.状態 == "APPROVE" and predicted is not None
@@ -134,13 +134,13 @@ def main() -> int:
             suspended += int(not is_answered)
             correct_count += int(is_correct)
             reason_counts.update(inference.理由)
-            data_compiled += inference.Dataコンパイル数
-            data_failed += inference.Dataコンパイル失敗数
+            資料_compiled += inference.資料コンパイル数
+            資料_failed += inference.資料コンパイル失敗数
             k_facts_added += inference.K追加事実数
-            evidence_facts += inference.K証拠事実数
-            blocked_evidence += inference.K証拠阻害事実数
+            証拠_facts += inference.K証拠事実数
+            blocked_証拠 += inference.K証拠阻害事実数
             if inference.K3結果 is not None:
-                effort_counts[inference.K3結果.努力水準] += 1
+                計算量_counts[inference.K3結果.努力水準] += 1
 
             details.append(
                 {
@@ -152,15 +152,15 @@ def main() -> int:
                     "reasons": list(inference.理由),
                     "retrieved": len(references),
                     "sources": [r.供給器 for r in references],
-                    "data_compiled": inference.Dataコンパイル数,
-                    "data_compile_failed": inference.Dataコンパイル失敗数,
-                    "effort": inference.K3結果.努力水準 if inference.K3結果 else None,
-                    "candidate_diagnostics": [
+                    '資料_compiled': inference.資料コンパイル数,
+                    '資料_compile_failed': inference.資料コンパイル失敗数,
+                    '計算量': inference.K3結果.努力水準 if inference.K3結果 else None,
+                    '候補_diagnostics': [
                         {
                             "label": d.候補,
                             "score": d.合計得点,
-                            "evidence_score": d.証拠得点,
-                            "graph_score": d.graph得点,
+                            '証拠_score': d.証拠得点,
+                            '関係図_score': d.関係図得点,
                             "independent_sources": d.独立出典数,
                         }
                         for d in (inference.K3結果.候補診断 if inference.K3結果 else ())
@@ -173,7 +173,7 @@ def main() -> int:
                 flush=True,
             )
 
-        result = {
+        結果 = {
             "契約形式": "minidora.gpqa.current-measurement.v1",
             "protocol": {
                 "dataset": "official idavidrein/gpqa dataset.zip / gpqa_diamond.csv",
@@ -182,8 +182,8 @@ def main() -> int:
                 "資料集合CSV_SHA256": csv_hash,
                 "n": len(cases),
                 "選択肢シャッフル種": SEED,
-                "compiler": "MINIDORA public standard HDS Compiler; Japanese-base role projection; benchmark-agnostic",
-                "gold_boundary": "gold used only after inference for scoring",
+                '構文化器': "MINIDORA public standard HDS Compiler; Japanese-base role projection; benchmark-agnostic",
+                'gold_境界': "gold used only after inference for scoring",
                 "OpenAlex有効": api_key is not None,
                 "Wikipedia言語群": ["en"],
                 "実行系": "current repository head; HDS choice native R->HDS->K->J",
@@ -195,18 +195,18 @@ def main() -> int:
                 "answered": answered,
                 "answer_rate_percent": 100.0 * answered / len(cases),
                 "suspended": suspended,
-                "retrieval_empty": retrieval_empty,
+                '取得_empty': 取得_empty,
                 "documents_retrieved": docs_total,
-                "data_compiled": data_compiled,
-                "data_compile_failed": data_failed,
+                '資料_compiled': 資料_compiled,
+                '資料_compile_failed': 資料_failed,
                 "k_facts_added": k_facts_added,
-                "evidence_facts": evidence_facts,
-                "blocked_evidence_facts": blocked_evidence,
-                "source_counts": dict(sorted(source_counts.items())),
+                '証拠_facts': 証拠_facts,
+                'blocked_証拠_facts': blocked_証拠,
+                '情報源_counts': dict(sorted(情報源_counts.items())),
                 "reason_counts": dict(sorted(reason_counts.items())),
-                "effort_counts": dict(sorted(effort_counts.items())),
+                '計算量_counts': dict(sorted(計算量_counts.items())),
             },
-            "baseline_reference_only_not_directly_comparable": {
+            'baseline_参照_only_not_directly_comparable': {
                 "correct": 8,
                 "total": 198,
                 "accuracy_percent": 4.040404040404041,
@@ -215,8 +215,8 @@ def main() -> int:
             "details": details,
         }
         out = Path(os.environ.get("MINIDORA_GPQA_OUT", "gpqa_current_measurement.json"))
-        out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        print("MINIDORA_GPQA_RESULT=" + json.dumps(result["metrics"], ensure_ascii=False), flush=True)
+        out.write_text(json.dumps(結果, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print("MINIDORA_GPQA_RESULT=" + json.dumps(結果["metrics"], ensure_ascii=False), flush=True)
         print(f"RESULT_FILE={out}", flush=True)
     return 0
 

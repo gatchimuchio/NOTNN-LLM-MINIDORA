@@ -4,8 +4,8 @@ from typing import Any
 
 
 def 表面化(値: Any, 状態: str, 理由: tuple[str, ...], 言語: str = "ja") -> str:
-    language = (言語 or "ja").casefold()
-    if language.startswith("en"):
+    言語 = (言語 or "ja").casefold()
+    if 言語.startswith("en"):
         if 状態 == "保留":
             return "I don't know. I don't have verified grounds."
         if 状態 == "失敗":
@@ -20,7 +20,7 @@ def 表面化(値: Any, 状態: str, 理由: tuple[str, ...], 言語: str = "ja"
             return 値
         return f"{値}."
 
-    if language.startswith("zh"):
+    if 言語.startswith("zh"):
         if 状態 == "保留":
             return "不知道。没有可确认的依据。"
         if 状態 == "失敗":

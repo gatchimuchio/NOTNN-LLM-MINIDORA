@@ -5,12 +5,12 @@ from minidora.命題推論 import 命題推論器, 推論上限
 
 
 class 命題推論試験(unittest.TestCase):
-    def 結果(self,source,query):
-        rows=命題資料を読む(source,'資料')
+    def 結果(self,情報源,query):
+        rows=命題資料を読む(情報源,'資料')
         e=命題を読む(query)
         self.assertEqual(len(e),1)
         return 命題推論器(rows).判定(e[0].式)
-    def status(self,source,query,status):self.assertEqual(self.結果(source,query)['判定'],status)
+    def status(self,情報源,query,status):self.assertEqual(self.結果(情報源,query)['判定'],status)
     def test_直接支持(self):self.status('P。','P','支持')
     def test_直接反証(self):self.status('否定(P)。','P','反証')
     def test_支持反証を同時保持(self):self.status('P。否定(P)。','P','矛盾')

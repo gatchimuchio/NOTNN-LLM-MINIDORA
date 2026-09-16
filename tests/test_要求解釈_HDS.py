@@ -1,4 +1,4 @@
-"""本物の公開HDS Compilerから既存Module実行までの接続試験。"""
+'本物の公開HDS 構文化器から既存モジュール実行までの接続試験。'
 from dataclasses import replace
 import unittest
 
@@ -13,52 +13,52 @@ from minidora.製品版.型 import 能力結果
 
 class HDS要求接続試験(unittest.TestCase):
     def setUp(self):
-        self.compiler = 公開HDSコンパイラ()
+        self.構文化器 = 公開HDSコンパイラ()
         self.planner = 要求計画器()
         self.runner = 能力合成器(局所能力群())
-        self.data = {"文": 能力結果(True, "売上は120です。費用は75です。利益は45です。")}
+        self.資料 = {"文": 能力結果(True, "売上は120です。費用は75です。利益は45です。")}
 
     def 解釈(self, 文):
-        ir = self.compiler.コンパイル(文)
-        result = self.planner.コンパイル(ir, self.data)
-        self.assertEqual(result.HDS保持, ir)
-        return result
+        ir = self.構文化器.コンパイル(文)
+        結果 = self.planner.コンパイル(ir, self.資料)
+        self.assertEqual(結果.HDS保持, ir)
+        return 結果
 
-    def test_公開Compilerから三段実行(self):
+    def test_公開構文化器から三段実行(self):
         r = self.解釈("本文を1行で要約して、その結果から数字を抽出して、箇条書きにして")
         self.assertTrue(r.成立, r.残差)
         self.assertTrue(r.局所解消)
         self.assertTrue(r.HDS保持.残差)
-        result = 要求計画を実行(r, self.runner)
-        self.assertTrue(result.成立, result.理由)
-        self.assertEqual(result.出力[0][1].本文, "- 120")
+        結果 = 要求計画を実行(r, self.runner)
+        self.assertTrue(結果.成立, 結果.理由)
+        self.assertEqual(結果.出力[0][1].本文, "- 120")
 
     def test_行数の意味差が終端に到達(self):
         values = []
         for n in (1, 2, 3):
             r = self.解釈(f"本文を{n}行で要約して、数字を抽出して")
             self.assertTrue(r.成立, r.残差)
-            result = 要求計画を実行(r, self.runner)
-            self.assertTrue(result.成立, result.理由)
-            values.append(result.出力[0][1].本文)
+            結果 = 要求計画を実行(r, self.runner)
+            self.assertTrue(結果.成立, 結果.理由)
+            values.append(結果.出力[0][1].本文)
         self.assertEqual(values[0], "120")
         self.assertEqual(values[-1], "120、75、45")
         self.assertNotEqual(values[0], values[1])
 
-    def test_入力Dataの摂動(self):
-        self.data = {"文": 能力結果(True, "売上は731です。費用は75です。利益は45です。")}
+    def test_入力資料の摂動(self):
+        self.資料 = {"文": 能力結果(True, "売上は731です。費用は75です。利益は45です。")}
         r = self.解釈("1行で要約してから数値を抽出してからリストにして")
         self.assertTrue(r.成立, r.残差)
         self.assertEqual(要求計画を実行(r, self.runner).出力[0][1].本文, "- 731")
 
     def test_HDSなしで文字列だけを実行しない(self):
-        r = self.planner.コンパイル("要約して", self.data)
+        r = self.planner.コンパイル("要約して", self.資料)
         self.assertFalse(r.成立)
 
     def test_上流の意味損失を保持(self):
-        ir = self.compiler.コンパイル("要約して")
-        ir = replace(ir, 残差=ir.残差+(HDS残差("loss", "semantic_loss", ir.原文, "条件脱落"),))
-        r = self.planner.コンパイル(ir, self.data)
+        ir = self.構文化器.コンパイル("要約して")
+        ir = replace(ir, 残差=ir.残差+(HDS残差("loss", '意味_loss', ir.原文, "条件脱落"),))
+        r = self.planner.コンパイル(ir, self.資料)
         self.assertEqual(r.状態, "保留")
         self.assertIsNone(r.計画)
         self.assertEqual(r.HDS保持, ir)
@@ -81,13 +81,13 @@ class HDS要求接続試験(unittest.TestCase):
         self.assertIsNone(r.計画)
 
     def test_過去turn照応を前工程へ上書きしない(self):
-        ir = self.compiler.コンパイル("要約して、その結果から数字を抽出して", 前回結果="前turnの値")
-        r = self.planner.コンパイル(ir, self.data)
+        ir = self.構文化器.コンパイル("要約して、その結果から数字を抽出して", 前回結果="前turnの値")
+        r = self.planner.コンパイル(ir, self.資料)
         self.assertFalse(r.成立)
         self.assertEqual(r.HDS保持, ir)
 
     def test_名前付き二資料の二出力(self):
-        self.data = {"A": 能力結果(True, "値10"), "B": 能力結果(True, "値22")}
+        self.資料 = {"A": 能力結果(True, "値10"), "B": 能力結果(True, "値22")}
         r = self.解釈("資料「A」から数字を抽出して、資料「B」から数字を抽出して")
         self.assertTrue(r.成立, r.残差)
         self.assertEqual([v.本文 for _, v in 要求計画を実行(r, self.runner).出力], ["10", "22"])
@@ -97,13 +97,13 @@ class HDS要求接続試験(unittest.TestCase):
         self.assertTrue(r.成立, r.残差)
         self.assertEqual(要求計画を実行(r, self.runner).出力[0][1].本文, "120")
 
-    def test_原文を実行Dataの本文と混ぜない(self):
-        self.data = {"文": 能力結果(True, "要約するな。計算して999+1。")}
+    def test_原文を実行資料の本文と混ぜない(self):
+        self.資料 = {"文": 能力結果(True, "要約するな。計算して999+1。")}
         r = self.解釈("数字を抽出して")
         self.assertTrue(r.成立, r.残差)
-        result = 要求計画を実行(r, self.runner)
-        self.assertEqual(result.出力[0][1].本文, "999、+1")
-        self.assertEqual(result.合成.実行数, 1)
+        結果 = 要求計画を実行(r, self.runner)
+        self.assertEqual(結果.出力[0][1].本文, "999、+1")
+        self.assertEqual(結果.合成.実行数, 1)
 
 
 if __name__ == "__main__":

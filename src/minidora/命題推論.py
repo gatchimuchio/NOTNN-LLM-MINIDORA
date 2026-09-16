@@ -80,8 +80,8 @@ class 命題推論器:
         if self._操作 > self.上限.操作数:
             raise ValueError('命題推論の操作予算超過。途中結果を採用しない')
 
-    def _証(self, e, kind, parents=(), source='', scope=''):
-        record = {'式': e.辞書(), '作用': kind, '親': tuple(parents), '出典': source, '仮定範囲': scope}
+    def _証(self, e, kind, parents=(), 情報源='', 範囲=''):
+        record = {'式': e.辞書(), '作用': kind, '親': tuple(parents), '出典': 情報源, '仮定範囲': 範囲}
         key = 意味指紋(record)
         if key not in self._根拠:
             if len(self._根拠) >= self.上限.根拠数:
@@ -177,10 +177,10 @@ class 命題推論器:
         elif e.種別 == '含意':
             left, right = e.子
             if not _平坦(left): raise ValueError('仮定導入の前件は量化のない命題')
-            scope = 意味指紋({'問い': e.辞書(), '親仮定': [p for _, p in assumptions]})
-            pid = self._証(left, '問いの仮定', scope=scope)
+            範囲 = 意味指紋({'問い': e.辞書(), '親仮定': [p for _, p in assumptions]})
+            pid = self._証(left, '問いの仮定', 範囲=範囲)
             p = self._証明(right, domain, (*assumptions, (left, pid)), depth + 1, 分岐済)
-            if p: return self._証(e, '仮定を閉じた条件導出', (pid, p), scope=scope)
+            if p: return self._証(e, '仮定を閉じた条件導出', (pid, p), 範囲=範囲)
         elif e.種別 == '全称':
             fresh = 命題項('任意:' + str(depth) + ':' + e.鍵()[:16], '任意個体')
             body = 置換(e.子[0], {e.変数: fresh})
@@ -202,15 +202,15 @@ class 命題推論器:
                 if p: return self._証(e, '存在証拠', (p,))
         # 選言の各場合で同じ問いが導けた場合だけ結論へ接続する。
         # 矛盾する場合も除外せず、仮定を他の分岐や次の問いへ漏らさない。
-        for disjunction, source in tuple(facts.values()):
+        for disjunction, 情報源 in tuple(facts.values()):
             if disjunction.種別 != '選言' or disjunction.鍵() in 分岐済: continue
             visited = 分岐済 | {disjunction.鍵()}
             if len(visited) > 8: raise ValueError('選言場合分けの上限')
-            parents = [source]; complete = True
+            parents = [情報源]; complete = True
             for i, child in enumerate(disjunction.子):
-                scope = 意味指紋({'選言': source, '場合': i, '問い': e.辞書(),
+                範囲 = 意味指紋({'選言': 情報源, '場合': i, '問い': e.辞書(),
                                   '仮定': [p for _, p in assumptions]})
-                hypothesis = self._証(child, '場合の仮定', scope=scope)
+                hypothesis = self._証(child, '場合の仮定', 範囲=範囲)
                 proof = self._証明(e, domain, (*assumptions, (child, hypothesis)), depth + 1, visited)
                 if not proof:
                     complete = False; break

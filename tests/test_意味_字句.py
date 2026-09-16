@@ -27,7 +27,7 @@ class 意味語正規化試験(unittest.TestCase):
     def test_日本語意味語は保持する(self) -> None:
         self.assertEqual(意味語("触媒 反応 促進"), frozenset({"触媒", "反応", "促進"}))
 
-    def test_1桁数値と単独choice_atomを保持する(self) -> None:
+    def test_1桁数値と単独選択肢_atomを保持する(self) -> None:
         self.assertIn("0", 意味語("0"))
         self.assertIn("6", 意味語("6"))
         self.assertIn("atom:x", 意味語("x"))

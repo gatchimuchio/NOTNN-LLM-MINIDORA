@@ -5,7 +5,7 @@ import re
 from typing import Iterable
 
 from .HDS構文化記録 import (
-    HDSCompiler成果,
+    HDS構文化器成果,
     HDS保持契約,
     HDS原理探索要求,
     HDS原理段階,
@@ -120,7 +120,7 @@ _自己適用規則 = (
     re.compile(r"\b(?:HDS|this framework|this principle|itself|self-application)\b", re.I),
 )
 _原理規則 = (
-    (HDS原理段階.原理候補, re.compile(r"(?:原理候補|principle candidate)", re.I)),
+    (HDS原理段階.原理候補, re.compile(r'(?:原理候補|principle 候補)', re.I)),
     (HDS原理段階.原理候補, re.compile(r"(?:原理|法則|\bprinciple\b|\blaw\b)", re.I)),
     (HDS原理段階.機構候補, re.compile(r"(?:機構|メカニズム|\bmechanism\b)", re.I)),
     (HDS原理段階.パターン, re.compile(r"(?:パターン|反復構造|\bpattern\b)", re.I)),
@@ -167,21 +167,21 @@ def _関係端点(ir: HDSIR) -> tuple[tuple[str, ...], tuple[str, ...]]:
     coords = ir.座標辞書()
     starts: list[str] = []
     ends: list[str] = []
-    for relation in ir.関係:
-        for coordinate_id in relation.始点:
+    for 関係 in ir.関係:
+        for coordinate_id in 関係.始点:
             coordinate = coords.get(coordinate_id)
             if coordinate is not None and coordinate.値状態 not in _阻害状態:
                 starts.append(str(coordinate.内容))
-        for coordinate_id in relation.終点:
+        for coordinate_id in 関係.終点:
             coordinate = coords.get(coordinate_id)
             if coordinate is not None and coordinate.値状態 not in _阻害状態:
                 ends.append(str(coordinate.内容))
     return _unique(starts), _unique(ends)
 
 
-def _監査項目追加(items: list[HDS監査項目], *, layer: str, kind: str, contents: Iterable[str], state: HDS監査状態 = HDS監査状態.観測, required: tuple[str, ...] = (), reopen: tuple[str, ...] = ()) -> None:
+def _監査項目追加(items: list[HDS監査項目], *, layer: str, kind: str, contents: Iterable[str], 状態: HDS監査状態 = HDS監査状態.観測, required: tuple[str, ...] = (), reopen: tuple[str, ...] = ()) -> None:
     for content in _unique(contents):
-        items.append(HDS監査項目(f"{layer}:{kind}:{len(items)}", layer, kind, content, state, 必要情報=required, 再開放条件=reopen))
+        items.append(HDS監査項目(f"{layer}:{kind}:{len(items)}", layer, kind, content, 状態, 必要情報=required, 再開放条件=reopen))
 
 
 def _監査要求追加(requirements: list[HDS監査要求], *, kind: str, reason: str, required: tuple[str, ...] = (), refs: tuple[str, ...] = (), probes: tuple[str, ...] = ()) -> None:
@@ -209,26 +209,26 @@ def _抽出(ir: HDSIR) -> tuple[HDS認知世界断片, tuple[HDS監査項目, ..
     for kind, values in (("発話主体", speakers), ("作用主体", starts), ("対象", ends), ("時間", times), ("空間", spaces), ("目的", purposes), ("機構", mechanisms)):
         _監査項目追加(items, layer="第0層", kind=kind, contents=values)
     for name in missing:
-        _監査項目追加(items, layer="第0層", kind="座標未固定", contents=(name,), state=HDS監査状態.未固定, required=(name,), reopen=("追加入力またはRで座標を観測する",))
+        _監査項目追加(items, layer="第0層", kind="座標未固定", contents=(name,), 状態=HDS監査状態.未固定, required=(name,), reopen=("追加入力またはRで座標を観測する",))
 
-    semantic: dict[str, tuple[str, ...]] = {}
+    意味: dict[str, tuple[str, ...]] = {}
     for kind, patterns in _動態規則.items():
         values = _該当文(text, patterns)
-        semantic[f"動態.{kind}"] = values
+        意味[f"動態.{kind}"] = values
         _監査項目追加(items, layer="第1層", kind=kind, contents=values)
     for kind, patterns in _暗黙知規則.items():
         values = _該当文(text, patterns)
-        semantic[f"{kind}.明示"] = values
+        意味[f"{kind}.明示"] = values
         _監査項目追加(items, layer="第2層", kind=kind, contents=values)
 
     argument_links = _該当文(text, _論証接続規則)
     counterarguments = _該当文(text, _反論規則)
-    semantic["論証.接続"] = argument_links
-    semantic["論証.反論"] = counterarguments
+    意味["論証.接続"] = argument_links
+    意味["論証.反論"] = counterarguments
     _監査項目追加(items, layer="第3層", kind="推論接続", contents=argument_links)
     _監査項目追加(items, layer="第3層", kind="反論", contents=counterarguments)
     items.append(HDS監査項目(f"第4層:一貫性:{len(items)}", "第4層", "全層横断照合", "座標・動態・定義・前提・射程・不確実性・論証の変更履歴を横断照合する", HDS監査状態.要求, 必要情報=("各層の観測済み項目と未固定項目",), 再開放条件=("新観測・定義変更・前提変更・射程変更・時間経過",)))
-    items.append(HDS監査項目(f"第5層:留保:{len(items)}", "第5層", "留保", "現行Projectionで扱えていない項目の存在を予約する", HDS監査状態.留保, 必要情報=("未知の未知を含む未採用項目",), 再開放条件=("反復失敗・新しい破綻類型・追加観測",)))
+    items.append(HDS監査項目(f"第5層:留保:{len(items)}", "第5層", "留保", '現行射影で扱えていない項目の存在を予約する', HDS監査状態.留保, 必要情報=("未知の未知を含む未採用項目",), 再開放条件=("反復失敗・新しい破綻類型・追加観測",)))
 
     principle_stage = HDS原理段階.未形成
     principle_markers: list[str] = []
@@ -242,12 +242,12 @@ def _抽出(ir: HDSIR) -> tuple[HDS認知世界断片, tuple[HDS監査項目, ..
         principle_stage = HDS原理段階.影
     principle_questions = _unique(sentence for sentence in _文群(text) if re.search(r"(?:なぜ|どう|原理|機構|\bwhy\b|\bhow\b|\bprinciple\b|\bmechanism\b)", sentence, re.I))
     principle_needs = ("反対モデル", "成立条件", "不成立条件", "反証条件", "摂動または反実仮想", "適用範囲", "境界条件", "再開放条件") if principle_stage != HDS原理段階.未形成 else ()
-    principle = HDS原理探索要求(principle_stage, _unique(principle_markers), principle_questions, principle_needs, semantic.get("射程.明示", ()), (), ("新観測・反例・境界変更で再監査する",) if principle_needs else ())
+    principle = HDS原理探索要求(principle_stage, _unique(principle_markers), principle_questions, principle_needs, 意味.get("射程.明示", ()), (), ("新観測・反例・境界変更で再監査する",) if principle_needs else ())
 
     requirements: list[HDS監査要求] = []
     if missing:
         _監査要求追加(requirements, kind="座標固定要求", reason="基底座標に未固定項目がある", required=missing, probes=tuple(f"{item}を観測または明示する" for item in missing))
-    unresolved = tuple(residual.原文 for residual in ir.残差 if residual.種別 in {"未解共参照", "未解関係両端"} or "未解" in residual.種別)
+    unresolved = tuple(残差.原文 for 残差 in ir.残差 if 残差.種別 in {"未解共参照", "未解関係両端"} or "未解" in 残差.種別)
     if unresolved:
         _監査要求追加(requirements, kind="未定義・未解参照要求", reason="未解参照または未閉包関係が残っている", required=("参照先", "意味境界"), refs=_unique(unresolved))
     if unresolved or any(coord.値状態 in _阻害状態 for coord in ir.座標):
@@ -264,10 +264,10 @@ def _抽出(ir: HDSIR) -> tuple[HDS認知世界断片, tuple[HDS監査項目, ..
     if argument_links:
         _監査要求追加(requirements, kind="論証要求", reason="前提から結論への接続が明示されている", required=("推論形式", "前提妥当性", "定義・時系列・文脈整合"))
     if any(pattern.search(text) for pattern in _投影注意規則):
-        _監査要求追加(requirements, kind="投影境界要求", reason="世界・本質・真理・全称表現を有限Projectionから直接確定しない", required=("表現限界", "適用範囲", "未表現残差", "別解釈"))
+        _監査要求追加(requirements, kind="投影境界要求", reason='世界・本質・真理・全称表現を有限射影から直接確定しない', required=("表現限界", "適用範囲", "未表現残差", "別解釈"))
     if any(pattern.search(text) for pattern in _可逆性規則):
         _監査要求追加(requirements, kind="可逆性要求", reason="作用・実装・不可逆性に関わる表現がある", required=("rollback", "撤回条件", "不可逆範囲", "回復コスト"))
-    dynamic_any = any(semantic.get(f"動態.{kind}") for kind in _動態規則)
+    dynamic_any = any(意味.get(f"動態.{kind}") for kind in _動態規則)
     if times or dynamic_any:
         _監査要求追加(requirements, kind="時間帰属要求", reason="時間または状態遷移が明示されている", required=("作用効果", "遅延効果", "時間経過", "外生変化", "観測誤差", "多因子", "未帰属"))
     if any(pattern.search(text) for pattern in _資源規則):
@@ -277,31 +277,31 @@ def _抽出(ir: HDSIR) -> tuple[HDS認知世界断片, tuple[HDS監査項目, ..
 
     _監査要求追加(requirements, kind="保持要求", reason="原理または将来の再解釈への寄与を事前に剪定しない", required=("座標", "関係", "不確実性", "残差", "由来", "旧解釈", "再開放条件"))
     _監査要求追加(requirements, kind="意味損失要求", reason="有限言語・射影・実装による不可避な損失を無損失と装わない", required=("表現限界", "翻訳近似", "未分別", "未知境界"))
-    _監査要求追加(requirements, kind="暫定性要求", reason="Compiler出力を最終世界・最終原理・完全記述へ昇格させない", required=("時点", "射程", "版", "再開放条件"))
+    _監査要求追加(requirements, kind="暫定性要求", reason='構文化器出力を最終世界・最終原理・完全記述へ昇格させない', required=("時点", "射程", "版", "再開放条件"))
     if any(pattern.search(text) for pattern in _自己適用規則):
         _監査要求追加(requirements, kind="自己適用要求", reason="フレーム・原理・HDS自身が主張対象に含まれる", required=("自己例外の不存在", "改訂可能性", "旧版保持"))
-    _監査要求追加(requirements, kind="最終採否委譲", reason="Compilerは構造・不足・監査要求を生成するが、真偽・原理・最終採否を決定しない", required=("HDS判断側または同等の採否境界へ委譲する",))
-    return world, tuple(items), tuple(requirements), principle, semantic
+    _監査要求追加(requirements, kind="最終採否委譲", reason='構文化器は構造・不足・監査要求を生成するが、真偽・原理・最終採否を決定しない', required=("HDS判断側または同等の採否境界へ委譲する",))
+    return world, tuple(items), tuple(requirements), principle, 意味
 
 
-def _IRへ射影(ir: HDSIR, world: HDS認知世界断片, requirements: tuple[HDS監査要求, ...], principle: HDS原理探索要求, semantic: dict[str, tuple[str, ...]]) -> HDSIR:
-    if any(coord.種別 == "監査.Architecture" and str(coord.内容) == "v1" for coord in ir.座標):
+def _IRへ射影(ir: HDSIR, world: HDS認知世界断片, requirements: tuple[HDS監査要求, ...], principle: HDS原理探索要求, 意味: dict[str, tuple[str, ...]]) -> HDSIR:
+    if any(coord.種別 == '監査.構造' and str(coord.内容) == "v1" for coord in ir.座標):
         return ir
     coords = list(ir.座標)
     operations = list(ir.意味作用履歴)
     seen = {(str(coord.種別), " ".join(str(coord.内容).split()).strip()) for coord in coords}
     counter = 0
 
-    def add(kind: str, content: object, state: 値状態 = 値状態.確定) -> None:
+    def add(kind: str, content: object, 状態: 値状態 = 値状態.確定) -> None:
         nonlocal counter
         value = " ".join(str(content).split()).strip()
         if not value or (kind, value) in seen:
             return
         seen.add((kind, value))
-        coords.append(HDS座標(f"archv1:{counter}", kind, value, state, 由来="公開HDS Compiler Architecture v1", 再開放条件=("新観測・文脈変更・版更新で再監査する",)))
+        coords.append(HDS座標(f"archv1:{counter}", kind, value, 状態, 由来='公開HDS 構文化器 構造 v1', 再開放条件=("新観測・文脈変更・版更新で再監査する",)))
         counter += 1
 
-    add("監査.Architecture", "v1")
+    add('監査.構造', "v1")
     existing_kinds = {str(coord.種別) for coord in ir.座標}
     if "対象.始点" not in existing_kinds:
         for value in world.作用主体:
@@ -309,10 +309,10 @@ def _IRへ射影(ir: HDSIR, world: HDS認知世界断片, requirements: tuple[HD
     if "対象.終点" not in existing_kinds:
         for value in world.対象:
             add("対象.作用対象", value)
-    for kind, values in semantic.items():
-        state = 値状態.推定 if kind == "不確実性.明示" else 値状態.確定
+    for kind, values in 意味.items():
+        状態 = 値状態.推定 if kind == "不確実性.明示" else 値状態.確定
         for value in values:
-            add(kind, value, state)
+            add(kind, value, 状態)
     for missing in world.未固定座標:
         add("監査.座標未固定", missing, 値状態.未観測)
     for requirement in requirements:
@@ -320,17 +320,17 @@ def _IRへ射影(ir: HDSIR, world: HDS認知世界断片, requirements: tuple[HD
     add("監査.原理段階", principle.段階.value, 値状態.推定 if principle.段階 != HDS原理段階.未形成 else 値状態.未観測)
     add("保持.契約", "全座標・全関係・不確実性・残差・由来・旧解釈を保持し、不可逆剪定しない")
     add("暫定性.既定", "原則暫定")
-    operations.append(HDS意味作用("compiler-architecture-v1", "開放多層監査射影", ("normalized",), tuple(coord.座標ID for coord in coords if coord.座標ID.startswith("archv1:")), "座標固定・動態・暗黙知・論証・原理探索入力・監査要求を追加射影", 保持構造=("原文", "関係", "不確実性", "留保", "由来", "再開放条件"), 損失=("HDS Native/Kernelの導出規則と最終採否は公開Compilerへ含めない",), 検証=("日本語基底", "事実補完なし", "最終採否なし", "固定次元化なし")))
+    operations.append(HDS意味作用('構文化器-構造-v1', "開放多層監査射影", ("normalized",), tuple(coord.座標ID for coord in coords if coord.座標ID.startswith("archv1:")), "座標固定・動態・暗黙知・論証・原理探索入力・監査要求を追加射影", 保持構造=("原文", "関係", "不確実性", "留保", "由来", "再開放条件"), 損失=('HDS Native/Kernelの導出規則と最終採否は公開構文化器へ含めない',), 検証=("日本語基底", "事実補完なし", "最終採否なし", "固定次元化なし")))
     return replace(ir, 座標=tuple(coords), 意味作用履歴=tuple(operations))
 
 
-def 公開HDS詳細成果(ir: HDSIR) -> HDSCompiler成果:
-    world, items, requirements, principle, semantic = _抽出(ir)
-    return HDSCompiler成果(_IRへ射影(ir, world, requirements, principle, semantic), world, items, requirements, principle, HDS保持契約())
+def 公開HDS詳細成果(ir: HDSIR) -> HDS構文化器成果:
+    world, items, requirements, principle, 意味 = _抽出(ir)
+    return HDS構文化器成果(_IRへ射影(ir, world, requirements, principle, 意味), world, items, requirements, principle, HDS保持契約())
 
 
-def 公開HDSフロントエンド射影(ir: HDSIR) -> HDSCompiler成果:
-    """既存HDS-IR互換を保ったまま、Architecture v1の公開Front-End射影を重ねる。"""
+def 公開HDSフロントエンド射影(ir: HDSIR) -> HDS構文化器成果:
+    '既存HDS-IR互換を保ったまま、構造 v1の公開Front-End射影を重ねる。'
     return 公開HDS詳細成果(ir)
 
 

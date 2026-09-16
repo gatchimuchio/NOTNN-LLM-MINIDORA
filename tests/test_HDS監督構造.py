@@ -9,7 +9,7 @@ import minidora.HDS監督選択実行系 as supervised
 import minidora.実行系 as 実行系
 
 
-class HDS監督ArchitectureTest(unittest.TestCase):
+class HDS監督構造Test(unittest.TestCase):
     def test_active_実行系は旧outer_HDS_wrapperをimportしない(self):
         text = inspect.getsource(実行系)
         self.assertNotIn("実行系_HDS_v1", text)
@@ -30,7 +30,7 @@ class HDS監督ArchitectureTest(unittest.TestCase):
         self.assertNotIn("from .hds判断主体", text)
         self.assertNotIn("HDS判断主体()", text)
         self.assertNotIn("MINIDORA出力化", text)
-        self.assertNotIn("HDS_OUTPUT_ONLY_BOUNDARY", text)
+        self.assertNotIn('HDS_OUTPUT_ONLY_境界', text)
 
     def test_HDS制御は回答を生成しない(self):
         text = inspect.getsource(control.標準HDS介入制御)

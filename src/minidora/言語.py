@@ -18,7 +18,7 @@ class 言語計画:
 
 
 class 自然言語器:
-    """Legacy互換の決定論的自然言語境界。HDS Compiler未注入時のみRuntimeから利用する。"""
+    'Legacy互換の決定論的自然言語境界。HDS 構文化器未注入時のみRuntimeから利用する。'
 
     _二項作用 = {
         ast.Add: 作用.加算,
@@ -78,7 +78,7 @@ class 自然言語器:
         return self._参照計画("外部参照")
 
     def _文脈計画(self, text: str, 文脈参照: Any) -> 言語計画 | None:
-        """局所解釈で確定した参照先をDataとして束縛し、Pは状態住所だけを参照する。"""
+        '局所解釈で確定した参照先を資料として束縛し、Pは状態住所だけを参照する。'
         if 文脈参照 is None:
             return None
 
@@ -278,17 +278,17 @@ class 自然言語器:
 
     def _式計画(self, expression: str) -> 言語計画 | None:
         try:
-            tree = ast.parse(expression, mode="eval")
+            tree = ast.parse(expression, mode='評価')
         except SyntaxError:
             return None
 
         commands: list[命令] = []
         initial: dict[str, Any] = {}
-        counter = {"data": 0, "tmp": 0}
+        counter = {'資料': 0, "tmp": 0}
 
-        def data_ref(value: int | float) -> str:
-            key = f"入力{counter['data']}"
-            counter["data"] += 1
+        def 資料_ref(value: int | float) -> str:
+            key = f"入力{counter['資料']}"
+            counter['資料'] += 1
             initial[key] = value
             return f"${key}"
 
@@ -298,7 +298,7 @@ class 自然言語器:
                 and isinstance(node.value, (int, float))
                 and not isinstance(node.value, bool)
             ):
-                return data_ref(node.value)
+                return 資料_ref(node.value)
             if (
                 isinstance(node, ast.UnaryOp)
                 and isinstance(node.op, (ast.USub, ast.UAdd))
@@ -306,7 +306,7 @@ class 自然言語器:
                 and isinstance(node.operand.value, (int, float))
             ):
                 value = -node.operand.value if isinstance(node.op, ast.USub) else node.operand.value
-                return data_ref(value)
+                return 資料_ref(value)
             if isinstance(node, ast.BinOp) and type(node.op) in self._二項作用:
                 left = compile_node(node.left)
                 right = compile_node(node.right)

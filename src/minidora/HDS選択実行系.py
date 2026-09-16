@@ -4,7 +4,7 @@ from dataclasses import replace
 from functools import wraps
 
 from . import HDS選択実行系_v24 as _基準
-from .core局所観測 import MINIDORA局所観測view
+from .模型核局所観測 import MINIDORA局所観測view
 
 # 24点系で監査済みの公開/内部APIをそのまま再公開する。
 # private helperも他の現行moduleが明示importしているため、dunder以外は保持する。
@@ -17,14 +17,7 @@ _基準選択推論 = _基準.HDS選択推論実行
 
 @wraps(_基準選択推論)
 def HDS選択推論実行(*args, **kwargs):
-    """24点系formal Coreを壊さず、未閉包時だけ局所観測viewを一度再照合する。
-
-    不変条件:
-    - 既存APPROVEは同一objectを完全透過する。
-    - 追加Data取得、gold、benchmark固有規則を使わない。
-    - 同一source identityを保持する。
-    - SUSPENDから新たにAPPROVEへ閉包できた時だけ新結果を採用する。
-    """
+    '24点系formal 模型核を壊さず、未閉包時だけ局所観測viewを一度再照合する。\n\n    不変条件:\n    - 既存APPROVEは同一objectを完全透過する。\n    - 追加資料取得、gold、外部評価固有規則を使わない。\n    - 同一情報源 identityを保持する。\n    - SUSPENDから新たにAPPROVEへ閉包できた時だけ新結果を採用する。\n    '
     initial = _基準選択推論(*args, **kwargs)
 
     if len(args) < 2:
@@ -32,8 +25,8 @@ def HDS選択推論実行(*args, **kwargs):
     question_ir = args[0]
     references = tuple(args[1])
 
-    attached_model_core = kwargs.get("模型核") or getattr(kwargs.get("基礎能力核"), "_minidora_model_core", None)
-    formal = bool(kwargs.get("正式模型評価", False) or attached_model_core is not None)
+    attached_模型_模型核 = kwargs.get("模型核") or getattr(kwargs.get("基礎能力核"), '_minidora_模型_模型核', None)
+    formal = bool(kwargs.get("正式模型評価", False) or attached_模型_模型核 is not None)
     local_enabled = kwargs.get("局所再照合", True) is not False
 
     # 既に閉包した24点系の結果には一切触れない。

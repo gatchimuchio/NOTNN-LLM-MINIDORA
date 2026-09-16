@@ -1,7 +1,4 @@
-"""局所会話状態→実HDS→要求計画→既存能力→次状態を接続する。
-
-標準チャット入口の置換ではなく、文書操作Capability用の同期セッション。
-"""
+'局所会話状態→実HDS→要求計画→既存能力→次状態を接続する。\n\n標準チャット入口の置換ではなく、文書操作能力用の同期セッション。\n'
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
@@ -83,7 +80,7 @@ class 文脈付き要求セッション:
         ir = self._コンパイラ.コンパイル(依頼, 文脈=s.HDS文脈へ(),
                                          HDS履歴=deepcopy(s.局所起点.IR履歴))
         if not isinstance(ir, HDSIR) or ir.原文 != 依頼:
-            raise _準備不成立("Compiler出力と依頼原文が不一致")
+            raise _準備不成立('構文化器出力と依頼原文が不一致')
         r = self._計画器.コンパイル(ir, {} if 資料 is None else 資料, 文脈=s)
         return 文脈要求計画(s, r)
 

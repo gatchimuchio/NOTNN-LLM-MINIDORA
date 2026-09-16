@@ -73,9 +73,9 @@ class 計算IR_ABI試験(unittest.TestCase):
         )
         ir = 命令計算降下(plan)
         self.assertTrue(all(item.種別 == 計算値種別.状態住所 for item in ir.命令列[0].入力))
-        result = 計算実行器().計算実行(ir, {"a": 1, "b": 2})
-        self.assertEqual(result.状態["a"], 2)
-        self.assertEqual(result.状態["b"], 1)
+        結果 = 計算実行器().計算実行(ir, {"a": 1, "b": 2})
+        self.assertEqual(結果.状態["a"], 2)
+        self.assertEqual(結果.状態["b"], 1)
 
     def test_HDS降下は自然言語を再解析せず閉包済み構造だけを使う(self) -> None:
         plan = 手順(

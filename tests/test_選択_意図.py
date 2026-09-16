@@ -7,8 +7,8 @@ from minidora.選択意図 import HDS選択意図判定
 
 class HDS選択意図試験(unittest.TestCase):
     def test_exceptを例外選択として判定する(self) -> None:
-        result = HDS選択意図判定("All statements are correct except which one?")
-        self.assertEqual(result.種別, "EXCEPTION")
+        結果 = HDS選択意図判定("All statements are correct except which one?")
+        self.assertEqual(結果.種別, "EXCEPTION")
 
     def test_incorrectとnot_trueを例外選択として判定する(self) -> None:
         self.assertEqual(HDS選択意図判定("Which statement is incorrect?").種別, "EXCEPTION")

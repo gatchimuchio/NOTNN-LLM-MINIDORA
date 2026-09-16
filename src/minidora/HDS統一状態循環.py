@@ -29,20 +29,20 @@ def _hash(prefix: str, value: object) -> str:
     return prefix + sha256(raw.encode("utf-8")).hexdigest()[:20]
 
 
-def _subject_payload(subject: object | None) -> object:
-    if subject is None:
+def _主体_payload(主体: object | None) -> object:
+    if 主体 is None:
         return {"主体ID": "MINIDORA", "版": 0}
-    if hasattr(subject, "辞書化") and callable(getattr(subject, "辞書化")):
-        return getattr(subject, "辞書化")()
-    if hasattr(subject, "辞書") and callable(getattr(subject, "辞書")):
-        return getattr(subject, "辞書")()
-    if hasattr(subject, "__dict__"):
-        return dict(getattr(subject, "__dict__"))
-    return repr(subject)
+    if hasattr(主体, "辞書化") and callable(getattr(主体, "辞書化")):
+        return getattr(主体, "辞書化")()
+    if hasattr(主体, "辞書") and callable(getattr(主体, "辞書")):
+        return getattr(主体, "辞書")()
+    if hasattr(主体, "__dict__"):
+        return dict(getattr(主体, "__dict__"))
+    return repr(主体)
 
 
-def HDS主体署名(subject: object | None) -> str:
-    return _hash("SUBJ-", _subject_payload(subject))
+def HDS主体署名(主体: object | None) -> str:
+    return _hash("SUBJ-", _主体_payload(主体))
 
 
 def HDS候補状態署名(values: Mapping[str, float] | Iterable[tuple[str, float]] | None) -> str:
@@ -51,13 +51,13 @@ def HDS候補状態署名(values: Mapping[str, float] | Iterable[tuple[str, floa
 
 
 class HDS統一作用(StrEnum):
-    参照計画再利用 = "REUSE_RETRIEVAL_PLAN"
-    参照計画再構築 = "REBUILD_RETRIEVAL_PLAN"
+    参照計画再利用 = 'REUSE_取得_PLAN'
+    参照計画再構築 = 'REBUILD_取得_PLAN'
     大域再照合 = "GLOBAL_RECONCILE"
-    checkpoint再活性 = "REACTIVATE_CHECKPOINT"
-    専門作用 = "ROUTE_SPECIALIST"
-    effort引上げ = "RAISE_EFFORT"
-    主体整合 = "SUBJECT_RECONCILE"
+    検査点再活性 = 'REACTIVATE_検査点'
+    専門作用 = '経路_SPECIALIST'
+    計算量引上げ = 'RAISE_計算量'
+    主体整合 = '主体_RECONCILE'
     先行草案検証 = "VERIFY_DRAFT"
     J引渡し = "HANDOFF_TO_J"
     J留保 = "SUSPEND_TO_J"
@@ -96,7 +96,7 @@ class HDS統一状態政策:
 
 
 @dataclass(frozen=True, slots=True)
-class HDS統一Checkpoint:
+class HDS統一検査点:
     cycle: int
     段階: str
     参照計画ID: str | None
@@ -120,18 +120,13 @@ class HDS統一状態Snapshot:
     候補状態署名: str
     lane数: int
     lane不一致度: float
-    checkpoint数: int
+    検査点数: int
     作用履歴: tuple[str, ...]
 
 
 @dataclass(slots=True)
 class HDS統一状態Session:
-    """K3/GLM/Llama3/横断構文化を一つのrequest状態循環へ接続する。
-
-    Llama3由来の主体snapshot、K3由来のcheckpoint/再作用、GLM由来のarchive/index/plan分離、
-    横断構文化由来の「存在と実効作用の分離」を同じrequest-local状態で管理する。
-    `参照記録`正本そのものは変更しない。
-    """
+    'K3/GLM/Llama3/横断構文化を一つのrequest状態循環へ接続する。\n\n    Llama3由来の主体snapshot、K3由来の検査点/再作用、GLM由来のarchive/index/plan分離、\n    横断構文化由来の「存在と実効作用の分離」を同じrequest-local状態で管理する。\n    `参照記録`正本そのものは変更しない。\n    '
 
     問い: str
     参照正本: tuple[参照記録, ...]
@@ -146,7 +141,7 @@ class HDS統一状態Session:
     計画主体署名: str = ""
     候補lane群: list[dict[str, float]] = field(default_factory=list)
     並列状態: HDS並列作業状態 | None = None
-    checkpoint: list[HDS統一Checkpoint] = field(default_factory=list)
+    検査点: list[HDS統一検査点] = field(default_factory=list)
     作用履歴: list[str] = field(default_factory=list)
     最終残差: tuple[str, ...] = ()
 
@@ -215,7 +210,7 @@ class HDS統一状態Session:
 
     def _検査点(self, stage: str, residuals: Iterable[str] = ()) -> None:
         plan = self.参照計画
-        self.checkpoint.append(HDS統一Checkpoint(
+        self.検査点.append(HDS統一検査点(
             self.cycle,
             str(stage),
             plan.計画ID if plan is not None else None,
@@ -241,16 +236,16 @@ class HDS統一状態Session:
             self._検査点("ARCHIVE_REVISION_CHANGED")
         return changed
 
-    def 主体状態更新(self, subject: object | None) -> bool:
+    def 主体状態更新(self, 主体: object | None) -> bool:
         before = self.主体署名
-        self.主体状態 = subject
+        self.主体状態 = 主体
         changed = before != self.主体署名
         if changed:
             if self.参照計画 is not None:
-                self.参照計画 = HDS参照計画無効化(self.参照計画, "SUBJECT_STATE_CHANGED")
-            self._計画再構築("SUBJECT_STATE_CHANGED")
+                self.参照計画 = HDS参照計画無効化(self.参照計画, '主体_状態_CHANGED')
+            self._計画再構築('主体_状態_CHANGED')
             self.cycle += 1
-            self._検査点("SUBJECT_STATE_CHANGED")
+            self._検査点('主体_状態_CHANGED')
         return changed
 
     def 選択参照(self) -> tuple[参照記録, ...]:
@@ -267,7 +262,7 @@ class HDS統一状態Session:
         for _ in range(max(0, int(使用回数))):
             self.参照計画 = HDS参照計画消費(self.参照計画)
         if self.参照計画 is not None and not self.参照計画.有効:
-            self.作用履歴.append("RETRIEVAL_PLAN_LEASE_EXHAUSTED")
+            self.作用履歴.append('取得_PLAN_LEASE_EXHAUSTED')
 
     def 参照拡張可能(self) -> bool:
         return self.参照上限 < len(self.参照正本)
@@ -280,7 +275,7 @@ class HDS統一状態Session:
             self.参照計画 = HDS参照計画無効化(self.参照計画, reason)
         self._計画再構築(reason)
         self.cycle += 1
-        self._検査点("REFERENCE_WIDENED", (reason,))
+        self._検査点('参照_WIDENED', (reason,))
         return True
 
     def 候補状態記録(self, values: Mapping[str, float] | Iterable[tuple[str, float]], *, stage: str) -> None:
@@ -297,9 +292,9 @@ class HDS統一状態Session:
         if not self.候補lane群:
             self.並列状態 = None
             return
-        state = HDS並列作業状態生成(tuple(self.候補lane群))
-        n = state.lane数
-        self.並列状態 = HDS並列状態混合(state, [[1.0 for _ in range(n)] for _ in range(n)])
+        状態 = HDS並列作業状態生成(tuple(self.候補lane群))
+        n = 状態.lane数
+        self.並列状態 = HDS並列状態混合(状態, [[1.0 for _ in range(n)] for _ in range(n)])
 
     def lane不一致度(self) -> float:
         lanes = tuple(self.候補lane群)
@@ -327,7 +322,7 @@ class HDS統一状態Session:
         状態: str,
         出力存在: bool,
         理由: Iterable[str] = (),
-        checkpoint利用可能: bool = False,
+        検査点利用可能: bool = False,
         専門作用利用可能: bool = False,
         主体競合: bool = False,
     ) -> HDS統一作用:
@@ -339,31 +334,31 @@ class HDS統一状態Session:
         if 主体競合:
             return HDS統一作用.主体整合
 
-        evidence_markers = ("EVIDENCE", "REFERENCE", "PROVENANCE", "DATA_", "OBSERVATION", "NO_CANDIDATE")
+        証拠_markers = ('証拠', '参照', "PROVENANCE", '資料_', "OBSERVATION", 'NO_候補')
         conflict_markers = ("AMBIGUOUS", "CONTRADICTION", "CONFLICT", "DISCRIMINATION")
-        effort_markers = ("DEPTH", "BUDGET", "EXHAUST", "SEARCH", "INFERENCE")
-        state_delta_unconsumed = "HDS_ACTION_DELTA_ATTACHED" in joined and "HDS_ACTION_DELTA_CONSUMED" not in joined
+        計算量_markers = ("DEPTH", '予算', "EXHAUST", "SEARCH", "INFERENCE")
+        状態_delta_unconsumed = 'HDS_作用_DELTA_ATTACHED' in joined and 'HDS_作用_DELTA_CONSUMED' not in joined
 
         if self.lane不一致度() >= self.政策.不一致再照合閾値:
             return HDS統一作用.大域再照合
         if any(marker in joined for marker in conflict_markers):
             return HDS統一作用.大域再照合
-        if any(marker in joined for marker in evidence_markers):
+        if any(marker in joined for marker in 証拠_markers):
             return HDS統一作用.参照計画再構築
-        if state_delta_unconsumed and checkpoint利用可能:
-            return HDS統一作用.checkpoint再活性
+        if 状態_delta_unconsumed and 検査点利用可能:
+            return HDS統一作用.検査点再活性
         if 専門作用利用可能:
             return HDS統一作用.専門作用
-        if any(marker in joined for marker in effort_markers):
-            return HDS統一作用.effort引上げ
+        if any(marker in joined for marker in 計算量_markers):
+            return HDS統一作用.計算量引上げ
         if self._計画再利用可能():
             return HDS統一作用.参照計画再利用
         return HDS統一作用.J留保
 
-    def 作用記録(self, action: HDS統一作用, reasons: Iterable[str] = ()) -> None:
-        self.作用履歴.append(action.value)
+    def 作用記録(self, 作用: HDS統一作用, reasons: Iterable[str] = ()) -> None:
+        self.作用履歴.append(作用.value)
         self.cycle += 1
-        self._検査点(action.value, reasons)
+        self._検査点(作用.value, reasons)
 
     def snapshot(self) -> HDS統一状態Snapshot:
         plan = self.参照計画
@@ -379,21 +374,21 @@ class HDS統一状態Session:
             self.候補署名,
             len(self.候補lane群),
             self.lane不一致度(),
-            len(self.checkpoint),
+            len(self.検査点),
             tuple(self.作用履歴),
         )
 
 
-def HDS結果候補得点(result: object) -> dict[str, float]:
-    model = getattr(result, "MINIDORA模型結果", None)
-    if model is not None:
-        mapping = getattr(model, "候補辞書", None)
+def HDS結果候補得点(結果: object) -> dict[str, float]:
+    模型 = getattr(結果, "MINIDORA模型結果", None)
+    if 模型 is not None:
+        mapping = getattr(模型, "候補辞書", None)
         if callable(mapping):
             try:
                 return {str(k): float(v) for k, v in dict(mapping()).items()}
             except (TypeError, ValueError):
                 pass
-        rows = getattr(model, "候補差", ())
+        rows = getattr(模型, "候補差", ())
         out: dict[str, float] = {}
         for row in rows:
             cid = getattr(row, "候補ID", None)
@@ -402,7 +397,7 @@ def HDS結果候補得点(result: object) -> dict[str, float]:
                 out[str(cid)] = float(score)
         if out:
             return out
-    label = getattr(result, "回答ラベル", None)
+    label = getattr(結果, "回答ラベル", None)
     if label is not None:
         return {str(label): 1.0}
     return {}
@@ -411,7 +406,7 @@ def HDS結果候補得点(result: object) -> dict[str, float]:
 __all__ = [
     "HDS統一作用",
     "HDS統一状態政策",
-    "HDS統一Checkpoint",
+    'HDS統一検査点',
     "HDS統一状態Snapshot",
     "HDS統一状態Session",
     "HDS主体署名",

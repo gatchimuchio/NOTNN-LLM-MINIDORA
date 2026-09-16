@@ -1,4 +1,4 @@
-"""会話の目的・対象役割と、計画時の予定状態。Module名を意味入力に置かない。"""
+'会話の目的・対象役割と、計画時の予定状態。モジュール名を意味入力に置かない。'
 from __future__ import annotations
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field
@@ -53,7 +53,7 @@ class 会話要求:
         if any(type(x) is not bool for x in (self.詳細, self.時点差, self.外部禁止)):
             raise ValueError('会話条件はbool')
         if type(self.補助) is not dict or len(_符号化(asdict(self))) > 1100000:
-            raise ValueError('会話意味のData上限')
+            raise ValueError('会話意味の資料上限')
         for kind,a,b in self.対応:
             if type(kind) is not str or type(a) is not int or type(b) is not int or not 0 <= a < b <= len(self.原文):
                 raise ValueError('原文対応不正')

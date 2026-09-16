@@ -8,7 +8,7 @@ import sys
 import unittest
 
 from minidora.関係制約 import (関係式, 関係問題, 関係問題を復元, 関係制約器, 関係記録整合)
-from minidora.関係制約接続 import (数値報告を関係化, 関係制約Module, 数値関係化Module, 関係判定採用Module)
+from minidora.関係制約接続 import (数値報告を関係化, 関係制約モジュール, 数値関係化モジュール, 関係判定採用モジュール)
 from minidora.証拠統合 import 証拠統合器, 証拠照合要求, _記録hash
 from minidora.能力合成 import 能力合成器, 合成計画, 合成工程, 素材参照
 from minidora.能力合成_局所接続 import 局所能力群
@@ -16,10 +16,10 @@ from minidora.製品版.型 import 能力結果, 参照資料
 from minidora.製品版.能力契約 import 能力文脈
 
 
-def 報告(subject='装置A',value='120',unit='V',op='以上',prefix='a',condition=None,moment=None,tail='',attribute='電圧'):
+def 報告(主体='装置A',value='120',unit='V',op='以上',prefix='a',condition=None,moment=None,tail='',attribute='電圧'):
     text=(f'{moment}時点、' if moment else '')+(f'条件「{condition}」では、' if condition else '')
-    text+=f'{subject}の{attribute}は{value} {unit}{op}です。'+tail
-    return 証拠統合器().実行(証拠照合要求(subject,attribute,unit),
+    text+=f'{主体}の{attribute}は{value} {unit}{op}です。'+tail
+    return 証拠統合器().実行(証拠照合要求(主体,attribute,unit),
             (参照資料(prefix,'人工資料'+prefix,'局所契約',本文=text),))
 
 
@@ -44,7 +44,7 @@ def 合成入力(a,b):
 
 
 def 実行器():
-    return 能力合成器((数値関係化Module().登録(),関係制約Module().登録(),関係判定採用Module().登録(),*局所能力群()))
+    return 能力合成器((数値関係化モジュール().登録(),関係制約モジュール().登録(),関係判定採用モジュール().登録(),*局所能力群()))
 
 
 class 数値関係接続試験(unittest.TestCase):
@@ -151,7 +151,7 @@ class 数値関係接続試験(unittest.TestCase):
 
 
 class 関係合成接続試験(unittest.TestCase):
-    def test_証拠から推論結果を既存Moduleへ渡す(self):
+    def test_証拠から推論結果を既存モジュールへ渡す(self):
         p,d=合成入力(報告(),報告('装置B','100',op='以下',prefix='b'))
         r=実行器().実行(p,d)
         self.assertTrue(r.成立,r.理由)
@@ -184,9 +184,9 @@ class 関係合成接続試験(unittest.TestCase):
     def test_直接構造化入力も同じ比較器で処理(self):
         q=関係式('q','A','超','C')
         problem=関係問題(('A','B','C'),(関係式('f1','A','超','B'),関係式('f2','B','超','C')),(q,))
-        data={'p':能力結果(True,'',データ={'関係問題':asdict(problem)}),'i':能力結果(True,'比較')}
+        資料={'p':能力結果(True,'',データ={'関係問題':asdict(problem)}),'i':能力結果(True,'比較')}
         plan=合成計画((合成工程('判定',('関係制約',),'i',(素材参照('入力','p'),)),),('判定',))
-        r=実行器().実行(plan,data)
+        r=実行器().実行(plan,資料)
         self.assertTrue(r.成立,r.理由)
         self.assertEqual(r.出力[0][1].データ['回答'][0]['判定'],'導出')
 
@@ -198,7 +198,7 @@ class 関係合成接続試験(unittest.TestCase):
 
     def test_通常の会話を関係入力にしない(self):
         c=能力文脈('AはBより大きい','s')
-        for m in (関係制約Module(),数値関係化Module(),関係判定採用Module()):
+        for m in (関係制約モジュール(),数値関係化モジュール(),関係判定採用モジュール()):
             self.assertEqual(m.判定(c),0.0)
             self.assertFalse(m.実行(c).成立)
 
@@ -206,13 +206,13 @@ class 関係合成接続試験(unittest.TestCase):
 class 関係デモ試験(unittest.TestCase):
     def test_独立CLIの導出未確定矛盾(self):
         root=Path(__file__).resolve().parents[1]
-        for arg,state in [(None,'導出'),('--関係欠落','未確定'),('--矛盾','前提矛盾')]:
+        for arg,状態 in [(None,'導出'),('--関係欠落','未確定'),('--矛盾','前提矛盾')]:
             with self.subTest(arg=arg):
                 p=subprocess.run([sys.executable,str(root/'tools/関係制約デモ.py'),*([arg] if arg else [])],capture_output=True,encoding='utf-8',timeout=15)
                 self.assertEqual(p.returncode,0,p.stderr)
-                data=json.loads(p.stdout)
-                self.assertEqual(data['判定'],state)
-                self.assertTrue(data['監査整合'])
+                資料=json.loads(p.stdout)
+                self.assertEqual(資料['判定'],状態)
+                self.assertTrue(資料['監査整合'])
 
 
 if __name__=='__main__':

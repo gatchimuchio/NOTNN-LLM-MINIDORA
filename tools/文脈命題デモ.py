@@ -12,9 +12,9 @@ from minidora.製品版.型 import 参照資料
 from minidora.会話回答 import 回答記録整合
 
 
-def _判定(result):
-    if result.結果 is None: return None
-    d=result.結果.データ['元結果'][0]['データ']
+def _判定(結果):
+    if 結果.結果 is None: return None
+    d=結果.結果.データ['元結果'][0]['データ']
     if d['種別']=='取得命題判定':d=d['文脈報告']['データ']
     return d['判定結果']['判定']
 
@@ -38,9 +38,9 @@ def 実演():
         ('根拠を説明して','保留',None),
     )
     rows=[]
-    for text,state,status in script:
+    for text,状態,status in script:
         r=session.応答(text);decision=_判定(r)
-        if r.状態!=state or decision!=status or r.結果 is not None and not 回答記録整合(r.結果):
+        if r.状態!=状態 or decision!=status or r.結果 is not None and not 回答記録整合(r.結果):
             raise RuntimeError('文脈会話の期待・整合不一致:'+text+':'+r.理由)
         rows.append({'入力':text,'状態':r.状態,'判定':decision,'本文':r.本文})
     return rows
@@ -51,7 +51,7 @@ def 人工取得実演():
     class 検索:
         def 検索(self,query,limit=5):
             calls['検索']+=1
-            return (参照資料('candidate','人工検索','検索抜粋','https://example.test/rules',
+            return (参照資料('候補','人工検索','検索抜粋','https://example.test/rules',
                            本文='太郎は哺乳類ではない'),)
     class 本文:
         def 取得(self,url):
@@ -61,10 +61,10 @@ def 人工取得実演():
     session=汎用会話セッション('人工取得デモ',取得器=知識取得器(検索(),本文()),外部読取許可=True)
     query='公開資料から「太郎は哺乳類である」を検討して'
     rows=[]
-    for text,permission,state,status in ((query,False,'確認待ち',None),(query,True,'合格','支持'),
+    for text,permission,状態,status in ((query,False,'確認待ち',None),(query,True,'合格','支持'),
                                         ('根拠を説明して',False,'合格','支持')):
         r=session.応答(text,外部読取許可=permission)
-        if r.状態!=state or _判定(r)!=status:raise RuntimeError('人工取得の実接続不一致:'+r.理由)
+        if r.状態!=状態 or _判定(r)!=status:raise RuntimeError('人工取得の実接続不一致:'+r.理由)
         rows.append({'入力':text,'状態':r.状態,'判定':_判定(r),'本文':r.本文,'供給回数':dict(calls)})
     if calls!={'検索':1,'本文取得':1}:raise RuntimeError('説明で再取得した又は許可前に取得した')
     return rows
@@ -73,7 +73,7 @@ def 人工取得実演():
 def main():
     for stream in (sys.stdout,sys.stderr):
         if hasattr(stream,'reconfigure'):stream.reconfigure(encoding='utf-8',errors='strict')
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--json',action='store_true')
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--json',作用='store_true')
     args=parser.parse_args()
     output={'種類':'人工資料・人工検索・人工本文。実HDSと実取得器、計画・採用・会話を使用。公開Webには通信しない。',
             '会話':実演(),'人工取得':人工取得実演()}

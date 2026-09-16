@@ -72,16 +72,16 @@ class 監査セッション:
         self._events: list[監査イベント] = []
         self._prev = "0" * 64
 
-    def 経路設定(self, route: str) -> None:
-        self.経路 = route
+    def 経路設定(self, 経路: str) -> None:
+        self.経路 = 経路
 
     def 記録(self, 段階: str, モジュール: str, 版: str, 入力: Any, 出力: Any, 根拠: tuple[str, ...] = ()) -> None:
         n = len(self._events) + 1
         material = {
-            "spec": 監査仕様版, "trace": self.追跡ID, "n": n,
-            "stage": 段階, "module": モジュール, "version": 版,
+            "spec": 監査仕様版, '追跡': self.追跡ID, "n": n,
+            "stage": 段階, 'モジュール': モジュール, "version": 版,
             "input": _jsonable(入力), "output": _jsonable(出力),
-            "evidence": list(根拠), "prev": self._prev,
+            '証拠': list(根拠), "prev": self._prev,
         }
         h = _hash(material)
         self._events.append(監査イベント(n, 段階, モジュール, 版, _jsonable(入力), _jsonable(出力), tuple(根拠), self._prev, h))
@@ -89,8 +89,8 @@ class 監査セッション:
 
     def 確定(self, 応答: str, 状態: str) -> 監査記録:
         root_material = {
-            "spec": 監査仕様版, "trace": self.追跡ID, "session": self.セッションID,
-            "started": self.開始時刻, "input": self.入力文, "route": self.経路,
+            "spec": 監査仕様版, '追跡': self.追跡ID, "session": self.セッションID,
+            "started": self.開始時刻, "input": self.入力文, '経路': self.経路,
             "response": 応答, "status": 状態, "prev_response": self.前応答ハッシュ,
             "last_event": self._prev,
         }
@@ -121,11 +121,11 @@ class 監査台帳:
                     f.write(_canonical(record.辞書化()) + "\n")
                     f.flush(); os.fsync(f.fileno())
 
-    def 取得(self, trace_id: str) -> 監査記録 | None:
-        return self._records.get(trace_id)
+    def 取得(self, 追跡_id: str) -> 監査記録 | None:
+        return self._records.get(追跡_id)
 
-    def 検証(self, trace_id: str) -> bool:
-        r = self.取得(trace_id)
+    def 検証(self, 追跡_id: str) -> bool:
+        r = self.取得(追跡_id)
         if not r:
             return False
         prev = "0" * 64
@@ -133,16 +133,16 @@ class 監査台帳:
             if e.前ハッシュ != prev:
                 return False
             material = {
-                "spec": 監査仕様版, "trace": r.追跡ID, "n": e.番号,
-                "stage": e.段階, "module": e.モジュール, "version": e.版,
-                "input": e.入力, "output": e.出力, "evidence": list(e.根拠), "prev": e.前ハッシュ,
+                "spec": 監査仕様版, '追跡': r.追跡ID, "n": e.番号,
+                "stage": e.段階, 'モジュール': e.モジュール, "version": e.版,
+                "input": e.入力, "output": e.出力, '証拠': list(e.根拠), "prev": e.前ハッシュ,
             }
             if _hash(material) != e.ハッシュ:
                 return False
             prev = e.ハッシュ
         root_material = {
-            "spec": 監査仕様版, "trace": r.追跡ID, "session": r.セッションID,
-            "started": r.開始時刻, "input": r.入力文, "route": r.経路,
+            "spec": 監査仕様版, '追跡': r.追跡ID, "session": r.セッションID,
+            "started": r.開始時刻, "input": r.入力文, '経路': r.経路,
             "response": r.最終応答, "status": r.状態, "prev_response": r.前応答ハッシュ,
             "last_event": prev,
         }

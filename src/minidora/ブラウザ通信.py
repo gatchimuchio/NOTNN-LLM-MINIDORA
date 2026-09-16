@@ -47,7 +47,7 @@ class 公開資源供給器:
 
 
 class ブラウザ通信境界:
-    """ブラウザ要求を継続しない。検査した応答だけをroute.fulfillで供給する。"""
+    'ブラウザ要求を継続しない。検査した応答だけを経路.fulfillで供給する。'
     def __init__(self, 許可URL: tuple[str, ...], 供給器=None):
         if type(許可URL) is not tuple or not 1 <= len(許可URL) <= 64:
             raise ブラウザ境界違反("許可URLは1〜64件のtuple")

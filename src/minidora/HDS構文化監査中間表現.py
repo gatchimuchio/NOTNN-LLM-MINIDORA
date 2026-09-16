@@ -11,18 +11,18 @@ def HDS監査参照IR射影(ir: HDSIR, candidates: tuple[HDS監査参照候補, 
         return ir
     coords = list(ir.座標)
     existing = {(str(coord.種別), str(coord.内容)) for coord in coords}
-    for candidate in candidates:
-        key = ("監査.R_query", candidate.問合せ)
+    for 候補 in candidates:
+        key = ("監査.R_query", 候補.問合せ)
         if key in existing:
             continue
         coords.append(
             HDS座標(
                 f"archv11:audit-r:{len(coords):03d}",
                 "監査.R_query",
-                candidate.問合せ,
+                候補.問合せ,
                 値状態.留保,
-                由来="公開HDS Compiler v1.1",
-                再開放条件=("主検索結果・証拠取得・Gate状態更新で再評価する",),
+                由来='公開HDS 構文化器 v1.1',
+                再開放条件=('主検索結果・証拠取得・関門状態更新で再評価する',),
             )
         )
         existing.add(key)

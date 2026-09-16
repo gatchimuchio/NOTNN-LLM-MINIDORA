@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Protocol, Any
 from .型 import 能力結果, 参照資料
 
-能力契約版 = "MINIDORA-CAPABILITY-CONTRACT-v1"
+能力契約版 = 'MINIDORA-能力-契約-v1'
 
 @dataclass(frozen=True, slots=True)
 class 能力文脈:
@@ -14,7 +14,7 @@ class 能力文脈:
     履歴: tuple[tuple[str, str], ...] = ()
     補助: dict[str, Any] | None = None
 
-class 能力Module(Protocol):
+class 能力モジュール(Protocol):
     名前: str
     版: str
     優先度: int

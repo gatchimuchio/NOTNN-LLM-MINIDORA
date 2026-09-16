@@ -8,9 +8,9 @@ from minidora.HDS構文化器_records_v1_2 import HDS改善対象
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 
 
-class HDSCompilerArchitectureV12試験(unittest.TestCase):
+class HDS構文化器構造V12試験(unittest.TestCase):
     def setUp(self) -> None:
-        self.compiler = 公開HDSコンパイラ()
+        self.構文化器 = 公開HDSコンパイラ()
 
     @staticmethod
     def 候補(
@@ -33,11 +33,11 @@ class HDSCompilerArchitectureV12試験(unittest.TestCase):
             再利用チェック=("G02 Closure Gate",),
         )
 
-    def test_Architecture_v1_2機能をv1_3でも維持する(self) -> None:
-        self.assertEqual(self.compiler.Architecture版, "v1.3")
-        self.assertEqual(self.compiler.規定言語, "日本語")
-        self.assertEqual(self.compiler.基底言語, "日本語")
-        self.assertEqual(self.compiler.基底言語コード, "ja")
+    def test_構造_v1_2機能をv1_3でも維持する(self) -> None:
+        self.assertEqual(self.構文化器.構造版, "v1.3")
+        self.assertEqual(self.構文化器.規定言語, "日本語")
+        self.assertEqual(self.構文化器.基底言語, "日本語")
+        self.assertEqual(self.構文化器.基底言語コード, "ja")
 
     def test_一回観測はPROBATIONのまま改善候補を作らない(self) -> None:
         bank = HDS失敗署名Bank()
@@ -49,9 +49,9 @@ class HDSCompilerArchitectureV12試験(unittest.TestCase):
 
     def test_同一Runの同一観測を二重計上しない(self) -> None:
         bank = HDS失敗署名Bank()
-        candidate = self.候補("c1")
-        bank.観測((candidate,), Run参照="run-1")
-        snapshot = bank.観測((candidate,), Run参照="run-1")
+        候補 = self.候補("c1")
+        bank.観測((候補,), Run参照="run-1")
+        snapshot = bank.観測((候補,), Run参照="run-1")
         self.assertEqual(snapshot.観測数, 1)
         self.assertEqual(snapshot.署名[0].独立Run数, 1)
         self.assertEqual(snapshot.署名[0].反復回数, 1)
@@ -92,10 +92,10 @@ class HDSCompilerArchitectureV12試験(unittest.TestCase):
         self.assertTrue(improvement.自動適用禁止)
         self.assertIn("上位判断主体", " ".join(improvement.昇格条件))
 
-    def test_relation_failureは作用素集合の改善候補へ落とす(self) -> None:
+    def test_関係_failureは作用素集合の改善候補へ落とす(self) -> None:
         bank = HDS失敗署名Bank()
-        a = self.候補("r1", failure_class="relation_failure", cause="状態遷移の端点または条件が未固定")
-        b = self.候補("r2", failure_class="relation_failure", cause="状態遷移の端点または条件が未固定")
+        a = self.候補("r1", failure_class='関係_failure', cause="状態遷移の端点または条件が未固定")
+        b = self.候補("r2", failure_class='関係_failure', cause="状態遷移の端点または条件が未固定")
         bank.観測((a,), Run参照="run-1")
         snapshot = bank.観測((b,), Run参照="run-2")
         self.assertEqual(snapshot.改善候補[0].改善対象, HDS改善対象.作用素集合)
@@ -110,12 +110,12 @@ class HDSCompilerArchitectureV12試験(unittest.TestCase):
         self.assertTrue(restored.snapshot().旧記録保持)
         self.assertTrue(restored.snapshot().自動自己改変禁止)
 
-    def test_Compiler帰還APIはBankだけを更新し通常コンパイルを変えない(self) -> None:
+    def test_構文化器帰還APIはBankだけを更新し通常コンパイルを変えない(self) -> None:
         text = "AIが世界を変える。"
-        before = self.compiler.詳細コンパイル(text)
+        before = self.構文化器.詳細コンパイル(text)
         bank = HDS失敗署名Bank()
-        self.compiler.失敗帰還(before, bank, Run参照="run-1")
-        after = self.compiler.詳細コンパイル(text)
+        self.構文化器.失敗帰還(before, bank, Run参照="run-1")
+        after = self.構文化器.詳細コンパイル(text)
         self.assertEqual(before.IR, after.IR)
         self.assertEqual(before.失敗署名候補, after.失敗署名候補)
         self.assertGreaterEqual(bank.snapshot().観測数, 1)

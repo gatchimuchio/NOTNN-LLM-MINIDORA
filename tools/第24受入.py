@@ -49,16 +49,16 @@ def main():
         suite = loader.loadTestsFromName(target)
     ids = [t.id() for t in 全試験(suite)]
     before = ソース指紋()
-    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    結果 = unittest.TextTestRunner(verbosity=2).run(suite)
     same = before == ソース指紋()
     report = {
         '版': 'MINIDORA-第24部分受入-v1', '対象': args.組,
         '環境': {'Python': platform.python_version(), 'OS': platform.system()},
-        '件数': result.testsRun, '失敗': len(result.failures), 'エラー': len(result.errors),
-        'スキップ': len(result.skipped), '予期しない成功': len(result.unexpectedSuccesses),
-        '合格': result.wasSuccessful() and same and result.testsRun == len(ids),
+        '件数': 結果.testsRun, '失敗': len(結果.failures), 'エラー': len(結果.errors),
+        'スキップ': len(結果.skipped), '予期しない成功': len(結果.unexpectedSuccesses),
+        '合格': 結果.wasSuccessful() and same and 結果.testsRun == len(ids),
         '試験ID': ids, 'ソースSHA256': before, '試験中ソース不変': same,
-        '詳細': [{'試験': t.id(), '内容': text} for t, text in (*result.failures, *result.errors)],
+        '詳細': [{'試験': t.id(), '内容': text} for t, text in (*結果.failures, *結果.errors)],
         '範囲': '部分ソース。Windows実機・標準全能力・LIVE Web・全製品回帰は未実施'}
     args.結果.parent.mkdir(parents=True, exist_ok=True)
     args.結果.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')

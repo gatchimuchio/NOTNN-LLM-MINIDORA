@@ -15,8 +15,8 @@ def 命題会話を解釈(original, material_names):
     text = original.strip().rstrip('。？?')
     selection = re.fullmatch(r'(資料解釈|解釈)は([0-9]+)(?:です)?', text)
     if selection:
-        action = '資料命題選択' if selection[1] == '資料解釈' else '命題選択'
-        return 会話要求(original, action, 補助={'番号': int(selection[2])}).固定複製()
+        作用 = '資料命題選択' if selection[1] == '資料解釈' else '命題選択'
+        return 会話要求(original, 作用, 補助={'番号': int(selection[2])}).固定複製()
     if text.startswith(('主張を「', '問いを「')):
         pos = original.index('「'); query, end = 引用を切り出す(original, pos)
         if original[end:].strip().rstrip('。') != 'に訂正して':
@@ -33,22 +33,22 @@ def 命題会話を解釈(original, material_names):
     _, _, first = clauses[0]
     separators = list(最上位位置(first, ('から',)))
     if len(separators) != 1: return None
-    split = separators[0][0]; source = first[:split]
+    split = separators[0][0]; 情報源 = first[:split]
     pos = split + len('から')
     if pos >= len(first) or first[pos] != '「': return None
     query, end = 引用を切り出す(first, pos)
     if first[end:] not in ('は言える', 'と言える', 'は正しい', 'を検証して', 'を判定して', 'を検討して'):
         raise ValueError('命題検討の未解釈末尾')
-    external = source == '公開資料'
+    external = 情報源 == '公開資料'
     names = ()
     if not external:
-        if not re.fullmatch(_資料列 + r'|この資料|全資料', source):
+        if not re.fullmatch(_資料列 + r'|この資料|全資料', 情報源):
             raise ValueError('命題資料の指定不正')
-        names = tuple(re.findall(r'資料「([^「」]+)」', source))
-        if source == 'この資料':
+        names = tuple(re.findall(r'資料「([^「」]+)」', 情報源))
+        if 情報源 == 'この資料':
             if len(material_names) != 1: raise ValueError('この資料の参照先が一意でない')
             names = material_names
-        elif source == '全資料': names = material_names
+        elif 情報源 == '全資料': names = material_names
         if not 1 <= len(names) <= 8 or len(set(names)) != len(names):
             raise ValueError('命題検討の資料は重複のない1〜8件')
         if any(n not in material_names for n in names): raise ValueError('命題検討の資料が未登録')
@@ -61,14 +61,14 @@ def 命題会話を解釈(original, material_names):
     candidates = 命題を読む(query)
     aux = {'問い': query, '候補': 0, '形式': format_, '手順': steps,
            '命題範囲': (original.index('から「') + 3, original.index('から「') + 3 + len(query)),
-           '資料参照解消': ((original.index('この'), original.index('この')+2),) if source=='この資料' else ()}
+           '資料参照解消': ((original.index('この'), original.index('この')+2),) if 情報源=='この資料' else ()}
     if external:
         terms = []
         def collect(e):
             if e.述語 and e.種別 == '原子': terms.append(e.述語)
             terms.extend(t.名前 for t in e.項 if t.種別 == '定数')
             for c in e.子: collect(c)
-        for candidate in candidates: collect(candidate.式)
+        for 候補 in candidates: collect(候補.式)
         terms = list(dict.fromkeys(terms))
         if not terms or len(terms) > 8: raise ValueError('命題からの取得語が未確定又は上限超過')
         aux['取得要求'] = {'検索語': ' '.join(terms), '必要語': terms, '最大検索回数': 2,
@@ -88,10 +88,10 @@ def HDS命題を照合(ir, request):
         raise ValueError('命題要求と実HDSの原文・言語不一致')
     coords = ir.座標辞書()
     if len(coords) != len(ir.座標): raise ValueError('HDS座標重複')
-    source = [x for x in ir.座標 if x.種別 == 'source_text']
-    if len(source) != 1 or source[0].内容 != request.原文:
+    情報源 = [x for x in ir.座標 if x.種別 == '情報源_text']
+    if len(情報源) != 1 or 情報源[0].内容 != request.原文:
         raise ValueError('HDS原文座標不一致')
-    neutral = {'source_text', 'language.normalized', '文脈.言語', '制御.選択意図',
+    neutral = {'情報源_text', '言語.normalized', '文脈.言語', '制御.選択意図',
                '値.数量', '属性.単位', '対象.主題語', '目的.検索焦点'}
     # この入口は文法全体を解析済み。局所の引用名と命題の範囲を分けて監査記録に残す。
     from .命題句 import 引用を切り出す
