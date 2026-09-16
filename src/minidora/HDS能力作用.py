@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Callable, Sequence
 
 from .HDS実行主体 import (
     HDS作用機会,
@@ -23,17 +23,21 @@ class HDS能力作用設定:
 
 
 class HDS能力モジュール作用:
-    """既存の能力モジュールをHDS-first実行主体から呼ぶためのAdapter。
+    """既存能力モジュールをHDS実行主体から呼ぶAdapter。
 
-    能力モジュールの判定値は作用候補内の優先度情報としてのみ扱い、最終採用・
-    回答正しさ・HDS判断へ読み替えない。COMMITはHDS実行主体だけが行う。
+    判定値は作用候補内の優先度情報としてのみ扱う。最終採用・回答正しさ・
+    HDS最終判断には読み替えない。COMMITはHDS実行主体だけが行う。
+
+    固定文脈だけでなく、現在のHDS実行状態から能力文脈を生成できる。これにより
+    前作用が作った成果・主体状態・残差を、次作用の実入力へ因果的に接続できる。
     """
 
     def __init__(
         self,
         モジュール: 能力モジュール,
-        文脈: 能力文脈,
+        文脈: 能力文脈 | None = None,
         *,
+        文脈生成: Callable[[HDS実行状態], 能力文脈] | None = None,
         出力状態: Sequence[str] = (),
         入力状態: Sequence[str] = (),
         解消対象: Sequence[str] = (),
@@ -43,10 +47,17 @@ class HDS能力モジュール作用:
         version = str(getattr(モジュール, "版", "")).strip()
         if not name or not version:
             raise ValueError("HDS能力作用には名前と版を持つ能力モジュールが必要")
-        if not isinstance(文脈, 能力文脈):
-            raise TypeError("HDS能力作用には能力文脈が必要")
+        if 文脈 is not None and not isinstance(文脈, 能力文脈):
+            raise TypeError("HDS能力作用の固定文脈は能力文脈である必要がある")
+        if 文脈生成 is not None and not callable(文脈生成):
+            raise TypeError("HDS能力作用の文脈生成はcallableである必要がある")
+        if 文脈 is None and 文脈生成 is None:
+            raise ValueError("HDS能力作用には固定文脈または文脈生成が必要")
+        if 文脈 is not None and 文脈生成 is not None:
+            raise ValueError("固定文脈と文脈生成は同時指定できない")
         self.モジュール = モジュール
         self.文脈 = 文脈
+        self.文脈生成 = 文脈生成
         self.作用ID = f"能力:{name}@{version}"
         self.設定 = HDS能力作用設定(
             frozenset(str(x) for x in (出力状態 or (f"能力:{name}:成立",))),
@@ -55,19 +66,32 @@ class HDS能力モジュール作用:
             max(0, int(資源負荷)),
         )
 
-    def _判定値(self) -> float:
+    def _文脈(self, 状態: HDS実行状態) -> 能力文脈:
+        if self.文脈生成 is None:
+            assert self.文脈 is not None
+            return self.文脈
+        value = self.文脈生成(状態)
+        if not isinstance(value, 能力文脈):
+            raise TypeError("HDS能力作用の文脈生成は能力文脈を返す必要がある")
+        return value
+
+    def _判定値(self, 文脈: 能力文脈) -> float:
         try:
-            return max(0.0, min(1.0, float(self.モジュール.判定(self.文脈))))
+            return max(0.0, min(1.0, float(self.モジュール.判定(文脈))))
         except Exception:
             return 0.0
 
     def 機会(self, 状態: HDS実行状態) -> HDS作用機会 | None:
-        score = self._判定値()
+        if not self.設定.入力状態.issubset(状態.成立状態):
+            return None
+        try:
+            context = self._文脈(状態)
+        except Exception:
+            return None
+        score = self._判定値(context)
         if score <= 0.0:
             return None
-        # 文脈はこの作用Adapter生成時に固定されている。HDS作業状態が変化すれば
-        # 作用入力署名も変わり、同じ能力を別状態で再評価できる。
-        signature = f"{状態.状態署名}:{self.作用ID}:{score:.12f}"
+        signature = f"{状態.状態署名}:{self.作用ID}:{score:.12f}:{repr(context)}"
         return HDS作用機会(
             self.作用ID,
             signature,
@@ -82,7 +106,8 @@ class HDS能力モジュール作用:
 
     def 実行(self, 状態: HDS実行状態) -> HDS作用結果:
         try:
-            result = self.モジュール.実行(self.文脈)
+            context = self._文脈(状態)
+            result = self.モジュール.実行(context)
         except Exception as exc:
             return HDS作用結果(
                 HDS作用状態.失敗,
