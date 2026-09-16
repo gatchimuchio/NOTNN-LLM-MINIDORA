@@ -20,6 +20,7 @@ class HDS能力作用設定:
     解消対象: frozenset[str] = frozenset()
     資源負荷: int = 1
     追加残差接頭辞: str = "能力未成立"
+    最低判定: float = 0.01
 
 
 class HDS能力モジュール作用:
@@ -42,6 +43,7 @@ class HDS能力モジュール作用:
         入力状態: Sequence[str] = (),
         解消対象: Sequence[str] = (),
         資源負荷: int = 1,
+        最低判定: float = 0.01,
     ) -> None:
         name = str(getattr(モジュール, "名前", "")).strip()
         version = str(getattr(モジュール, "版", "")).strip()
@@ -55,6 +57,9 @@ class HDS能力モジュール作用:
             raise ValueError("HDS能力作用には固定文脈または文脈生成が必要")
         if 文脈 is not None and 文脈生成 is not None:
             raise ValueError("固定文脈と文脈生成は同時指定できない")
+        threshold = float(最低判定)
+        if not 0.0 <= threshold <= 1.0:
+            raise ValueError("HDS能力作用の最低判定は0..1である必要がある")
         self.モジュール = モジュール
         self.文脈 = 文脈
         self.文脈生成 = 文脈生成
@@ -64,6 +69,8 @@ class HDS能力モジュール作用:
             frozenset(str(x) for x in 入力状態),
             frozenset(str(x) for x in 解消対象),
             max(0, int(資源負荷)),
+            "能力未成立",
+            threshold,
         )
 
     def _文脈(self, 状態: HDS実行状態) -> 能力文脈:
@@ -89,7 +96,7 @@ class HDS能力モジュール作用:
         except Exception:
             return None
         score = self._判定値(context)
-        if score <= 0.0:
+        if score < self.設定.最低判定:
             return None
         signature = f"{状態.状態署名}:{self.作用ID}:{score:.12f}:{repr(context)}"
         return HDS作用機会(
