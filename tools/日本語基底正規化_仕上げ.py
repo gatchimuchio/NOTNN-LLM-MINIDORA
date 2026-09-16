@@ -14,7 +14,7 @@ import tokenize
 
 語彙 = {
     "core":"模型核", "module":"モジュール", "capability":"能力", "compiler":"構文化器",
-    "architecture":"構造", "pipeline":"処理系列", "runtime":"実行系", "gate":"関門",
+    "architecture":"構造", "pipeline":"処理系列", "実行系":"実行系", "gate":"関門",
     "scope":"範囲", "solver":"解決器", "helper":"補助器", "benchmark":"外部評価",
     "fallback":"代替経路", "registry":"登録簿", "trace":"追跡", "checkpoint":"検査点",
     "manifest":"目録", "inventory":"目録", "candidate":"候補", "relation":"関係",
@@ -39,7 +39,7 @@ import tokenize
 
 パス移行 = {
     "src/minidora/core局所観測.py":"src/minidora/模型核局所観測.py",
-    "src/minidora/hds統合runtime.py":"src/minidora/HDS統合実行系.py",
+    "src/minidora/hds統合実行系.py":"src/minidora/HDS統合実行系.py",
     "tests/test_HDS_参照_budget.py":"tests/test_HDS_参照_予算.py",
     "tests/test_HDS_参照_priority.py":"tests/test_HDS_参照_優先度.py",
     "tests/test_HDS_直接_relation_検証.py":"tests/test_HDS_直接_関係_検証.py",
@@ -55,7 +55,7 @@ import tokenize
     "tests/test_HDS_参照_roles.py":"tests/test_HDS参照役割.py",
 }
 互換移行 = {
-    "src/minidora/hds候補提案runtime.py":"src/minidora/HDS候補提案実行系.py",
+    "src/minidora/hds候補提案実行系.py":"src/minidora/HDS候補提案実行系.py",
 }
 
 
