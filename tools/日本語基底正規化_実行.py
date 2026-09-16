@@ -33,7 +33,7 @@ import runpy
 )
 本文 = 本文.replace(
     '        if not 対象.is_file() or 対象.resolve() == 自己 or 対象.suffix.lower() not in 対象拡張子:\n            continue',
-    '        if not 対象.is_file() or 対象.resolve() == 自己 or 対象.suffix.lower() not in 対象拡張子:\n            continue\n        if 対象.name in {"日本語基底監査.py", "日本語基底詳細監査.py", "日本語基底正規化_実行.py"}:\n            continue',
+    '        if not 対象.is_file() or 対象.resolve() == 自己 or 対象.suffix.lower() not in 対象拡張子:\n            continue\n        if 対象.name in {"日本語基底監査.py", "日本語基底詳細監査.py", "日本語基底正規化_実行.py", "日本語基底正規化_仕上げ.py"}:\n            continue',
 )
 対象.write_text(本文, encoding="utf-8")
 名前空間 = runpy.run_path(str(対象), run_name="_日本語基底正規化")
@@ -108,3 +108,12 @@ for 経路 in (根 / "src").rglob("*.py"):
 if 残存:
     raise RuntimeError("混成import名の補正漏れ: " + ", ".join(残存))
 print(f"混成import補正: {変更数}ファイル")
+
+# 詳細監査で残る自己定義識別子・内部鍵・混成パスをAST基準で仕上げる。
+仕上げ対象 = Path(__file__).with_name("日本語基底正規化_仕上げ.py")
+仕上げ空間 = runpy.run_path(str(仕上げ対象), run_name="_日本語基底仕上げ")
+仕上げ = 仕上げ空間.get("main")
+if not callable(仕上げ):
+    raise RuntimeError("日本語基底仕上げ正規化器のmainを取得できない")
+if 仕上げ() != 0:
+    raise RuntimeError("日本語基底仕上げ正規化器が失敗した")
