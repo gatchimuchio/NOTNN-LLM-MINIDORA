@@ -20,7 +20,7 @@ def _標準入出力をUTF8化() -> None:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="minidora",
-        description="MINIDORA v0.5 日本語基底・非ニューラルネットワークLLM Runtime",
+        description='MINIDORA v0.5 日本語基底・非ニューラルネットワークLLM 実行系',
     )
     parser.add_argument("query", nargs="?", help="MINIDORAへ渡す言語入力")
     parser.add_argument(

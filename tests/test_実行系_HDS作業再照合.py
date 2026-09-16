@@ -74,7 +74,7 @@ class _構文化器:
         raise ValueError(text)
 
 
-class HDS再作用Runtime試験(unittest.TestCase):
+class HDS再作用実行系試験(unittest.TestCase):
     def _run(self, records: tuple[参照記録, ...]):
         構文化器 = _構文化器()
         return HDS選択推論実行(

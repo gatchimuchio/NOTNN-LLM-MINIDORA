@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標
-from minidora.HDS再生_capture import HDS選択肢再生収録, 再生JSONL保存, 再生入力問題
+from minidora.HDS再生記録 import HDS選択肢再生収録, 再生JSONL保存, 再生入力問題
 from minidora.参照 import 参照記録
 
 

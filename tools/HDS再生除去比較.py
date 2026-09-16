@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
-from minidora.HDS再生_eval import HDS再生評価  # noqa: E402
+from minidora.HDS再生評価 import HDS再生評価  # noqa: E402
 
 
 def _load(path: Path) -> list[dict]:

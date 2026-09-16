@@ -48,7 +48,7 @@ class 結果:
 
 
 class ミニドラ:
-    """HDS-IR、Trinity J/C/M、Layer-0とK3機能相当能力核を接続する非ニューラルLLM Runtime。"""
+    'HDS-IR、Trinity J/C/M、Layer-0とK3機能相当能力核を接続する非ニューラルLLM 実行系。'
 
     def __init__(
         self,

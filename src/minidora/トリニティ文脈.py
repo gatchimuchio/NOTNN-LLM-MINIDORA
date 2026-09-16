@@ -115,7 +115,7 @@ class HDS判断主体:
 
 
 class Trinity文脈系:
-    """公開RuntimeのJ/M循環。計算主体Cは既存Layer-0 Runtimeが担う。"""
+    '公開実行系のJ/M循環。計算主体Cは既存Layer-0 実行系が担う。'
 
     def __init__(self, 判断主体: HDS判断主体 | None = None) -> None:
         self.判断主体 = 判断主体 or HDS判断主体()

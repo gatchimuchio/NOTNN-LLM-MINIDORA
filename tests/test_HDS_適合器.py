@@ -121,7 +121,7 @@ class HDS適合器試験(unittest.TestCase):
         )
         self.assertEqual(参照矛盾数(records), 0)
 
-    def test_Runtimeも意味確定競合を保留する(self):
+    def test_実行系も意味確定競合を保留する(self):
         provider = 固定参照供給器((
             参照記録(
                 "a", "東京", "人口資料A", "fixture://a", "固定",

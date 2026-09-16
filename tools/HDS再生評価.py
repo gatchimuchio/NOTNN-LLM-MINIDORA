@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
-from minidora.HDS再生_eval import HDS再生評価  # noqa: E402
+from minidora.HDS再生評価 import HDS再生評価  # noqa: E402
 
 
 SCHEMA = 'minidora.hds-選択肢-再生.v1'
@@ -29,7 +29,7 @@ def _load(path: Path) -> list[dict]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="固定HDS-IR bundleをMINIDORA Runtimeで再評価する。")
+    parser = argparse.ArgumentParser(description='固定HDS-IR bundleをMINIDORA 実行系で再評価する。')
     parser.add_argument("input", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--effort", choices=("low", "high", "max"))

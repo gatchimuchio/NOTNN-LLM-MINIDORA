@@ -9,7 +9,7 @@ from .HDS中間表現 import HDSIR
 
 @dataclass(frozen=True, slots=True)
 class HDS文脈:
-    'Runtime局所作業状態またはTrinity Mから構文化器へ引用する現在文脈。'
+    '実行系局所作業状態またはTrinity Mから構文化器へ引用する現在文脈。'
 
     記憶版: int = 0
     現在焦点: Any = None
@@ -22,7 +22,7 @@ class HDS文脈:
 
 
 class HDSコンパイラProtocol(Protocol):
-    '外部HDS 構文化器と公開MINIDORA RuntimeのLegacy互換接続契約。'
+    '外部HDS 構文化器と公開MINIDORA 実行系のLegacy互換接続契約。'
 
     def コンパイル(
         self,

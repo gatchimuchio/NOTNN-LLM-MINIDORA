@@ -74,7 +74,7 @@ class _計算実行器:
         return SimpleNamespace(出力=2)
 
 
-class Supervisory選択肢RuntimeTest(unittest.TestCase):
+class Supervisory選択肢実行系Test(unittest.TestCase):
     @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
     def test_初期APPROVEは完全透過で再評価しない(self, mock_normal):
         initial = 結果("APPROVE", "A", ("NORMAL_MINIDORA",), proof=2)

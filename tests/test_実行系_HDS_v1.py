@@ -71,8 +71,8 @@ class Provider:
         return (参照記録("doc:1", "Alpha", "Alpha uses engine.", "fixture://doc1", "fixture"),)
 
 
-class RuntimeHDSV1試験(unittest.TestCase):
-    def test_実Runtimeで参照_EVALUATE_COMMITが成立する(self):
+class 実行系HDSV1試験(unittest.TestCase):
+    def test_実実行系で参照_EVALUATE_COMMITが成立する(self):
         実行系 = HDS駆動ミニドラ(Provider(), HDSコンパイラ_=構文化器())
         結果 = 実行系.実行(要求("What does Alpha use?"))
 

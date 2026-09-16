@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
-from minidora.HDS再生_capture import (  # noqa: E402
+from minidora.HDS再生記録 import (  # noqa: E402
     HDS選択肢再生収録,
     再生JSONL保存,
     再生入力問題,

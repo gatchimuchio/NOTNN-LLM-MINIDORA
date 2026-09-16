@@ -9,7 +9,7 @@ from .実行系_v03 import 結果, 要求
 
 
 class HDS駆動ミニドラ(_MINIDORAV05):
-    'HDS Judgement 主体を選択問題の唯一のCOMMIT主体に置くMINIDORA v1試作Runtime。'
+    'HDS Judgement 主体を選択問題の唯一のCOMMIT主体に置くMINIDORA v1試作実行系。'
 
     版 = 'v1-hds-judgement-主体-prototype'
 

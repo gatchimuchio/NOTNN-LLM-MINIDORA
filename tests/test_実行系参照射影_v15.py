@@ -16,7 +16,7 @@ class _空R:
         return ()
 
 
-class Runtime参照射影V15試験(unittest.TestCase):
+class 実行系参照射影V15試験(unittest.TestCase):
     def test_完全IRで予算を決めR射影IRでqueryを作る(self) -> None:
         構文化器 = 公開HDSコンパイラ()
         実行系 = ミニドラ(参照供給器_=_空R(), HDSコンパイラ_=構文化器)

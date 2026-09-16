@@ -3,7 +3,7 @@ import unittest
 from minidora import ミニドラ, 要求, 手順, 命令, 作用, 参照記録, 固定参照供給器, 実行状態
 
 
-class Runtime試験(unittest.TestCase):
+class 実行系試験(unittest.TestCase):
     def test_参照を標準データ層として利用(self):
         provider = 固定参照供給器((参照記録("k3", "K3", "総層数は93", "fixture://k3", "固定"),))
         手順_ = 手順("結果形成", (命令("値設定", 作用.設定, 引数=(93,), 更新先="結果"),))

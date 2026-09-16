@@ -45,7 +45,7 @@ class 局所解釈連続性試験(unittest.TestCase):
         self.assertEqual(body.局所解釈状態.直前結果, 5)
         self.assertEqual(body.局所解釈状態.直前採否, "保留")
 
-    def test_Runtime境界と明示初期化で局所状態を切れる(self) -> None:
+    def test_実行系境界と明示初期化で局所状態を切れる(self) -> None:
         first = ミニドラ()
         second = ミニドラ()
         first.実行(要求("2+3"))

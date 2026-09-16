@@ -96,7 +96,7 @@ class 模型核ブラッシュアップ試験(unittest.TestCase):
         self.assertFalse(結果.成立)
         self.assertIn("本文がない", 結果.保留理由)
 
-    def test_標準Runtimeは公開HDS_構文化器を必ず接続する(self):
+    def test_標準実行系は公開HDS_構文化器を必ず接続する(self):
         body = 標準ミニドラ()
         self.assertIsNotNone(body.HDSコンパイラ)
         self.assertTrue(callable(getattr(body.HDSコンパイラ, "コンパイル", None)))

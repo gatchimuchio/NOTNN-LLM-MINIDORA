@@ -105,7 +105,7 @@ class _Provider:
         return self.records[:上限]
 
 
-class RuntimeHDS選択肢試験(unittest.TestCase):
+class 実行系HDS選択肢試験(unittest.TestCase):
     def test_手順なし選択肢を通常MINIDORAで解きHDS非介入なら完全透過(self) -> None:
         構文化器 = _構文化器()
         record = 参照記録("doc:1", "Alpha", "Alpha uses engine.", "fixture://doc1", "fixture")

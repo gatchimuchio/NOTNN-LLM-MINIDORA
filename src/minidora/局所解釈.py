@@ -6,7 +6,7 @@ from typing import Any
 
 @dataclass(frozen=True, slots=True)
 class 局所解釈スナップショット:
-    """一つのMINIDORA Runtime内だけで保持する現在解釈の作業状態。"""
+    '一つのMINIDORA 実行系内だけで保持する現在解釈の作業状態。'
 
     版: int = 0
     直前入力: str | None = None
@@ -30,11 +30,7 @@ class 局所解釈スナップショット:
 
 
 class 局所解釈キャッシュ:
-    """LLM Runtimeの寿命にだけ従う局所作業キャッシュ。
-
-    永続化・端末間同期・人格同一性を担わない。各turnは更新前スナップショットを
-    意思決定の起点とし、turn完了後にだけ次状態へ更新する。
-    """
+    'LLM 実行系の寿命にだけ従う局所作業キャッシュ。\n\n    永続化・端末間同期・人格同一性を担わない。各turnは更新前スナップショットを\n    意思決定の起点とし、turn完了後にだけ次状態へ更新する。\n    '
 
     def __init__(self) -> None:
         self._現在 = 局所解釈スナップショット()

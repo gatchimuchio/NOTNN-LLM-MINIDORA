@@ -60,7 +60,7 @@ def _entity_ir(text: str = "Compound A") -> HDSIR:
     )
 
 
-class Runtime射影V15試験(unittest.TestCase):
+class 実行系射影V15試験(unittest.TestCase):
     def setUp(self) -> None:
         self.構文化器 = 公開HDSコンパイラ()
 

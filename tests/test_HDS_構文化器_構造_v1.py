@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.HDS構文化器_records import HDS原理段階
+from minidora.HDS構文化記録 import HDS原理段階
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 from minidora.hds_data_k import HDSIR知識適合器, HDS証拠事実
 from minidora.hds_effort import HDS努力水準

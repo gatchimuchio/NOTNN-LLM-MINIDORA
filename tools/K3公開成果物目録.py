@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-'Kimi K3の固定revisionから公開artifact 目録を生成する。\n\n開発・監査用ツールであり、MINIDORA Runtimeの依存ではない。\n出力先は呼び出し側が明示し、リポジトリへ自動commitしない。\n'
+'Kimi K3の固定revisionから公開artifact 目録を生成する。\n\n開発・監査用ツールであり、MINIDORA 実行系の依存ではない。\n出力先は呼び出し側が明示し、リポジトリへ自動commitしない。\n'
 
 from __future__ import annotations
 

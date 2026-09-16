@@ -157,14 +157,14 @@ class HDS直接関係検証試験(unittest.TestCase):
         a = next(item for item in diagnostics if item.候補 == "A")
         self.assertEqual(a.命題一致出典数, 2)
 
-    def test_Runtimeや未知由来の候補関係を命題として採用しない(self) -> None:
+    def test_実行系や未知由来の候補関係を命題として採用しない(self) -> None:
         模型核 = K3相当能力核()
         適合器 = HDSIR知識適合器(模型核)
         適合器.投入(_資料("Alpha", "engine"), provenance=("fixture", "doc:1"))
         適合器.投入(_資料("Alpha", "engine"), provenance=("fixture", "doc:2"))
         candidates = {
-            "A": _主張候補("engine", origin="HDS Runtime K質問射影"),
-            "B": _主張候補("stone", origin="HDS Runtime K質問射影"),
+            "A": _主張候補("engine", origin='HDS 実行系 K質問射影'),
+            "B": _主張候補("stone", origin='HDS 実行系 K質問射影'),
         }
         候補, diagnostics = HDS直接関係検証(模型核, candidates)
         self.assertIsNone(候補)

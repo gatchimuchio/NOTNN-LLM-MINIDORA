@@ -30,7 +30,7 @@ class 再生収録統計:
 
 
 def _問題IR(構文化器: HDSコンパイラProtocol, problem: 再生入力問題):
-    '利用可能なら通常選択肢 Runtimeと同じ問題IR入口を使う。'
+    '利用可能なら通常選択肢 実行系と同じ問題IR入口を使う。'
     builder = getattr(構文化器, "問題IR", None)
     if not callable(builder):
         return 構文化器.コンパイル(problem.問題文)
@@ -52,7 +52,7 @@ def _問題IR(構文化器: HDSコンパイラProtocol, problem: 再生入力問
 
 
 def _参照provenance(record: 参照記録) -> list[str]:
-    '通常選択肢 Runtimeと同じ検索経路provenanceを再生へ固定する。'
+    '通常選択肢 実行系と同じ検索経路provenanceを再生へ固定する。'
     markers: list[str] = []
     for key, value in record.条件:
         k = str(key)
@@ -69,7 +69,7 @@ def HDS選択肢再生収録(
     構文化器: HDSコンパイラProtocol,
     provider: 参照供給器 | None,
 ) -> tuple[tuple[dict[str, Any], ...], 再生収録統計]:
-    '構文化器/Rを一度だけ使い、Runtime比較用HDS-IR bundleを作る。\n\n    goldはIR生成・検索・資料コンパイルへ渡さず、最終行へ採点情報として付与するだけ。\n    外部資料は生文字列のまま保存せず、HDS-IR・情報源 信頼度・検索経路provenanceを保存する。\n    構文化器が選択肢問題専用入口を持つ場合は通常Runtimeと同じ問題IRを固定する。\n    '
+    '構文化器/Rを一度だけ使い、実行系比較用HDS-IR bundleを作る。\n\n    goldはIR生成・検索・資料コンパイルへ渡さず、最終行へ採点情報として付与するだけ。\n    外部資料は生文字列のまま保存せず、HDS-IR・情報源 信頼度・検索経路provenanceを保存する。\n    構文化器が選択肢問題専用入口を持つ場合は通常実行系と同じ問題IRを固定する。\n    '
     rows: list[dict[str, Any]] = []
     選択肢_compiled = 0
     資料_count = 0

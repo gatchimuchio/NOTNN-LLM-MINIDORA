@@ -27,7 +27,7 @@ def suspended() -> HDS選択実行結果:
     return HDS選択実行結果("SUSPEND", None, None, ("TEST_AMBIGUOUS",), None, 2, 0, 0, 0, 0, 0)
 
 
-class FakeRuntime:
+class Fake実行系:
     def __init__(self, 参照_available: bool) -> None:
         self.参照供給器 = object() if 参照_available else None
         self.K3能力核 = object()
@@ -39,7 +39,7 @@ class HDS統合判断主体試験(unittest.TestCase):
     def test_参照_計算_COMMITを判断主体が順番に承認する(self):
         ref = 参照記録("r1", "q", "猫が正しい", "test", "test")
         結果 = HDS駆動選択実行(
-            FakeRuntime(True), 選択中間表現(),
+            Fake実行系(True), 選択中間表現(),
             参照実行=lambda _: (ref,),
             評価実行=lambda _ir, refs: proposed() if refs else suspended(),
         )
@@ -61,7 +61,7 @@ class HDS統合判断主体試験(unittest.TestCase):
 
     def test_必須参照が無ければ計算へ進まずSUSPENDする(self):
         結果 = HDS駆動選択実行(
-            FakeRuntime(False), 選択中間表現(required=True), 参照必須=True,
+            Fake実行系(False), 選択中間表現(required=True), 参照必須=True,
             評価実行=lambda _ir, _refs: (_ for _ in ()).throw(AssertionError("評価してはならない")),
         )
         self.assertEqual(結果.状態, "SUSPEND")
@@ -70,7 +70,7 @@ class HDS統合判断主体試験(unittest.TestCase):
         self.assertIn('HDS_REQUIRED_参照_UNAVAILABLE', 結果.理由)
 
     def test_評価が閉じなければSUSPENDし捏造回答を作らない(self):
-        結果 = HDS駆動選択実行(FakeRuntime(False), 選択中間表現(), 評価実行=lambda _ir, _refs: suspended())
+        結果 = HDS駆動選択実行(Fake実行系(False), 選択中間表現(), 評価実行=lambda _ir, _refs: suspended())
         self.assertEqual(結果.状態, "SUSPEND")
         self.assertIsNone(結果.値)
         self.assertEqual(tuple(作用 for 作用, _ in 結果.認知世界.作用履歴), ("EVALUATE", "SUSPEND"))

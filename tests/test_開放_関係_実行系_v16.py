@@ -72,7 +72,7 @@ class _構文化器:
         raise ValueError(text)
 
 
-class 開放関係RuntimeV16試験(unittest.TestCase):
+class 開放関係実行系V16試験(unittest.TestCase):
     def test_通常K比較も候補代入後の方向を使う(self) -> None:
         構文化器 = _構文化器()
         references = (

@@ -135,7 +135,7 @@ class HDS参照拡張試験(unittest.TestCase):
         self.assertIn(('hds_query_選択肢', "B"), conditions["doc:transport"])
         self.assertIn("transport", provider.queries)
 
-    def test_Runtime_HDS経路で展開検索を使用する(self) -> None:
+    def test_実行系_HDS経路で展開検索を使用する(self) -> None:
         provider = _記録Provider()
         結果 = ミニドラ(provider, HDSコンパイラ_=_構文化器()).実行(要求("surface query"))
         self.assertEqual(結果.採否.状態, 実行状態.合格)

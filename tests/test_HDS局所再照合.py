@@ -61,7 +61,7 @@ class _全文だけ弱化構文化器:
         return self.base.コンパイル(text)
 
 
-class 局所再照合Runtime試験(unittest.TestCase):
+class 局所再照合実行系試験(unittest.TestCase):
     def test_全文で失った有向関係を局所再解析して回収する(self) -> None:
         base = 公開HDSコンパイラ()
         構文化器 = _全文だけ弱化構文化器()

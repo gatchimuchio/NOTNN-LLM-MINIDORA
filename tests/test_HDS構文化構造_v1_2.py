@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.HDS構文化器_failure_bank import HDS失敗署名Bank
+from minidora.HDS構文化失敗集 import HDS失敗署名Bank
 from minidora.HDS構文化記録_v1_1 import HDS失敗署名候補, HDS失敗署名状態
 from minidora.HDS構文化記録_v1_2 import HDS改善対象
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ

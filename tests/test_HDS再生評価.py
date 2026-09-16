@@ -4,7 +4,7 @@ import unittest
 
 from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係
 from minidora.HDS再生 import HDSIR辞書化
-from minidora.HDS再生_eval import HDS再生Case評価, HDS再生評価
+from minidora.HDS再生評価 import HDS再生Case評価, HDS再生評価
 
 
 def _ir(text: str, coords: tuple[HDS座標, ...], relations: tuple[HDS関係, ...] = ()) -> HDSIR:

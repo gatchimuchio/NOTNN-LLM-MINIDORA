@@ -250,7 +250,7 @@ def HDSK質問射影(ir: HDSIR) -> HDSIR:
             replace(
                 関係,
                 値状態=値状態.確定,
-                由来="HDS Runtime K質問射影",
+                由来='HDS 実行系 K質問射影',
                 暫定性='関係_TYPE_KNOWN_ENDPOINT_OPEN',
             )
             for 関係 in question_relations

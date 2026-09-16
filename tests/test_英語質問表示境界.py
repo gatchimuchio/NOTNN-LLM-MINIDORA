@@ -288,7 +288,7 @@ class 英語質問表示境界試験(unittest.TestCase):
                 assert 質問 is not None
                 self.assertEqual((質問.種別, 質問.既知端点), ("問い適合", 本文.rstrip("?")))
 
-    def test_正式Runtimeで裸と全文括弧の支持差と無根拠停止が一致する(self) -> None:
+    def test_正式実行系で裸と全文括弧の支持差と無根拠停止が一致する(self) -> None:
         問い群 = ("Which switch activates lamp", "(Which switch activates lamp)",
                   "[(Which switch activates lamp)].", "(Which switch activates lamp? )")
         参照条件 = (
@@ -407,7 +407,7 @@ class 英語質問表示境界試験(unittest.TestCase):
                 self.assertFalse(any(関係.肯定 for 関係 in 対象))
                 self.assertTrue(any({"condition", "delta"}.issubset(frozenset().union(*関係.条件)) for 関係 in 対象))
 
-    def test_正式Runtimeで関係詞や間接疑問の中立追加後も明示支持を利用する(self) -> None:
+    def test_正式実行系で関係詞や間接疑問の中立追加後も明示支持を利用する(self) -> None:
         問い = self.コンパイラ.問題IR("Which object activates gamma?", ("Blue widgets", "Red widgets"))
         for 宣言 in _宣言群[:11]:
             for 本文 in _前後追加("Blue widgets activate gamma. " + 宣言):
