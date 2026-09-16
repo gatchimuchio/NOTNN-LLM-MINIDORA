@@ -22,16 +22,18 @@ jobs:
       - name: パッケージ導入
         run: python -m pip install -e .
       - name: リポジトリ整合性監査
-        run: python tools/repository_consistency_check.py
+        run: python tools/リポジトリ整合性監査.py
       - name: 日本語基底監査
-        run: python tools/日本語基底監査.py
+        run: |
+          python tools/日本語基底監査.py
+          python tools/日本語基底詳細監査.py
       - name: 構文確認
         run: python -m compileall -q src tests tools
       - name: 単体試験
         run: python -m unittest discover -s tests -v
-      - name: v0.4規模測定 legacy regression
+      - name: v0.4規模測定の履歴回帰
         run: python tools/規模測定.py
-      - name: module CLI smoke test
+      - name: モジュール起動確認
         run: python -m minidora "2+3"
-      - name: console script smoke test
+      - name: コンソール起動確認
         run: minidora "2+3"

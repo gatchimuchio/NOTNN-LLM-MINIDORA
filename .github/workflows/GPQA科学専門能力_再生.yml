@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: GPQA固定Replay禁止
         run: |
-          echo "GPQA_FIXED_REFERENCE_FORBIDDEN"
+          echo "GPQA_FIXED_参照_FORBIDDEN"
           echo "2026-09-09以後、GPQAでは固定参照Dataを禁止しています。"
           echo "このworkflowは履歴識別子を残すための退役stubであり、Replayを実行しません。"
-          echo "現行正本: python tools/benchmark_strict.py gpqa-e2e --out gpqa_e2e.json"
+          echo "現行正本: python tools/正本評価.py gpqa-e2e --out gpqa_e2e.json"
