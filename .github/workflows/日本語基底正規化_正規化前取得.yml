@@ -1,0 +1,36 @@
+name: 日本語基底正規化 正規化前tree取得
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: backup/japanese-base-before-2026-09-15
+          fetch-depth: 1
+      - name: 正規化前treeを固定
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          root=Path('.')
+          with zipfile.ZipFile('日本語基底正規化_正規化前tree.zip','w',compression=zipfile.ZIP_DEFLATED) as z:
+              for p in root.rglob('*'):
+                  if not p.is_file():
+                      continue
+                  rel=p.as_posix()
+                  if rel.startswith('.git/') or rel=='日本語基底正規化_正規化前tree.zip':
+                      continue
+                  z.write(p,rel)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 日本語基底正規化-正規化前tree
+          path: 日本語基底正規化_正規化前tree.zip
