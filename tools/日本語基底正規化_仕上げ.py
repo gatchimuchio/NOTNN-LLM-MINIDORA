@@ -14,7 +14,7 @@ import tokenize
 
 語彙 = {
     "core":"模型核", "module":"モジュール", "capability":"能力", "compiler":"構文化器",
-    "architecture":"構造", "pipeline":"処理系列", "実行系":"実行系", "gate":"関門",
+    "architecture":"構造", "pipeline":"処理系列", "runtime":"実行系", "gate":"関門",
     "scope":"範囲", "solver":"解決器", "helper":"補助器", "benchmark":"外部評価",
     "fallback":"代替経路", "registry":"登録簿", "trace":"追跡", "checkpoint":"検査点",
     "manifest":"目録", "inventory":"目録", "candidate":"候補", "relation":"関係",
@@ -38,8 +38,9 @@ import tokenize
 外部略号 = {"HDS","K3","GPQA","HTTP","JSON","SHA","URL","CSV","IR","ABI","CLI","PMC"}
 
 パス移行 = {
+    "src/minidora/旧_layer0_v03.py":"src/minidora/旧_第0層_v03.py",
     "src/minidora/core局所観測.py":"src/minidora/模型核局所観測.py",
-    "src/minidora/hds統合実行系.py":"src/minidora/HDS統合実行系.py",
+    "src/minidora/hds統合runtime.py":"src/minidora/HDS統合実行系.py",
     "tests/test_HDS_参照_budget.py":"tests/test_HDS_参照_予算.py",
     "tests/test_HDS_参照_priority.py":"tests/test_HDS_参照_優先度.py",
     "tests/test_HDS_直接_relation_検証.py":"tests/test_HDS_直接_関係_検証.py",
@@ -55,7 +56,19 @@ import tokenize
     "tests/test_HDS_参照_roles.py":"tests/test_HDS参照役割.py",
 }
 互換移行 = {
-    "src/minidora/hds候補提案実行系.py":"src/minidora/HDS候補提案実行系.py",
+    "src/minidora/hds候補提案runtime.py":"src/minidora/HDS候補提案実行系.py",
+}
+内容置換 = {
+    "hds候補提案実行系":"HDS候補提案実行系",
+    "hds統合実行系":"HDS統合実行系",
+    "HDS再生_capture":"HDS再生記録",
+    "HDS再生_eval":"HDS再生評価",
+    "HDS構文化器_failure_bank":"HDS構文化失敗集",
+    "HDS構文化器_failure":"HDS構文化失敗",
+    "HDS構文化器_records_v1_3":"HDS構文化記録_v1_3",
+    "HDS構文化器_records_v1_2":"HDS構文化記録_v1_2",
+    "HDS構文化器_records_v1_1":"HDS構文化記録_v1_1",
+    "HDS構文化器_records":"HDS構文化記録",
 }
 
 
@@ -133,6 +146,7 @@ def _パス整理() -> None:
         except (UnicodeDecodeError,OSError): continue
         new=text
         for a,b in 対応.items(): new=new.replace(a,b)
+        for a,b in 内容置換.items(): new=new.replace(a,b)
         if new!=text: p.write_text(new,encoding='utf-8')
 
 
@@ -151,17 +165,20 @@ def _現役Python() -> list[Path]:
     return sorted(out)
 
 
-def _収集() -> tuple[dict[Path,dict[str,str]],dict[str,str],dict[str,str],dict[str,str]]:
-    per={}; global_defs={}; global_args={}; global_attrs={}
+def _収集():
+    per={}; global_defs={}; global_args={}; global_attrs={}; internal_callables=set()
     for p in _現役Python():
         try: tree=ast.parse(p.read_text(encoding='utf-8'))
         except SyntaxError: continue
         m={}
         for n in ast.walk(tree):
-            if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef)) and _要正規化(n.name):
-                m[n.name]=_変換(n.name)
+            if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef)):
                 if str(p).startswith(str(根/'src/minidora')):
-                    global_defs[n.name]=_変換(n.name)
+                    internal_callables.add(n.name)
+                if _要正規化(n.name):
+                    m[n.name]=_変換(n.name)
+                    if str(p).startswith(str(根/'src/minidora')):
+                        global_defs[n.name]=_変換(n.name)
             if isinstance(n,ast.arg) and _要正規化(n.arg):
                 m[n.arg]=_変換(n.arg); global_args.setdefault(n.arg,_変換(n.arg))
             if isinstance(n,ast.Name) and isinstance(n.ctx,(ast.Store,ast.Del)) and _要正規化(n.id):
@@ -175,7 +192,7 @@ def _収集() -> tuple[dict[Path,dict[str,str]],dict[str,str],dict[str,str],dict
                     if isinstance(target, ast.Name) and _要正規化(target.id):
                         global_attrs[target.id] = _変換(target.id)
         per[p]=m
-    return per,global_defs,global_args,global_attrs
+    return per,global_defs,global_args,global_attrs,internal_callables
 
 
 def _内部import地図(tree: ast.AST, global_defs: dict[str,str]) -> dict[str,str]:
@@ -197,11 +214,11 @@ def _文字列変換(s: str) -> str:
         return s
     if s == 'the result':
         return '結果'
-    if s == 'eval':
-        return '評価'
     if not _要正規化(s):
         return s
     日本語あり = bool(re.search(r"[ぁ-んァ-ヶ一-龠々]", s))
+    if '.' in s and not s.startswith('minidora.') and not 日本語あり:
+        return s
     識別子的 = bool(re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.:-]*', s))
     if 日本語あり or 識別子的:
         parts=s.split('.')
@@ -209,59 +226,88 @@ def _文字列変換(s: str) -> str:
     return s
 
 
-def _rewrite_file(p: Path, local_map: dict[str,str], global_defs: dict[str,str], global_args: dict[str,str], global_attrs: dict[str,str]) -> None:
+def _rewrite_file(p: Path, local_map: dict[str,str], global_defs: dict[str,str], global_args: dict[str,str], global_attrs: dict[str,str], internal_callables: set[str]) -> None:
     text=p.read_text(encoding='utf-8')
     try: tree=ast.parse(text)
     except SyntaxError: return
     local_map=dict(local_map); local_map.update(_内部import地図(tree,global_defs))
+
+    external_roots=set()
+    internal_imports=set()
+    for n in ast.walk(tree):
+        if isinstance(n,ast.Import):
+            for a in n.names: external_roots.add(a.asname or a.name.split('.')[0])
+        elif isinstance(n,ast.ImportFrom):
+            internal = n.level>0 or (n.module or '').startswith('minidora')
+            for a in n.names:
+                local=a.asname or a.name
+                (internal_imports if internal else external_roots).add(local)
+
+    safe_attrs=set()
+    attr_map={**global_defs,**global_attrs}
+    for n in ast.walk(tree):
+        if not isinstance(n,ast.Attribute) or n.attr not in attr_map:
+            continue
+        root=n.value
+        while isinstance(root,ast.Attribute): root=root.value
+        root_name=root.id if isinstance(root,ast.Name) else None
+        if root_name in external_roots:
+            continue
+        if n.attr=='result' and root_name in {'future','fut'}:
+            continue
+        safe_attrs.add((n.lineno,n.attr))
+
+    safe_keywords=set()
+    for n in ast.walk(tree):
+        if not isinstance(n,ast.Call): continue
+        callee=None
+        if isinstance(n.func,ast.Name): callee=n.func.id
+        elif isinstance(n.func,ast.Attribute): callee=n.func.attr
+        internal = bool(callee and (callee in internal_callables or callee in internal_imports or re.search(r"[ぁ-んァ-ヶ一-龠々]",callee) or callee=='replace'))
+        if not internal: continue
+        for kw in n.keywords:
+            if kw.arg and (kw.arg in global_args or kw.arg in global_attrs):
+                safe_keywords.add((kw.lineno,kw.arg))
+
     toks=list(tokenize.generate_tokens(io.StringIO(text).readline))
     sig_index=[]
     for i,t in enumerate(toks):
-        if t.type not in {tokenize.ENCODING,tokenize.NL,tokenize.NEWLINE,tokenize.INDENT,tokenize.DEDENT,tokenize.COMMENT}:
-            sig_index.append(i)
+        if t.type not in {tokenize.ENCODING,tokenize.NL,tokenize.NEWLINE,tokenize.INDENT,tokenize.DEDENT,tokenize.COMMENT}: sig_index.append(i)
     next_sig={}
     for a,b in zip(sig_index,sig_index[1:]): next_sig[a]=toks[b]
     out=[]; prev_sig=None
-    外部名前付き引数 = {'encoding','errors','timeout','headers','method','ensure_ascii','indent','sort_keys','newline','mode','flags','count','default','object_hook'}
     for i,tok in enumerate(toks):
-        s=tok.string
+        value=tok.string
         if tok.type==tokenize.NAME:
-            preceded_dot = prev_sig is not None and prev_sig.type==tokenize.OP and prev_sig.string=='.'
-            following = next_sig.get(i)
-            keyword_like = following is not None and following.type==tokenize.OP and following.string=='='
-            if s in local_map and not preceded_dot:
-                s=local_map[s]
-            elif preceded_dot and s in global_attrs:
-                s=global_attrs[s]
-            elif preceded_dot and s in global_defs:
-                s=global_defs[s]
-            elif keyword_like and s not in 外部名前付き引数 and s in global_attrs:
-                s=global_attrs[s]
-            elif keyword_like and s not in 外部名前付き引数 and s in global_args:
-                s=global_args[s]
+            preceded_dot=prev_sig is not None and prev_sig.type==tokenize.OP and prev_sig.string=='.'
+            following=next_sig.get(i)
+            keyword_like=following is not None and following.type==tokenize.OP and following.string=='='
+            if value in local_map and not preceded_dot:
+                value=local_map[value]
+            elif preceded_dot and (tok.start[0],value) in safe_attrs:
+                value=attr_map[value]
+            elif keyword_like and (tok.start[0],value) in safe_keywords:
+                value=global_attrs.get(value,global_args.get(value,value))
         elif tok.type==tokenize.STRING:
-            try: val=ast.literal_eval(tok.string)
-            except Exception: val=None
-            if isinstance(val,str):
-                nv=_文字列変換(val)
-                if nv!=val:
-                    prefix=''
-                    m=re.match(r'(?i)^([rubf]*)',tok.string)
-                    if m: prefix=m.group(1)
-                    if 'f' not in prefix.lower(): s=prefix+repr(nv)
-        nt=tokenize.TokenInfo(tok.type,s,tok.start,tok.end,tok.line)
-        out.append(nt)
-        if tok.type not in {tokenize.ENCODING,tokenize.NL,tokenize.NEWLINE,tokenize.INDENT,tokenize.DEDENT,tokenize.COMMENT}:
-            prev_sig=nt
+            try: literal=ast.literal_eval(tok.string)
+            except Exception: literal=None
+            if isinstance(literal,str):
+                nv=_文字列変換(literal)
+                if nv!=literal:
+                    prefix=(re.match(r'(?i)^([rubf]*)',tok.string) or [''])[1]
+                    if 'f' not in prefix.lower(): value=prefix+repr(nv)
+        nt=tokenize.TokenInfo(tok.type,value,tok.start,tok.end,tok.line); out.append(nt)
+        if tok.type not in {tokenize.ENCODING,tokenize.NL,tokenize.NEWLINE,tokenize.INDENT,tokenize.DEDENT,tokenize.COMMENT}: prev_sig=nt
     new=tokenize.untokenize(out)
+    new=new.replace('"eval":','"評価":').replace("'eval':","'評価':")
     if new!=text: p.write_text(new,encoding='utf-8')
 
 
 def main() -> int:
     _パス整理()
-    per,defs,args,attrs=_収集()
+    per,defs,args,attrs,callables=_収集()
     for p in _現役Python():
-        _rewrite_file(p,per.get(p,{}),defs,args,attrs)
+        _rewrite_file(p,per.get(p,{}),defs,args,attrs,callables)
     print(f'仕上げ正規化: {len(per)} Python files / 定義={len(defs)} / 引数語={len(args)} / 属性語={len(attrs)}')
     return 0
 
