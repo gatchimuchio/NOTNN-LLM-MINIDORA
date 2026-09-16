@@ -15,6 +15,8 @@ class HDS模型評価作用:
 
     `HDSMINIDORA模型評価` が返すAPPROVE/SUSPENDは模型作用の局所閉包状態であり、
     HDS駆動コア全体のCOMMITではない。回答ラベル・模型結果は成果としてHDSへ帰還する。
+    作用入力署名は固定した質問・候補・資料・模型条件だけから作り、無関係なHDS状態変化で
+    同じ模型評価を再実行しない。
     """
 
     def __init__(
@@ -53,15 +55,20 @@ class HDS模型評価作用:
             self.参照識別子,
             self.参照信頼,
             self.作用差分構造群,
+            type(self.模型核).__module__ if self.模型核 is not None else "標準能力模型核",
+            type(self.模型核).__qualname__ if self.模型核 is not None else "標準能力模型核",
+            repr(self.模型核) if self.模型核 is not None else None,
         )).encode("utf-8")
         self._固定入力署名 = sha256(固定入力).hexdigest()
 
     def 機会(self, 状態: HDS実行状態) -> HDS作用機会 | None:
         if not self.入力状態.issubset(状態.成立状態):
             return None
+        if self.出力状態 in 状態.成立状態:
+            return None
         return HDS作用機会(
             self.作用ID,
-            f"{self._固定入力署名}:{状態.状態署名}",
+            self._固定入力署名,
             self.入力状態,
             frozenset({self.出力状態}),
             self.解消対象,
