@@ -2,5 +2,7 @@
 from GPQA現行測定 import *  # noqa: F401,F403
 from GPQA現行測定 import _load_cases, _sha256, main
 
+汎用意味射影Compiler = 汎用意味射影構文化器
+
 if __name__ == "__main__":
     raise SystemExit(main())
