@@ -83,6 +83,9 @@ def 引数解析器() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    from 標準入出力 import 標準出力をUTF8化
+
+    標準出力をUTF8化()
     引数 = 引数解析器().parse_args()
     return 引数.処理(引数)
 

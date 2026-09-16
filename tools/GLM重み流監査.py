@@ -243,6 +243,9 @@ def 全数を集計(目録保存先: str, 結果保存先: str, 出力先: str):
 
 
 def main():
+    from 標準入出力 import 標準出力をUTF8化
+
+    標準出力をUTF8化()
     解析器 = argparse.ArgumentParser(description="GLM重みの範囲取得・同一性・被覆監査")
     副命令 = 解析器.add_subparsers(dest="命令", required=True)
     探索 = 副命令.add_parser("discover")

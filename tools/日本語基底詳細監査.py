@@ -227,6 +227,9 @@ def 識別子監査(誤り: list[str]) -> None:
 
 
 def main() -> int:
+    from 標準入出力 import 標準出力をUTF8化
+
+    標準出力をUTF8化()
     誤り: list[str] = []
     パス監査(誤り)
     識別子監査(誤り)

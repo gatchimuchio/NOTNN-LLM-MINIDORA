@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import struct
 import subprocess
@@ -78,8 +79,34 @@ class 日本語基底境界試験(unittest.TestCase):
                      "GLM重み流監査", "glm_weight_stream_audit", "K3_HF同一性目録", "k3_hf_identity_inventory"):
             with self.subTest(入口=名前):
                 実行 = subprocess.run([sys.executable, str(根 / "tools" / (名前 + ".py")), "--help"],
-                                      capture_output=True, text=True, timeout=30)
+                                      capture_output=True, text=True, encoding="utf-8",
+                                      env={**os.environ, "PYTHONIOENCODING": "cp1252"}, timeout=30)
                 self.assertEqual(実行.returncode, 0, 実行.stderr)
+
+    def test_監査入口は非UTF8標準出力でも日本語を保持する(self):
+        for 名前 in ("リポジトリ整合性監査", "repository_consistency_check", "日本語基底監査", "日本語基底詳細監査"):
+            with self.subTest(入口=名前):
+                実行 = subprocess.run([sys.executable, str(根 / "tools" / (名前 + ".py"))],
+                                      capture_output=True, text=True, encoding="utf-8",
+                                      env={**os.environ, "PYTHONIOENCODING": "cp1252"}, timeout=60)
+                self.assertEqual(実行.returncode, 0, 実行.stderr)
+                self.assertIn("監査: 合格", 実行.stdout)
+                self.assertNotIn("UnicodeEncodeError", 実行.stderr)
+
+    def test_UTF8化は文字列捕捉器を壊さず実行出力に適用する(self):
+        道具 = 道具を読む("標準入出力")
+        with contextlib.redirect_stdout(io.StringIO()) as 捕捉, contextlib.redirect_stderr(io.StringIO()):
+            道具.標準出力をUTF8化()
+            print("日本語出力")
+        self.assertEqual(捕捉.getvalue(), "日本語出力\n")
+        出力バイト = io.BytesIO()
+        出力先 = io.TextIOWrapper(出力バイト, encoding="cp1252", newline="\n")
+        with contextlib.redirect_stdout(出力先), contextlib.redirect_stderr(io.StringIO()):
+            道具.標準出力をUTF8化()
+            print("日本語出力")
+            出力先.flush()
+        self.assertEqual(出力バイト.getvalue(), "日本語出力\n".encode("utf-8"))
+        出力先.close()
 
     def test_正本評価の取得条件を固定し部分実行を許可しない(self):
         道具 = 道具を読む("正本評価")

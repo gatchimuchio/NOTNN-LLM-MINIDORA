@@ -83,6 +83,9 @@ def 目録を作る(リポジトリ: str, ミラー: str, 略称: str, 出力先
 
 
 def main():
+    from 標準入出力 import 標準出力をUTF8化
+
+    標準出力をUTF8化()
     解析器 = argparse.ArgumentParser(description="固定版GLM重みの全頁目録を取得")
     解析器.add_argument("--repo", dest="リポジトリ", required=True)
     解析器.add_argument("--mirror-repo", dest="ミラー", required=True)

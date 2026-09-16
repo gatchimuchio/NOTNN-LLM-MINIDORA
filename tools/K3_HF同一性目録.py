@@ -25,6 +25,9 @@ def JSON値に変換(値: Any) -> Any:
 
 
 def main() -> int:
+    from 標準入出力 import 標準出力をUTF8化
+
+    標準出力をUTF8化()
     解析器 = argparse.ArgumentParser(description="Kimi K3固定版のHugging Faceファイル同一性を列挙")
     解析器.add_argument("--out", dest="出力先", type=Path, required=True, help="JSON出力先")
     引数 = 解析器.parse_args()
