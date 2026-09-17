@@ -1,0 +1,59 @@
+{
+  "契約形式": "minidora.gpqa.hdsv3-minidora30-floor-acceptance.v1",
+  "date_jst": "2026-09-17",
+  "評価種別": "NON_REGRESSION_ACCEPTANCE_REPLAY",
+  "課題": "GPQA Diamond",
+  "canonical": false,
+  "source": {
+    "workflow_run_id": 35195104842,
+    "head_commit": "caf44f7afbbc47cdde137a419bf1a2f00dd22412",
+    "dataset_csv_sha256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+    "seed": 0,
+    "参照方式": "LIVE_ONLY",
+    "固定参照資料許可": false,
+    "同一run": true,
+    "同一初期参照": true,
+    "同一初期MINIDORA結果": true
+  },
+  "measured_before_floor": {
+    "MINIDORA30互換": {
+      "correct": 25,
+      "answered": 112,
+      "suspended": 86,
+      "accuracy_percent": 12.626262626262626
+    },
+    "HDSv3_parallel": {
+      "correct": 24,
+      "answered": 103,
+      "suspended": 95,
+      "accuracy_percent": 12.121212121212121
+    },
+    "delta": {
+      "correct": -1,
+      "improved_cases": 1,
+      "regressed_cases": 2
+    }
+  },
+  "non_regression_rule": {
+    "baseline_approved": "MINIDORA30互換結果を完全保持し、HDS拡張を外向き出力へ昇格しない",
+    "baseline_unapproved": "HDS拡張は実行可能。ただし拡張承認かつ追加採用証明が明示された場合だけ外向き採用",
+    "default_extension_proof": false,
+    "gold_used_for_runtime_selection": false,
+    "benchmark_specific_rule_in_core": false
+  },
+  "acceptance_replay": {
+    "correct": 25,
+    "answered": 112,
+    "suspended": 86,
+    "accuracy_percent": 12.626262626262626,
+    "difference_from_MINIDORA30_compatible": 0,
+    "baseline_output_preserved": true,
+    "unproven_extension_promotions": 0
+  },
+  "interpretation": {
+    "canonical_score_replaced": false,
+    "MINIDORA30_canonical_30_of_198_replaced": false,
+    "claim": "非退行包絡の受入再生。新しいGPQA正本スコアではない。",
+    "runtime_guarantee": "基準APPROVE出力は完全保持し、基準未承認からの拡張も明示証明なしでは昇格しない。"
+  }
+}
