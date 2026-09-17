@@ -57,8 +57,8 @@ class 自動経験形成作用:
                     edges=set(out.依存追加)|{HDS依存辺(x,y) for x in read for y in produced if x!=y}; out=replace(out,依存追加=tuple(sorted(edges)),検証依存=tuple(sorted({**dict(out.検証依存),**{n:current.ノード署名(n) for n in read}}.items())))
                     current,_=状態更新(current,out)
                 if not 閉包可能(current):raise ValueError("再実行で目的未達")
-                def result_sig(s):return 署名((s.成果,s.主体状態,s.成立状態,s.残差,tuple((x.ID,x.意味署名) for x in s.認識),s.草案,s.記憶.正本署名))
-                if result_sig(current)!=result_sig(状態):raise ValueError("再実行結果が元実測と不一致")
+                def 結果署名(s):return 署名((s.成果,s.主体状態,s.成立状態,s.残差,tuple((x.ID,x.意味署名) for x in s.認識),s.草案,s.記憶.正本署名))
+                if 結果署名(current)!=結果署名(状態):raise ValueError("再実行結果が元実測と不一致")
                 for v in self.検証:
                     candidate=deepcopy(current); before=candidate.状態署名; valid=v.検証(candidate,None)
                     if valid is not True or candidate.状態署名!=before:raise ValueError("再実行の最終検証が不成立")
