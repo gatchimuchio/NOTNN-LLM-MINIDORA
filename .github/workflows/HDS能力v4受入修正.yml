@@ -1,0 +1,50 @@
+name: HDS能力v4受入修正
+on:
+  push:
+    branches: [chappie/hds-v4-source-20260918]
+    paths: [.hds-transfer-v4/acceptance-fix.patch]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: transfer
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 1f1a36f8d5516f02a857ddaec8cd6d3bc93e504f
+          path: work
+      - name: サンドボックスで検証した受入差分だけ適用
+        shell: python
+        run: |
+          import hashlib, pathlib, subprocess
+          path = pathlib.Path('transfer/.hds-transfer-v4/acceptance-fix.patch').resolve()
+          patch = path.read_bytes()
+          assert len(patch) == 5155
+          assert hashlib.sha256(patch).hexdigest() == 'a22e21733fcc187be177d1a730ee52ded0c36d73ca4f853f45a4d3d6be75c86d'
+          def git(*args):
+              return subprocess.check_output(['git', '-C', 'work', *args], text=True).strip()
+          assert git('rev-parse', 'HEAD') == '1f1a36f8d5516f02a857ddaec8cd6d3bc93e504f'
+          assert git('rev-parse', 'HEAD^{tree}') == 'dc3e35372294632b7e02a09b14587b5259875587'
+          assert git('ls-remote', 'origin', 'refs/heads/chappie/hds-general-v4-20260918').split()[0] == '1f1a36f8d5516f02a857ddaec8cd6d3bc93e504f'
+          subprocess.run(['git', '-C', 'work', 'apply', '--index', '--check', str(path)], check=True)
+          subprocess.run(['git', '-C', 'work', 'apply', '--index', str(path)], check=True)
+          assert git('write-tree') == 'c31d151c337b9d74642481c9e515ce72fddcf845'
+          names = {p.decode() for p in subprocess.check_output(['git', '-C', 'work', 'diff', '--cached', '--name-only', '-z']).split(b'\0') if p}
+          assert names == {'tests/test_HDS全体運用_実行.py', 'tests/test_HDS全体運用_接続.py', 'docs/HDS全体運用_v4_実装検証.md'}
+          subprocess.run(['git', '-C', 'work', 'diff', '--cached', '--check'], check=True)
+      - name: 能力ブランチへ通常push
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'v4受入: 旧登録数の固定値を既存能力保持と追加差分の検査へ更新' -m '初回全回帰3399件の失敗2件を記録。実装の変更なし。追加5能力、既存56能力、運用版に従う科学接続版を明示検査。サンドボックスtree c31d151c337b9d74642481c9e515ce72fddcf845。'
+          git push origin HEAD:refs/heads/chappie/hds-general-v4-20260918
+          git rev-parse HEAD
+          git rev-parse HEAD^{tree}
