@@ -2,7 +2,17 @@
 
 `評価/` はMINIDORAの適合・性能・回帰・完成判定の実測記録を保持する。
 
-## 現行正本 — MINIDORA30 / 2026-09-09
+## 正本系統
+
+評価正本も系統別に保持する。
+
+- MINIDORA30系: 模型核GPQA性能正本
+- MINIDORA80系: 能力モジュール込みシステムGPQA性能正本
+- HDS-MINIDORA系: `HDS_MINIDORA_受入正本_2026-09-17.md`
+
+一方の系統の評価結果で他方を旧版化・置換しない。全体規定は `../正本系統.md` を参照する。
+
+## MINIDORA30系現行性能正本 — MINIDORA30 / 2026-09-09
 
 現行GPQA Diamond性能正本は次とする。
 
@@ -45,7 +55,7 @@ changed      = 21
 
 GPQA正本は198/198全数・seed 0・OpenAlex disabled・Wikipedia en・LIVE_ONLY・controlled A/Bで実行する。
 
-## 現行能力モジュール込みシステム正本 — MINIDORA80 / 2026-09-09
+## MINIDORA80系現行性能正本 — MINIDORA80 / 2026-09-09
 
 現行能力モジュール込みGPQA Diamondシステム能力正本は **MINIDORA80** とする。模型核正本MINIDORA30は置換せず、評価層を分離して併存させる。
 
@@ -91,6 +101,12 @@ GPQA原論文の最強GPT-4ベースラインは39%である。MINIDORA80の40.4
 - [`GPQA_Diamond_MINIDORA80_能力モジュール_E2E_正本_2026-09-09.md`](GPQA_Diamond_MINIDORA80_能力モジュール_E2E_正本_2026-09-09.md)
 - [`GPQA_Diamond_MINIDORA80_能力モジュール_E2E_正本_2026-09-09.json`](GPQA_Diamond_MINIDORA80_能力モジュール_E2E_正本_2026-09-09.json)
 - [`../docs/SAVEPOINT_2026-09-09_MINIDORA80.md`](../docs/SAVEPOINT_2026-09-09_MINIDORA80.md)
+
+## HDS-MINIDORA系受入正本 — 2026-09-17
+
+HDS-MINIDORA系は別系統の正本として `HDS_MINIDORA_受入正本_2026-09-17.md` を保持する。MINIDORA30系の30/198、MINIDORA80系の80/198をHDS-MINIDORA固有性能へ転記しない。
+
+RMW修正後同runではMINIDORA30互換25/198、並列HDS-v3 24/198を観測し、その後の非退行包絡受入再生で25/198・差0を確認した。この25/198はHDS-MINIDORA固有の新GPQA性能正本ではなく、性能下限契約の受入証拠である。
 
 ## 主要成立証拠 — モジュール拡張可能性
 
@@ -192,7 +208,7 @@ U2 ⊂ U1
 retrieval空振り = 0
 ```
 
-この値は当時の汎用core現在地として履歴保持する。現行正本はMINIDORA30である。
+この値は当時の汎用core現在地として履歴保持する。MINIDORA30系の現行性能正本はMINIDORA30である。
 
 ## 現行区別
 

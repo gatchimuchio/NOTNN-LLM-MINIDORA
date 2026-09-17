@@ -10,9 +10,11 @@
 - 規定言語・基底言語・内部意味正本: 日本語
 - 外国語: 実務上必要な外部互換境界のみ例外使用
 
-## 内部実行正本 — HDS-first core
+## HDS-MINIDORA系実行正本 — HDS-first core
 
-2026-09-17以後、内部開発上の制御主語はHDSとする。
+HDS-MINIDORAはMINIDORA30/80とは別系統の正本である。正本は `../HDS_MINIDORA_現行正本.md` を参照する。
+
+2026-09-17以後、HDS-MINIDORA系の制御主語はHDSとする。
 
 ```text
 HDS実行主体
@@ -22,7 +24,7 @@ HDS実行主体
 → 再作用 / COMMIT / SUSPEND / FAIL
 ```
 
-外向きのLLM成立契約、厳密言語模型核、MINIDORA30 / MINIDORA80の既存正本値はこの変更で置換しない。
+外向きのLLM成立契約、厳密言語模型核、MINIDORA30系 / MINIDORA80系の既存正本値はHDS-MINIDORA系によって置換しない。
 
 局所正本: `../設計/60_MINIDORA_HDS自律接続_v3.md`（設計58・59の成立履歴を保持）
 

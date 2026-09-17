@@ -71,9 +71,9 @@ fixed reference Data = forbidden
 
 `fixed_reference_data_allowed` は必ず `false`。
 
-## 現行セーブポイント
+## MINIDORA30系現行性能セーブポイント
 
-現行正本は [`../docs/SAVEPOINT_2026-09-09_MINIDORA30.md`](../docs/SAVEPOINT_2026-09-09_MINIDORA30.md)。
+MINIDORA30系の現行性能正本は [`../docs/SAVEPOINT_2026-09-09_MINIDORA30.md`](../docs/SAVEPOINT_2026-09-09_MINIDORA30.md)。HDS-MINIDORA系は別系統であり、`../HDS_MINIDORA_現行正本.md` と `../評価/HDS_MINIDORA_受入正本_2026-09-17.md` を参照する。
 
 ```text
 MINIDORA30
