@@ -1,0 +1,31 @@
+name: HDS開発ソース取得
+on:
+  push:
+    branches: [chappie/hds-v4-source-20260918]
+    paths: [.github/workflows/HDS開発ソース取得.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4f303059c17044f038d4b5340d4c240373cf6f38
+          persist-credentials: false
+      - name: 固定ソースと由来を保存
+        shell: bash
+        run: |
+          mkdir -p /tmp/minidora-source
+          git archive --format=tar HEAD | gzip -n > /tmp/minidora-source/source.tar.gz
+          git rev-parse HEAD > /tmp/minidora-source/COMMIT
+          git rev-parse HEAD^{tree} > /tmp/minidora-source/TREE
+          git ls-tree -r HEAD > /tmp/minidora-source/FILES
+          sha256sum /tmp/minidora-source/source.tar.gz > /tmp/minidora-source/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-source-4f303059
+          path: /tmp/minidora-source/
+          retention-days: 3
+          if-no-files-found: error
