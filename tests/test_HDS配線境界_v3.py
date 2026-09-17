@@ -104,7 +104,7 @@ class 公開入口試験(unittest.TestCase):
     def test_新循環に監督関数の直接依存がない(self):
         for path in (ROOT/'src/minidora/HDS実行主体.py',ROOT/'src/minidora/HDS駆動コア.py',ROOT/'src/minidora/統合駆動_v2/循環.py'):
             tree=ast.parse(path.read_text(encoding="utf-8"))
-            modules=[x.モジュール or '' for x in ast.walk(tree) if isinstance(x,ast.ImportFrom)]
+            modules=[x.module or '' for x in ast.walk(tree) if isinstance(x,ast.ImportFrom)]
             self.assertFalse(any('介入制御' in x or '監督選択' in x for x in modules))
 
     def test_正本のv3接続先が存在(self):
