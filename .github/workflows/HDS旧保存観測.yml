@@ -1,0 +1,62 @@
+name: HDS旧保存観測
+on:
+  push:
+    branches: [chappie/hds-v4-source-20260918]
+    paths: [.github/workflows/HDS旧保存観測.yml]
+permissions:
+  contents: read
+jobs:
+  legacy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      matrix:
+        include:
+          - version: v1
+            sha: 2d08bd1cb9de343cd2725430fc80eda80d47fb73
+          - version: v2
+            sha: 6820ee8670081c9f2aecb4d8b5a1b3ad80419fb2
+          - version: v3
+            sha: 4f303059c17044f038d4b5340d4c240373cf6f38
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: 実際の旧版が作った保存物を観測
+        env:
+          PYTHONPATH: src
+          LEGACY_VERSION: ${{ matrix.version }}
+          LEGACY_SHA: ${{ matrix.sha }}
+        shell: python
+        run: |
+          import json, os, pathlib, hashlib
+          from minidora.HDS運用 import HDS運用セッション
+          版 = os.environ['LEGACY_VERSION']
+          設定 = {} if 版 == 'v1' else {'手順形成': True}
+          会話 = HDS運用セッション('旧保存移行試験', **設定)
+          for 名前, 本文 in [('A', '保守は年一回。'), ('B', '保守は月一回。')]:
+              応答 = 会話.資料を登録(名前, 本文)
+              assert 応答.成立, 応答.本文
+          応答 = 会話.資料を登録('A', '保守は半年一回。ただし故障時は停止。', 更新=True)
+          assert 応答.成立, 応答.本文
+          応答 = 会話.応答('2+3')
+          assert 応答.成立, 応答.本文
+          保存 = 会話.保存()
+          HDS運用セッション.復元(保存)
+          出力 = pathlib.Path('/tmp/legacy')
+          出力.mkdir(exist_ok=True)
+          (出力 / (版 + '.json')).write_text(保存, encoding='utf-8')
+          記録 = {'版':版, 'commit':os.environ['LEGACY_SHA'], '目録':会話.目録.ハッシュ,
+                  '保存SHA256':hashlib.sha256(保存.encode()).hexdigest(), '成立':True,
+                  '登録':会話.能力一覧(), '入力':['資料登録A','資料登録B','資料更新A','2+3']}
+          (出力 / (版 + '-由来.json')).write_text(json.dumps(記録, ensure_ascii=False, indent=2), encoding='utf-8')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-legacy-${{ matrix.version }}
+          path: /tmp/legacy/
+          retention-days: 3
+          if-no-files-found: error
