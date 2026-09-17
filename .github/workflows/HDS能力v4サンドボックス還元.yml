@@ -1,0 +1,58 @@
+name: HDS能力v4サンドボックス還元
+on:
+  push:
+    branches: [chappie/hds-v4-source-20260918]
+    paths: [.hds-transfer-v4/ready.json]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: transfer
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 4f303059c17044f038d4b5340d4c240373cf6f38
+          path: work
+      - name: サンドボックスの固定差分を復号・照合
+        shell: python
+        run: |
+          import base64, hashlib, lzma, pathlib, subprocess
+          root = pathlib.Path('transfer/.hds-transfer-v4')
+          encoded = ''.join((root / ('part' + str(i))).read_text(encoding='ascii') for i in range(4))
+          assert len(encoded) == 68744
+          packed = base64.b64decode(encoded, validate=True)
+          assert hashlib.sha256(packed).hexdigest() == '1008c5a50cd8ccc8ed6c9af7787cb50c3740bec1c9faa1c821112bf3c07f3344'
+          patch = lzma.decompress(packed, memlimit=268435456)
+          assert len(patch) == 189041
+          assert hashlib.sha256(patch).hexdigest() == 'd2e9901b40d8a9275b1933166f20e5f073e144f9d3750adfae2e5883933c245f'
+          path = pathlib.Path('/tmp/hds-v4.patch')
+          path.write_bytes(patch)
+          def git(*args):
+              return subprocess.check_output(['git', '-C', 'work', *args], text=True).strip()
+          assert git('rev-parse', 'HEAD') == '4f303059c17044f038d4b5340d4c240373cf6f38'
+          assert git('rev-parse', 'HEAD^{tree}') == 'd6b5250fb736b9dd5ed76c225ebe3ab2f57f44d7'
+          assert git('ls-remote', 'origin', 'refs/heads/main').split()[0] == '4f303059c17044f038d4b5340d4c240373cf6f38', 'main changed: rebase and revalidate in sandbox'
+          subprocess.run(['git', '-C', 'work', 'apply', '--index', '--check', str(path)], check=True)
+          subprocess.run(['git', '-C', 'work', 'apply', '--index', str(path)], check=True)
+          assert git('write-tree') == 'dc3e35372294632b7e02a09b14587b5259875587', 'sandbox tree mismatch'
+          names = subprocess.check_output(['git', '-C', 'work', 'diff', '--cached', '--name-only', '-z']).split(b'\0')[:-1]
+          assert len(names) == 31
+          assert all(not x.startswith((b'.github/', b'.hds-transfer')) for x in names)
+          subprocess.run(['git', '-C', 'work', 'diff', '--cached', '--check'], check=True)
+      - name: 照合済み差分を新しい能力ブランチへpush
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git ls-remote --heads origin refs/heads/chappie/hds-general-v4-20260918)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'HDS全体運用v4: 資料意味・内容構成・旧保存明示移行' -m 'サンドボックス差分SHA256 d2e9901b40d8a9275b1933166f20e5f073e144f9d3750adfae2e5883933c245f。31ファイル。基点4f303059、tree dc3e35372294632b7e02a09b14587b5259875587。一般能力全体の完成ではない。'
+          git push origin HEAD:refs/heads/chappie/hds-general-v4-20260918
+          git rev-parse HEAD
+          git rev-parse HEAD^{tree}
