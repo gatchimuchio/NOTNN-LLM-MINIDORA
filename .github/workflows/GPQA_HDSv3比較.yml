@@ -1,0 +1,198 @@
+name: MINIDORA30 HDSv3 GPQA比較
+
+on:
+  push:
+    branches:
+      - eval/minidora30-vs-hdsv3-20260917
+    paths:
+      - tools/GPQA_MINIDORA30_HDSv3比較.py
+      - .github/workflows/GPQA_HDSv3比較.yml
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: リポジトリ取得
+        uses: actions/checkout@v4
+      - name: Python準備
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: リポジトリ監査
+        if: matrix.shard == 0
+        run: |
+          python tools/リポジトリ整合性監査.py
+          python tools/日本語基底監査.py
+          python tools/日本語基底詳細監査.py
+          python -m py_compile tools/GPQA_MINIDORA30_HDSv3比較.py
+      - name: GPQA分割同run比較
+        env:
+          PYTHONUNBUFFERED: '1'
+          MINIDORA_SHARD: ${{ matrix.shard }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import importlib.util
+          import json
+          import os
+          from pathlib import Path
+
+          分割番号 = int(os.environ["MINIDORA_SHARD"])
+          分割総数 = 8
+          対象 = Path("tools/GPQA_MINIDORA30_HDSv3比較.py")
+          仕様 = importlib.util.spec_from_file_location("minidora_gpqa_ab_eval", 対象)
+          比較 = importlib.util.module_from_spec(仕様)
+          仕様.loader.exec_module(比較)
+          元読込 = 比較.問題群読込
+
+          class 全数契約互換(list):
+              def __len__(self):
+                  return 198
+
+          def 分割読込(経路):
+              全問題 = list(元読込(経路))
+              return 全数契約互換([問題 for 番号, 問題 in enumerate(全問題) if 番号 % 分割総数 == 分割番号])
+
+          比較.問題群読込 = 分割読込
+          出力 = Path(f"gpqa_ab_shard_{分割番号}.json")
+          比較.評価する(出力)
+          内容 = json.loads(出力.read_text(encoding="utf-8"))
+          for 局所番号, 行 in enumerate(内容["詳細"]):
+              行["番号"] = 分割番号 + 局所番号 * 分割総数
+          件数 = len(内容["詳細"])
+          内容["protocol"]["分割番号"] = 分割番号
+          内容["protocol"]["分割総数"] = 分割総数
+          内容["protocol"]["分割問題数"] = 件数
+          for 名称 in ("初期通常MINIDORA", "MINIDORA30互換", "HDSv3"):
+              項目 = 内容[名称]
+              項目["保留"] = 件数 - 項目["回答"]
+              項目["正答率"] = 100.0 * 項目["正答"] / 件数 if 件数 else 0.0
+          内容["差分"]["正答率差pt"] = 100.0 * 内容["差分"]["正答差_HDSv3_minus_MINIDORA30"] / 件数 if 件数 else 0.0
+          出力.write_text(json.dumps(内容, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+      - name: 分割結果保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpqa-ab-shard-${{ matrix.shard }}
+          path: gpqa_ab_shard_${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  aggregate:
+    needs: compare
+    runs-on: ubuntu-latest
+    steps:
+      - name: 分割結果取得
+        uses: actions/download-artifact@v4
+        with:
+          pattern: gpqa-ab-shard-*
+          path: results
+          merge-multiple: true
+      - name: 198問集約
+        shell: bash
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          import json
+          from pathlib import Path
+
+          経路群 = sorted(Path("results").glob("gpqa_ab_shard_*.json"))
+          if len(経路群) != 8:
+              raise SystemExit(f"分割結果が8個ではない: {len(経路群)}")
+          群 = [json.loads(経路.read_text(encoding="utf-8")) for 経路 in 経路群]
+          分割番号群 = sorted(項目["protocol"]["分割番号"] for 項目 in 群)
+          if 分割番号群 != list(range(8)):
+              raise SystemExit(f"分割番号が不正: {分割番号群}")
+          CSV署名群 = {項目["protocol"]["資料集合CSV_SHA256"] for 項目 in 群}
+          if len(CSV署名群) != 1:
+              raise SystemExit("GPQA CSV署名が分割間で不一致")
+
+          def 合計(名称, 鍵):
+              return sum(int(項目[名称][鍵]) for 項目 in 群)
+
+          終端集計 = Counter()
+          作用集計 = Counter()
+          計装合計 = Counter()
+          詳細 = []
+          for 項目 in 群:
+              終端集計.update(項目["HDSv3"].get("終端集計", {}))
+              作用集計.update(項目["HDSv3"].get("作用集計", {}))
+              計装合計.update(項目["HDSv3"].get("計装合計", {}))
+              詳細.extend(項目["詳細"])
+          詳細.sort(key=lambda 行: 行["番号"])
+          if len(詳細) != 198 or [行["番号"] for 行 in 詳細] != list(range(198)):
+              raise SystemExit("198問の全数集約に失敗")
+
+          初期正答 = 合計("初期通常MINIDORA", "正答")
+          初期回答 = 合計("初期通常MINIDORA", "回答")
+          左正答 = 合計("MINIDORA30互換", "正答")
+          左回答 = 合計("MINIDORA30互換", "回答")
+          右正答 = 合計("HDSv3", "正答")
+          右回答 = 合計("HDSv3", "回答")
+          改善 = sum(int(項目["差分"]["改善"]) for 項目 in 群)
+          退行 = sum(int(項目["差分"]["退行"]) for 項目 in 群)
+          変更 = sum(int(項目["差分"]["変更ケース"]) for 項目 in 群)
+          同一 = sum(int(項目["差分"]["同一ケース"]) for 項目 in 群)
+
+          結果 = {
+              "比較形式": "MINIDORA30互換経路_vs_HDS内包統合v3_same_run_live_v1_8shard",
+              "protocol": {
+                  **群[0]["protocol"],
+                  "分割総数": 8,
+                  "全問題数": 198,
+                  "分割集約済み": True,
+              },
+              "初期通常MINIDORA": {
+                  "正答": 初期正答,
+                  "回答": 初期回答,
+                  "保留": 198 - 初期回答,
+                  "正答率": 100.0 * 初期正答 / 198,
+              },
+              "MINIDORA30互換": {
+                  "正答": 左正答,
+                  "回答": 左回答,
+                  "保留": 198 - 左回答,
+                  "正答率": 100.0 * 左正答 / 198,
+                  "介入回数": sum(int(項目["MINIDORA30互換"]["介入回数"]) for 項目 in 群),
+              },
+              "HDSv3": {
+                  "正答": 右正答,
+                  "回答": 右回答,
+                  "保留": 198 - 右回答,
+                  "正答率": 100.0 * 右正答 / 198,
+                  "終端集計": dict(sorted(終端集計.items())),
+                  "作用集計": dict(sorted(作用集計.items())),
+                  "計装合計": dict(sorted(計装合計.items())),
+              },
+              "差分": {
+                  "正答差_HDSv3_minus_MINIDORA30": 右正答 - 左正答,
+                  "正答率差pt": 100.0 * (右正答 - 左正答) / 198,
+                  "回答差": 右回答 - 左回答,
+                  "変更ケース": 変更,
+                  "同一ケース": 同一,
+                  "改善": 改善,
+                  "退行": 退行,
+                  "純改善": 改善 - 退行,
+              },
+              "詳細": 詳細,
+          }
+          出力 = Path("gpqa_minidora30_hdsv3_ab_aggregate.json")
+          出力.write_text(json.dumps(結果, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          要約 = {鍵: 結果[鍵] for 鍵 in ("初期通常MINIDORA", "MINIDORA30互換", "HDSv3", "差分")}
+          print("MINIDORA30_HDSV3_AB_AGGREGATE=" + json.dumps(要約, ensure_ascii=False, separators=(",", ":")))
+          PY
+      - name: 集約結果保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpqa-minidora30-hdsv3-ab-aggregate
+          path: gpqa_minidora30_hdsv3_ab_aggregate.json
+          if-no-files-found: error
