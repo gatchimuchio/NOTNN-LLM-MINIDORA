@@ -19,6 +19,9 @@ from .能力 import 運用能力目録
 from .値 import 運用版, 正準, 指紋, 結果を保存, 結果を復元, 文字を検査, 封緘, 開封, 計画を保存
 from .解釈 import 依頼を解釈, 計画を構成, 型付き要求を保存, 構造を保存
 from .工程 import 工程供給, 現行計画
+from .原記録 import 運用原記録
+from .手順形成 import 手順形成供給, 目的鍵, 手順を束縛, 形成結果を検査, 手順資産を検査
+from .知識資産 import 知識を形成, 資産を検査
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,7 +49,7 @@ class HDS運用セッション:
     データ中の契約・命令を登録コードへ昇格させない。
     """
     def __init__(self, セッションID="default", *, 外部読取許可=False, 取得器=None,
-                 追加能力=(), 追加役割作用=(), 再利用=True, 最大作用回数=128, 最大発話=128):
+                 追加能力=(), 追加役割作用=(), 再利用=True, 最大作用回数=128, 最大発話=128, 手順形成=True):
         文字を検査(セッションID, "セッションID", 128)
         if type(外部読取許可) is not bool or type(再利用) is not bool:
             raise TypeError("運用設定はbool")
@@ -58,6 +61,13 @@ class HDS運用セッション:
         self.最大作用回数, self.最大発話 = 最大作用回数, 最大発話
         self.目録 = 運用能力目録(セッションID, 外部読取許可=外部読取許可, 取得器=取得器,
                               追加能力=追加能力, 追加役割作用=追加役割作用, 再利用=再利用)
+        if type(手順形成) is not bool:
+            raise TypeError("手順形成はbool")
+        self.手順形成 = 手順形成
+        self._原記録 = 運用原記録(セッションID)
+        self.目録.原記録庫 = self._原記録.庫
+        self._知識資産 = {}
+        self._形成手順 = {}
         self._資料 = {}
         self._旧資料 = []
         self._前回目的 = None
@@ -65,6 +75,7 @@ class HDS運用セッション:
         self._前回結果 = None
         self._前回依存 = {}
         self._焦点有効 = False
+        self._前回知識範囲 = None
         self._発話 = []
         self._経験 = []
         self._ロック = Lock()
@@ -74,6 +85,7 @@ class HDS運用セッション:
 
     def _有効(self):
         return (self._焦点有効 and self._前回結果 is not None
+                and (self._前回知識範囲 is None or self._前回知識範囲 == self._知識範囲印())
                 and all(k in self._資料 and self._資料[k]["版"] == v for k, v in self._前回依存.items()))
 
     def 状態(self):
@@ -83,6 +95,8 @@ class HDS運用セッション:
             return {"版": 運用版, "セッションID": self.ID, "資料": deepcopy(self._資料),
                     "前回有効": self._有効(), "保留目的": deepcopy(self._保留目的),
                     "発話数": len(self._発話), "経験数": len(self._経験),
+                    "知識資産数": len(self._知識資産), "形成手順数": len(self._形成手順),
+                    "原記録資料": deepcopy(self._原記録.資料対応), "原記録改訂": self._原記録.庫.起点().改訂,
                     "能力": self.能力一覧(), "再利用": self.目録.再利用庫.統計()}
         finally:
             self._ロック.release()
@@ -101,6 +115,12 @@ class HDS運用セッション:
                    "本文": 本文, "種類": 種類, "データ": 正準(データ)}
         raw = f'資料「{名前}」を{"更新" if 更新 else "登録"}する'
         return self._応答(raw, 管理要求=request)
+
+    def 文脈を取得(self, *, 必須資料=(), 検索語=(), 最大バイト数=32768):
+        if type(必須資料) not in (list, tuple) or type(検索語) not in (list, tuple):
+            raise TypeError("必須資料・検索語は文字列の配列で指定する")
+        return self._応答("原記録の文脈を取得する", 文脈要求={"必須資料": list(必須資料),
+                         "検索語": list(検索語), "最大バイト数": 最大バイト数})
 
     def 応答(self, 原文, *, 外部読取許可=False, 停止要求=None, 期限秒=None):
         return self._応答(原文, 外部読取許可=外部読取許可, 停止要求=停止要求, 期限秒=期限秒)
@@ -153,6 +173,8 @@ class HDS運用セッション:
                 if len(prospective) > 32 or len(_符号化(prospective)) > 2_000_000:
                     raise ValueError("保持資料の容量上限")
                 delta = {"行為": 行為, "名前": name, "資料": record}
+                if task["種類"] == "知識":
+                    delta["知識資産"] = 知識を形成(name, record)
                 response = 能力結果(True, f'資料「{name}」を{行為}しました。', データ={"版": version, "種類": task["種類"], "事実認定": False})
             elif 行為 == "初期化":
                 delta = {"行為": "初期化"}
@@ -175,7 +197,46 @@ class HDS運用セッション:
         return (HDS関数作用("運用/管理", execute, 入力状態=("運用:計画構成済",),
                     出力状態=("運用:応答成立",), 解消対象=("運用:成果未構成",), 読取成果=("運用入力", key), 契約版=運用版),)
 
-    def _応答(self, 原文, *, 型付き目的=None, 明示合成=None, 管理要求=None, 意味目的=None,
+    def _知識範囲印(self):
+        return 指紋({名前: 資産["資料版"] for 名前, 資産 in self._知識資産.items()})
+
+    def _知識を読む目的(self, 状態):
+        解釈 = dict(状態.成果).get("運用解釈", {})
+        if 解釈.get("方式") == "継続":
+            解釈 = 解釈["目的"]
+        if 解釈.get("方式") == "知識横断":
+            return True
+        return (解釈.get("方式") == "会話" and 解釈.get("依頼", {}).get("行為") == "再表現"
+                and self._前回知識範囲 is not None)
+
+    def _記憶同期作用(self, 状態):
+        if "運用:応答成立" not in 状態.成立状態 or "運用:記憶同期済" in 状態.成立状態:
+            return ()
+        def 構成(s):
+            値 = dict(s.成果)
+            回答 = 結果を復元(値["運用応答"])
+            候補 = self._原記録.同期候補(値["運用入力"], 値.get("運用更新"), 回答,
+                                        値["運用採用対応"].get("資料依存", {}), 知識範囲=self._知識を読む目的(s))
+            return HDS作用結果(HDS作用状態.成立, 追加状態=frozenset({"運用:記憶同期済"}),
+                    成果=(("運用原記録候補", 候補.保存()),), 理由=("原文・成果・版・依存の同期候補を構成",))
+        return (HDS関数作用("運用/原記録同期", 構成, 入力状態=("運用:応答成立", "運用:形成処理済"),
+                  出力状態=("運用:記憶同期済",), 読取成果=("運用入力", "運用応答", "運用採用対応"), 契約版=運用版),)
+
+    def _記憶を検証(self, 状態, _):
+        try:
+            値 = dict(状態.成果)
+            if not 形成結果を検査(状態, self.目録):
+                return False
+            更新 = 値.get("運用更新")
+            if 更新 and "知識資産" in 更新:
+                資産を検査(更新["知識資産"], 更新["資料"])
+            候補 = self._原記録.同期候補(値["運用入力"], 更新, 結果を復元(値["運用応答"]),
+                                        値["運用採用対応"].get("資料依存", {}), 知識範囲=self._知識を読む目的(状態))
+            return 候補.保存() == 値["運用原記録候補"]
+        except (ValueError, TypeError, KeyError):
+            return False
+
+    def _応答(self, 原文, *, 型付き目的=None, 明示合成=None, 管理要求=None, 意味目的=None, 文脈要求=None,
              外部読取許可=False, 停止要求=None, 期限秒=None):
         if not self._ロック.acquire(blocking=False):
             return 運用応答("SUSPEND", "同じ会話を処理中です。", ("同時更新を拒否",))
@@ -194,7 +255,9 @@ class HDS運用セッション:
                      "前回目的": self._前回目的, "保留目的": self._保留目的,
                      "前回結果": self._前回結果, "前回有効": self._有効(), "前回依存": self._前回依存,
                      "型付き目的": 型付き目的, "明示合成": 明示合成, "管理要求": 管理要求, "意味目的": 意味目的,
-                     "外部許可": 外部読取許可})
+                     "外部許可": 外部読取許可, "知識資産": self._知識資産,
+                     "文脈要求": 文脈要求, "原記録資料": self._原記録.資料対応,
+                     "原記録起点": 構造を保存(self._原記録.庫.起点())})
             if len(_符号化(inputs)) > 8_000_000:
                 raise ValueError("運用入力の保存上限")
             def interpret(s):
@@ -209,11 +272,22 @@ class HDS運用セッション:
                 values = dict(s.成果)
                 try:
                     packet = 計画を構成(values["運用解釈"], values["運用入力"], self.目録)
+                    記録 = self._形成手順.get(目的鍵(values["運用解釈"]))
+                    if 記録 is not None and packet["方式"] != "管理":
+                        復元計画 = 手順を束縛(記録, values["運用解釈"], values["運用入力"], self.目録)
+                        # 現行の目的解釈・計画と一致する手順だけ使う。保存物は信頼根にしない。
+                        if 復元計画 is not None:
+                            比較 = {鍵: 値 for 鍵, 値 in packet.items() if 鍵 != "解釈"}
+                            復元比較 = {鍵: 値 for 鍵, 値 in 復元計画.items() if 鍵 != "解釈"}
+                            if 比較 == 復元比較:
+                                packet = 復元計画
+                                packet["手順由来"] = 記録["SHA256"]
                     return HDS作用結果(HDS作用状態.成立, 追加状態=frozenset({"運用:計画構成済"}),
                         解消残差=frozenset({"運用:計画未構成"}), 成果=(("運用計画:0", packet),), 理由=("要求から作用の依存計画を構成",))
                 except (ValueError, TypeError, KeyError) as exc:
                     return HDS作用結果(HDS作用状態.保留, 成果=(("運用診断", {"段階": "目的計画", "理由": str(exc)}),), 理由=(str(exc),))
             bridge = 工程供給(self.目録)
+            形成供給 = 手順形成供給(self.目録, 有効=self.手順形成, 最大作用回数=self.最大作用回数)
             actions = (
                 HDS関数作用("運用/依頼構文化", interpret, 出力状態=("運用:依頼解釈済",),
                            解消対象=("運用:依頼未解釈",), 読取成果=("運用入力",), 契約版=運用版),
@@ -227,24 +301,29 @@ class HDS運用セッション:
                 return flag or (期限秒 is not None and time.monotonic() - started >= 期限秒)
             policy = HDS運用政策(探索深さ=64, 最大探索状態=8192, 最大内部生成=256,
                                  許可権限=("外部読取",) if 外部読取許可 else (), 自動形成=False)
-            initial = HDS実行状態(目的=(原文,), 要求状態=frozenset({"運用:応答成立"}),
+            initial = HDS実行状態(目的=(原文,), 要求状態=frozenset({"運用:応答成立", "運用:形成処理済", "運用:記憶同期済"}),
                         残差=frozenset({"運用:依頼未解釈", "運用:計画未構成", "運用:成果未構成"}),
                         成果=(("運用入力", inputs),))
             結果 = HDS実行主体(actions, 最大作用回数=self.最大作用回数, 政策=policy,
-                        作用供給器=(HDS作用供給器("能力工程", bridge, 運用版), HDS作用供給器("管理操作", self._管理作用, 運用版)),
-                        最終検証器=(HDS検証器("運用目的と実成果", bridge.最終検証, 運用版),), 停止要求=stop).実行(initial)
+                        作用供給器=(HDS作用供給器("能力工程", bridge, 運用版), HDS作用供給器("管理操作", self._管理作用, 運用版),
+                                     HDS作用供給器("手順形成", 形成供給, 運用版), HDS作用供給器("原記録同期", self._記憶同期作用, 運用版)),
+                        最終検証器=(HDS検証器("運用目的と実成果", bridge.最終検証, 運用版), HDS検証器("原記録と資料版", self._記憶を検証, 運用版)), 停止要求=stop).実行(initial)
             values = dict(結果.状態.成果)
             追跡 = {"版": 運用版, "目録": self.目録.ハッシュ, "入力印": 指紋(inputs),
                      "終端": 結果.終端.value, "理由": list(結果.理由), "阻害": 構造を保存(結果.阻害履歴),
                      "作用": [構造を保存(h) for h in 結果.履歴], "計装": 構造を保存(結果.計装),
                      "候補計画": [k for k in values if k.startswith("運用計画:") and "/" not in k],
                      "能力試行": [v for k, v in values.items() if "/試行/" in k],
-                     "残差": sorted(結果.状態.残差), "再利用": self.目録.再利用庫.統計()}
+                     "残差": sorted(結果.状態.残差), "再利用": self.目録.再利用庫.統計(),
+                     "手順形成": {"状態": values.get("運用形成結果", {}).get("理由", "未到達"),
+                                  "再現工程数": sum(k.startswith("運用形成:") for k in values),
+                                  "手順再利用": bool(現行計画(結果.状態) and 現行計画(結果.状態)[1].get("手順由来"))}}
             accepted = 結果.終端 == HDS終端.採用
             answer = 結果を復元(values["運用応答"]) if accepted else None
             parsed = values.get("運用解釈")
             if accepted:
                 # HDS採用後にだけセッションへ反映する。別の意味判定は行わない。
+                原記録候補 = 運用原記録.復元(values["運用原記録候補"], self.ID)
                 delta = values.get("運用更新")
                 if delta and delta["行為"] == "初期化":
                     self._資料 = {}; self._旧資料 = []; self._前回目的 = self._保留目的 = self._前回結果 = None
@@ -262,6 +341,7 @@ class HDS運用セッション:
                     is_reword = effective.get("方式") == "会話" and effective.get("依頼", {}).get("行為") == "再表現"
                     if not is_reword:
                         self._前回目的 = deepcopy(effective)
+                        self._前回知識範囲 = self._知識範囲印() if effective.get("方式") == "知識横断" else None
                     self._保留目的 = None
                     self._前回結果 = 結果を保存(answer)
                     # 回答に伝播した参照と、計画で実際に使う登録資料の両方から依存を残す。
@@ -272,6 +352,20 @@ class HDS運用セッション:
                         "作用列": [row["能力"] for row in 追跡["能力試行"] if row.get("採否") == "合格"],
                         "範囲": "この入力・契約で完遂した記録。一般法則又は自動学習とはしない"}
                     self._経験.append(正準(experience)); self._経験 = self._経験[-64:]
+                self._原記録 = 原記録候補
+                self.目録.原記録庫 = self._原記録.庫
+                if delta and delta["行為"] == "初期化":
+                    self._知識資産 = {}; self._形成手順 = {}; self._前回知識範囲 = None
+                elif delta:
+                    if "知識資産" in delta:
+                        self._知識資産[delta["名前"]] = deepcopy(delta["知識資産"])
+                    else:
+                        self._知識資産.pop(delta["名前"], None)
+                形成 = values.get("運用形成結果", {}).get("手順")
+                if 形成 is not None:
+                    self._形成手順[形成["目的鍵"]] = deepcopy(形成)
+                    if len(self._形成手順) > 64:
+                        del self._形成手順[next(iter(self._形成手順))]
                 body = answer.本文
                 reasons = 結果.理由
             else:
@@ -303,7 +397,9 @@ class HDS運用セッション:
                      "資料": self._資料, "旧資料": self._旧資料, "前回目的": self._前回目的,
                      "保留目的": self._保留目的, "前回結果": self._前回結果,
                      "前回依存": self._前回依存, "焦点有効": self._焦点有効,
-                     "発話": self._発話, "経験": self._経験}
+                     "発話": self._発話, "経験": self._経験,
+                     "原記録": self._原記録.保存(), "知識資産": self._知識資産,
+                     "形成手順": self._形成手順, "手順形成": self.手順形成, "前回知識範囲": self._前回知識範囲}
             packed = _符号化(封緘(状態)).decode("utf-8")
             if len(packed.encode()) > 16_000_000:
                 raise ValueError("保存上限")
@@ -315,14 +411,14 @@ class HDS運用セッション:
     def 復元(cls, text, *, 外部読取許可=False, 取得器=None, 追加能力=(), 追加役割作用=()):
         状態 = 開封(JSONを厳格に読む(text, 最大バイト数=16_000_000))
         required = {"版", "セッションID", "目録", "外部読取許可", "最大作用回数", "最大発話", "資料", "旧資料",
-                    "前回目的", "保留目的", "前回結果", "前回依存", "焦点有効", "発話", "経験"}
+                    "前回目的", "保留目的", "前回結果", "前回依存", "焦点有効", "発話", "経験", "原記録", "知識資産", "形成手順", "手順形成", "前回知識範囲"}
         if type(状態) is not dict or set(状態) != required or 状態["版"] != 運用版:
             raise ValueError("保存形式・版不一致")
         if 状態["外部読取許可"] is not 外部読取許可:
             raise ValueError("保存データから外部権限を復元しない。呼出側設定と一致が必要")
         obj = cls(状態["セッションID"], 外部読取許可=外部読取許可, 取得器=取得器,
                   追加能力=追加能力, 追加役割作用=追加役割作用,
-                  最大作用回数=状態["最大作用回数"], 最大発話=状態["最大発話"])
+                  最大作用回数=状態["最大作用回数"], 最大発話=状態["最大発話"], 手順形成=状態["手順形成"])
         if 状態["目録"] != obj.目録.ハッシュ:
             raise ValueError("保存時の能力・意味契約から変更されている")
         if type(状態["資料"]) is not dict or len(状態["資料"]) > 32 or len(_符号化(状態["資料"])) > 2_000_000:
@@ -361,6 +457,30 @@ class HDS運用セッション:
                 ("保留目的", "_保留目的"), ("前回結果", "_前回結果"), ("前回依存", "_前回依存"),
                 ("焦点有効", "_焦点有効"), ("発話", "_発話"), ("経験", "_経験")):
             setattr(obj, internal, deepcopy(状態[public]))
+        obj._原記録 = 運用原記録.復元(状態["原記録"], obj.ID)
+        obj._原記録.資料を照合(obj._資料)
+        obj.目録.原記録庫 = obj._原記録.庫
+        資産群 = 状態["知識資産"]
+        if type(資産群) is not dict or set(資産群) != {名前 for 名前, 値 in obj._資料.items() if 値["種類"] == "知識"}:
+            raise ValueError("保存知識資産と現行資料の対応不一致")
+        for 名前, 資産 in 資産群.items():
+            if type(資産) is not dict or 資産.get("名前") != 名前:
+                raise ValueError("知識資産の名前が不一致")
+            資産を検査(資産, obj._資料[名前])
+        手順群 = 状態["形成手順"]
+        if type(手順群) is not dict or len(手順群) > 64:
+            raise ValueError("保存手順の型・上限")
+        for 鍵, 手順 in 手順群.items():
+            手順資産を検査(手順, obj.目録)
+            if (type(手順) is not dict or 手順.get("目的鍵") != 鍵 or 手順.get("目録") != obj.目録.ハッシュ
+                    or 手順.get("検証") != "再実行一致"
+                    or 手順.get("SHA256") != 指紋({k: v for k, v in 手順.items() if k != "SHA256"})):
+                raise ValueError("保存手順の整合不一致")
+        範囲 = 状態["前回知識範囲"]
+        if 範囲 is not None and (type(範囲) is not str or len(範囲) != 64):
+            raise ValueError("保存知識範囲の型不正")
+        obj._前回知識範囲 = 範囲
+        obj._知識資産, obj._形成手順 = deepcopy(資産群), deepcopy(手順群)
         return obj
 
     def 保存先へ書く(self, path):

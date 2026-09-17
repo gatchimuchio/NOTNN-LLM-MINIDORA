@@ -8,12 +8,13 @@ from .値 import 運用版, 文字を検査
 
 
 class HDS製品ミニドラ:
-    def __init__(self, *, 外部読取許可=False, 取得器=None, 監査台帳_=None, 最大セッション数=64):
-        if type(外部読取許可) is not bool:
+    def __init__(self, *, 外部読取許可=False, 取得器=None, 監査台帳_=None, 最大セッション数=64, 手順形成=True):
+        if type(外部読取許可) is not bool or type(手順形成) is not bool:
             raise TypeError("外部読取許可はbool")
         if type(最大セッション数) is not int or not 1 <= 最大セッション数 <= 256:
             raise ValueError("セッション数上限")
         self.監査台帳 = 監査台帳_ if 監査台帳_ is not None else 監査台帳()
+        self._形成 = 手順形成
         self._許可, self._取得器, self._上限 = 外部読取許可, 取得器, 最大セッション数
         self._会話, self._前監査 = {}, {}
         self._ロック = RLock()
@@ -22,7 +23,9 @@ class HDS製品ミニドラ:
     def 能力一覧(self):
         return ("HDS単一主体の依頼解釈・目的計画・能力工程・最終採否", "数式・JSON/CSV・文書処理",
                 "数量比較・集計と条件訂正", "提供知識・本文・命題・仮説・介入の検討",
-                "条件付き回復・再表現・資料更新・保存復元", "工程別監査")
+                "条件付き回復・再表現・資料更新・保存復元",
+                "提供知識の出典付き形成と横断導出", "原文・依存成果の長文脈同期と再参照",
+                "純粋工程の実再現検証と条件付き手順再利用", "工程別監査")
 
     def セッション(self, ID):
         文字を検査(ID, "セッションID", 128)
@@ -30,7 +33,7 @@ class HDS製品ミニドラ:
             if ID not in self._会話:
                 if len(self._会話) >= self._上限:
                     raise ValueError("セッション数上限")
-                self._会話[ID] = HDS運用セッション(ID, 外部読取許可=self._許可, 取得器=self._取得器)
+                self._会話[ID] = HDS運用セッション(ID, 外部読取許可=self._許可, 取得器=self._取得器, 手順形成=self._形成)
                 self._会話ロック[ID] = RLock()
             return self._会話[ID]
 

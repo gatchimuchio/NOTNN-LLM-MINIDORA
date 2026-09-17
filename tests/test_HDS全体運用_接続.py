@@ -108,7 +108,7 @@ class 作用接続試験(unittest.TestCase):
         結果 = 会話.役割目的を実行(意味目的("追加成果", {"資料":"A"}), 原文="追加能力の目的を実行する")
         self.assertTrue(結果.成立, 結果.本文)
         self.assertEqual(能力.回数, 1)
-        self.assertEqual(len(会話.能力一覧()), 49)
+        self.assertEqual(len(会話.能力一覧()), 50)
         self.assertEqual(会話._前回依存.keys(), {"A"})
         会話.資料を登録("A", "改訂資料", 更新=True)
         self.assertFalse(会話.状態()["前回有効"])

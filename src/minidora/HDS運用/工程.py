@@ -47,7 +47,7 @@ def 最終素材を構成(results, packet):
     return 回答を構成(results)
 
 
-def 入力依存を収集(packet, inputs):
+def 入力依存を収集(packet, inputs, 結果参照=()):
     """出力の祖先工程が読む資料を追跡する。能力が参照を返し忘れても消さない。"""
     plan = 計画を復元(packet["計画"])
     steps = {step.識別子: step for step in plan.工程}
@@ -68,6 +68,7 @@ def 入力依存を収集(packet, inputs):
                 needed.add(ref.識別子)
     refs = {ref.識別子 for key in needed
             for ref in 結果を復元(packet["資料"][key]).参照}
+    refs.update(参照.識別子 for 参照 in 結果参照)
     dependencies = {name: 元資料["版"] for name, 元資料 in inputs["資料"].items()
                     if any(ref.識別子 in refs for ref in 結果を復元(元資料["結果"]).参照)}
     interpretation = packet.get("解釈", {})
@@ -208,7 +209,7 @@ class 工程供給:
             対応証拠 = {"原文": データ["運用入力"]["原文"], "計画鍵": plan_key, "計画印": 指紋(packet),
                         "目録": self.目録.ハッシュ, "出力": list(outputs),
                         "出力印": [指紋(データ[key]) for key in outputs], "回答印": 指紋(結果を保存(final)),
-                        "資料依存": 入力依存を収集(packet, データ["運用入力"])}
+                        "資料依存": 入力依存を収集(packet, データ["運用入力"], final.参照)}
             return HDS作用結果(HDS作用状態.成立, 追加状態=frozenset({"運用:応答成立"}),
                                解消残差=frozenset({"運用:成果未構成"}),
                                成果=(("運用応答", 結果を保存(final)), ("運用採用対応", 対応証拠)),
@@ -278,7 +279,7 @@ class 工程供給:
                 return False
             if packet["方式"] == "管理":
                 return answer.成立 and proof["出力"] == []
-            if proof["資料依存"] != 入力依存を収集(packet, values["運用入力"]):
+            if proof["資料依存"] != 入力依存を収集(packet, values["運用入力"], answer.参照):
                 return False
             plan = 計画を復元(packet["計画"])
             expected = [_工程鍵(current_key, sid) for sid in plan.出力工程]

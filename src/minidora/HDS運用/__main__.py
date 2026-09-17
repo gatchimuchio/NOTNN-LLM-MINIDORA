@@ -14,6 +14,8 @@ def main():
     parser.add_argument("--外部読取", action="store_true")
     parser.add_argument("--session", default="cli")
     parser.add_argument("--資料", action="append", default=[], metavar="名前=ファイル")
+    parser.add_argument("--知識", action="append", default=[], metavar="名前=ファイル", help="提供知識を出典付きの命題資産へ形成")
+    parser.add_argument("--形成なし", action="store_true", help="純粋工程の追加再実行を行わない")
     parser.add_argument("--復元", type=Path)
     parser.add_argument("--保存", type=Path)
     parser.add_argument("--json", action="store_true")
@@ -23,17 +25,19 @@ def main():
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="strict")
     if args.serve:
-        if args.復元 or args.保存 or args.資料 or args.message:
+        if args.復元 or args.保存 or args.資料 or args.知識 or args.message:
             parser.error("サーバ起動にCLI専用の資料・保存・入力指定は併用できません")
-        serve(HDS製品ミニドラ(外部読取許可=args.外部読取), host="127.0.0.1", 同一生成元限定=True)
+        serve(HDS製品ミニドラ(外部読取許可=args.外部読取, 手順形成=not args.形成なし), host="127.0.0.1", 同一生成元限定=True)
         return 0
     session = (HDS運用セッション.復元(args.復元.read_text(encoding="utf-8"), 外部読取許可=args.外部読取)
-               if args.復元 else HDS運用セッション(args.session, 外部読取許可=args.外部読取))
-    for item in args.資料:
+               if args.復元 else HDS運用セッション(args.session, 外部読取許可=args.外部読取, 手順形成=not args.形成なし))
+    if args.形成なし:
+        session.手順形成 = False
+    for item, 種類 in [(値, "資料") for 値 in args.資料] + [(値, "知識") for 値 in args.知識]:
         name, separator, path = item.partition("=")
         if not separator:
             parser.error("資料は名前=ファイルで指定してください")
-        結果 = session.資料を登録(name, Path(path).read_text(encoding="utf-8"))
+        結果 = session.資料を登録(name, Path(path).read_text(encoding="utf-8"), 種類=種類)
         if not 結果.成立:
             print(結果.本文, file=sys.stderr)
             return 2
