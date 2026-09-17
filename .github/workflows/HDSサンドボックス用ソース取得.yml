@@ -1,0 +1,29 @@
+name: HDS サンドボックス用ソース取得
+on:
+  push:
+    branches: [sandbox/hds-source-export-20260917]
+    paths: [.github/workflows/HDSサンドボックス用ソース取得.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4067f2ee32efb5d4f3f091095e1fa61412ea0792
+          persist-credentials: false
+      - name: 正本だけを読み取り専用で書き出す
+        run: |
+          mkdir -p "$RUNNER_TEMP/hds-source"
+          git rev-parse HEAD > "$RUNNER_TEMP/hds-source/commit.txt"
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/hds-source/tree.txt"
+          git ls-tree -rz HEAD > "$RUNNER_TEMP/hds-source/tree.bin"
+          git archive --format=zip HEAD -o "$RUNNER_TEMP/hds-source/source.zip"
+          sha256sum "$RUNNER_TEMP/hds-source/source.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hds-source-4067f2e
+          path: ${{ runner.temp }}/hds-source/
+          retention-days: 7
