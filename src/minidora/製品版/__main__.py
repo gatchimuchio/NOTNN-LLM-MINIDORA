@@ -9,32 +9,41 @@ def main() -> int:
     import sys
     p = argparse.ArgumentParser()
     p.add_argument("--serve", action="store_true")
+    p.add_argument("--HDS", action="store_true", help="HDS単一主体の全体運用を利用")
     p.add_argument("--汎用", action="store_true", help="目的・複数資料・確認継続の会話入口を利用")
     p.add_argument("--外部読取", action="store_true", help="汎用入口で要求された公開資料取得を許可")
     p.add_argument("--session", default="cli")
     p.add_argument("message", nargs="*")
     a = p.parse_args()
-    if a.汎用:
+    if a.HDS and a.汎用:
+        p.error("--HDSと--汎用は別の実行入口です")
+    if a.汎用 or a.HDS:
         for stream in (sys.stdin,sys.stdout,sys.stderr):
             if hasattr(stream,"reconfigure"):
                 stream.reconfigure(encoding="utf-8",errors="strict")
     audit = 監査台帳(os.getenv("MINIDORA_AUDIT_LOG") or None)
-    if a.外部読取 and not a.汎用:
-        p.error("--外部読取は--汎用と共に指定してください")
-    app = 製品ミニドラ(基礎ミニドラ=None if a.汎用 else 標準ミニドラ(), 監査台帳_=audit,
-                      汎用会話=a.汎用, 汎用外部読取許可=a.外部読取)
+    if a.外部読取 and not (a.汎用 or a.HDS):
+        p.error("--外部読取は--HDS又は--汎用と共に指定してください")
+    if a.HDS:
+        from ..HDS運用.製品 import HDS製品ミニドラ
+        app = HDS製品ミニドラ(外部読取許可=a.外部読取, 監査台帳_=audit)
+    else:
+        app = 製品ミニドラ(基礎ミニドラ=None if a.汎用 else 標準ミニドラ(), 監査台帳_=audit,
+                          汎用会話=a.汎用, 汎用外部読取許可=a.外部読取)
     if a.serve:
-        if a.汎用: serve(app, host="127.0.0.1", 同一生成元限定=True)
+        if a.汎用 or a.HDS: serve(app, host="127.0.0.1", 同一生成元限定=True)
         else: serve(app)
         return 0
     if a.message:
-        r=app.応答(" ".join(a.message), セッションID=a.session); print(r.本文); print(f"trace_id={r.追跡ID}\ntrace_hash={r.監査ハッシュ}"); return 0
+        r=app.応答(" ".join(a.message), セッションID=a.session)
+        print(r.本文); print(f"trace_id={r.追跡ID}\ntrace_hash={r.監査ハッシュ}")
+        return 2 if a.HDS and r.状態 != "APPROVE" else 0
     print("MINIDORA Product Chat / exit で終了")
     while True:
         try: text=input("> ").strip()
         except EOFError: return 0
         except UnicodeError:
-            if not a.汎用: raise
+            if not (a.汎用 or a.HDS): raise
             print("標準入力はUTF-8で指定してください。", file=sys.stderr)
             return 2
         if text.casefold() in {"exit","quit"}: return 0

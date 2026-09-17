@@ -1,0 +1,311 @@
+"""HDSの知覚・計画作用。既存の意味解釈器を再利用し、実行は行わない。"""
+from __future__ import annotations
+from copy import deepcopy
+from dataclasses import asdict, replace
+from enum import Enum
+import re
+from .構文化接続 import 運用構文化器
+from ..HDS目的射影 import HDSから目的要求, _HDS照合
+from ..会話解釈 import 会話を解釈, HDS会話を照合
+from ..会話意味 import 会話要求, 比較対象, 意味目的
+from ..汎用要求IR import 汎用要求IR, 目的指定
+from ..能力合成 import 合成計画, 合成工程, 素材参照, _結果辞書, _打切り
+from ..会話回答 import 回答記録整合
+from ..能力結果復元 import 能力結果を復元
+from ..監査改善会話解釈 import 改善発話を解釈
+from ..監査改善接続 import 改善回答を検査
+from ..製品版.型 import 能力結果
+from .値 import 正準, 指紋, 結果を保存, 結果を復元, 計画を保存, 運用版
+
+
+def 構造を保存(value):
+    if isinstance(value, Enum):
+        return value.value
+    if hasattr(value, "__dataclass_fields__"):
+        return 構造を保存(asdict(value))
+    if type(value) is dict:
+        return {k: 構造を保存(v) for k, v in value.items()}
+    if type(value) in (list, tuple):
+        return [構造を保存(v) for v in value]
+    if type(value) in (set, frozenset):
+        return sorted((構造を保存(v) for v in value), key=指紋)
+    return 正準(value)
+
+
+def 要求を復元(raw):
+    value = deepcopy(raw)
+    value["対象"] = tuple(比較対象(t["資料"], tuple(tuple(p) for p in t["行条件"])) for t in value["対象"])
+    value["対応"] = tuple(tuple(p) for p in value["対応"])
+    return 会話要求(**value).固定複製()
+
+
+def 型付き要求を保存(request):
+    if type(request) is not 汎用要求IR:
+        raise TypeError("型付き目的は汎用要求IRが必要")
+    request = request.固定複製()
+    raw = asdict(request)
+    raw["素材"] = {k: 結果を保存(v) for k, v in request.素材.items()}
+    return 正準(raw)
+
+
+def 型付き要求を復元(raw):
+    d = deepcopy(raw)
+    if set(d) != set(汎用要求IR.__dataclass_fields__):
+        raise ValueError("型付き目的の欄不一致")
+    d["素材"] = {k: 結果を復元(v) for k, v in d["素材"].items()}
+    d["目的"] = tuple(目的指定(**(row | {"原文範囲": tuple(row["原文範囲"])})) for row in d["目的"])
+    d["出力目的"], d["残差"] = tuple(d["出力目的"]), tuple(d["残差"])
+    return 汎用要求IR(**d).固定複製()
+
+
+def 依頼を解釈(入力):
+    raw = 入力["原文"]
+    if 入力.get("型付き目的") is not None:
+        request = 型付き要求を復元(入力["型付き目的"])
+        if request.原文 != raw:
+            raise ValueError("型付き目的と原依頼が不一致")
+        return {"方式": "型付き目的", "目的": 入力["型付き目的"], "原文": raw}
+    if 入力.get("意味目的") is not None:
+        goal = 意味目的(**入力["意味目的"])
+        goal.鍵()
+        return {"方式": "明示役割", "目的": asdict(goal), "原文": raw}
+    if 入力.get("明示合成") is not None:
+        return {"方式": "明示合成", "合成": 入力["明示合成"], "原文": raw}
+    構文化器 = 運用構文化器()
+    ir = 構文化器.コンパイル(raw)
+    saved = {"全文": 構造を保存(構文化器.原IR), "局所作用ビュー": 構造を保存(ir),
+             "責任対応": 構造を保存(構文化器.責任対応)}
+    if raw.strip() in ("再計算して", "もう一度", "続けて"):
+        old = 入力.get("保留目的") or 入力.get("前回目的")
+        if old is None:
+            raise ValueError("再開する目的がない")
+        return {"方式": "継続", "目的": old, "原文": raw, "HDS": saved}
+    science = re.fullmatch(r'資料「([^「」]+)」の問題を解いて[。？?]?', raw.strip())
+    if science:
+        return {"方式": "科学目的", "資料": science[1], "原文": raw, "HDS": saved}
+    # 知識も提供資料として版・出典付きで保存し、実行命令にはしない。
+    knowledge = re.fullmatch(r'知識「([^「」\n]+)」を(登録|更新)[:：]([\s\S]+)', raw.strip())
+    if knowledge:
+        return {"方式": "管理", "行為": knowledge[2], "名前": knowledge[1],
+                "本文": knowledge[3], "種類": "知識", "データ": {}, "原文": raw, "HDS": saved}
+    # 既存の本文・命題・仮説・介入の文法を同じ入口へ接続する。
+    improved = None
+    if raw.startswith(("本文資料", "命題資料", "仮説資料", "介入資料")):
+        improved = 改善発話を解釈(raw)
+    else:
+        try:
+            候補 = 改善発話を解釈(raw)
+            if 候補["行為"] == "検討":
+                improved = 候補
+            elif 候補["行為"] == "訂正" and (入力.get("保留目的") or 入力.get("前回目的") or {}).get("方式") == "資料検討":
+                improved = 候補
+        except ValueError:
+            pass
+    if improved is not None:
+        if improved["行為"] in ("登録", "更新"):
+            return {"方式": "管理", "行為": improved["行為"], "名前": improved["資料"],
+                    "本文": improved["本文"], "種類": improved["種類"], "データ": improved["データ"],
+                    "原文": raw, "HDS": saved}
+        if improved["行為"] == "訂正":
+            old = deepcopy(入力.get("保留目的") or 入力["前回目的"])
+            old["依頼"]["変更"].update(improved["変更"])
+            old["原文"] = raw
+            old["HDS"] = saved
+            return old
+        return {"方式": "資料検討", "依頼": improved, "原文": raw, "HDS": saved}
+    request = 会話を解釈(raw, tuple(入力["資料"]))
+    if request.行為 in ("登録", "更新"):
+        return {"方式": "管理", "行為": request.行為, "名前": request.対象[0].資料,
+                "本文": request.補助["本文"], "種類": "資料", "データ": {}, "原文": raw, "HDS": saved}
+    if request.行為 in ("初期化", "会話"):
+        return {"方式": "管理", "行為": request.行為, "発話": request.補助.get("発話", ""), "原文": raw, "HDS": saved}
+    if request.行為 in ("訂正", "確認返答"):
+        target = 入力.get("保留目的") or 入力.get("前回目的")
+        if target is None or target.get("方式") != "会話":
+            raise ValueError("訂正・確認に対応する目的がない")
+        old = 要求を復元(target["依頼"])
+        if old.行為 not in ("比較", "集合", "取得"):
+            raise ValueError("この目的のスロット訂正は未対応")
+        key, value = request.補助["欄"], request.補助["値"]
+        kw = {}
+        if key in ("属性", "単位"):
+            kw[key] = value
+        elif key in ("年", "左の年", "右の年"):
+            if not re.fullmatch(r"[0-9]{4}", value) or not old.対象:
+                raise ValueError("年の訂正対象・値が未確定")
+            targets = list(old.対象)
+            indices = range(len(targets)) if key == "年" else (0 if key == "左の年" else 1,)
+            for index in indices:
+                targets[index] = replace(targets[index], 行条件=tuple({**dict(targets[index].行条件), "年": value}.items()))
+            kw = {"対象": tuple(targets), "時点差": key != "年"}
+        else:
+            raise ValueError("未対応の訂正欄")
+        HDS会話を照合(ir, request)
+        request = replace(old, 原文=raw, 補助=old.補助 | {"改訂元": old.補助.get("改訂元", old.原文)},
+                          対応=(("目的の明示改訂", 0, len(raw)),), **kw).固定複製()
+    elif request.行為 not in ("既存目的", "再表現", "命題照合", "命題取得"):
+        HDS会話を照合(ir, request, 文脈解消=bool(request.補助.get("資料参照解消")))
+    return {"方式": "会話", "依頼": 正準(asdict(request)), "原文": raw, "HDS": saved}
+
+
+def _形式(value):
+    explicit = value.データ.get("形式")
+    if explicit in ("JSON", "CSV"):
+        return explicit
+    text = value.本文.lstrip()
+    if text.startswith(("{", "[")):
+        return "JSON"
+    if "," in text.split("\n", 1)[0]:
+        return "CSV"
+    raise ValueError("比較資料はJSON又は見出し付きCSVが必要")
+
+
+def _数量目的(request, materials):
+    targets = []
+    for target in request.対象:
+        if request.補助.get("供給") == "取得":
+            targets.append({"主題": target.資料, "属性": request.属性, "単位": request.単位})
+        else:
+            if target.資料 not in materials:
+                raise ValueError("資料不足:" + target.資料)
+            targets.append({"資料": target.資料, "形式": _形式(materials[target.資料]),
+                            "属性": request.属性, "単位": request.単位, "行条件": dict(target.行条件)})
+    if request.行為 == "比較":
+        if len(targets) != 2:
+            raise ValueError("比較は二つの対象が必要")
+        return 意味目的("比較回答", {"左": targets[0], "右": targets[1], "時点差": request.時点差, "詳細": request.詳細})
+    aux = request.補助
+    return 意味目的("集合回答", {"対象": targets, "供給": aux.get("供給", "資料"), "操作": list(aux["操作"]),
+                "時点差": request.時点差, "詳細": request.詳細, "形式": aux["形式"], "手順": aux["手順"],
+                "選別": aux["選別"], "除外資料": list(aux["除外資料"])})
+
+
+def 計画を構成(解釈, 入力, 目録, *, 禁止=()):
+    """依頼から計画を構成するだけ。計画中に能力本体を実行しない。"""
+    mode = 解釈["方式"]
+    if mode == "継続":
+        return 計画を構成(解釈["目的"], 入力, 目録, 禁止=禁止)
+    sources = {k: 結果を復元(v["結果"]) for k, v in 入力["資料"].items()}
+    goal = None
+    detail = False
+    kind = "会話回答"
+    request = None
+    if mode == "管理":
+        return {"方式": "管理", "解釈": deepcopy(解釈), "原文": 入力["原文"]}
+    if mode == "明示役割":
+        materials = sources
+        goal = 意味目的(**解釈["目的"])
+        kind = "能力成果"
+    elif mode == "科学目的":
+        materials = sources
+        if 解釈["資料"] not in materials:
+            raise ValueError("問題資料が未登録")
+        goal = 意味目的("科学回答", {"資料": 解釈["資料"], "詳細": False})
+    elif mode == "明示合成":
+        from .値 import 計画を復元
+        packed = 解釈["合成"]
+        plan = 計画を復元(packed["計画"])
+        materials = {k: 結果を復元(v) for k, v in packed["資料"].items()}
+        coverage = []
+        kind = "能力成果"
+    elif mode == "型付き目的":
+        purpose = 型付き要求を復元(解釈["目的"])
+        planned = 目録.単体目的.計画する(purpose)
+        if not planned.成立:
+            raise ValueError(planned.理由)
+        plan, materials = planned.計画, planned.資料
+        coverage = 構造を保存(planned.要求被覆)
+    elif mode == "資料検討":
+        task = 解釈["依頼"]
+        name, category = task["資料"], task["種類"]
+        if name not in sources:
+            raise ValueError("確認待ち:資料不足:" + name)
+        元資料 = sources[name]
+        params = {"資料": [{"名前": name, "本文": 元資料.本文}]} if category in ("読解", "命題") else deepcopy(入力["資料"][name]["データ"])
+        params.update(task.get("変更", {}))
+        original = 能力結果(True, 解釈["原文"], 参照=元資料.参照, データ=params)
+        materials = {"原要求": original}
+        detail = task.get("詳細", True)
+        goal = 意味目的("監査改善の検証済回答", {"種類": category, "要求資料": "原要求", "詳細": detail, "再説明": False})
+        kind = "検討回答"
+    else:
+        request = 要求を復元(解釈["依頼"])
+        detail = request.詳細
+        if request.行為 == "再表現":
+            previous = 入力.get("前回結果")
+            if previous is None or not 入力.get("前回有効"):
+                raise ValueError("再表現する有効な成果がない。資料更新後は再計算してください")
+            old = 結果を復元(previous)
+            if old.データ.get("元結果") is not None:
+                if not 回答記録整合(old):
+                    raise ValueError("前回回答の整合不一致")
+                materials = {"前回": old, "指示": 能力結果(True, "実成果から再表現する"),
+                             "設定": 能力結果(True, "", データ={"詳細": detail, **request.補助})}
+                plan = 合成計画((合成工程("再表現", ("会話再表現",), "指示", (素材参照("入力", "前回"),), "設定"),), ("再表現",))
+                coverage = []
+                kind = "再表現"
+            else:
+                if not 改善回答を検査(old.データ):
+                    raise ValueError("この成果の再表現契約は未接続")
+                if request.補助:
+                    raise ValueError("検討回答の表示条件は詳細・簡潔に限定")
+                from ..監査改善接続 import 改善回答版
+                from ..監査改善計画 import 報告版
+                category = next(k for k, v in 報告版.items() if v == old.データ["報告"]["版"])
+                materials = {"原要求": 能力結果(True, "", 参照=old.参照, データ=old.データ["報告"]["要求"]),
+                             "保存報告": 能力結果(True, "", 参照=old.参照, データ=old.データ["報告"])}
+                goal = 意味目的("監査改善の検証済回答", {"種類": category, "要求資料": "原要求", "詳細": detail, "再説明": True})
+                kind = "検討回答"
+        elif request.行為 in ("比較", "集合"):
+            materials = sources
+            goal = _数量目的(request, materials)
+        elif request.行為 == "取得":
+            materials = sources
+            goal = 意味目的("取得回答", {"主題": request.補助["主題"], "属性": request.属性, "単位": request.単位, "詳細": detail})
+        elif request.行為 == "既存目的":
+            canonical = request.補助["射影文"]
+            prior = ()
+            if re.search("それ|その結果", canonical) and 入力.get("前回有効") and 入力.get("前回結果") is not None:
+                old = 結果を復元(入力["前回結果"])
+                if 回答記録整合(old):
+                    prior = tuple((f"前回:{i}", 能力結果を復元(v)) for i, v in enumerate(old.データ["元結果"]))
+            構文化器 = 運用構文化器()
+            ir = 構文化器.コンパイル(canonical)
+            projected = HDSから目的要求(ir, sources, 前回成果=prior)
+            if not projected.成立:
+                raise ValueError(projected.理由)
+            if canonical != request.原文:
+                literals = tuple(m.span() for m in re.finditer('「[^「」]*」', request.原文))
+                refs = tuple(m.span() for m in re.finditer("それ|その結果", request.原文))
+                equations = tuple((a, b) for a, b in literals if "=" in request.原文[a:b])
+                _HDS照合(構文化器.コンパイル(request.原文), literals, refs, equations)
+            planned = 目録.単体目的.計画する(projected.要求)
+            if not planned.成立:
+                raise ValueError(planned.理由)
+            plan, materials = planned.計画, planned.資料
+            coverage = 構造を保存(planned.要求被覆)
+        else:
+            raise ValueError("この会話行為はHDS通常運用に未接続:" + request.行為)
+    役割データ = {}
+    if goal is not None:
+        allow = 入力["外部許可"] and not (request and request.外部禁止)
+        planned = 目録.複数目的.計画する(goal, materials, 禁止=tuple(禁止), 外部許可=allow)
+        plan, materials = planned.計画, planned.資料
+        coverage = 構造を保存(planned.要求被覆)
+        役割データ = {"目的": asdict(goal), "工程作用": 正準(planned.工程作用),
+                     "入力役割": 構造を保存(planned.入力役割), "作用契約印": planned.作用契約印}
+    elif kind == "会話回答":
+        materials = deepcopy(materials)
+        materials["運用:回答指示"] = 能力結果(True, "得られた成果を回答へ構成する")
+        materials["運用:回答設定"] = 能力結果(True, "", データ={"詳細": detail})
+        plan = 合成計画((*plan.工程, 合成工程("運用:回答", ("会話回答構成",), "運用:回答指示",
+                            tuple(素材参照("工程", k) for k in plan.出力工程), "運用:回答設定")), ("運用:回答",))
+    allow = 入力["外部許可"] and not (request and request.外部禁止)
+    try:
+        目録.構造検査器._準備(plan, materials, allow)
+    except _打切り as exc:
+        raise ValueError(str(exc)) from exc
+    return 正準({"方式": "能力計画", "計画": 計画を保存(plan),
+                 "資料": {k: 結果を保存(v) for k, v in materials.items()}, "被覆": coverage,
+                 "回答種別": kind, "外部許可": allow, "目録": 目録.ハッシュ, "役割": 役割データ,
+                 "禁止": list(禁止), "原文": 入力["原文"], "解釈": 解釈})

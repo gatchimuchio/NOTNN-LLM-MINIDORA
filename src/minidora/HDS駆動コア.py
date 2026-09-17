@@ -40,6 +40,8 @@ class HDS駆動コア:
         最終検証器: Sequence[HDS検証器] = (),
         関係規則=(),
         未来制約=(),
+        作用供給器=(),
+        停止要求=None,
     ) -> None:
         self.HDSコンパイラ = HDSコンパイラ
         if type(最大作用回数) is not int or not 1 <= 最大作用回数 <= 4096:
@@ -52,6 +54,8 @@ class HDS駆動コア:
         self.最終検証器 = tuple(最終検証器)
         self.関係規則 = tuple(関係規則)
         self.未来制約 = tuple(未来制約)
+        self.作用供給器 = tuple(作用供給器)
+        self.停止要求 = 停止要求
 
     def 実行(
         self,
@@ -125,6 +129,7 @@ class HDS駆動コア:
             政策=self.政策, 観測器=self.観測器, 仮説雛型=self.仮説雛型,
             検証器=self.検証器, 最終検証器=self.最終検証器,
             関係規則=self.関係規則, 未来制約=self.未来制約,
+            作用供給器=self.作用供給器, 停止要求=self.停止要求,
         ).実行(初期)
 
 
