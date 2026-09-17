@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, fields, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass, replace
 from enum import StrEnum
 from hashlib import sha256
 import json
@@ -8,43 +8,32 @@ import math
 from typing import Callable, Protocol, Sequence
 
 
-HDS実行主体版 = "HDS実行主体-v1"
+from .統合駆動_v2.値 import 正規化 as _正規化v2, 署名 as _署名v2, 文字列組, 整数, 文字
+from .統合駆動_v2.認識 import HDS認識項目, HDS認識差, 認識区分
+from .統合駆動_v2.依存 import HDS依存辺
+from .統合駆動_v2.記憶 import HDS記憶
+from .統合駆動_v2.仮説 import HDS仮説, HDS作業枝, HDS仮説雛型
+from .統合駆動_v2.観測 import HDS観測要求, HDS観測器
+from .統合駆動_v2.検証 import HDS草案, HDS検証器, HDS検証票
+from .統合駆動_v2.形成 import HDS形成関係
+from .統合駆動_v2.政策 import HDS運用政策, HDS阻害, HDS計装, 停止理由
+from .統合駆動_v2.計画 import HDS作用仕様
+from .統合駆動_v2.意味構成 import HDS関係規則
+from .統合駆動_v2.未来 import HDS未来制約, HDS未来状態
+from .統合駆動_v2.診断 import HDS失敗診断
+
+HDS実行主体版 = "HDS実行主体-v3"
 
 
-def _正規化(値: object) -> object:
-    """状態署名用の決定論的なJSON互換表現へ落とす。
-
-    未知objectは実行主体の意味正本へ昇格させず、型名とreprだけを監査署名へ使う。
-    """
-    if 値 is None or isinstance(値, (str, int, float, bool)):
-        return 値
-    if isinstance(値, dict):
-        return {
-            str(鍵): _正規化(要素)
-            for 鍵, 要素 in sorted(値.items(), key=lambda 行: str(行[0]))
-        }
-    if isinstance(値, (tuple, list)):
-        return [_正規化(要素) for 要素 in 値]
-    if isinstance(値, (set, frozenset)):
-        return sorted((_正規化(要素) for 要素 in 値), key=repr)
-    if isinstance(値, StrEnum):
-        return 値.value
-    if is_dataclass(値) and not isinstance(値, type):
-        return {
-            項目.name: _正規化(getattr(値, 項目.name))
-            for 項目 in fields(値)
-        }
-    return {"型": type(値).__qualname__, "表現": repr(値)}
+# 旧Adapterの非公開importとの互換名。意味署名の方式はv2へ一括移行する。
+_正規化 = _正規化v2
+_署名 = _署名v2
 
 
-def _署名(値: object) -> str:
-    符号列 = json.dumps(
-        _正規化(値),
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return sha256(符号列).hexdigest()
+def _一意型群(値, 型, 名称):
+    if not isinstance(値, tuple) or any(not isinstance(x, 型) for x in 値):
+        raise TypeError(f"{名称}の要素型が不正")
+    文字列組(tuple(x.ID for x in 値), 名称)
 
 
 def _文字集合を検査(名前: str, 値: frozenset[str]) -> None:
@@ -83,6 +72,18 @@ class HDS実行状態:
     成果: tuple[tuple[str, object], ...] = ()
     主体状態: tuple[tuple[str, object], ...] = ()
     版: int = 0
+    認識: tuple[HDS認識項目, ...] = ()
+    要求認識: frozenset[str] = frozenset()
+    依存: tuple[HDS依存辺, ...] = ()
+    仮説: tuple[HDS仮説, ...] = ()
+    観測要求: tuple[HDS観測要求, ...] = ()
+    記憶: HDS記憶 = HDS記憶()
+    枝: tuple[HDS作業枝, ...] = ()
+    草案: tuple[HDS草案, ...] = ()
+    形成関係: tuple[HDS形成関係, ...] = ()
+    再評価待ち: frozenset[str] = frozenset()
+    認識履歴: tuple[HDS認識項目, ...] = ()
+    検証票: tuple[HDS検証票, ...] = ()
 
     def __post_init__(self) -> None:
         if type(self.版) is not int or self.版 < 0:
@@ -106,6 +107,18 @@ class HDS実行状態:
             raise ValueError("HDS実行状態の主体状態名は空でない文字列である必要がある")
         if len(主体名群) != len(set(主体名群)):
             raise ValueError("HDS実行状態の主体状態名は一意である必要がある")
+        _文字集合を検査("要求認識", self.要求認識)
+        _文字集合を検査("再評価待ち", self.再評価待ち)
+        for 名称, 型 in (("認識", HDS認識項目), ("仮説", HDS仮説), ("観測要求", HDS観測要求), ("枝", HDS作業枝), ("草案", HDS草案), ("形成関係", HDS形成関係)):
+            _一意型群(getattr(self, 名称), 型, 名称)
+        if not isinstance(self.依存, tuple) or any(not isinstance(x, HDS依存辺) for x in self.依存) or len(set(self.依存)) != len(self.依存):
+            raise ValueError("依存辺の型または一意性が不正")
+        if not isinstance(self.記憶, HDS記憶):
+            raise TypeError("HDS記憶型が必要")
+        if not isinstance(self.認識履歴, tuple) or any(not isinstance(x, HDS認識項目) for x in self.認識履歴):
+            raise TypeError("認識履歴の型が不正")
+        if not isinstance(self.検証票, tuple) or any(not isinstance(x, HDS検証票) for x in self.検証票):
+            raise TypeError("検証票の型が不正")
 
     @property
     def 未達状態(self) -> frozenset[str]:
@@ -113,7 +126,8 @@ class HDS実行状態:
 
     @property
     def 閉包済み(self) -> bool:
-        return not self.未達状態 and not self.残差
+        from .統合駆動_v2.状態更新 import 閉包可能
+        return 閉包可能(self)
 
     @property
     def 状態署名(self) -> str:
@@ -124,13 +138,33 @@ class HDS実行状態:
             tuple(sorted(self.残差)),
             self.成果,
             self.主体状態,
+            tuple(sorted(((x.ID, x.意味署名) for x in self.認識))),
+            self.要求認識,
+            tuple(sorted(self.依存)),
+            tuple(sorted(self.仮説, key=lambda x: x.ID)),
+            tuple(sorted(self.観測要求, key=lambda x: x.ID)),
+            self.記憶.正本署名,
+            self.記憶.圧縮,
+            self.枝,
+            self.草案,
+            self.形成関係,
+            self.再評価待ち,
         ))
 
     def 成果辞書(self) -> dict[str, object]:
-        return dict(self.成果)
+        from copy import deepcopy
+        return deepcopy(dict(self.成果))
 
     def 主体辞書(self) -> dict[str, object]:
-        return dict(self.主体状態)
+        from copy import deepcopy
+        return deepcopy(dict(self.主体状態))
+
+    def 認識辞書(self) -> dict[str, HDS認識項目]:
+        return {x.ID: x for x in self.認識}
+
+    def ノード署名(self, ノード: str) -> str:
+        from .統合駆動_v2.状態更新 import ノード署名
+        return ノード署名(self, ノード)
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +177,11 @@ class HDS状態差:
     追加残差: tuple[str, ...] = ()
     変更成果: tuple[str, ...] = ()
     変更主体状態: tuple[str, ...] = ()
+    認識差: tuple[HDS認識差, ...] = ()
+    影響対象: tuple[str, ...] = ()
+    失効対象: tuple[str, ...] = ()
+    変更依存: tuple[HDS依存辺, ...] = ()
+    変更資料: tuple[str, ...] = ()
 
     @property
     def 変化有無(self) -> bool:
@@ -160,6 +199,13 @@ class HDS作用機会:
     優先度: float = 0.0
     状態変更可能: bool = True
     根拠: tuple[str, ...] = ()
+    読取認識: tuple[str, ...] = ()
+    読取成果: tuple[str, ...] = ()
+    必要権限: tuple[str, ...] = ()
+    識別対象: tuple[str, ...] = ()
+    種別: str = "通常"
+    契約版: str = "v1"
+    未確定読取: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.作用ID, str) or not self.作用ID.strip():
@@ -177,6 +223,10 @@ class HDS作用機会:
             raise TypeError("HDS作用の状態変更可能はboolである必要がある")
         if not isinstance(self.根拠, tuple) or any(not isinstance(項目, str) for 項目 in self.根拠):
             raise TypeError("HDS作用の根拠は文字列tupleである必要がある")
+        for 名称 in ("読取認識", "読取成果", "必要権限", "識別対象", "未確定読取"):
+            文字列組(getattr(self, 名称), 名称)
+        if not self.契約版 or not self.種別:
+            raise ValueError("作用契約版と種別は空にできない")
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,6 +240,21 @@ class HDS作用結果:
     主体状態差分: tuple[tuple[str, object], ...] = ()
     理由: tuple[str, ...] = ()
     停止要求: bool = False
+    認識更新: tuple[HDS認識項目, ...] = ()
+    認識削除: frozenset[str] = frozenset()
+    依存追加: tuple[HDS依存辺, ...] = ()
+    依存削除: tuple[HDS依存辺, ...] = ()
+    仮説更新: tuple[HDS仮説, ...] = ()
+    観測要求追加: tuple[HDS観測要求, ...] = ()
+    記憶更新: HDS記憶 | None = None
+    枝更新: tuple[HDS作業枝, ...] = ()
+    草案更新: tuple[HDS草案, ...] = ()
+    形成更新: tuple[HDS形成関係, ...] = ()
+    成果削除: frozenset[str] = frozenset()
+    検証依存: tuple[tuple[str, str], ...] = ()
+    検証票追加: tuple[HDS検証票, ...] = ()
+    阻害: HDS阻害 | None = None
+    診断: HDS失敗診断 | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.状態, HDS作用状態):
@@ -220,6 +285,24 @@ class HDS作用結果:
             raise TypeError("HDS作用結果の理由は文字列tupleである必要がある")
         if type(self.停止要求) is not bool:
             raise TypeError("HDS作用結果の停止要求はboolである必要がある")
+        for 名称, 型 in (("認識更新", HDS認識項目), ("仮説更新", HDS仮説), ("観測要求追加", HDS観測要求), ("枝更新", HDS作業枝), ("草案更新", HDS草案), ("形成更新", HDS形成関係)):
+            _一意型群(getattr(self, 名称), 型, 名称)
+        for 名称 in ("認識削除", "成果削除"):
+            _文字集合を検査(名称, getattr(self, 名称))
+        if self.認識削除 & {x.ID for x in self.認識更新} or self.成果削除 & {x[0] for x in self.成果}:
+            raise ValueError("同一項目の更新・削除は同時にできない")
+        for 群 in (self.依存追加, self.依存削除):
+            if not isinstance(群, tuple) or any(not isinstance(x, HDS依存辺) for x in 群) or len(set(群)) != len(群):
+                raise ValueError("依存変更の型・一意性が不正")
+        if set(self.依存追加) & set(self.依存削除):
+            raise ValueError("同じ依存辺を追加・削除できない")
+        if self.記憶更新 is not None and not isinstance(self.記憶更新, HDS記憶):
+            raise TypeError("記憶更新型が不正")
+        if self.阻害 is not None and not isinstance(self.阻害, HDS阻害):
+            raise TypeError("阻害型が不正")
+        文字列組(tuple(k for k, _ in self.検証依存), "検証依存ノード")
+        if any(not isinstance(x, HDS検証票) for x in self.検証票追加):
+            raise TypeError("検証票型が不正")
 
 
 @dataclass(frozen=True, slots=True)
@@ -234,6 +317,23 @@ class HDS作用記録:
     対象残差: tuple[str, ...]
     対象未達状態: tuple[str, ...]
     理由: tuple[str, ...] = ()
+    消費認識: tuple[str, ...] = ()
+    消費資源: int = 0
+    阻害: HDS阻害 | None = None
+    計画由来: tuple[str, ...] = ()
+
+    未来状態: tuple[HDS未来状態, ...] = ()
+    診断: HDS失敗診断 | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class HDS入力更新記録:
+    番号: int
+    作用履歴位置: int
+    入力署名: str
+    前状態署名: str
+    後状態署名: str
+    状態差: HDS状態差
 
 
 @dataclass(frozen=True, slots=True)
@@ -242,6 +342,11 @@ class HDS実行結果:
     状態: HDS実行状態
     履歴: tuple[HDS作用記録, ...]
     理由: tuple[str, ...] = ()
+    停止種別: 停止理由 | None = None
+    計装: HDS計装 = HDS計装()
+    観測待ち: tuple[HDS観測要求, ...] = ()
+    阻害履歴: tuple[HDS阻害, ...] = ()
+    入力履歴: tuple[HDS入力更新記録, ...] = ()
 
 
 class HDS作用器(Protocol):
@@ -267,7 +372,8 @@ class 標準HDS作用選択器:
         履歴: Sequence[HDS作用記録] = (),
     ) -> HDS作用機会 | None:
         使用済み = {(項目.作用ID, 項目.作用入力署名) for 項目 in 履歴}
-        候補列: list[tuple[int, float, float, int, str, HDS作用機会]] = []
+        from .統合駆動_v2.仮説 import 識別対数
+        候補列 = []
         for 機会 in 機会群:
             if not 機会.状態変更可能:
                 continue
@@ -276,7 +382,7 @@ class 標準HDS作用選択器:
             if (機会.作用ID, 機会.作用入力署名) in 使用済み:
                 continue
             残差被覆 = len(状態.残差.intersection(機会.解消対象))
-            状態被覆 = len(状態.未達状態.intersection(機会.出力状態))
+            状態被覆 = len(状態.未達状態.intersection(機会.出力状態)) + len(set(機会.識別対象).intersection(状態.要求認識))
             直接被覆 = 残差被覆 + 状態被覆
             特異度 = (
                 直接被覆 / max(1, len(機会.解消対象) + len(機会.出力状態))
@@ -284,6 +390,7 @@ class 標準HDS作用選択器:
             )
             候補列.append((
                 直接被覆,
+                sum(識別対数(状態.仮説, ID) for ID in 機会.識別対象),
                 特異度,
                 float(機会.優先度),
                 max(0, int(機会.資源負荷)),
@@ -292,7 +399,7 @@ class 標準HDS作用選択器:
             ))
         if not 候補列:
             return None
-        候補列.sort(key=lambda 行: (-行[0], -行[1], -行[2], 行[3], 行[4]))
+        候補列.sort(key=lambda 行: (-行[0], -行[1], -行[2], -行[3], 行[4], 行[5]))
         return 候補列[0][-1]
 
 
@@ -312,9 +419,19 @@ class HDS関数作用:
         根拠: Sequence[str] = (),
         機会判定: Callable[[HDS実行状態], bool] | None = None,
         入力署名: Callable[[HDS実行状態], str] | None = None,
+        読取認識: Sequence[str] = (),
+        読取成果: Sequence[str] = (),
+        必要権限: Sequence[str] = (),
+        契約版: str = "v1",
+        計画仕様: HDS作用仕様 | None = None,
+        純粋作用: bool = False,
     ) -> None:
-        if not 作用ID:
-            raise ValueError("作用IDは空にできない")
+        文字(作用ID, "作用ID")
+        整数(資源負荷, "作用資源負荷")
+        if type(優先度) not in (int, float) or not math.isfinite(優先度):
+            raise ValueError("作用優先度は有限数が必要")
+        if not callable(実行関数):
+            raise TypeError("作用実行関数が必要")
         self.作用ID = 作用ID
         self._実行関数 = 実行関数
         self._入力状態 = frozenset(str(x) for x in 入力状態)
@@ -325,11 +442,27 @@ class HDS関数作用:
         self._根拠 = tuple(str(x) for x in 根拠)
         self._機会判定 = 機会判定
         self._入力署名 = 入力署名
+        self._読取認識 = tuple(読取認識)
+        self._読取成果 = tuple(読取成果)
+        self._必要権限 = tuple(必要権限)
+        self._契約版 = 契約版
+        self.計画仕様 = 計画仕様 or HDS作用仕様(
+            作用ID, self._入力状態, self._出力状態, 解消残差=self._解消対象,
+            読取認識=self._読取認識, 必要権限=self._必要権限,
+            資源負荷=self._資源負荷, 版=契約版, 純粋=純粋作用,
+        )
+        if self.計画仕様.作用ID != self.作用ID:
+            raise ValueError("計画仕様と作用IDが異なる")
 
     def 機会(self, 状態: HDS実行状態) -> HDS作用機会 | None:
         if self._機会判定 is not None and not bool(self._機会判定(状態)):
             return None
-        署名 = self._入力署名(状態) if self._入力署名 is not None else 状態.状態署名
+        if self._入力署名 is not None:
+            署名 = self._入力署名(状態)
+        elif self._読取認識 or self._読取成果:
+            署名 = _署名((self._契約版, tuple((k, 状態.ノード署名("認識:" + k)) for k in self._読取認識), tuple((k, 状態.ノード署名("成果:" + k)) for k in self._読取成果), tuple((k, 状態.ノード署名("状態:" + k)) for k in sorted(self._入力状態))))
+        else:
+            署名 = 状態.状態署名
         return HDS作用機会(
             self.作用ID,
             str(署名),
@@ -340,6 +473,10 @@ class HDS関数作用:
             self._優先度,
             True,
             self._根拠,
+            self._読取認識,
+            self._読取成果,
+            self._必要権限,
+            契約版=self._契約版,
         )
 
     def 実行(self, 状態: HDS実行状態) -> HDS作用結果:
@@ -350,157 +487,64 @@ class HDS関数作用:
 
 
 class HDS実行主体:
-    """MINIDORA内部で制御権・状態所有権・採否権・再作用権を持つHDS主体。"""
+    """観測・再評価・修復・採否を同じ通常循環で所有する。外付け監督は呼ばない。"""
 
-    def __init__(
-        self,
-        作用群: Sequence[HDS作用器],
-        *,
-        作用選択器: 標準HDS作用選択器 | None = None,
-        最大作用回数: int = 32,
-    ) -> None:
+    def __init__(self, 作用群: Sequence[HDS作用器], *,
+                 作用選択器: 標準HDS作用選択器 | None = None,
+                 最大作用回数: int = 32,
+                 政策: HDS運用政策 | None = None,
+                 観測器: Sequence[HDS観測器] = (),
+                 仮説雛型: Sequence[HDS仮説雛型] = (),
+                 検証器: Sequence[HDS検証器] = (),
+                 最終検証器: Sequence[HDS検証器] = (),
+                 関係規則: Sequence[HDS関係規則] = (),
+                 未来制約: Sequence[HDS未来制約] = ()) -> None:
         if type(最大作用回数) is not int or not 1 <= 最大作用回数 <= 4096:
             raise ValueError("HDS最大作用回数は1..4096の整数である必要がある")
-        固定作用群 = tuple(作用群)
-        作用ID群 = [str(項目.作用ID) for 項目 in 固定作用群]
-        if any(not 作用ID.strip() for 作用ID in 作用ID群):
-            raise ValueError("HDS作用IDは空にできない")
-        if len(作用ID群) != len(set(作用ID群)):
-            raise ValueError("HDS作用IDは実行主体内で一意である必要がある")
-        self.作用群 = 固定作用群
+        self.作用群 = tuple(作用群)
+        文字列組(tuple(x.作用ID for x in self.作用群), "作用ID")
+        if any(x.作用ID.startswith("内的/") for x in self.作用群):
+            raise ValueError("内的/はコア内部作用の予約名前空間")
         self.作用選択器 = 作用選択器 or 標準HDS作用選択器()
         self.最大作用回数 = 最大作用回数
+        self.政策 = 政策 if 政策 is not None else HDS運用政策()
+        if not isinstance(self.政策, HDS運用政策):
+            raise TypeError("HDS運用政策型が必要")
+        self.観測器 = tuple(観測器)
+        self.仮説雛型 = tuple(仮説雛型)
+        self.検証器 = tuple(検証器)
+        self.最終検証器 = tuple(最終検証器)
+        self.関係規則 = tuple(関係規則)
+        self.未来制約 = tuple(未来制約)
+        _一意型群(self.関係規則, HDS関係規則, "関係規則")
+        _一意型群(self.未来制約, HDS未来制約, "未来制約")
+        for 名称, 型 in (("観測器", HDS観測器), ("仮説雛型", HDS仮説雛型), ("検証器", HDS検証器), ("最終検証器", HDS検証器)):
+            _一意型群(getattr(self, 名称), 型, 名称)
 
     @staticmethod
-    def _状態更新(前: HDS実行状態, 作用結果: HDS作用結果) -> tuple[HDS実行状態, HDS状態差]:
-        成立状態群 = set(前.成立状態)
-        成立状態群.difference_update(作用結果.削除状態)
-        成立状態群.update(作用結果.追加状態)
-
-        残差群 = set(前.残差)
-        残差群.difference_update(作用結果.解消残差)
-        残差群.update(作用結果.追加残差)
-
-        成果辞書 = 前.成果辞書()
-        成果辞書.update(dict(作用結果.成果))
-        主体辞書 = 前.主体辞書()
-        主体辞書.update(dict(作用結果.主体状態差分))
-
-        暫定 = HDS実行状態(
-            前.目的,
-            前.要求状態,
-            frozenset(成立状態群),
-            frozenset(残差群),
-            tuple(sorted(成果辞書.items(), key=lambda 行: 行[0])),
-            tuple(sorted(主体辞書.items(), key=lambda 行: 行[0])),
-            前.版,
-        )
-        変化 = 暫定.状態署名 != 前.状態署名
-        後 = HDS実行状態(
-            暫定.目的,
-            暫定.要求状態,
-            暫定.成立状態,
-            暫定.残差,
-            暫定.成果,
-            暫定.主体状態,
-            前.版 + 1 if 変化 else 前.版,
-        )
-
-        前成果 = 前.成果辞書()
-        後成果 = 後.成果辞書()
-        変更成果 = tuple(sorted(
-            鍵 for 鍵 in set(前成果) | set(後成果)
-            if _正規化(前成果.get(鍵)) != _正規化(後成果.get(鍵))
-        ))
-        前主体 = 前.主体辞書()
-        後主体 = 後.主体辞書()
-        変更主体 = tuple(sorted(
-            鍵 for 鍵 in set(前主体) | set(後主体)
-            if _正規化(前主体.get(鍵)) != _正規化(後主体.get(鍵))
-        ))
-        状態差 = HDS状態差(
-            前.状態署名,
-            後.状態署名,
-            tuple(sorted(後.成立状態 - 前.成立状態)),
-            tuple(sorted(前.成立状態 - 後.成立状態)),
-            tuple(sorted(前.残差 - 後.残差)),
-            tuple(sorted(後.残差 - 前.残差)),
-            変更成果,
-            変更主体,
-        )
-        return 後, 状態差
+    def _状態更新(前: HDS実行状態, 作用結果: HDS作用結果):
+        from .統合駆動_v2.状態更新 import 状態更新
+        return 状態更新(前, 作用結果)
 
     def 実行(self, 初期状態: HDS実行状態) -> HDS実行結果:
-        if not isinstance(初期状態, HDS実行状態):
-            raise TypeError("HDS実行主体にはHDS実行状態が必要")
-        現在 = 初期状態
-        履歴: list[HDS作用記録] = []
+        from .統合駆動_v2.循環 import 通常循環
+        return 通常循環(self, 初期状態)
 
-        for 番号 in range(1, self.最大作用回数 + 1):
-            if 現在.閉包済み:
-                return HDS実行結果(
-                    HDS終端.採用,
-                    現在,
-                    tuple(履歴),
-                    ("HDS_GOAL_CLOSED",),
-                )
-
-            機会群: list[HDS作用機会] = []
-            ID別作用: dict[str, HDS作用器] = {}
-            for 作用 in self.作用群:
-                機会 = 作用.機会(現在)
-                if 機会 is None:
-                    continue
-                if 機会.作用ID != 作用.作用ID:
-                    raise ValueError("HDS作用器と作用機会の作用IDが一致しない")
-                機会群.append(機会)
-                ID別作用[機会.作用ID] = 作用
-
-            選択 = self.作用選択器.選択(現在, tuple(機会群), tuple(履歴))
-            if 選択 is None:
-                return HDS実行結果(
-                    HDS終端.保留,
-                    現在,
-                    tuple(履歴),
-                    ("HDS_NO_PRODUCTIVE_ACTION",),
-                )
-
-            前状態 = 現在
-            作用結果 = ID別作用[選択.作用ID].実行(前状態)
-            if not isinstance(作用結果, HDS作用結果):
-                raise TypeError("HDS作用器はHDS作用結果を返す必要がある")
-            現在, 状態差 = self._状態更新(前状態, 作用結果)
-            記録 = HDS作用記録(
-                番号,
-                選択.作用ID,
-                選択.作用入力署名,
-                作用結果.状態,
-                前状態.状態署名,
-                現在.状態署名,
-                状態差,
-                tuple(sorted(前状態.残差.intersection(選択.解消対象))),
-                tuple(sorted(前状態.未達状態.intersection(選択.出力状態))),
-                tuple(作用結果.理由),
-            )
-            履歴.append(記録)
-
-            if 作用結果.停止要求:
-                終端 = HDS終端.失敗 if 作用結果.状態 == HDS作用状態.失敗 else HDS終端.保留
-                return HDS実行結果(
-                    終端,
-                    現在,
-                    tuple(履歴),
-                    tuple(dict.fromkeys(("HDS_ACTION_REQUESTED_STOP", *作用結果.理由))),
-                )
-
-        if 現在.閉包済み:
-            return HDS実行結果(HDS終端.採用, 現在, tuple(履歴), ("HDS_GOAL_CLOSED",))
-        return HDS実行結果(
-            HDS終端.保留,
-            現在,
-            tuple(履歴),
-            ("HDS_ACTION_BUDGET_EXHAUSTED",),
-        )
+    def 再開(self, 前回: HDS実行結果, 追加入力: HDS作用結果 | None = None) -> HDS実行結果:
+        from .統合駆動_v2.循環 import 通常循環
+        if not isinstance(前回, HDS実行結果):
+            raise TypeError("再開には実行結果が必要")
+        if 前回.停止種別 in (停止理由.権限制約, 停止理由.方針制約):
+            raise ValueError("権限・方針停止を再開APIで迂回できない")
+        状態 = 前回.状態
+        if 追加入力 is not None:
+            状態, 差 = self._状態更新(状態, 追加入力)
+            入力記録 = HDS入力更新記録(len(前回.入力履歴) + 1, len(前回.履歴), _署名(追加入力),
+                                       前回.状態.状態署名, 状態.状態署名, 差)
+            前回 = replace(前回, 入力履歴=前回.入力履歴 + (入力記録,),
+                           計装=replace(前回.計装, 外部入力数=前回.計装.外部入力数 + 1,
+                                        依存失効数=前回.計装.依存失効数 + len(差.失効対象)))
+        return 通常循環(self, 状態, 前回)
 
 
 __all__ = [
@@ -513,6 +557,7 @@ __all__ = [
     "HDS作用結果",
     "HDS作用記録",
     "HDS実行結果",
+    "HDS入力更新記録",
     "HDS作用器",
     "標準HDS作用選択器",
     "HDS関数作用",
