@@ -137,6 +137,37 @@ def 通常循環(主体, 初期状態, 前回=None):
         return 行
 
     while True:
+        # 停止と供給も同じ通常循環の境界。上位の第二実行主体は置かない。
+        try:
+            if 主体.停止要求 is not None:
+                停止 = 主体.停止要求()
+                if type(停止) is not bool:
+                    raise TypeError("停止要求はboolを返す必要がある")
+                if 停止:
+                    return 終了(HDS終端.保留, 停止理由.明示停止, ("HDS_USER_CANCELLED",))
+            供給 = []
+            for 供給器 in 主体.作用供給器:
+                写し = deepcopy(現在)
+                前署名 = 写し.状態署名
+                候補 = 供給器.構成(写し)
+                if 写し.状態署名 != 前署名:
+                    raise ValueError("作用供給器が状態を変更した")
+                if type(候補) is not tuple:
+                    raise TypeError("作用供給器の返却はtupleが必要")
+                if len(供給) + len(候補) > 政策.最大内部生成:
+                    return 終了(HDS終端.保留, 停止理由.予算枯渇, ("HDS_SUPPLY_CAPACITY_EXHAUSTED",))
+                for a in 候補:
+                    if (not isinstance(getattr(a, "作用ID", None), str) or not a.作用ID.strip()
+                            or a.作用ID.startswith("内的/")
+                            or not callable(getattr(a, "機会", None))
+                            or not callable(getattr(a, "実行", None))):
+                        raise ValueError("供給作用の契約不正")
+                供給.extend(候補)
+            利用作用群 = (*主体.作用群, *供給)
+            if len({a.作用ID for a in 利用作用群}) != len(利用作用群):
+                raise ValueError("供給作用IDの重複")
+        except Exception as exc:
+            return 契約失敗("作用供給・停止境界", exc)
         if any(c.違反(現在.成立状態) for c in 主体.未来制約):
             阻害履歴.append(HDS阻害(停止理由.契約違反, "状態制約", "現在状態が明示不変条件に違反"))
             return 終了(HDS終端.失敗, 停止理由.契約違反, ("HDS_STATE_INVARIANT_VIOLATION",))
@@ -149,7 +180,7 @@ def 通常循環(主体, 初期状態, 前回=None):
             if not 主体.最終検証器 or 現在.状態署名 in 最終検証済:
                 if 政策.自動形成 and not 形成試行済 and 前回 is None:
                     形成試行済 = True
-                    形成 = 自動経験形成作用(初期状態, tuple(履歴), 主体.作用群, 主体.最終検証器)
+                    形成 = 自動経験形成作用(初期状態, tuple(履歴), 利用作用群, 主体.最終検証器)
                     機会 = 形成.機会(現在)
                     if 機会 is not None and len(履歴) < 主体.最大作用回数 and 統計["消費資源"] + 機会.資源負荷 <= 政策.最大資源:
                         記録する(機会, 形成.実行(deepcopy(現在)))
@@ -197,7 +228,7 @@ def 通常循環(主体, 初期状態, 前回=None):
                 return 終了(HDS終端.保留, 停止理由.無進展, ("HDS_NO_EVIDENCE_FOR_EFFORT_INCREASE",))
 
         修復状態 = frozenset(k for b in 失敗入力.values() if b.修復可能 for k in b.必要状態)
-        関連仕様 = _関連仕様(現在, 主体.作用群, 修復状態)
+        関連仕様 = _関連仕様(現在, 利用作用群, 修復状態)
         必要認識 = 現在.要求認識 | frozenset(k for s in 関連仕様 for k in s.読取認識)
         必要認識 |= frozenset(k for b in 失敗入力.values() if b.修復可能 for k in b.必要認識)
         待ち = list(必要認識)
@@ -225,7 +256,7 @@ def 通常循環(主体, 初期状態, 前回=None):
         差による再照合 = bool(履歴 and (履歴[-1].状態差.認識差 or 履歴[-1].状態差.変更依存))
         if len(履歴) % 政策.大域間隔 == 0 or 差による再照合 or any(x.区分 == 認識区分.競合 for x in 現在.認識):
             内的.append(仮説再照合作用())
-        全作用 = tuple(主体.作用群) + tuple(内的)
+        全作用 = tuple(利用作用群) + tuple(内的)
         ID別 = {}
         全機会 = {}
         選択可能 = []
@@ -304,7 +335,7 @@ def 通常循環(主体, 初期状態, 前回=None):
                 if 政策.許可判定(o.作用ID, o.必要権限):
                     continue
                 計画用.append(replace(s, 入力状態=o.入力状態, 読取認識=o.読取認識, 必要権限=o.必要権限))
-            文脈 = 自動形成文脈(現在, 主体.作用群)
+            文脈 = 自動形成文脈(現在, 利用作用群)
             for 関係 in 現在.形成関係:
                 計画 = 形成手順を再利用(関係, 現在.成立状態, 現在.残差, 現在.要求状態 | 修復状態,
                                      tuple(計画用), 文脈, 政策.最大資源 - 統計["消費資源"])
@@ -378,7 +409,7 @@ def 通常循環(主体, 初期状態, 前回=None):
                                阻害=阻害, 診断=診断)
         try:
             planned = 計画.作用列 if 計画 is not None and 計画.成立 and 選択.作用ID == 計画.作用列[0] else ()
-            specs = tuple(getattr(a, "計画仕様") for a in 主体.作用群 if isinstance(getattr(a, "計画仕様", None), HDS作用仕様))
+            specs = tuple(getattr(a, "計画仕様") for a in 利用作用群 if isinstance(getattr(a, "計画仕様", None), HDS作用仕様))
             未来 = 未来列を構成(現在.成立状態, 現在.残差, planned, specs, 主体.未来制約) if planned else ()
             記録する(選択, 結果, planned, 未来)
         except Exception as exc:

@@ -1,0 +1,63 @@
+"""HDS通常運用の同期CLI。資料と実行命令を分け、全経路を同じ主体へ渡す。"""
+from __future__ import annotations
+import argparse
+from pathlib import Path
+import sys
+from .セッション import HDS運用セッション
+from .製品 import HDS製品ミニドラ
+from ..製品版.api import serve
+
+
+def main():
+    parser = argparse.ArgumentParser(description="HDS-MINIDORA 全体運用")
+    parser.add_argument("--serve", action="store_true", help="既存画面・APIをローカル限定で起動")
+    parser.add_argument("--外部読取", action="store_true")
+    parser.add_argument("--session", default="cli")
+    parser.add_argument("--資料", action="append", default=[], metavar="名前=ファイル")
+    parser.add_argument("--復元", type=Path)
+    parser.add_argument("--保存", type=Path)
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("message", nargs="*")
+    args = parser.parse_args()
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="strict")
+    if args.serve:
+        if args.復元 or args.保存 or args.資料 or args.message:
+            parser.error("サーバ起動にCLI専用の資料・保存・入力指定は併用できません")
+        serve(HDS製品ミニドラ(外部読取許可=args.外部読取), host="127.0.0.1", 同一生成元限定=True)
+        return 0
+    session = (HDS運用セッション.復元(args.復元.read_text(encoding="utf-8"), 外部読取許可=args.外部読取)
+               if args.復元 else HDS運用セッション(args.session, 外部読取許可=args.外部読取))
+    for item in args.資料:
+        name, separator, path = item.partition("=")
+        if not separator:
+            parser.error("資料は名前=ファイルで指定してください")
+        結果 = session.資料を登録(name, Path(path).read_text(encoding="utf-8"))
+        if not 結果.成立:
+            print(結果.本文, file=sys.stderr)
+            return 2
+    def run(text):
+        結果 = session.応答(text, 外部読取許可=args.外部読取)
+        if args.json:
+            import json
+            print(json.dumps(結果.辞書化(), ensure_ascii=False))
+        else:
+            print(結果.本文)
+        if args.保存:
+            session.保存先へ書く(args.保存)
+        return 0 if 結果.成立 else 2
+    if args.message:
+        return run(" ".join(args.message))
+    while True:
+        try:
+            text = input("HDS> ")
+        except EOFError:
+            return 0
+        if text in ("exit", "quit"):
+            return 0
+        run(text)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

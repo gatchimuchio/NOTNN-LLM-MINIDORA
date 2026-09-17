@@ -486,6 +486,24 @@ class HDS関数作用:
         return 結果
 
 
+@dataclass(frozen=True, slots=True)
+class HDS作用供給器:
+    """現在状態から作用候補を構成する読取専用の供給境界。
+
+    選択・実行・採否は行わない。資料内の命令から実行コードを登録しない。
+    供給器自身と返却する作用器は、呼出側が信頼する実装に限定する。
+    """
+    ID: str
+    構成: Callable
+    版: str = "v1"
+
+    def __post_init__(self):
+        文字(self.ID)
+        文字(self.版)
+        if not callable(self.構成):
+            raise TypeError("作用供給器には構成関数が必要")
+
+
 class HDS実行主体:
     """観測・再評価・修復・採否を同じ通常循環で所有する。外付け監督は呼ばない。"""
 
@@ -498,10 +516,17 @@ class HDS実行主体:
                  検証器: Sequence[HDS検証器] = (),
                  最終検証器: Sequence[HDS検証器] = (),
                  関係規則: Sequence[HDS関係規則] = (),
-                 未来制約: Sequence[HDS未来制約] = ()) -> None:
+                 未来制約: Sequence[HDS未来制約] = (),
+                 作用供給器: Sequence[HDS作用供給器] = (),
+                 停止要求: Callable[[], bool] | None = None) -> None:
         if type(最大作用回数) is not int or not 1 <= 最大作用回数 <= 4096:
             raise ValueError("HDS最大作用回数は1..4096の整数である必要がある")
         self.作用群 = tuple(作用群)
+        self.作用供給器 = tuple(作用供給器)
+        _一意型群(self.作用供給器, HDS作用供給器, "作用供給器")
+        if 停止要求 is not None and not callable(停止要求):
+            raise TypeError("停止要求は呼出可能である必要がある")
+        self.停止要求 = 停止要求
         文字列組(tuple(x.作用ID for x in self.作用群), "作用ID")
         if any(x.作用ID.startswith("内的/") for x in self.作用群):
             raise ValueError("内的/はコア内部作用の予約名前空間")
@@ -562,4 +587,5 @@ __all__ = [
     "標準HDS作用選択器",
     "HDS関数作用",
     "HDS実行主体",
+    "HDS作用供給器",
 ]
