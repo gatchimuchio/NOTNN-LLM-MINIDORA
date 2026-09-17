@@ -8,13 +8,13 @@ from .値 import 整数
 
 def _型表():
     from . import 認識, 依存, 記憶, 観測, 仮説, 計画, 検証, 形成, 政策, 入力境界, 意味構成, 未来, 診断
-    # 親packageがクラスを同名exportする構成でも、moduleを明示的に取得する。
+    # 親packageがクラスを同名exportする構成でも、モジュールを明示的に取得する。
     import importlib
     核 = importlib.import_module("minidora.HDS実行主体")
     表 = {}
-    for module in (認識, 依存, 記憶, 観測, 仮説, 計画, 検証, 形成, 政策, 入力境界, 意味構成, 未来, 診断, 核):
-        for obj in vars(module).values():
-            if isinstance(obj, type) and obj.__module__ == module.__name__ and (is_dataclass(obj) or issubclass(obj, Enum)):
+    for モジュール in (認識, 依存, 記憶, 観測, 仮説, 計画, 検証, 形成, 政策, 入力境界, 意味構成, 未来, 診断, 核):
+        for obj in vars(モジュール).values():
+            if isinstance(obj, type) and obj.__module__ == モジュール.__name__ and (is_dataclass(obj) or issubclass(obj, Enum)):
                 # Callableを持つ実行部品は保存しない。再開時に現行契約を明示注入する。
                 if is_dataclass(obj) and any(f.metadata.get("意味") is False and f.name in ("取得", "検証") for f in fields(obj)):
                     continue
@@ -55,7 +55,7 @@ def 保存する(値, *, 最大バイト: int = 8_000_000) -> str:
                 raise TypeError("未登録成果型は保存できない: "+key)
             return {"type":key,"fields":{f.name:enc(getattr(x,f.name),深さ+1) for f in fields(x)}}
         raise TypeError("保存できない外部型: "+type(x).__qualname__)
-    payload=json.dumps({"format":"MINIDORA-HDS-STATE-v3","data":enc(値)},ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False)
+    payload=json.dumps({"format":"MINIDORA-HDS-STATE-v3","内容":enc(値)},ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False)
     if len(payload.encode('utf-8'))>最大バイト:
         raise ValueError("保存容量上限")
     return payload
@@ -72,7 +72,7 @@ def 復元する(文字列: str, *, 最大バイト: int = 8_000_000):
             d[k]=v
         return d
     root=json.loads(文字列,object_pairs_hook=unique,parse_constant=lambda _:(_ for _ in ()).throw(ValueError("非有限数")))
-    if not isinstance(root,dict) or set(root)!={"format","data"} or root['format']!='MINIDORA-HDS-STATE-v3':
+    if not isinstance(root,dict) or set(root)!={"format","内容"} or root['format']!='MINIDORA-HDS-STATE-v3':
         raise ValueError("保存形式不一致")
     表=_型表()
     def dec(x,深さ=0):
@@ -108,4 +108,4 @@ def 復元する(文字列: str, *, 最大バイト: int = 8_000_000):
                 out[k]=v
             return out
         raise ValueError("未定義タグ")
-    return dec(root['data'])
+    return dec(root['内容'])
