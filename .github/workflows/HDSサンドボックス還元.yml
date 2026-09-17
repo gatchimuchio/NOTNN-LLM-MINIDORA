@@ -1,0 +1,36 @@
+name: HDS サンドボックス完成差分還元
+on:
+  push:
+    branches:
+      - sandbox/hds-runtime-import-20260917
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: 完成差分の同一性確認と機械的還元
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import bz2, hashlib, os
+          from pathlib import Path
+          packed = b''.join(Path(f'_hds_transfer/part-{i:02d}.bin').read_bytes() for i in range(1, 4))
+          if len(packed) != 34049 or hashlib.sha256(packed).hexdigest() != '741fa9da0a66136b0a41c2991f9525a7ae1a86a8ccacdda0cd7a4308b6250423':
+              raise SystemExit('圧縮差分の同一性不一致')
+          patch = bz2.decompress(packed)
+          if len(patch) != 159333 or hashlib.sha256(patch).hexdigest() != '2df22311fe9d35a2ffbe5b24e18785d68271684e6863c89b29b036441471f6d2':
+              raise SystemExit('完成差分の同一性不一致')
+          (Path(os.environ['RUNNER_TEMP']) / 'hds-runtime.patch').write_bytes(patch)
+          print('サンドボックス完成差分: 同一性確認済み')
+          PY
+          git fetch --no-tags --depth=1 origin 4067f2ee32efb5d4f3f091095e1fa61412ea0792
+          git checkout --detach 4067f2ee32efb5d4f3f091095e1fa61412ea0792
+          git apply --index --whitespace=error-all "$RUNNER_TEMP/hds-runtime.patch"
+          test "$(git write-tree)" = "24f070cff5438873ba6e8033120b139bd8b39dbd"
+          git -c user.name='がっちむち♂' -c user.email='ohira.teppei@gmail.com' commit -m 'HDS通常運用v1: 能力・会話・資料・製品入口を単一HDSへ接続'
+          git push origin HEAD:refs/heads/sandbox/hds-runtime-v1-20260917
+          git rev-parse HEAD HEAD^{tree}
