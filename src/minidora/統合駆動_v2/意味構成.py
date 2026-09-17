@@ -196,7 +196,7 @@ def 関係から仮説を構成(状態, 規則群, *, 最大件数=128):
 
 
 def 仮説から枝を構成(状態):
-    result = []
+    結果群 = []
     認識 = 状態.認識辞書()
     for h in sorted(状態.仮説, key=lambda x: x.ID):
         rows = []
@@ -207,8 +207,8 @@ def 仮説から枝を構成(状態):
             条件 = tuple(sorted(set(h.条件) | {"仮説:" + h.ID}))
             rows.append(replace(base, 値=p.値, 区分=認識区分.失効 if h.区分 in (認識区分.失効, 認識区分.棄却) else 認識区分.条件付き,
                                 条件=条件, 検証契約="", 依存=tuple(sorted(set(base.依存) - {base.ID}))))
-        result.append(HDS作業枝("自動:" + h.ID, ("仮説:" + h.ID,), tuple(rows)))
-    return tuple(result)
+        結果群.append(HDS作業枝("自動:" + h.ID, ("仮説:" + h.ID,), tuple(rows)))
+    return tuple(結果群)
 
 
 class 不足意味構成作用:
@@ -216,8 +216,8 @@ class 不足意味構成作用:
 
     def _生成(self, 状態):
         認識, 要求 = {}, {}
-        for residual in sorted(状態.残差):
-            extracted = 不足を抽出(residual)
+        for 残差名 in sorted(状態.残差):
+            extracted = 不足を抽出(残差名)
             if extracted is None:
                 continue
             p = HDS命題(extracted.対象, extracted.関係, None)
@@ -225,7 +225,7 @@ class 不足意味構成作用:
             if ID not in 状態.認識辞書():
                 認識[ID] = HDS認識項目(ID, p.対象, p.関係)
             existing = next((x for x in 状態.観測要求 if x.ID == ID), None)
-            needed = tuple(sorted(set(existing.解消残差 if existing else ()) | {residual}))
+            needed = tuple(sorted(set(existing.解消残差 if existing else ()) | {残差名}))
             要求[ID] = HDS観測要求(ID, p.対象, p.関係, ("原文範囲:" + str(extracted.開始) + ":" + str(extracted.終了),),
                                   語群=(p.対象, p.関係), 解消残差=needed)
         return tuple(認識.values()), tuple(要求.values())
