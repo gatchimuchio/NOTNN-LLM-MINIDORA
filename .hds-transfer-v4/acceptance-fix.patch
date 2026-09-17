@@ -1,0 +1,66 @@
+diff --git a/docs/HDS全体運用_v4_実装検証.md b/docs/HDS全体運用_v4_実装検証.md
+index 3561c48fccfd7d74a22db4338a31076606cb51e9..b36e4b6c117f584702e0485b60d8a234b4bb5fc6 100644
+--- a/docs/HDS全体運用_v4_実装検証.md
++++ b/docs/HDS全体運用_v4_実装検証.md
+@@ -37,6 +37,12 @@ Linux / Python 3.13.5で以下を実施した。時間はこの環境の観測
+ 
+ この表の全体回帰は**変更前の基点**である。変更後の全体回帰、OS別CI、マージの確定結果は、本差分のPull Request/checksと配布検証成果物に結び付ける。基点CIを今回差分のCIへ読み替えない。
+ 
++## 全体回帰で検出した旧期待値の改訂
++
++変更後の初回全体回帰は3,399件・1,041.141秒、失敗2件・skip 24だった。失敗は旧試験が標準登録数を56、拡張後を57に固定していた箇所で、資料文章5能力の追加後はそれぞれ61・62となる。
++
++個数の期待値を上書きするだけでなく、実v3の56能力すべての名前・外部読取属性と既存の個別能力版を保持し（運用版を名前に含む科学専門接続だけはv3からv4への変更を明示）、差分が新規5能力に一致すること、利用者追加能力が標準目録を変更しないことを検査する形へ改訂した。機能試験や失敗条件の削除・緩和はしていない。改訂前の失敗観測を履歴として保持し、最終の全体回帰・CIはPRと配布検証成果物で別途確認する。
++
+ ## 新規試験の主な対象
+ 
+ - 依頼の語順・敬体・明示主題・複合操作・前者後者の順序と未消費条件。
+diff --git a/tests/test_HDS全体運用_実行.py b/tests/test_HDS全体運用_実行.py
+index ad277ae73c7e2d9ef51610aa54bbe3dfc8cceb17..80daf8692037776c9348ffdfa3ba05a55231e4b3 100644
+--- a/tests/test_HDS全体運用_実行.py
++++ b/tests/test_HDS全体運用_実行.py
+@@ -40,11 +40,23 @@ class 全体運用実行試験(unittest.TestCase):
+                 値 = {"内訳": 値}
+             self.成立(self.会話.資料を登録(名前, json.dumps(値, ensure_ascii=False)))
+ 
+-    def test_全49能力が同一目録へ登録される(self):
++    def test_既存能力と資料文章能力が同一目録へ登録される(self):
+         一覧 = self.会話.能力一覧()
+-        self.assertEqual(len(一覧), 56)
+-        self.assertEqual(len({行["名前"] for 行 in 一覧}), 56)
+-        self.assertIn("科学専門作用", {行["名前"] for 行 in 一覧})
++        現行 = {行["名前"]: 行 for 行 in 一覧}
++        由来 = json.loads((Path(__file__).parent / "資料" / "HDS旧保存" / "由来.json").read_text(encoding="utf-8"))
++        旧記録 = next(行 for 行 in 由来["記録"] if 行["版"] == "v3")
++        既存 = {行["名前"]: 行 for 行 in 旧記録["登録"]}
++        self.assertEqual(既存["科学専門作用"]["版"], "HDS-MINIDORA-全体運用-v3/科学専門接続-1")
++        # 科学専門接続は従来から運用版を版名に含むため、v4への版変更を明示する。
++        既存["科学専門作用"]["版"] = "HDS-MINIDORA-全体運用-v4/科学専門接続-1"
++        追加 = {"資料意味選択", "取得資料意味選択", "資料内容構成", "資料文章照合", "資料文章再表現"}
++        # 個数だけの置換では、既存能力の欠落・版や読取権限の変更を見逃す。
++        self.assertEqual(len(既存), 56)
++        self.assertEqual(set(現行), set(既存) | 追加)
++        self.assertEqual(len(一覧), len(現行))
++        self.assertEqual({名: 現行[名] for 名 in 既存}, 既存)
++        self.assertTrue(all(現行[名]["外部読取"] is False for 名 in 追加))
++        self.assertIn("科学専門作用", 現行)
+ 
+     def test_自然な算術依頼から三部品をHDSで実行(self):
+         結果 = self.成立(self.会話.応答("2+3"))
+diff --git a/tests/test_HDS全体運用_接続.py b/tests/test_HDS全体運用_接続.py
+index 77b3b1953962aa01aba58eda4b1f821ac12ec3f6..2640c5865de19a2f0b22316a815927e663896929 100644
+--- a/tests/test_HDS全体運用_接続.py
++++ b/tests/test_HDS全体運用_接続.py
+@@ -108,7 +108,11 @@ class 作用接続試験(unittest.TestCase):
+         結果 = 会話.役割目的を実行(意味目的("追加成果", {"資料":"A"}), 原文="追加能力の目的を実行する")
+         self.assertTrue(結果.成立, 結果.本文)
+         self.assertEqual(能力.回数, 1)
+-        self.assertEqual(len(会話.能力一覧()), 57)
++        標準 = {行["名前"]: 行 for 行 in HDS運用セッション().能力一覧()}
++        拡張 = {行["名前"]: 行 for 行 in 会話.能力一覧()}
++        self.assertEqual(len(会話.能力一覧()), len(標準) + 1)
++        self.assertEqual(set(拡張), set(標準) | {能力.名前})
++        self.assertEqual({名: 拡張[名] for 名 in 標準}, 標準)
+         self.assertEqual(会話._前回依存.keys(), {"A"})
+         会話.資料を登録("A", "改訂資料", 更新=True)
+         self.assertFalse(会話.状態()["前回有効"])
