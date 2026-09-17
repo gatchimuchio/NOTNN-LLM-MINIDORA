@@ -3,17 +3,27 @@ import argparse, os
 from .製品チャット import 製品ミニドラ
 from .監査 import 監査台帳
 from .api import serve
-from ..標準構成 import 標準ミニドラ
 
 def main() -> int:
     import sys
     p = argparse.ArgumentParser()
     p.add_argument("--serve", action="store_true")
+    p.add_argument("--HDS", action="store_true", help="HDSを実行主体とする共通運用入口を利用")
     p.add_argument("--汎用", action="store_true", help="目的・複数資料・確認継続の会話入口を利用")
     p.add_argument("--外部読取", action="store_true", help="汎用入口で要求された公開資料取得を許可")
     p.add_argument("--session", default="cli")
     p.add_argument("message", nargs="*")
     a = p.parse_args()
+    if a.HDS:
+        if a.汎用:
+            p.error("--HDSと--汎用は同時指定できません")
+        from ..HDS運用.__main__ import main as HDS入口
+        args = ["--session", a.session]
+        if a.serve:
+            args += ["--serve", "--ポート", os.getenv("PORT", "8080")]
+        if a.外部読取:
+            args += ["--外部読取"]
+        return HDS入口([*args, *a.message])
     if a.汎用:
         for stream in (sys.stdin,sys.stdout,sys.stderr):
             if hasattr(stream,"reconfigure"):
@@ -21,6 +31,7 @@ def main() -> int:
     audit = 監査台帳(os.getenv("MINIDORA_AUDIT_LOG") or None)
     if a.外部読取 and not a.汎用:
         p.error("--外部読取は--汎用と共に指定してください")
+    from ..標準構成 import 標準ミニドラ
     app = 製品ミニドラ(基礎ミニドラ=None if a.汎用 else 標準ミニドラ(), 監査台帳_=audit,
                       汎用会話=a.汎用, 汎用外部読取許可=a.外部読取)
     if a.serve:
