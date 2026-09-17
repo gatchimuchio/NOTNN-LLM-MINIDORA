@@ -18,7 +18,9 @@
 - 参照commit: `fcbc2fa4bc89d749942e8ebee2764115488d29c4`
 - 能力作用構成: `規定/07_能力作用構成.md`
 
-## 現行内部実装正本 — 2026-09-17 HDS-first
+## HDS-MINIDORA系現行実装正本 — 2026-09-17
+
+HDS-MINIDORAはMINIDORA30/80の後継・置換ではなく、HDSを実行主体とする別系統の正本である。正本系統の全体規定は `../正本系統.md`、HDS-MINIDORA系正本は `../HDS_MINIDORA_現行正本.md` を参照する。
 
 外向きのMINIDORA定義は変更しない。
 
@@ -55,7 +57,7 @@ MINIDORA部品群
 
 個々の能力・模型・取得器の局所成功を最終COMMITへ読み替えない。HDSが要求状態と残差を監査して最終採否する。
 
-局所正本: [`58_MINIDORA_HDS実行主体_v1.md`](58_MINIDORA_HDS実行主体_v1.md)
+HDS-MINIDORA系局所正本: [`60_MINIDORA_HDS自律接続_v3.md`](60_MINIDORA_HDS自律接続_v3.md)（設計58・59を成立履歴、61・62を非退行境界として併読）
 
 ### 互換性能経路
 
@@ -73,7 +75,7 @@ HDS監督
 
 は、MINIDORA30・既存API・比較再現用の互換性能経路として保持する。
 
-旧HDS監督値をHDS-first新コアの性能値へ読み替えない。新コアの性能正本置換は、既存GPQA正本契約に従う別の全数測定を必要とする。
+旧HDS監督値をHDS-MINIDORA系の性能値へ読み替えない。HDS-MINIDORA系の性能数値を正本化する場合は、MINIDORA30/80系を置換せず、HDS-MINIDORA系として別の全数測定を保存する。
 
 ## 成立後能力成長 — 能力モジュール拡張は成立済み
 

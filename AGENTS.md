@@ -63,9 +63,11 @@ MINIDORA能力模型核
 
 候補得点・HDS寄与・GPQA得点を確率へ変換し、厳密言語模型成立証拠へ読み替えない。
 
-## 4. HDS-first 内部実行正本
+## 4. 正本系統とHDS-MINIDORA系
 
-現行内部開発正本は `設計/60_MINIDORA_HDS自律接続_v3.md`。設計58・59は成立経緯と下位契約を保持し、変更点には設計60を適用する。
+正本系統の最上位案内は `正本系統.md`。MINIDORA30系、MINIDORA80系、HDS-MINIDORA系は同一系列の新旧版ではなく、別系統の正本として並立保持する。
+
+HDS-MINIDORA系の現行実装正本は `HDS_MINIDORA_現行正本.md` と `設計/60_MINIDORA_HDS自律接続_v3.md`。設計58・59は成立経緯と下位契約、設計61・62は原子的更新と非退行境界を保持する。
 
 HDS監督介入は新コアの独立機能ではない。不足観測、再評価、修復、検証、停止を単一の通常循環へ内包する。旧監督入口は過去性能再現用で、新循環から呼び出さない。
 
@@ -315,6 +317,6 @@ fixed reference Data = forbidden
 
 `benchmark.py` / `benchmark_formal.py` の部分実行・任意条件は診断用途であり、直接の出力を正本性能値として引用しない。
 
-現行GPQA正本セーブポイントは `MINIDORA30 / 30/198`。詳細は `現行正本.md` と `docs/SAVEPOINT_2026-09-09_MINIDORA30.md` を参照する。
+MINIDORA30系の現行GPQA性能正本セーブポイントは `MINIDORA30 / 30/198`。MINIDORA80系は能力モジュール込みシステム正本、HDS-MINIDORA系は別系統の実行主体正本として扱う。詳細は `正本系統.md`、`現行正本.md`、`HDS_MINIDORA_現行正本.md` を参照する。
 
-HDS-firstを新しい模型核正本へ置換する場合は、上記GPQA契約に従うLIVE_ONLY 198/198全数測定と同一run controlled A/Bを別途実施し、既存正本値を履歴として保持する。
+HDS-MINIDORA系の性能数値を正本化する場合は、MINIDORA30系の値を置換せず、HDS-MINIDORA系としてLIVE_ONLY 198/198全数測定と成果物を別途保存する。
