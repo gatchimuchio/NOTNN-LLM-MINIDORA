@@ -40,10 +40,10 @@ class 全体運用実行試験(unittest.TestCase):
                 値 = {"内訳": 値}
             self.成立(self.会話.資料を登録(名前, json.dumps(値, ensure_ascii=False)))
 
-    def test_全48能力が同一目録へ登録される(self):
+    def test_全49能力が同一目録へ登録される(self):
         一覧 = self.会話.能力一覧()
-        self.assertEqual(len(一覧), 48)
-        self.assertEqual(len({行["名前"] for 行 in 一覧}), 48)
+        self.assertEqual(len(一覧), 49)
+        self.assertEqual(len({行["名前"] for 行 in 一覧}), 49)
         self.assertIn("科学専門作用", {行["名前"] for 行 in 一覧})
 
     def test_自然な算術依頼から三部品をHDSで実行(self):
