@@ -77,6 +77,10 @@ def 依頼を解釈(入力):
     ir = 構文化器.コンパイル(raw)
     saved = {"全文": 構造を保存(構文化器.原IR), "局所作用ビュー": 構造を保存(ir),
              "責任対応": 構造を保存(構文化器.責任対応)}
+    from .数量依頼 import 数量依頼を読む
+    数量要求 = 数量依頼を読む(入力)
+    if 数量要求 is not None:
+        return {**数量要求, "HDS": saved}
     知識照会 = re.fullmatch(r'知識(?:全体)?から「([^「」]+)」(?:の根拠)?を(?:説明|確認)して[。？?]?', raw.strip())
     if 知識照会:
         return {"方式": "知識横断", "問い": 知識照会[1], "原文": raw, "HDS": saved}
@@ -203,7 +207,11 @@ def 計画を構成(解釈, 入力, 目録, *, 禁止=()):
     request = None
     if mode == "管理":
         return {"方式": "管理", "解釈": deepcopy(解釈), "原文": 入力["原文"]}
-    if mode == "知識横断":
+    if mode in ("数量言語", "数量再表現"):
+        from .数量依頼 import 数量計画を作る
+        plan, materials, kind = 数量計画を作る(解釈, 入力)
+        coverage = []
+    elif mode == "知識横断":
         資産 = 入力["知識資産"]
         if not 資産:
             raise ValueError("登録された知識資産がない")

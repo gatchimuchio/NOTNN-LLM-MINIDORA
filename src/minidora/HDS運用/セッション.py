@@ -22,6 +22,7 @@ from .工程 import 工程供給, 現行計画
 from .原記録 import 運用原記録
 from .手順形成 import 手順形成供給, 目的鍵, 手順を束縛, 形成結果を検査, 手順資産を検査
 from .知識資産 import 知識を形成, 資産を検査
+from .数量生成 import 数量回答を検査
 
 
 @dataclass(frozen=True, slots=True)
@@ -338,7 +339,7 @@ class HDS運用セッション:
                 elif parsed and parsed["方式"] != "管理":
                     current_key, packet = 現行計画(結果.状態)
                     effective = parsed["目的"] if parsed["方式"] == "継続" else parsed
-                    is_reword = effective.get("方式") == "会話" and effective.get("依頼", {}).get("行為") == "再表現"
+                    is_reword = (effective.get("方式") == "数量再表現" or (effective.get("方式") == "会話" and effective.get("依頼", {}).get("行為") == "再表現"))
                     if not is_reword:
                         self._前回目的 = deepcopy(effective)
                         self._前回知識範囲 = self._知識範囲印() if effective.get("方式") == "知識横断" else None
@@ -369,8 +370,8 @@ class HDS運用セッション:
                 body = answer.本文
                 reasons = 結果.理由
             else:
-                is_reword = (parsed is not None and parsed.get("方式") == "会話"
-                             and parsed.get("依頼", {}).get("行為") == "再表現")
+                is_reword = (parsed is not None and (parsed.get("方式") == "数量再表現" or (parsed.get("方式") == "会話"
+                             and parsed.get("依頼", {}).get("行為") == "再表現")))
                 if parsed and parsed["方式"] not in ("管理",) and not is_reword:
                     effective = parsed["目的"] if parsed["方式"] == "継続" else parsed
                     self._保留目的 = deepcopy(effective)
@@ -439,7 +440,7 @@ class HDS運用セッション:
                 raise ValueError("保存資料の本体・参照不一致")
         if 状態["前回結果"] is not None:
             old = 結果を復元(状態["前回結果"])
-            if not (回答記録整合(old) or 改善回答を検査(old.データ)):
+            if not (回答記録整合(old) or 改善回答を検査(old.データ) or 数量回答を検査(old)):
                 raise ValueError("保存回答の整合不一致")
         if type(状態["焦点有効"]) is not bool or type(状態["前回依存"]) is not dict:
             raise ValueError("保存会話状態の型不正")
@@ -457,6 +458,19 @@ class HDS運用セッション:
                 ("保留目的", "_保留目的"), ("前回結果", "_前回結果"), ("前回依存", "_前回依存"),
                 ("焦点有効", "_焦点有効"), ("発話", "_発話"), ("経験", "_経験")):
             setattr(obj, internal, deepcopy(状態[public]))
+        if obj._前回結果 is not None:
+            前回 = 結果を復元(obj._前回結果)
+            if 前回.データ.get("種別") == "数量言語回答":
+                構造 = 前回.データ["構造"]
+                目的 = obj._前回目的
+                if (not 目的 or 目的.get("方式") != "数量言語"
+                        or 目的.get("要求") != 構造["要求"]):
+                    raise ValueError("数量保存回答と前回目的が不一致")
+                if set(構造["資料"]) != set(obj._前回依存):
+                    raise ValueError("数量保存回答の資料依存が不一致")
+                # 失効した旧回答は履歴として残せる。現行利用する回答は元資料とも照合する。
+                if obj._有効() and any(本文 != obj._資料[名]["本文"] for 名, 本文 in 構造["資料"].items()):
+                    raise ValueError("数量保存回答と現行原資料が不一致")
         obj._原記録 = 運用原記録.復元(状態["原記録"], obj.ID)
         obj._原記録.資料を照合(obj._資料)
         obj.目録.原記録庫 = obj._原記録.庫

@@ -14,6 +14,7 @@ from ..監査改善接続 import 改善回答を検査
 from ..実行回復 import 回復方針を決定, 失敗を分類
 from .値 import 指紋, 正準, 結果を保存, 結果を復元, 計画を復元, 運用版
 from .解釈 import 計画を構成
+from .数量生成 import 数量回答を検査
 
 計画接頭辞 = "運用計画:"
 
@@ -74,8 +75,8 @@ def 入力依存を収集(packet, inputs, 結果参照=()):
     interpretation = packet.get("解釈", {})
     if interpretation.get("方式") == "継続":
         interpretation = interpretation["目的"]
-    if (interpretation.get("方式") == "会話"
-            and interpretation.get("依頼", {}).get("行為") == "再表現"):
+    if (interpretation.get("方式") == "数量再表現" or (interpretation.get("方式") == "会話"
+            and interpretation.get("依頼", {}).get("行為") == "再表現")):
         dependencies.update(inputs.get("前回依存", {}))
     return dependencies
 
@@ -291,6 +292,26 @@ class 工程供給:
             expected_answer = 最終素材を構成(expected_results, packet)
             if 指紋(結果を保存(expected_answer)) != 指紋(values["運用応答"]):
                 return False
+            if packet["回答種別"] == "数量回答":
+                if not 数量回答を検査(answer):
+                    return False
+                原要求 = packet["解釈"]
+                if 原要求["方式"] == "継続":
+                    原要求 = 原要求["目的"]
+                構造 = answer.データ["構造"]
+                if 原要求["方式"] == "数量言語":
+                    if 構造["要求"] != 原要求["要求"] or answer.データ["表示"] != 原要求["要求"]["表示"]:
+                        return False
+                elif 原要求["方式"] == "数量再表現":
+                    前 = 結果を復元(values["運用入力"]["前回結果"])
+                    表示 = {**前.データ["表示"], **原要求["表示差分"]}
+                    if 構造 != 前.データ["構造"] or answer.データ["表示"] != 表示:
+                        return False
+                else:
+                    return False
+                return all(name in values["運用入力"]["資料"] and
+                           text == values["運用入力"]["資料"][name]["本文"]
+                           for name, text in 構造["資料"].items())
             if packet["回答種別"] == "検討回答":
                 return answer.成立 and 改善回答を検査(answer.データ)
             return answer.成立 and (回答記録整合(answer) or 改善回答を検査(answer.データ))

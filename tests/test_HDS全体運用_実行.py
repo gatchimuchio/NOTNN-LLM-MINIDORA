@@ -42,8 +42,8 @@ class 全体運用実行試験(unittest.TestCase):
 
     def test_全49能力が同一目録へ登録される(self):
         一覧 = self.会話.能力一覧()
-        self.assertEqual(len(一覧), 49)
-        self.assertEqual(len({行["名前"] for 行 in 一覧}), 49)
+        self.assertEqual(len(一覧), 56)
+        self.assertEqual(len({行["名前"] for 行 in 一覧}), 56)
         self.assertIn("科学専門作用", {行["名前"] for 行 in 一覧})
 
     def test_自然な算術依頼から三部品をHDSで実行(self):

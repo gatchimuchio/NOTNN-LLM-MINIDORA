@@ -9,7 +9,7 @@ from ..能力結果復元 import 能力結果を復元
 from ..採否 import 実行状態
 from ..製品版.型 import 能力結果
 
-運用版 = "HDS-MINIDORA-全体運用-v2"
+運用版 = "HDS-MINIDORA-全体運用-v3"
 
 
 def 正準(value):
