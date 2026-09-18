@@ -1,0 +1,83 @@
+name: v6サンドボックス差分の固定転送
+on:
+  push:
+    branches: [sandbox/hds-v6-transfer-20260918]
+    paths: [.github/workflows/sandbox-v6-transfer.yml]
+permissions:
+  contents: write
+jobs:
+  transfer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 49949048d6c20d991caf81025f97b9204505907c
+          persist-credentials: false
+      - name: サンドボックスの固定差分だけを検査して転送
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import base64, hashlib, json, lzma, os, pathlib, subprocess, urllib.request
+          repo = 'gatchimuchio/NOTNN-LLM-MINIDORA'
+          base = '49949048d6c20d991caf81025f97b9204505907c'
+          tree = '767a4df09857358792726df9de65d4d5ebfbf32f'
+          branch = 'sandbox/hds-v6-semantics-20260918'
+          shards = [
+              'cf25b5519009ee9589208d6ce04896e0861ea449',
+              'acd0ec369afa93cf4d3fa5e3762b8d968fde629f',
+              'a7c0eb602cd9a586bd9ecff3dc3c2d19bf7774c2',
+              'c9ceecc525470e208ef1c51fd07865cec65dcd08',
+              '853e6f8c69f0485a2addaddd7c2a047a66151a4f',
+              '27bcb183ab84da7b9aa2834b02f477cc01dffd74',
+              'e5f2ab0368135c850b0a4b0121edb42378082cc4',
+              'a0efb9358ac8fbb041585edfa50347e1b1dcc39c',
+              '25505bd9d80d10e7691fdd2a74cd954c09cd5901',
+          ]
+          def git(*args, env=None):
+              return subprocess.check_output(['git', *args], env=env).decode().strip()
+          assert git('rev-parse', 'HEAD') == base
+          payload = bytearray()
+          for sha in shards:
+              req = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/git/blobs/{sha}',
+                  headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                           'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(req, timeout=60) as response:
+                  obj = json.load(response)
+              assert obj['encoding'] == 'base64' and obj['sha'] == sha
+              raw = base64.b64decode(obj['content'])
+              assert hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest() == sha
+              payload.extend(raw)
+          assert hashlib.sha256(payload).hexdigest() == '41f3b8de3d2856c5b903f99f3c6ed414a048d232295b13ef6e1c32cca1cab0dd'
+          patch = lzma.decompress(payload)
+          assert len(patch) == 160058
+          assert hashlib.sha256(patch).hexdigest() == '0d264beaf648aefd718a455c6039c8ac43cf1c4628da5ce790df18f5bade7547'
+          path = pathlib.Path('/tmp/minidora-v6.patch')
+          path.write_bytes(patch)
+          subprocess.run(['git', 'apply', '--index', str(path)], check=True)
+          assert git('write-tree') == tree
+          assert not git('diff', '--cached', '--name-only', '--', '.github/workflows')
+          env = os.environ.copy()
+          auth = base64.b64encode(('x-access-token:' + env['GH_TOKEN']).encode()).decode()
+          env.update(GIT_CONFIG_COUNT='1', GIT_CONFIG_KEY_0='http.https://github.com/.extraheader',
+                     GIT_CONFIG_VALUE_0='AUTHORIZATION: basic ' + auth)
+          assert git('ls-remote', 'origin', 'refs/heads/main', env=env).split()[0] == base
+          assert not git('ls-remote', 'origin', 'refs/heads/' + branch, env=env)
+          git('config', 'user.name', 'github-actions[bot]')
+          git('config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com')
+          git('commit', '-m', 'HDS全体運用v6: 格役割・条件方向・明示例外と保存移行',
+              '-m', '固定mainを取得しサンドボックスで実装。追加84件成功。既存主体・命題核・CIを保持。全回帰とPR CIの成功を確認してから統合する。転送用workflowは本commitへ含めない。')
+          assert git('rev-parse', 'HEAD^{tree}') == tree
+          git('push', 'origin', 'HEAD:refs/heads/' + branch, env=env)
+          report = {'base': base, 'head': git('rev-parse', 'HEAD'), 'tree': tree,
+                    'branch': branch, 'changed_files': git('diff', '--name-only', base, 'HEAD').splitlines(),
+                    'patch_sha256': hashlib.sha256(patch).hexdigest()}
+          pathlib.Path('/tmp/minidora-v6-transfer.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-v6-fixed-transfer
+          path: /tmp/minidora-v6-transfer.json
+          retention-days: 3
