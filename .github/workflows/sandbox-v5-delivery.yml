@@ -1,0 +1,69 @@
+name: サンドボックスv5差分の検証済み転送
+on:
+  push:
+    branches: [sandbox/hds-v5-delivery-20260918]
+permissions:
+  contents: write
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: transport
+          persist-credentials: false
+          sparse-checkout: .sandbox-transport
+      - uses: actions/checkout@v4
+        with:
+          path: work
+          ref: 09043dc222ecda52996e9dc0e53ad9c5a809c27e
+      - name: サンドボックス差分を復号し固定mainへ適用
+        working-directory: work
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64, hashlib, json, lzma, subprocess, zlib
+          parts = sorted(Path('../transport/.sandbox-transport').glob('*.b64'))
+          assert len(parts) == 7, '分割数不一致'
+          data = base64.b64decode(''.join(p.read_text().strip() for p in parts), validate=True)
+          assert hashlib.sha256(data).hexdigest() == 'a25b35eeacd036c39271432bcddc1685ebff58f540e56d832cacc0bf32fa3325', '転送指紋不一致'
+          bundle = json.loads(lzma.decompress(data))
+          assert set(bundle) == {'text_patch', 'gzip_files'}
+          patch = Path('/tmp/v5-text.patch')
+          patch.write_bytes(bundle['text_patch'].encode('utf-8'))
+          subprocess.run(['git', 'apply', '--check', str(patch)], check=True)
+          subprocess.run(['git', 'apply', '--index', str(patch)], check=True)
+          allowed = {'tests/資料/HDS旧保存/v4.json.gz', 'tests/資料/HDS旧保存/v4_移行済.json.gz'}
+          assert {f['path'] for f in bundle['gzip_files']} == allowed
+          for f in bundle['gzip_files']:
+              raw = f['content'].encode('utf-8')
+              compressor = zlib.compressobj(9, zlib.DEFLATED, -15)
+              output = bytes.fromhex(f['header']) + compressor.compress(raw) + compressor.flush() + bytes.fromhex(f['trailer'])
+              assert hashlib.sha256(output).hexdigest() == f['sha256'], '旧実保存物の再圧縮不一致'
+              path = Path(f['path'])
+              assert not path.exists()
+              path.write_bytes(output)
+              subprocess.run(['git', 'add', '--', str(path)], check=True)
+          subprocess.run(['git', 'diff', '--cached', '--check'], check=True)
+          tree = subprocess.check_output(['git', 'write-tree']).decode().strip()
+          assert tree == 'ef9d3d22c4fd7a089ed2788edcf71f4c4fcc047c', 'サンドボックスのtreeと不一致'
+          print('一致した成果tree:', tree)
+          PY
+      - name: 転送用ファイルを含まない成果ブランチへpush
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch=sandbox/hds-v5-relations-20260918
+          if git ls-remote --exit-code --heads origin "refs/heads/$branch"; then
+            echo '既存ブランチを上書きしないため停止'
+            exit 1
+          fi
+          git switch -c "$branch"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'HDS全体運用v5: 関係読解・実導出説明・不足取得・v4保存移行' -m 'サンドボックスで実装した30ファイルをtree一致検査後に転送。順序2の部分増分であり一般能力全体の完成ではない。転送用workflow・payloadはこのcommitへ含まない。'
+          git push origin "HEAD:refs/heads/$branch"
+          git rev-parse HEAD HEAD^{tree}
