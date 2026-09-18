@@ -1,0 +1,48 @@
+name: v7固定差分転送（mainへ統合しない）
+on:
+  push:
+    branches: [sandbox/v7-delivery-20260919]
+    paths: [.github/workflows/sandbox-v7-delivery.yml]
+permissions:
+  contents: write
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: サンドボックス差分の指紋を照合
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .v7-transfer/p?? > /tmp/minidora-v7.patch.gz
+          test "$(wc -c < /tmp/minidora-v7.patch.gz)" = 36579
+          echo 'd0c44d15dee9a765f93eb9af22bd67c9be75fbc42d3fe86b2f4ff1da1a067890  /tmp/minidora-v7.patch.gz' | sha256sum -c -
+          gzip -dc /tmp/minidora-v7.patch.gz > /tmp/minidora-v7.patch
+          echo '5d66899453853ee95f1609afa326b5b21ee73abd84df7b49ccfc22a4214fa627  /tmp/minidora-v7.patch' | sha256sum -c -
+      - name: 固定基点へ適用して最終treeを照合
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin 574f22937b093985486d23c30c829d2b25cf7182
+          git checkout --detach 574f22937b093985486d23c30c829d2b25cf7182
+          git apply --index --binary /tmp/minidora-v7.patch
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l)" = 19
+          test "$(git write-tree)" = 42f2c5d0fe56e9e0476f8e20442bb0f8ce325141
+          ! git diff --cached --name-only | grep -Eq '^\.v7-transfer|^\.github/workflows/'
+      - name: 検証対象の実装ブランチだけをプッシュ
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'gatchimuchio'
+          git config user.email 'ohira.teppei@gmail.com'
+          git commit -m 'HDS全体運用v7: 明示対象宣言による資料横断と実導出説明' -m '固定mainをサンドボックスで取得・実装。既存HDS四工程／六工程を保持。追加53件成功。全回帰・PR CI確認後に統合。転送用ファイルは製品差分に含めない。'
+          git push origin HEAD:refs/heads/sandbox/hds-v7-source-identity-20260919
+          mkdir -p /tmp/v7-delivery-record
+          git rev-parse HEAD HEAD^{tree} > /tmp/v7-delivery-record/revision.txt
+          git diff --stat HEAD^ HEAD > /tmp/v7-delivery-record/stat.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-v7-delivery-record
+          path: /tmp/v7-delivery-record/
+          retention-days: 3
