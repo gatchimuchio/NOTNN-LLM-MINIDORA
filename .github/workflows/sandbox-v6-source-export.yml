@@ -1,0 +1,27 @@
+name: v6再構成用main取得
+on:
+  push:
+    branches: [sandbox/v6-reconstruct-20260918-2349]
+    paths: [.github/workflows/sandbox-v6-source-export.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 49949048d6c20d991caf81025f97b9204505907c
+          persist-credentials: false
+      - name: 追跡ファイルを固定取得
+        run: |
+          mkdir -p /tmp/minidora-main
+          git archive --format=tar HEAD | tar -x -C /tmp/minidora-main
+          printf '%s\n' "$(git rev-parse HEAD)" > /tmp/minidora-main/.取得元commit
+          printf '%s\n' "$(git rev-parse HEAD^{tree})" > /tmp/minidora-main/.取得元tree
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-main-49949048
+          path: /tmp/minidora-main/
+          include-hidden-files: true
+          retention-days: 1
