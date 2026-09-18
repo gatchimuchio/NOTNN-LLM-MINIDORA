@@ -57,3 +57,5 @@ jobs:
           git config user.email "ohira.teppei@gmail.com"
           git commit -m "HDS全体運用v6: 必要条件と例外の意味境界を実装"
           git push origin HEAD:sandbox/hds-v6-conditions-exceptions-20260918
+
+# retrigger-after-payload-complete: 2026-09-18T23:49+09:00
