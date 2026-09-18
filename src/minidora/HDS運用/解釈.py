@@ -128,6 +128,10 @@ def 依頼を解釈(入力):
             old["HDS"] = saved
             return old
         return {"方式": "資料検討", "依頼": improved, "原文": raw, "HDS": saved}
+    from .一般依頼 import 一般依頼を読む
+    一般要求 = 一般依頼を読む(入力)
+    if 一般要求 is not None:
+        return {**一般要求, "HDS": saved}
     request = 会話を解釈(raw, tuple(入力["資料"]))
     if request.行為 in ("登録", "更新"):
         return {"方式": "管理", "行為": request.行為, "名前": request.対象[0].資料,
@@ -210,6 +214,10 @@ def 計画を構成(解釈, 入力, 目録, *, 禁止=()):
     if mode in ("数量言語", "数量再表現"):
         from .数量依頼 import 数量計画を作る
         plan, materials, kind = 数量計画を作る(解釈, 入力)
+        coverage = []
+    elif mode in ("一般資料", "一般再表現"):
+        from .一般依頼 import 一般計画を作る
+        plan, materials, kind = 一般計画を作る(解釈, 入力)
         coverage = []
     elif mode == "知識横断":
         資産 = 入力["知識資産"]

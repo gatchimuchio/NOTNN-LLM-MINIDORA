@@ -40,11 +40,23 @@ class 全体運用実行試験(unittest.TestCase):
                 値 = {"内訳": 値}
             self.成立(self.会話.資料を登録(名前, json.dumps(値, ensure_ascii=False)))
 
-    def test_全49能力が同一目録へ登録される(self):
+    def test_既存能力と資料文章能力が同一目録へ登録される(self):
         一覧 = self.会話.能力一覧()
-        self.assertEqual(len(一覧), 56)
-        self.assertEqual(len({行["名前"] for 行 in 一覧}), 56)
-        self.assertIn("科学専門作用", {行["名前"] for 行 in 一覧})
+        現行 = {行["名前"]: 行 for 行 in 一覧}
+        由来 = json.loads((Path(__file__).parent / "資料" / "HDS旧保存" / "由来.json").read_text(encoding="utf-8"))
+        旧記録 = next(行 for 行 in 由来["記録"] if 行["版"] == "v3")
+        既存 = {行["名前"]: 行 for 行 in 旧記録["登録"]}
+        self.assertEqual(既存["科学専門作用"]["版"], "HDS-MINIDORA-全体運用-v3/科学専門接続-1")
+        # 科学専門接続は従来から運用版を版名に含むため、v4への版変更を明示する。
+        既存["科学専門作用"]["版"] = "HDS-MINIDORA-全体運用-v4/科学専門接続-1"
+        追加 = {"資料意味選択", "取得資料意味選択", "資料内容構成", "資料文章照合", "資料文章再表現"}
+        # 個数だけの置換では、既存能力の欠落・版や読取権限の変更を見逃す。
+        self.assertEqual(len(既存), 56)
+        self.assertEqual(set(現行), set(既存) | 追加)
+        self.assertEqual(len(一覧), len(現行))
+        self.assertEqual({名: 現行[名] for 名 in 既存}, 既存)
+        self.assertTrue(all(現行[名]["外部読取"] is False for 名 in 追加))
+        self.assertIn("科学専門作用", 現行)
 
     def test_自然な算術依頼から三部品をHDSで実行(self):
         結果 = self.成立(self.会話.応答("2+3"))
