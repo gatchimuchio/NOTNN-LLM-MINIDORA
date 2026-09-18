@@ -55,6 +55,12 @@ class 旧v4移行試験(unittest.TestCase):
         old['移行履歴'][0]['原本SHA256']='0'*64
         with self.assertRaises(ValueError):旧保存を移行(文字(old))
 
+
+    def test_v4当時に存在しない移行記録版を拒否(self):
+        old=開封(json.loads(原本('v4_移行済')))
+        old['移行履歴'][0]['版']='HDS旧保存明示移行-v2'
+        with self.assertRaisesRegex(ValueError,'版不一致'):旧保存を移行(文字(old))
+
     def test_v4当時に存在しない移行履歴を拒否(self):
         old=開封(json.loads(原本('v4_移行済')))
         old['移行履歴'][0]['旧版']='HDS-MINIDORA-全体運用-v4'
