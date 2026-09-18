@@ -1,0 +1,31 @@
+name: v5再開用の固定差分取得
+on:
+  push:
+    branches: [sandbox/hds-v5-review-export-20260918]
+    paths: [.github/workflows/sandbox-v5-review-export.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 487d3bc6d55113372b5e4a7bcabac9127021c22f
+          persist-credentials: false
+      - name: 固定された二つのcommitの差分だけを書き出す
+        run: |
+          git fetch --depth=1 origin 09043dc222ecda52996e9dc0e53ad9c5a809c27e
+          mkdir -p /tmp/minidora-v5-review
+          git diff --binary --full-index 09043dc222ecda52996e9dc0e53ad9c5a809c27e HEAD > /tmp/minidora-v5-review/proposal.patch
+          git rev-parse HEAD HEAD^{tree} > /tmp/minidora-v5-review/revision.txt
+          git ls-tree -r -z HEAD > /tmp/minidora-v5-review/tree.bin
+          git cat-file commit HEAD > /tmp/minidora-v5-review/head.commit
+          git cat-file commit 09043dc222ecda52996e9dc0e53ad9c5a809c27e > /tmp/minidora-v5-review/base.commit
+          cd /tmp/minidora-v5-review
+          sha256sum proposal.patch tree.bin head.commit base.commit > checksums.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-v5-review-487d3bc
+          path: /tmp/minidora-v5-review/
+          retention-days: 3
