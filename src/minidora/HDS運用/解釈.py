@@ -94,6 +94,13 @@ def 依頼を解釈(入力):
         old = 入力.get("保留目的") or 入力.get("前回目的")
         if old is None:
             raise ValueError("再開する目的がない")
+        # 保存復元・再表現では旧意味契約を維持する。明示的な再作用のときだけ
+        # 旧原文の目的を現行読解へ接続し、旧記録や呼出元の辞書は変更しない。
+        if old.get("方式") == "関係資料" and old.get("要求", {}).get("版") == "HDS関係説明要求-v1":
+            from .関係読解 import 関係要求版, 関係要求を検査
+            old = deepcopy(old)
+            old["要求"]["版"] = 関係要求版
+            関係要求を検査(old["要求"])
         return {"方式": "継続", "目的": old, "原文": raw, "HDS": saved}
     science = re.fullmatch(r'資料「([^「」]+)」の問題を解いて[。？?]?', raw.strip())
     if science:
