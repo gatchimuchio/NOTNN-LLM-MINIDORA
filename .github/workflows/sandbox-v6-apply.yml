@@ -1,0 +1,59 @@
+name: v6固定差分を実装ブランチへ適用
+on:
+  push:
+    branches: [sandbox/v6-reconstruct-20260918-2349]
+    paths:
+      - .github/workflows/sandbox-v6-apply.yml
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sandbox/v6-reconstruct-20260918-2349
+          fetch-depth: 0
+      - name: 転送差分を再構成し指紋照合
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .v6-transfer2/p00 .v6-transfer2/p01 .v6-transfer2/p02 .v6-transfer2/p03 \
+              .v6-transfer2/p04 .v6-transfer2/p05 .v6-transfer2/p06 .v6-transfer2/p07 \
+              .v6-transfer2/p08 .v6-transfer2/p09 .v6-transfer2/p10 .v6-transfer2/p11 \
+              > /tmp/v6.patch.gz.b64
+          test "$(wc -c < /tmp/v6.patch.gz.b64)" = "41844"
+          echo "61c9df33978c42b91efe6a78f9accd349e12fbe515bbb715b68b949f6a038951  /tmp/v6.patch.gz.b64" | sha256sum -c -
+          base64 -d /tmp/v6.patch.gz.b64 > /tmp/v6.patch.gz
+          echo "986f20bcb710ce74380ffe825a2371eaf19559cf621b09f0676b7cd5efbebeda  /tmp/v6.patch.gz" | sha256sum -c -
+          gzip -dc /tmp/v6.patch.gz > /tmp/v6.patch
+          echo "e3e13cdc9c41b9d3d964d1c8b7119db656c5772e70cc03da9c133db2a9d4fc2a  /tmp/v6.patch" | sha256sum -c -
+      - name: 固定main由来の実装ブランチへ適用
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin sandbox/hds-v6-conditions-exceptions-20260918
+          git checkout -B sandbox/hds-v6-conditions-exceptions-20260918 origin/sandbox/hds-v6-conditions-exceptions-20260918
+          test "$(git rev-parse HEAD)" = "49949048d6c20d991caf81025f97b9204505907c"
+          git apply --index --binary /tmp/v6.patch
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l)" = "20"
+          ! git diff --cached --name-only | grep -Eq '^\.v6-transfer|^\.github/workflows/sandbox-v6'
+      - name: v6固有試験
+        shell: bash
+        run: |
+          PYTHONPATH=src python -m unittest tests.test_HDS運用v6_条件例外 tests.test_HDS運用v6_保存移行 -q
+      - name: 静的監査
+        shell: bash
+        run: |
+          python -m compileall -q src tests tools
+          PYTHONPATH=src python tools/リポジトリ整合性監査.py
+          python tools/日本語基底監査.py
+          python tools/日本語基底詳細監査.py
+      - name: commit and push
+        shell: bash
+        run: |
+          git config user.name "gatchimuchio"
+          git config user.email "ohira.teppei@gmail.com"
+          git commit -m "HDS全体運用v6: 必要条件と例外の意味境界を実装"
+          git push origin HEAD:sandbox/hds-v6-conditions-exceptions-20260918
