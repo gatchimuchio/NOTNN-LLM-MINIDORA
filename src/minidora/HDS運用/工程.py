@@ -16,6 +16,7 @@ from .値 import 指紋, 正準, 結果を保存, 結果を復元, 計画を復�
 from .解釈 import 計画を構成
 from .数量生成 import 数量回答を検査
 from .内容構成 import 資料文章を検査
+from .関係内容 import 関係回答を検査
 
 計画接頭辞 = "運用計画:"
 
@@ -76,7 +77,7 @@ def 入力依存を収集(packet, inputs, 結果参照=()):
     interpretation = packet.get("解釈", {})
     if interpretation.get("方式") == "継続":
         interpretation = interpretation["目的"]
-    if (interpretation.get("方式") in ("数量再表現", "一般再表現") or (interpretation.get("方式") == "会話"
+    if (interpretation.get("方式") in ("数量再表現", "一般再表現", "関係再表現") or (interpretation.get("方式") == "会話"
             and interpretation.get("依頼", {}).get("行為") == "再表現")):
         dependencies.update(inputs.get("前回依存", {}))
     return dependencies
@@ -313,6 +314,26 @@ class 工程供給:
                 return all(name in values["運用入力"]["資料"] and
                            text == values["運用入力"]["資料"][name]["本文"]
                            for name, text in 構造["資料"].items())
+            if packet["回答種別"] == "関係資料回答":
+                if not 関係回答を検査(answer):
+                    return False
+                原要求 = packet["解釈"]
+                if 原要求["方式"] == "継続":
+                    原要求 = 原要求["目的"]
+                構造 = answer.データ["構造"]
+                if 原要求["方式"] == "関係資料":
+                    if 構造["要求"] != 原要求["要求"] or answer.データ["表示形式"] != 原要求["要求"]["形式"]:
+                        return False
+                elif 原要求["方式"] == "関係再表現":
+                    前回 = 結果を復元(values["運用入力"]["前回結果"])
+                    if 構造 != 前回.データ["構造"] or answer.データ["表示形式"] != 原要求["形式"]:
+                        return False
+                else:
+                    return False
+                if 構造["要求"]["範囲"] == "全資料" and set(構造["資料群"]) != set(values["運用入力"]["資料"]):
+                    return False
+                return all(名 in values["運用入力"]["資料"] and 項["資料"] == values["運用入力"]["資料"][名]["結果"]
+                           for 名, 項 in 構造["資料群"].items())
             if packet["回答種別"] == "資料文章回答":
                 if not 資料文章を検査(answer):
                     return False

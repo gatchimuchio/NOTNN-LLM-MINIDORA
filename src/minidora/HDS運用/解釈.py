@@ -128,6 +128,10 @@ def 依頼を解釈(入力):
             old["HDS"] = saved
             return old
         return {"方式": "資料検討", "依頼": improved, "原文": raw, "HDS": saved}
+    from .関係依頼 import 関係依頼を読む
+    関係要求 = 関係依頼を読む(入力)
+    if 関係要求 is not None:
+        return {**関係要求, "HDS": saved}
     from .一般依頼 import 一般依頼を読む
     一般要求 = 一般依頼を読む(入力)
     if 一般要求 is not None:
@@ -214,6 +218,10 @@ def 計画を構成(解釈, 入力, 目録, *, 禁止=()):
     if mode in ("数量言語", "数量再表現"):
         from .数量依頼 import 数量計画を作る
         plan, materials, kind = 数量計画を作る(解釈, 入力)
+        coverage = []
+    elif mode in ("関係資料", "関係再表現"):
+        from .関係依頼 import 関係計画を作る
+        plan, materials, kind = 関係計画を作る(解釈, 入力)
         coverage = []
     elif mode in ("一般資料", "一般再表現"):
         from .一般依頼 import 一般計画を作る
