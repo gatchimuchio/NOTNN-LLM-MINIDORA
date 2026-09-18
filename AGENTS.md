@@ -331,3 +331,14 @@ fixed reference Data = forbidden
 MINIDORA30系の現行GPQA性能正本セーブポイントは `MINIDORA30 / 30/198`。MINIDORA80系は能力モジュール込みシステム正本、HDS-MINIDORA系は別系統の実行主体正本として扱う。詳細は `正本系統.md`、`現行正本.md`、`HDS_MINIDORA_現行正本.md` を参照する。
 
 HDS-MINIDORA系の性能数値を正本化する場合は、MINIDORA30系の値を置換せず、HDS-MINIDORA系としてLIVE_ONLY 198/198全数測定と成果物を別途保存する。
+
+
+### v5関係読解・不足取得・根拠説明
+
+全体運用v5の局所契約は`設計/67_HDS_MINIDORA_関係読解と根拠説明_v5.md`。既存HDS・命題推論・知識取得・文章作成・形成を使う。未束縛指示語、未知例外、資料間同名を勝手に確定しない。取得成功・局所導出・世界事実・意思決定を区別する。保存版v5は標準v1〜v4を明示移行し、過去の移行履歴も原本内に保持する。
+
+```bash
+python -m unittest discover -s tests -p 'test_HDS運用v5_*.py' -v
+```
+
+本増分はロードマップ順序2の一部。汎用意味理解や全開発の完成とはせず、次の開発は台帳の残差へ接続する。

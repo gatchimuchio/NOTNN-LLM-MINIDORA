@@ -19,7 +19,7 @@ def main():
     parser.add_argument("--形成なし", action="store_true", help="純粋工程の追加再実行を行わない")
     復帰 = parser.add_mutually_exclusive_group()
     復帰.add_argument("--復元", type=Path)
-    復帰.add_argument("--移行元", type=Path, help="v1〜v3を原本保持で移行。別の--保存先が必須")
+    復帰.add_argument("--移行元", type=Path, help="v1〜v4を原本保持で移行。別の--保存先が必須")
     parser.add_argument("--保存", type=Path)
     parser.add_argument("--json", action="store_true")
     parser.add_argument("message", nargs="*")

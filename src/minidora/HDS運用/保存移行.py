@@ -1,4 +1,4 @@
-"""実測したv1〜v3保存契約からの明示移行。旧原本・履歴・依存を保持する。"""
+"""実測したv1〜v4保存契約からの明示移行。旧原本・履歴・依存を保持する。"""
 from __future__ import annotations
 from copy import deepcopy
 from hashlib import sha256
@@ -13,6 +13,7 @@ from .知識資産 import 知識を形成
 移行版 = "HDS旧保存明示移行-v1"
 # 由来: tests/資料/HDS旧保存/由来.json。各固定commitの実保存と照合済み。
 _旧契約 = {
+    "HDS-MINIDORA-全体運用-v4": ("73009636f3a9ecf084e9de56bd70511ac8ecef53a32122d926814ab7e29a6d6d", "09043dc222ecda52996e9dc0e53ad9c5a809c27e"),
     "HDS-MINIDORA-全体運用-v1": ("516e70fdebaa72ed71fd1674a2c7322a7ac22b4a2b76afc50a65bbd9c013c315", "2d08bd1cb9de343cd2725430fc80eda80d47fb73"),
     "HDS-MINIDORA-全体運用-v2": ("1305b1a665ef9b2de804f6d179751224e2fff024b14a88389adb25d016a0909f", "6820ee8670081c9f2aecb4d8b5a1b3ad80419fb2"),
     "HDS-MINIDORA-全体運用-v3": ("fe78c448f8482c1628aa9b97c0f94042a7af13fafc01e136e6f664d68c717c20", "4f303059c17044f038d4b5340d4c240373cf6f38"),
@@ -38,13 +39,17 @@ def _旧資料を検査(名前, 資料):
         raise ValueError("旧資料の本体・結果不一致")
 
 
-def _旧保存を読む(原本):
+def _旧保存を読む(原本, *, 深さ=0):
+    if 深さ > 3:
+        raise ValueError("旧保存履歴の入れ子上限")
     if type(原本) is not str:
         raise ValueError("旧保存原本はUTF-8文字列が必要")
     状態 = 開封(JSONを厳格に読む(原本, 最大バイト数=16000000))
     if type(状態) is not dict or 状態.get("版") not in _旧契約:
-        raise ValueError("対応する旧保存版はv1・v2・v3です")
+        raise ValueError("対応する旧保存版はv1・v2・v3・v4です")
     追加 = set() if 状態["版"].endswith("-v1") else _v2欄
+    if 状態["版"].endswith("-v4"):
+        追加 = 追加 | {"移行履歴"}
     if set(状態) != _共通欄 | 追加:
         raise ValueError("旧保存の欄不一致")
     if 状態["目録"] != _旧契約[状態["版"]][0]:
@@ -59,16 +64,23 @@ def _旧保存を読む(原本):
         if type(行) is not dict or set(行) != {"名前", "種類", "本文", "データ", "版", "結果"}:
             raise ValueError("旧保存履歴の資料構造不正")
         _旧資料を検査(行["名前"], {鍵: 値 for 鍵, 値 in 行.items() if 鍵 != "名前"})
+    if 状態["版"].endswith("-v4"):
+        if (type(状態["移行履歴"]) is not list or any(type(行) is not dict or 行.get("旧版") not in
+                {"HDS-MINIDORA-全体運用-v1", "HDS-MINIDORA-全体運用-v2", "HDS-MINIDORA-全体運用-v3"} for 行 in 状態["移行履歴"])):
+            raise ValueError("v4当時に存在しない移行履歴")
+        移行履歴を検査(状態["移行履歴"], 深さ=深さ + 1)
     return 状態
 
 
-def 移行履歴を検査(履歴):
+def 移行履歴を検査(履歴, *, 深さ=0):
+    if 深さ > 3:
+        raise ValueError("旧保存履歴の入れ子上限")
     if type(履歴) is not list or len(履歴) > 1:
         raise ValueError("移行履歴の型・件数不正")
     for 行 in 履歴:
         if type(行) is not dict or set(行) != {"版", "旧版", "旧目録", "由来commit", "原本", "原本SHA256", "方針"} or 行["版"] != 移行版:
             raise ValueError("移行履歴の欄・版不一致")
-        旧 = _旧保存を読む(行["原本"])
+        旧 = _旧保存を読む(行["原本"], 深さ=深さ)
         if (行["旧版"] != 旧["版"] or 行["旧目録"] != 旧["目録"]
                 or 行["由来commit"] != _旧契約[旧["版"]][1]
                 or 行["原本SHA256"] != sha256(行["原本"].encode()).hexdigest()
@@ -113,7 +125,10 @@ def 旧保存を移行(原本, *, 外部読取許可=False, 取得器=None):
         if type(旧["形成手順"]) is not dict or len(旧["形成手順"]) > 64:
             raise ValueError("旧形成手順の型・上限不正")
         # 検証対象は記録契約のみ。旧コードや手順を実行しない。
-        除外 = {"資料意味選択", "取得資料意味選択", "資料内容構成", "資料文章照合", "資料文章再表現"}
+        from .関係接続 import 関係能力名
+        除外 = set(関係能力名)
+        if not 旧["版"].endswith("-v4"):
+            除外 |= {"資料意味選択", "取得資料意味選択", "資料内容構成", "資料文章照合", "資料文章再表現"}
         if 旧["版"].endswith("-v2"):
             除外 |= {"数量文構文化", "数量式評価", "数量コード仕様", "数量コード実行", "数量結果照合", "数量回答構成", "数量回答再表現"}
         検証用 = SimpleNamespace(ハッシュ=旧["目録"], _純粋=試用.目録._純粋 - 除外, 取得=試用.目録.取得)
