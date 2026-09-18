@@ -1,0 +1,27 @@
+name: サンドボックス用固定ソース取得
+on:
+  push:
+    branches: [sandbox/hds-v5-source-20260918]
+    paths: [.github/workflows/sandbox-source-export.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 09043dc222ecda52996e9dc0e53ad9c5a809c27e
+          persist-credentials: false
+      - name: 固定commitの追跡ファイルのみを書き出す
+        run: |
+          mkdir -p /tmp/minidora-export
+          git archive --format=tar.gz HEAD > /tmp/minidora-export/source.tar.gz
+          git rev-parse HEAD HEAD^{tree} > /tmp/minidora-export/revision.txt
+          git ls-tree -r -z HEAD > /tmp/minidora-export/tree.bin
+          sha256sum /tmp/minidora-export/source.tar.gz > /tmp/minidora-export/source.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-source-09043dc
+          path: /tmp/minidora-export/
+          retention-days: 3
