@@ -1,0 +1,31 @@
+name: v7サンドボックス用固定main差分取得
+on:
+  push:
+    branches: [sandbox/v7-source-20260919]
+    paths: [.github/workflows/sandbox-v7-source.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 574f22937b093985486d23c30c829d2b25cf7182
+          persist-credentials: false
+      - name: 固定mainと既取得v5の差分を出力
+        run: |
+          set -eu
+          git fetch --depth=1 origin 49949048d6c20d991caf81025f97b9204505907c
+          mkdir -p /tmp/minidora-v7-source
+          git diff --binary --full-index 49949048d6c20d991caf81025f97b9204505907c HEAD > /tmp/minidora-v7-source/base.patch
+          git ls-tree -r -z HEAD > /tmp/minidora-v7-source/tree.bin
+          git rev-parse HEAD HEAD^{tree} > /tmp/minidora-v7-source/revision.txt
+          git cat-file commit HEAD > /tmp/minidora-v7-source/head.commit
+          cd /tmp/minidora-v7-source
+          sha256sum base.patch tree.bin head.commit > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-v7-source-574f229
+          path: /tmp/minidora-v7-source/
+          retention-days: 3
