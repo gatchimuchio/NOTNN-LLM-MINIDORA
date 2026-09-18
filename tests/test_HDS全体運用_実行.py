@@ -47,8 +47,8 @@ class 全体運用実行試験(unittest.TestCase):
         旧記録 = next(行 for 行 in 由来["記録"] if 行["版"] == "v3")
         既存 = {行["名前"]: 行 for 行 in 旧記録["登録"]}
         self.assertEqual(既存["科学専門作用"]["版"], "HDS-MINIDORA-全体運用-v3/科学専門接続-1")
-        # 科学専門接続は従来から運用版を版名に含むため、v6への版変更を明示する。
-        既存["科学専門作用"]["版"] = "HDS-MINIDORA-全体運用-v6/科学専門接続-1"
+        # 科学専門接続は従来から運用版を版名に含むため、v7への版変更を明示する。
+        既存["科学専門作用"]["版"] = "HDS-MINIDORA-全体運用-v7/科学専門接続-1"
         追加 = {"資料意味選択", "取得資料意味選択", "資料内容構成", "資料文章照合", "資料文章再表現"}
         # 個数だけの置換では、既存能力の欠落・版や読取権限の変更を見逃す。
         self.assertEqual(len(既存), 56)
@@ -59,7 +59,7 @@ class 全体運用実行試験(unittest.TestCase):
         self.assertEqual({名: 現行[名] for 名 in 既存}, 既存)
         self.assertTrue(all(現行[名]["外部読取"] is False for 名 in 追加 | 関係追加))
         self.assertTrue(all(現行[名]["外部読取"] is True for 名 in 外部追加))
-        self.assertTrue(all(現行[名]["版"] == "HDS関係接続-v2" for 名 in 関係追加 | 外部追加))
+        self.assertTrue(all(現行[名]["版"] == "HDS関係接続-v3" for 名 in 関係追加 | 外部追加))
         self.assertIn("科学専門作用", 現行)
 
     def test_自然な算術依頼から三部品をHDSで実行(self):
