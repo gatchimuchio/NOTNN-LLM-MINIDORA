@@ -32,7 +32,7 @@ class HDS実行内適応試験(unittest.TestCase):
             "学習対象",
             学習対象実行,
             優先度=10.0,
-            機会判定=lambda 状態: "段階1" not in 状態.成立状態 and "完了" not in 状態.成立状態,
+            機会判定=lambda 状態: "完了" not in 状態.成立状態 and ("段階1" not in 状態.成立状態 or "段階2" in 状態.成立状態),
         )
         切替 = HDS関数作用(
             "切替",
@@ -41,7 +41,6 @@ class HDS実行内適応試験(unittest.TestCase):
                 or HDS作用結果(
                     HDS作用状態.成立,
                     追加状態=frozenset({"段階2"}),
-                    削除状態=frozenset({"段階1"}),
                     追加残差=frozenset({"不足"}),
                 )
             ),
