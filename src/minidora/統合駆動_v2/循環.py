@@ -15,6 +15,7 @@ from .自動記憶 import 自動記憶圧縮作用
 from .自動形成 import 自動経験形成作用, 自動形成文脈
 from .未来 import 未来列を構成
 from .診断 import 例外を診断
+from .一時適応 import HDS一時適応キャッシュ
 from .作用 import 観測作用, 仮説形成作用, 仮説再照合作用, 枝合流作用, 草案検証作用
 
 
@@ -62,6 +63,7 @@ def 通常循環(主体, 初期状態, 前回=None):
     使用済み = {(h.作用ID, h.作用入力署名) for h in 履歴}
     形成試行済 = False
     圧縮作用 = 自動記憶圧縮作用(政策.圧縮開始文字数, 政策.圧縮最大文字数)
+    一時適応 = HDS一時適応キャッシュ(min(256, 政策.最大内部生成))
 
     def 終了(終端, 種別, 旧理由):
         return HDS実行結果(終端, 現在, tuple(履歴), tuple(旧理由), 種別, HDS計装(**統計), 観測待ち, tuple(阻害履歴), 前回.入力履歴 if 前回 is not None else ())
@@ -108,6 +110,7 @@ def 通常循環(主体, 初期状態, 前回=None):
                           結果.理由, 消費, 機会.資源負荷, 結果.阻害, tuple(計画), tuple(未来), 結果.診断)
         直前変化 = set(履歴[-1].状態差.影響対象) if 履歴 else set()
         履歴.append(行)
+        一時適応.結果を受け取る(機会, 結果, 差)
         使用済み.add((機会.作用ID, 機会.作用入力署名))
         統計["作用実行数"] += 1
         統計["消費資源"] += 機会.資源負荷
@@ -277,6 +280,7 @@ def 通常循環(主体, 初期状態, 前回=None):
                     continue
                 if not isinstance(o, HDS作用機会) or o.作用ID != a.作用ID:
                     raise ValueError("作用機会の型/ID契約違反")
+                o = 一時適応.機会を補正(o)
                 spec = getattr(a, "計画仕様", None)
                 権限 = tuple(sorted(set(o.必要権限) | (set(spec.必要権限) if isinstance(spec, HDS作用仕様) else set())))
                 過去阻害 = 失敗入力.get(a.作用ID)
