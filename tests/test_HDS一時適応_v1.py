@@ -23,10 +23,11 @@ class HDS一時適応試験(unittest.TestCase):
                 順序.append("動的再取得")
                 or HDS作用結果(
                     HDS作用状態.成立,
-                    追加状態=frozenset({"資料あり"}),
+                    追加状態=frozenset({"初回済み"}),
+                    解消残差=frozenset({"観測不足"}),
                 )
             ),
-            機会判定=lambda 状態: "資料あり" not in 状態.成立状態,
+            機会判定=lambda 状態: "観測不足" in 状態.残差,
         )
         利用 = HDS関数作用(
             "資料利用",
@@ -35,10 +36,10 @@ class HDS一時適応試験(unittest.TestCase):
                 or HDS作用結果(
                     HDS作用状態.成立,
                     追加状態=frozenset({"利用済み"}),
-                    削除状態=frozenset({"資料あり"}),
+                    追加残差=frozenset({"観測不足"}),
                 )
             ),
-            入力状態=("資料あり",),
+            入力状態=("初回済み",),
             出力状態=("利用済み",),
         )
         ノイズ = HDS関数作用(
@@ -54,7 +55,10 @@ class HDS一時適応試験(unittest.TestCase):
             出力状態=("ノイズ",),
             優先度=100.0,
         )
-        初期 = HDS実行状態(要求状態=frozenset({"利用済み", "資料あり"}))
+        初期 = HDS実行状態(
+            要求状態=frozenset({"利用済み"}),
+            残差=frozenset({"観測不足"}),
+        )
         結果 = HDS実行主体((動的, 利用, ノイズ), 最大作用回数=6).実行(初期)
 
         self.assertEqual(結果.終端, HDS終端.採用)
