@@ -101,7 +101,8 @@ class HDS一時適応試験(unittest.TestCase):
             成立状態=frozenset({"利用済み"}),
         )
         self.assertEqual(主体.実行(第二).終端, HDS終端.採用)
-        self.assertEqual(順序[0], "高優先度ノイズ")\n        self.assertIn("動的再取得", 順序)
+        self.assertEqual(順序[0], "高優先度ノイズ")
+        self.assertIn("動的再取得", 順序)
 
     def test_失敗と無変化を適応根拠にしない(self):
         class 機会:
