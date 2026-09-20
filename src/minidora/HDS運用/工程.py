@@ -12,6 +12,7 @@ from ..採否 import 実行状態
 from ..会話回答 import 回答を構成, 回答記録整合
 from ..監査改善接続 import 改善回答を検査
 from ..実行回復 import 回復方針を決定, 失敗を分類
+from ..コア.内容計画 import 内容計画を構成, 内容計画を検査, 内容計画を表現
 from .値 import 指紋, 正準, 結果を保存, 結果を復元, 計画を復元, 運用版
 from .解釈 import 計画を構成
 from .数量生成 import 数量回答を検査
@@ -149,11 +150,12 @@ class 工程供給:
                 record_key = _試行鍵(plan_key, step.識別子, index)
                 作用識別子 = "運用能力/" + str(plan_key) + "/" + step.識別子 + "/" + name
                 registration = self.目録.取得(name)
+                境界 = self.目録.境界契約(name)
                 def eligible(s, key=record_key, st=step, number=index):
                     current_values = dict(s.成果)
                     return (key not in current_values and _済(plan_key, st.識別子) not in s.成立状態
                             and (number == 0 or _試行鍵(plan_key, st.識別子, number - 1) in current_values))
-                def execute(s, st=step, ability=name, number=index, key=record_key):
+                def execute(s, st=step, ability=name, number=index, key=record_key, 境界=境界):
                     self.目録.照合()
                     ctx = self._文脈(s, plan_key, packet, st)
                     モジュール = self.目録.取得(ability).モジュール
@@ -180,6 +182,16 @@ class 工程供給:
                         from ..能力合成 import _符号化
                         if len(_符号化(packed)) > self.最大結果バイト:
                             raise ValueError("能力結果の保存上限。切断せず停止")
+                        if (結果.成立 and 結果.本文 and 境界 is not None
+                                and "C8" in 境界.関連コア責任ID):
+                            # 局所部品が既に生成した明示本文だけを共通内容契約へ載せる。
+                            # 構造化中間結果に表面文章を強制せず、語彙・文法・専門説明方式もコアへ移さない。
+                            plan = 内容計画を構成(
+                                結果.本文, 種別=ability, 根拠=tuple(結果.根拠),
+                                由来=tuple("参照:" + x.識別子 for x in 結果.参照),
+                            )
+                            if not 内容計画を検査(plan) or 内容計画を表現(plan) != 結果.本文:
+                                raise ValueError("能力結果の内容計画境界が不整合")
                         record = {"能力": ability, "版": モジュール.版, "工程": st.識別子,
                                   "入力印": before, "出力印": 指紋(packed), "採否": 結果.状態.value,
                                   "再利用": reused, "理由": 結果.保留理由}
@@ -197,10 +209,13 @@ class 工程供給:
                             成果=((key, {"能力": ability, "工程": st.識別子, "理由": str(exc), "例外": type(exc).__name__}),),
                             理由=("能力実行契約違反", type(exc).__name__, str(exc)),
                             阻害=HDS阻害(停止理由.契約違反, ability, str(exc) or type(exc).__name__))
+                def 意味入力署名関数(s, st=step, ability=name):
+                    return self.目録.意味入力署名(ability, self._文脈(s, plan_key, packet, st))
                 actions.append(HDS関数作用(作用識別子, execute, 入力状態=inputs,
                     出力状態=(_済(plan_key, step.識別子),), 読取成果=tuple(dict.fromkeys(reads)),
                     機会判定=eligible, 必要権限=("外部読取",) if registration.外部読取 else (),
-                    優先度=1.0 - index / 1000, 契約版=registration.モジュール.版))
+                    優先度=1.0 - index / 1000, 契約版=registration.モジュール.版,
+                    作用定義ID="運用能力/" + name, 意味入力署名=意味入力署名関数))
         recovery = self._回復作用(状態, plan_key, packet, plan)
         if recovery is not None:
             actions.append(recovery)
@@ -219,7 +234,8 @@ class 工程供給:
                                理由=("要求に対応する全出力から応答構成",))
         actions.append(HDS関数作用("運用/成果構成/" + plan_key, answer,
             入力状態=tuple(_済(plan_key, sid) for sid in plan.出力工程), 出力状態=("運用:応答成立",),
-            解消対象=("運用:成果未構成",), 読取成果=("運用入力", plan_key, *outputs), 契約版=運用版))
+            解消対象=("運用:成果未構成",), 読取成果=("運用入力", plan_key, *outputs), 契約版=運用版,
+            作用定義ID="運用/成果構成"))
         return tuple(actions)
 
     def _回復作用(self, 状態, plan_key, packet, plan):
@@ -265,7 +281,7 @@ class 工程供給:
                             理由=("目的と資料を保持した局所再計画", policy.動作))
             return HDS関数作用("運用/回復/" + plan_key, replan, 入力状態=("運用:計画構成済",),
                     解消対象=("運用:成果未構成",), 読取成果=(plan_key, failure_key, "運用入力"),
-                    優先度=5, 契約版=運用版)
+                    優先度=5, 契約版=運用版, 作用定義ID="運用/回復")
         return None
 
     def 最終検証(self, 状態, _):

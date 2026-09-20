@@ -9,6 +9,7 @@ from .応答構成 import 能力結果を復元
 from .会話意味 import 意味指紋
 from .会話数量 import 数量記録整合,比較記録整合,会話処理不成立
 from .製品版.型 import 能力結果
+from .コア.内容計画 import 内容単位, 内容計画, 内容計画を検査, 内容計画を表現
 
 会話回答版='MINIDORA-会話回答-v0.4'
 
@@ -97,15 +98,14 @@ def 回答を構成(values: tuple[能力結果,...], *, 詳細=False, 最大文�
             if value.保留理由: raise ValueError('成功結果に保留理由が混在')
         origins.extend(r.題名+('：'+r.URL if r.URL else '') for r in value.参照)
     meaning=回答意味IR(tuple(propositions),tuple(dict.fromkeys(caveats)),tuple(dict.fromkeys(origins)))
-    parts=[]
-    for p in meaning.命題:
-        parts.append(p.本文)
-        parts.extend(p.条件)  # 短い表示でも条件・留保を消さない。
-    parts.extend(meaning.留保)
-    if 詳細:
-        parts.append('根拠・由来：\n'+'\n'.join(meaning.由来 or ('既存能力の実行結果。外部資料の参照なし。',)))
-    body='\n'.join(parts)
-    if len(body)>最大文字数: raise ValueError('必須内容を切断せず回答を保留する')
+    内容計画値 = 内容計画(
+        tuple(内容単位(p.種別, p.本文, p.根拠, p.条件) for p in meaning.命題),
+        meaning.留保,
+        meaning.由来 or (("既存能力の実行結果。外部資料の参照なし。",) if 詳細 else ()),
+    )
+    if not 内容計画を検査(内容計画値):
+        raise ValueError('回答内容計画が不整合')
+    body = 内容計画を表現(内容計画値, 詳細=詳細, 最大文字数=最大文字数)
     資料={'版':会話回答版,'意味':asdict(meaning),'元結果':[_結果辞書(v) for v in values],
           '詳細':詳細,'最大文字数':最大文字数,'形式':形式,'手順':手順,'本文':body}
     資料['記録SHA256']=意味指紋(資料)

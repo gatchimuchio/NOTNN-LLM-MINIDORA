@@ -10,6 +10,9 @@ from .値 import 文字, 署名, 不変値, 整数
 from .認識 import HDS認識項目, HDS出典, 認識区分
 from .仮説 import HDS仮説, HDS予測, HDS作業枝
 from .観測 import HDS観測要求
+from ..コア.意味操作 import 束縛を試す as _共通束縛, 具体化する as _共通具体化
+from ..コア.関係操作 import 前方閉包 as _共通前方閉包
+from ..コア.条件操作 import 条件項 as _共通条件項, 条件集合を判定 as _共通条件判定, 条件状態 as _共通条件状態
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,28 +84,11 @@ def _命題(x):
 
 
 def _束縛(型: HDS命題, 値: HDS命題, 初期=None):
-    束 = dict(初期 or {})
-    for n in ("対象", "関係", "値", "範囲", "時点"):
-        a, b = getattr(型, n), getattr(値, n)
-        if isinstance(a, str) and a.startswith("?"):
-            if a in 束 and 署名(束[a]) != 署名(b):
-                return None
-            束[a] = b
-        elif 署名(a) != 署名(b):
-            return None
-    return 束
+    return _共通束縛(型, 値, 初期)
 
 
 def _具体化(x: HDS命題, 束):
-    values = []
-    for n in ("対象", "関係", "値", "範囲", "時点"):
-        a = getattr(x, n)
-        if isinstance(a, str) and a.startswith("?"):
-            if a not in 束:
-                return None
-            a = 束[a]
-        values.append(a)
-    return HDS命題(*values)
+    return _共通具体化(x, 束, 生成=HDS命題)
 
 
 def _ID(x: HDS命題, 認識群):
@@ -120,34 +106,7 @@ def _規則有効(r, 記憶):
 
 
 def _前方予測(種: tuple[HDS命題, ...], 規則群, 上限: int):
-    facts = {署名(x): x for x in 種}
-    変化 = True
-    検査数 = 0
-    while 変化:
-        変化 = False
-        for rule in 規則群:
-            bindings = [{}]
-            for p in rule.前提:
-                nxt = {}
-                for env in bindings:
-                    for f in tuple(facts.values()):
-                        検査数 += 1
-                        if 検査数 > 上限 * 32:
-                            raise ValueError("前方推論の探索予算超過。未探索部分は切捨てない")
-                        b = _束縛(p, f, env)
-                        if b is not None:
-                            nxt[署名(b)] = b
-                bindings = list(nxt.values())
-                if not bindings:
-                    break
-            for b in bindings:
-                c = _具体化(rule.結論, b)
-                if c is not None and 署名(c) not in facts:
-                    facts[署名(c)] = c
-                    変化 = True
-                    if len(facts) > 上限:
-                        raise ValueError("仮定世界の容量超過。候補切捨ては禁止")
-    return tuple(facts[k] for k in sorted(facts))
+    return _共通前方閉包(種, 規則群, 最大事実数=上限, 最大照合数=上限 * 32)
 
 
 def 関係から仮説を構成(状態, 規則群, *, 最大件数=128):
@@ -164,10 +123,21 @@ def 関係から仮説を構成(状態, 規則群, *, 最大件数=128):
             antecedents = tuple(_具体化(p, env) for p in rule.前提)
             if any(x is None for x in antecedents):
                 continue
-            missing = tuple(p for p in antecedents if not any(署名(p) == 署名(_命題(x)) for x in 確定))
+            確定命題 = tuple(_命題(x) for x in 確定)
+            missing = tuple(p for p in antecedents if not any(署名(p) == 署名(x) for x in 確定命題))
             if not missing:
                 continue
-            world = _前方予測(tuple(_命題(x) for x in 確定) + missing, 規則, 最大件数)
+            # 未観測の前提を「偽」と扱わない。反対値が同一意味座標で確定している場合だけ不成立。
+            条件群 = tuple(_共通条件項("仮定:" + _ID(p, 状態.認識), p) for p in missing)
+            偽条件命題 = tuple(p for p in missing if any(
+                (x.対象, x.関係, x.範囲, x.時点) == (p.対象, p.関係, p.範囲, p.時点)
+                and 署名(x.値) != 署名(p.値) for x in 確定命題))
+            条件判定 = _共通条件判定(条件群, 確定命題, 偽条件命題)
+            if 条件判定.状態 == _共通条件状態.不成立:
+                continue
+            if 条件判定.状態 != _共通条件状態.未確定:
+                raise ValueError("不足前提の条件状態が未確定以外になった")
+            world = _前方予測(確定命題 + missing, 規則, 最大件数)
             preds = {}
             conflict = set()
             for p in world:
