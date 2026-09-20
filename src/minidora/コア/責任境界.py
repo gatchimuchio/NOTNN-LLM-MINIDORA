@@ -80,8 +80,8 @@ def コア責任閉包を検査(能力境界群) -> bool:
     C7のような実行核横断責任は能力入口へ無理に割り当てない。
     """
     used = set()
-    for boundary in tuple(能力境界群):
-        IDs = tuple(getattr(boundary, "関連コア責任ID", ()))
+    for 境界 in tuple(能力境界群):
+        IDs = tuple(getattr(境界, "関連コア責任ID", ()))
         コア責任集合を検査(IDs)
         used.update(IDs)
     expected = {x.ID for x in コア責任 if x.能力入口対応}

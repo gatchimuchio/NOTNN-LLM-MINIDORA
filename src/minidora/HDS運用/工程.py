@@ -150,12 +150,12 @@ class 工程供給:
                 record_key = _試行鍵(plan_key, step.識別子, index)
                 作用識別子 = "運用能力/" + str(plan_key) + "/" + step.識別子 + "/" + name
                 registration = self.目録.取得(name)
-                boundary = self.目録.境界契約(name)
+                境界 = self.目録.境界契約(name)
                 def eligible(s, key=record_key, st=step, number=index):
                     current_values = dict(s.成果)
                     return (key not in current_values and _済(plan_key, st.識別子) not in s.成立状態
                             and (number == 0 or _試行鍵(plan_key, st.識別子, number - 1) in current_values))
-                def execute(s, st=step, ability=name, number=index, key=record_key, boundary=boundary):
+                def execute(s, st=step, ability=name, number=index, key=record_key, 境界=境界):
                     self.目録.照合()
                     ctx = self._文脈(s, plan_key, packet, st)
                     モジュール = self.目録.取得(ability).モジュール
@@ -182,8 +182,8 @@ class 工程供給:
                         from ..能力合成 import _符号化
                         if len(_符号化(packed)) > self.最大結果バイト:
                             raise ValueError("能力結果の保存上限。切断せず停止")
-                        if (結果.成立 and 結果.本文 and boundary is not None
-                                and "C8" in boundary.関連コア責任ID):
+                        if (結果.成立 and 結果.本文 and 境界 is not None
+                                and "C8" in 境界.関連コア責任ID):
                             # 局所部品が既に生成した明示本文だけを共通内容契約へ載せる。
                             # 構造化中間結果に表面文章を強制せず、語彙・文法・専門説明方式もコアへ移さない。
                             plan = 内容計画を構成(

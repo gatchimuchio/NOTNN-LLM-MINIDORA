@@ -81,16 +81,16 @@ class MINIDORAコア閉包試験(unittest.TestCase):
         root = Path(__file__).parents[1] / "src" / "minidora"
         process = (root / "HDS運用" / "工程.py").read_text(encoding="utf-8")
         catalog = (root / "HDS運用" / "能力.py").read_text(encoding="utf-8")
-        self.assertIn("boundary = self.目録.境界契約(name)", process)
+        self.assertIn("境界 = self.目録.境界契約(name)", process)
         self.assertIn("内容計画を構成", process)
-        self.assertIn('"C8" in boundary.関連コア責任ID', process)
+        self.assertIn('"C8" in 境界.関連コア責任ID', process)
         self.assertIn("標準能力登録を閉包", catalog)
         self.assertNotIn("if r.モジュール.名前 in 標準名", catalog)
 
     def test_08_関係仮説経路は共通条件判定を使う(self):
         root = Path(__file__).parents[1] / "src" / "minidora"
-        source = (root / "統合駆動_v2" / "意味構成.py").read_text(encoding="utf-8")
-        tree = ast.parse(source)
+        原文 = (root / "統合駆動_v2" / "意味構成.py").read_text(encoding="utf-8")
+        tree = ast.parse(原文)
         names = {node.func.id for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
         self.assertIn("_共通条件判定", names)
         self.assertIn("_共通条件項", names)

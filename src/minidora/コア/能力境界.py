@@ -131,14 +131,14 @@ def 標準能力登録を閉包(標準登録名群, 拡張登録名群=()) -> tu
     標準登録を既知名で先にfilterしない。将来の組込入口が台帳未登録なら必ず失敗する。
     拡張能力は標準名を上書きできず、ここでは標準能力へ自動昇格しない。
     """
-    standard = tuple(str(x) for x in 標準登録名群)
+    標準名列 = tuple(str(x) for x in 標準登録名群)
     extension = tuple(str(x) for x in 拡張登録名群)
     if len(extension) != len(set(extension)):
         raise ValueError("拡張能力登録名が重複")
     collision = sorted(set(extension) & set(_名前索引))
     if collision:
         raise ValueError("拡張能力が標準入口を上書き:" + ",".join(collision))
-    return 標準能力境界を照合(standard, 完全集合=True)
+    return 標準能力境界を照合(標準名列, 完全集合=True)
 
 def 能力分類集計():
     集計 = {}
