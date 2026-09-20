@@ -5,7 +5,7 @@
 矛盾時の優先順位:
 
 1. ユーザーの明示指示
-2. 最上位理論正本 `cognitive-engineering-foundations`
+2. 非公開内部参照（参照先は公開しない）
 3. 責任別外部正本 `LLM-Constitutive-Specification`
 4. `設計/` の現行MINIDORA局所契約
 5. `src/minidora/` の現行実装
