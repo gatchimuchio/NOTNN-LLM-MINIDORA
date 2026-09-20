@@ -4,8 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
+import sys
 
 根 = Path(__file__).resolve().parents[1]
+
+def _標準出力UTF8化() -> None:
+    for 出力先 in (sys.stdout, sys.stderr):
+        再設定 = getattr(出力先, "reconfigure", None)
+        if 再設定 is not None:
+            再設定(encoding="utf-8", errors="strict")
+
 
 禁止文字列 = (
     "cognitive-engineering-foundations",
@@ -91,6 +99,7 @@ def 監査() -> list[str]:
 
 
 def main() -> int:
+    _標準出力UTF8化()
     誤り = 監査()
     if 誤り:
         print("公開境界監査: 失敗")
