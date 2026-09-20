@@ -223,8 +223,8 @@ def 監査() -> list[str]:
             誤り.append(f"日本語基底必須資料欠落: {相対}")
 
     設計本文 = (根 / "設計/README.md").read_text(encoding="utf-8")
-    if "cognitive-engineering-foundations" not in 設計本文:
-        誤り.append("設計README: 最上位認知工学正本参照がない")
+    if "PUBLICATION_BOUNDARY.md" not in (根 / "AGENTS.md").read_text(encoding="utf-8"):
+        誤り.append("AGENTS: 公開境界方針への参照がない")
     if "00_日本語基底規定_v1.md" not in 設計本文:
         誤り.append("設計README: 日本語基底規定参照がない")
     if "01_日本語正本語彙_v1.md" not in 設計本文:
