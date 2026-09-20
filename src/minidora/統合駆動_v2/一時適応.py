@@ -85,10 +85,10 @@ class HDS一時適応キャッシュ:
                 _文脈(機会),
                 成立,
                 変化,
-                frozenset(状態差.追加状態),
-                frozenset(状態差.削除状態),
-                frozenset(状態差.解消残差),
-                frozenset(状態差.追加残差),
+                frozenset(getattr(状態差, "追加状態", ())),
+                frozenset(getattr(状態差, "削除状態", ())),
+                frozenset(getattr(状態差, "解消残差", ())),
+                frozenset(getattr(状態差, "追加残差", ())),
                 反証,
             )
         )
