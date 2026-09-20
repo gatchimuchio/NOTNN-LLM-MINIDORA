@@ -28,6 +28,9 @@ def _標準出力UTF8化() -> None:
 }
 
 高危険公開境界文書 = (
+    "現行正本.md",
+    "正本系統.md",
+    "CURRENT_CANONICAL.md",
     "HDS_MINIDORA_現行正本.md",
     "設計/07_HDS_IR入力契約.md",
     "設計/09_公開HDS_Compiler仕様.md",
