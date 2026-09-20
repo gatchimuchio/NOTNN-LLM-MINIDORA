@@ -9,13 +9,15 @@ from .観測 import 必要観測を構成
 from .計画 import HDS作用仕様, 作用列を構成
 from .形成 import 形成手順を再利用
 from .依存 import HDS依存辺
-from .状態更新 import 状態更新, 有効認識, ノード有効
+from .状態更新 import 有効認識, ノード有効
 from .意味構成 import 不足意味構成作用, 関係仮説構成作用, 自動分岐作用
 from .自動記憶 import 自動記憶圧縮作用
 from .自動形成 import 自動経験形成作用, 自動形成文脈
 from .未来 import 未来列を構成
 from .診断 import 例外を診断
 from .一時適応 import HDS一時適応キャッシュ
+from ..コア.状態操作 import 状態差を受理
+from ..コア.検証管理 import 検証器群を実行
 from .作用 import 観測作用, 仮説形成作用, 仮説再照合作用, 枝合流作用, 草案検証作用
 
 
@@ -34,6 +36,20 @@ def _関連仕様(状態, 作用群, 追加要求=frozenset()):
                 必要残差.update(s.追加残差)
                 増加 = True
     return tuple(関連[k] for k in sorted(関連))
+
+
+def _期待を計画仕様へ反映(仕様, 機会):
+    """契約効果を保持したまま、実行内期待だけを一時的な計画仕様へ合成する。"""
+    効果 = 機会.期待
+    if 効果.空:
+        return replace(仕様, 入力状態=機会.入力状態, 読取認識=機会.読取認識, 必要権限=機会.必要権限)
+    追加状態 = (仕様.追加状態 | 効果.追加状態) - 仕様.削除状態
+    削除状態 = (仕様.削除状態 | 効果.削除状態) - 仕様.追加状態
+    解消残差 = (仕様.解消残差 | 効果.解消残差) - 仕様.追加残差
+    追加残差 = (仕様.追加残差 | 効果.追加残差) - 仕様.解消残差
+    return replace(仕様, 入力状態=機会.入力状態, 読取認識=機会.読取認識,
+                   必要権限=機会.必要権限, 追加状態=追加状態, 削除状態=削除状態,
+                   解消残差=解消残差, 追加残差=追加残差)
 
 
 def 通常循環(主体, 初期状態, 前回=None):
@@ -96,13 +112,13 @@ def 通常循環(主体, 初期状態, 前回=None):
                 自動依存元 = 読取 - 原子的更新ノード
                 辺 |= {HDS依存辺(a, b) for a in 自動依存元 for b in 産出 if a != b}
             結果 = replace(結果, 依存追加=tuple(sorted(辺)), 検証依存=tuple(sorted(証明.items())))
-            現在, 差 = 状態更新(前, 結果)
+            現在, 差 = 状態差を受理(前, 結果)
         except Exception as exc:
             更新例外 = exc
             結果 = HDS作用結果(HDS作用状態.失敗, 停止要求=True,
                                理由=(f"{type(exc).__name__}: {exc}",),
                                阻害=HDS阻害(停止理由.契約違反, 機会.作用ID, str(exc)))
-            現在, 差 = 状態更新(前, 結果)
+            現在, 差 = 状態差を受理(前, 結果)
         消費 = tuple(sorted(set(機会.読取認識) | set(機会.未確定読取)))
         行 = HDS作用記録(len(履歴) + 1, 機会.作用ID, 機会.作用入力署名, 結果.状態,
                           前.状態署名, 現在.状態署名, 差,
@@ -110,7 +126,7 @@ def 通常循環(主体, 初期状態, 前回=None):
                           結果.理由, 消費, 機会.資源負荷, 結果.阻害, tuple(計画), tuple(未来), 結果.診断)
         直前変化 = set(履歴[-1].状態差.影響対象) if 履歴 else set()
         履歴.append(行)
-        一時適応.結果を受け取る(機会, 結果, 差)
+        一時適応.結果を受け取る(機会, 結果, 差, 前)
         使用済み.add((機会.作用ID, 機会.作用入力署名))
         統計["作用実行数"] += 1
         統計["消費資源"] += 機会.資源負荷
@@ -198,15 +214,8 @@ def 通常循環(主体, 初期状態, 前回=None):
             機会 = HDS作用機会("内的/目的検証", 署名((前署名, tuple((v.ID, v.版) for v in 主体.最終検証器))), 種別="目的検証")
             if (機会.作用ID, 機会.作用入力署名) in 使用済み:
                 return 終了(HDS終端.保留, 停止理由.検証不成立, ("HDS_FINAL_VALIDATION_REPEATED",))
-            検証失敗 = []
             try:
-                for v in 主体.最終検証器:
-                    写し = deepcopy(現在)
-                    合格 = v.検証(写し, None)
-                    if type(合格) is not bool or 写し.状態署名 != 前署名:
-                        raise ValueError("最終検証器の契約違反")
-                    if not 合格:
-                        検証失敗.append(v.ID)
+                検証失敗 = list(検証器群を実行(現在, 主体.最終検証器, None))
             except Exception as exc:
                 記録する(機会, HDS作用結果(HDS作用状態.失敗, 停止要求=True,
                     理由=(f"{type(exc).__name__}: {exc}",),
@@ -280,7 +289,6 @@ def 通常循環(主体, 初期状態, 前回=None):
                     continue
                 if not isinstance(o, HDS作用機会) or o.作用ID != a.作用ID:
                     raise ValueError("作用機会の型/ID契約違反")
-                o = 一時適応.機会を補正(o)
                 spec = getattr(a, "計画仕様", None)
                 権限 = tuple(sorted(set(o.必要権限) | (set(spec.必要権限) if isinstance(spec, HDS作用仕様) else set())))
                 過去阻害 = 失敗入力.get(a.作用ID)
@@ -292,7 +300,23 @@ def 通常循環(主体, 初期状態, 前回=None):
                         tuple((k, 現在.ノード署名("認識:" + k)) for k in (*読取認識, *o.未確定読取)),
                         tuple((k, 現在.ノード署名("成果:" + k)) for k in o.読取成果),
                         tuple((k, 現在.ノード署名("状態:" + k)) for k in sorted(入力状態)))
-                o = replace(o, 作用入力署名=署名(入力), 必要権限=権限, 読取認識=読取認識, 入力状態=入力状態)
+                準備済 = (入力状態 <= 現在.成立状態
+                        and all(有効認識(現在, k) for k in 読取認識)
+                        and all(ノード有効(現在, "成果:" + k) for k in o.読取成果))
+                意味入力 = o.意味入力署名
+                if 準備済:
+                    意味署名関数 = getattr(a, "意味入力を署名", None)
+                    if callable(意味署名関数):
+                        意味入力 = 意味署名関数(現在)
+                    if 修復入力 or 修復認識:
+                        意味入力 = 署名((意味入力,
+                            tuple(現在.ノード署名("認識:" + k) for k in 修復認識),
+                            tuple(現在.ノード署名("状態:" + k) for k in sorted(修復入力))))
+                o = replace(o, 作用入力署名=署名(入力), 意味入力署名=意味入力,
+                            必要権限=権限, 読取認識=読取認識, 入力状態=入力状態)
+                # 実入力・権限・修復条件が成立した場合だけ期待効果を適用する。
+                if 準備済:
+                    o = 一時適応.機会を補正(o)
                 全機会[o.作用ID] = o
                 if o.作用ID.startswith("内的/"):
                     鍵 = (o.作用ID, o.作用入力署名)
@@ -312,7 +336,8 @@ def 通常循環(主体, 初期状態, 前回=None):
                     資源除外 = True
                     continue
                 if isinstance(spec, HDS作用仕様) and 主体.未来制約:
-                    projected = (現在.成立状態 - spec.削除状態) | spec.追加状態
+                    計画仕様 = _期待を計画仕様へ反映(spec, o)
+                    projected = (現在.成立状態 - 計画仕様.削除状態) | 計画仕様.追加状態
                     if any(c.違反(projected) for c in 主体.未来制約):
                         制約除外.append((o, 停止理由.検証不成立))
                         continue
@@ -338,7 +363,7 @@ def 通常循環(主体, 初期状態, 前回=None):
                     continue
                 if 政策.許可判定(o.作用ID, o.必要権限):
                     continue
-                計画用.append(replace(s, 入力状態=o.入力状態, 読取認識=o.読取認識, 必要権限=o.必要権限))
+                計画用.append(_期待を計画仕様へ反映(s, o))
             文脈 = 自動形成文脈(現在, 利用作用群)
             for 関係 in 現在.形成関係:
                 計画 = 形成手順を再利用(関係, 現在.成立状態, 現在.残差, 現在.要求状態 | 修復状態,

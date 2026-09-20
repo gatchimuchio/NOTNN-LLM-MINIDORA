@@ -21,6 +21,7 @@ from .統合駆動_v2.計画 import HDS作用仕様
 from .統合駆動_v2.意味構成 import HDS関係規則
 from .統合駆動_v2.未来 import HDS未来制約, HDS未来状態
 from .統合駆動_v2.診断 import HDS失敗診断
+from .コア.効果 import 期待効果
 
 HDS実行主体版 = "HDS実行主体-v3"
 
@@ -126,8 +127,8 @@ class HDS実行状態:
 
     @property
     def 閉包済み(self) -> bool:
-        from .統合駆動_v2.状態更新 import 閉包可能
-        return 閉包可能(self)
+        from .コア.状態操作 import 閉包を確認
+        return 閉包を確認(self)
 
     @property
     def 状態署名(self) -> str:
@@ -163,8 +164,8 @@ class HDS実行状態:
         return {x.ID: x for x in self.認識}
 
     def ノード署名(self, ノード: str) -> str:
-        from .統合駆動_v2.状態更新 import ノード署名
-        return ノード署名(self, ノード)
+        from .コア.状態操作 import ノード意味署名
+        return ノード意味署名(self, ノード)
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,6 +207,9 @@ class HDS作用機会:
     種別: str = "通常"
     契約版: str = "v1"
     未確定読取: tuple[str, ...] = ()
+    作用定義ID: str = ""
+    意味入力署名: str = ""
+    期待: 期待効果 = 期待効果()
 
     def __post_init__(self) -> None:
         if not isinstance(self.作用ID, str) or not self.作用ID.strip():
@@ -227,6 +231,22 @@ class HDS作用機会:
             文字列組(getattr(self, 名称), 名称)
         if not self.契約版 or not self.種別:
             raise ValueError("作用契約版と種別は空にできない")
+        if not self.作用定義ID:
+            object.__setattr__(self, "作用定義ID", self.作用ID)
+        if not self.意味入力署名:
+            object.__setattr__(self, "意味入力署名", self.作用入力署名)
+        文字(self.作用定義ID, "作用定義ID")
+        文字(self.意味入力署名, "意味入力署名")
+        if not isinstance(self.期待, 期待効果):
+            raise TypeError("期待効果型が不正")
+
+    @property
+    def 計画出力状態(self) -> frozenset[str]:
+        return self.出力状態 | self.期待.追加状態
+
+    @property
+    def 計画解消対象(self) -> frozenset[str]:
+        return self.解消対象 | self.期待.解消残差
 
 
 @dataclass(frozen=True, slots=True)
@@ -381,11 +401,11 @@ class 標準HDS作用選択器:
                 continue
             if (機会.作用ID, 機会.作用入力署名) in 使用済み:
                 continue
-            残差被覆 = len(状態.残差.intersection(機会.解消対象))
-            状態被覆 = len(状態.未達状態.intersection(機会.出力状態)) + len(set(機会.識別対象).intersection(状態.要求認識))
+            残差被覆 = len(状態.残差.intersection(機会.計画解消対象))
+            状態被覆 = len(状態.未達状態.intersection(機会.計画出力状態)) + len(set(機会.識別対象).intersection(状態.要求認識))
             直接被覆 = 残差被覆 + 状態被覆
             特異度 = (
-                直接被覆 / max(1, len(機会.解消対象) + len(機会.出力状態))
+                直接被覆 / max(1, len(機会.計画解消対象) + len(機会.計画出力状態))
                 if 直接被覆 else 0.0
             )
             候補列.append((
@@ -425,6 +445,8 @@ class HDS関数作用:
         契約版: str = "v1",
         計画仕様: HDS作用仕様 | None = None,
         純粋作用: bool = False,
+        作用定義ID: str | None = None,
+        意味入力署名: Callable[[HDS実行状態], str] | None = None,
     ) -> None:
         文字(作用ID, "作用ID")
         整数(資源負荷, "作用資源負荷")
@@ -446,6 +468,16 @@ class HDS関数作用:
         self._読取成果 = tuple(読取成果)
         self._必要権限 = tuple(必要権限)
         self._契約版 = 契約版
+        if 作用定義ID is None:
+            # 現行運用の能力作用は計画/工程が呼出住所で、末尾能力名が定義名。
+            # それ以外は従来どおり作用IDを定義IDとして扱う。
+            parts = 作用ID.split("/")
+            作用定義ID = "運用能力/" + parts[-1] if 作用ID.startswith("運用能力/") and len(parts) >= 4 else 作用ID
+        文字(作用定義ID, "作用定義ID")
+        if 意味入力署名 is not None and not callable(意味入力署名):
+            raise TypeError("意味入力署名は呼出可能である必要がある")
+        self.作用定義ID = 作用定義ID
+        self._意味入力署名 = 意味入力署名
         self.計画仕様 = 計画仕様 or HDS作用仕様(
             作用ID, self._入力状態, self._出力状態, 解消残差=self._解消対象,
             読取認識=self._読取認識, 必要権限=self._必要権限,
@@ -453,6 +485,21 @@ class HDS関数作用:
         )
         if self.計画仕様.作用ID != self.作用ID:
             raise ValueError("計画仕様と作用IDが異なる")
+
+    def 意味入力を署名(self, 状態: HDS実行状態) -> str:
+        """実際に読める意味入力から作用定義単位の署名を構成する。"""
+        if self._意味入力署名 is not None:
+            return str(self._意味入力署名(状態))
+        if self.作用定義ID != self.作用ID and (self._読取認識 or self._読取成果):
+            from .コア.状態操作 import ノード意味値
+            return _署名((
+                self.作用定義ID, self._契約版,
+                tuple(_署名(ノード意味値(状態, "認識:" + k)) for k in self._読取認識),
+                tuple(_署名(ノード意味値(状態, "成果:" + k)) for k in self._読取成果),
+            ))
+        if self._入力署名 is not None:
+            return str(self._入力署名(状態))
+        return 状態.状態署名
 
     def 機会(self, 状態: HDS実行状態) -> HDS作用機会 | None:
         if self._機会判定 is not None and not bool(self._機会判定(状態)):
@@ -463,6 +510,9 @@ class HDS関数作用:
             署名 = _署名((self._契約版, tuple((k, 状態.ノード署名("認識:" + k)) for k in self._読取認識), tuple((k, 状態.ノード署名("成果:" + k)) for k in self._読取成果), tuple((k, 状態.ノード署名("状態:" + k)) for k in sorted(self._入力状態))))
         else:
             署名 = 状態.状態署名
+        # 未成立の上流入力を読む意味署名関数は、候補観測時にはまだ実行しない。
+        # 実入力が成立した後、通常循環が再署名してから実行内期待を適用する。
+        意味署名 = self.意味入力を署名(状態) if self._入力状態.issubset(状態.成立状態) else str(署名)
         return HDS作用機会(
             self.作用ID,
             str(署名),
@@ -477,6 +527,8 @@ class HDS関数作用:
             self._読取成果,
             self._必要権限,
             契約版=self._契約版,
+            作用定義ID=self.作用定義ID,
+            意味入力署名=str(意味署名),
         )
 
     def 実行(self, 状態: HDS実行状態) -> HDS作用結果:
@@ -548,8 +600,8 @@ class HDS実行主体:
 
     @staticmethod
     def _状態更新(前: HDS実行状態, 作用結果: HDS作用結果):
-        from .統合駆動_v2.状態更新 import 状態更新
-        return 状態更新(前, 作用結果)
+        from .コア.状態操作 import 状態差を受理
+        return 状態差を受理(前, 作用結果)
 
     def 実行(self, 初期状態: HDS実行状態) -> HDS実行結果:
         from .統合駆動_v2.循環 import 通常循環
