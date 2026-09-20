@@ -32,20 +32,10 @@ regressions = 0
 
 MINIDORA80 is numerically above 39%, but the original GPT-4 result and this GPQA Diamond LIVE E2E run do not use identical subsets or execution conditions. This is therefore a **same-score-band statement, not a claim of overall GPT-4 capability equivalence**.
 
-## Canonical upstream repositories
+## Public specification boundary
 
-- [**Cognitive Engineering Foundations**](https://github.com/gatchimuchio/cognitive-engineering-foundations) — top-level cognitive-engineering, language-base, and HDS canon.
-- [**LLM Constitutive Specification**](https://github.com/gatchimuchio/LLM-Constitutive-Specification) — constitutive requirements for language-model formation and capability-action structure.
-
-```text
-Cognitive Engineering Foundations
-        ↓
-LLM Constitutive Specification
-        ↓
-MINIDORA 模型核
-        ↓ exchangeable 能力モジュールs
-MINIDORA Product Prototype
-```
+Internal theory references, fixed upstream commits, and complete theory-to-implementation mappings are not published in this repository.
+Public documentation is limited to interfaces, implementation behavior, tests, limitations, and evaluation evidence.
 
 ## Product Prototype v1
 
@@ -127,7 +117,6 @@ The v0.5 **Large** classification remains subject to **re-audit**; older scale j
 
 MINIDORA treats Japanese as its normative language, base language, and internal semantic source of truth.
 
-- Cognitive Engineering Foundations referenced commit: `60131da52ba7931ed7f82c7648a74ac790f50d08`
 - LLM Constitutive Specification version: `2026-08-28-成立規定-8`
 - LLM Constitutive Specification referenced commit: `fcbc2fa4bc89d749942e8ebee2764115488d29c4`
 

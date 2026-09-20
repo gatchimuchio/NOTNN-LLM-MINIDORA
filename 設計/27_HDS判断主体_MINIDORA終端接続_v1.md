@@ -1,29 +1,20 @@
-# HDS判断主体 — MINIDORA終端接続仕様 v1（失効）
+# MINIDORA 内部設計文書 — 公開境界版
 
-日付: 2026-08-27
-状態: **失効・監査履歴のみ**
+互換案内: このファイルパスは既存リンク・履歴互換のため保持する公開境界スタブである。
 
-この文書が定めていた「後段HDSがQuestion / Candidate / Data / Referenceを再度受け取り、出典証拠を再審査して採否する」構造は、MINIDORAの責任境界を誤っていたため失効した。
+旧版に含まれていた内部理論の抽象定義、責任分解、状態分解、作用関係、版間の理論差分、内部抽象から実装型への対応表は、公開境界見直しにより現行default branchでは公開しない。
 
-誤りは、HDS 構文化器ですでに構文化されMINIDORAへ入力されたDataを、MINIDORAの出力後に後段HDSが再び直接読む構造にした点である。これでは後段HDSがMINIDORAの出力を判断するのではなく、問題を再度解く経路になり得る。
+公開側で確認できる正本は次に限定する。
 
-現行正本は [`28_HDS判断主体_MINIDORA出力関門_v2.md`](28_HDS判断主体_MINIDORA出力関門_v2.md) とする。
+- 実装コード
+- API・入出力契約
+- 局所的な失敗条件
+- 試験
+- 評価結果
+- 互換性
 
-現行境界:
+互換先ファイル名: `60_MINIDORA_HDS自律接続_v3.md`
 
-```text
-HDS 構文化器
-  ↓
-MINIDORA入力
-  ↓
-MINIDORA
-  ↓
-MINIDORA出力
-  ↓
-後段HDS
-  ├─ APPROVE → 外部出力
-  ├─ HOLD    → SILENT
-  └─ REJECT  → SILENT
-```
+上記は既存参照を壊さないためのファイル名であり、内部理論の完全定義を意味しない。
 
-後段HDSはMINIDORA出力だけを受け取る。Question / Candidate / Data / Referenceを直接受け取らず、再検索・再計算・差し戻しも行わない。
+公開方針は `../PUBLICATION_BOUNDARY.md` を正とする。

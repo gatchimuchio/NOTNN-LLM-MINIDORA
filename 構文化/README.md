@@ -6,7 +6,7 @@
 
 ## 言語規定
 
-最上位の言語規定は `gatchimuchio/cognitive-engineering-foundations` に置く。
+内部理論の参照先・固定版は公開リポジトリ外で管理する。
 
 MINIDORA局所規定は `../設計/00_日本語基底規定_v1.md`。
 
