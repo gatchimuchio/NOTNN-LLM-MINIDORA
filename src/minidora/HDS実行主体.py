@@ -487,19 +487,22 @@ class HDS関数作用:
             raise ValueError("計画仕様と作用IDが異なる")
 
     def 意味入力を署名(self, 状態: HDS実行状態) -> str:
-        """実際に読める意味入力から作用定義単位の署名を構成する。"""
+        """作用が宣言して読む意味入力だけから、作用定義単位の署名を構成する。"""
         if self._意味入力署名 is not None:
             return str(self._意味入力署名(状態))
-        if self.作用定義ID != self.作用ID and (self._読取認識 or self._読取成果):
+        if self._入力署名 is not None:
+            return str(self._入力署名(状態))
+        if self._読取認識 or self._読取成果 or self._入力状態:
             from .コア.状態操作 import ノード意味値
             return _署名((
                 self.作用定義ID, self._契約版,
-                tuple(_署名(ノード意味値(状態, "認識:" + k)) for k in self._読取認識),
-                tuple(_署名(ノード意味値(状態, "成果:" + k)) for k in self._読取成果),
+                tuple((k, _署名(ノード意味値(状態, "認識:" + k))) for k in self._読取認識),
+                tuple((k, _署名(ノード意味値(状態, "成果:" + k))) for k in self._読取成果),
+                tuple((k, _署名(ノード意味値(状態, "状態:" + k))) for k in sorted(self._入力状態)),
             ))
-        if self._入力署名 is not None:
-            return str(self._入力署名(状態))
-        return 状態.状態署名
+        # 明示入力がない作用を全体状態で過剰分断しない。
+        # 状態依存が意味上必要なら読取契約または専用署名関数として宣言する。
+        return _署名((self.作用定義ID, self._契約版, "明示意味入力なし"))
 
     def 機会(self, 状態: HDS実行状態) -> HDS作用機会 | None:
         if self._機会判定 is not None and not bool(self._機会判定(状態)):

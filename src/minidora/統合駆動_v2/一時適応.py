@@ -27,11 +27,25 @@ class _経験:
 
 
 def _文脈(機会) -> _作用文脈:
+    # 旧作用機会は作用定義ID/意味入力署名を持たないため、宣言済みの旧契約へ縮退する。
+    作用ID = str(getattr(機会, "作用ID"))
+    作用定義ID = str(getattr(機会, "作用定義ID", "") or 作用ID)
+    意味入力署名 = getattr(機会, "意味入力署名", "")
+    if not 意味入力署名:
+        意味入力署名 = getattr(機会, "作用入力署名", "")
+    if not 意味入力署名:
+        from ..コア.値 import 署名
+        意味入力署名 = 署名((
+            作用定義ID,
+            tuple(sorted(getattr(機会, "入力状態", ()))),
+            tuple(getattr(機会, "読取認識", ())),
+            tuple(getattr(機会, "読取成果", ())),
+        ))
     return _作用文脈(
-        str(機会.作用定義ID),
-        str(機会.意味入力署名),
-        str(機会.種別),
-        str(機会.契約版),
+        作用定義ID,
+        str(意味入力署名),
+        str(getattr(機会, "種別")),
+        str(getattr(機会, "契約版")),
     )
 
 
