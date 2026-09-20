@@ -36,6 +36,8 @@ jobs:
         run: |
           python tools/日本語基底監査.py
           python tools/日本語基底詳細監査.py
+      - name: 公開境界監査
+        run: python tools/公開境界監査.py
       - name: 構文確認
         run: python -m compileall -q src tests tools
       - name: 単体試験
