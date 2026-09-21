@@ -1,0 +1,49 @@
+name: ブランチ全整理・一時実行
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ブランチ全整理_一時実行.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup_branches:
+    name: main以外のブランチ削除
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: main固定確認
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_main="$(git ls-remote --heads origin refs/heads/main | awk '{print $1}')"
+          test "$remote_main" = "$GITHUB_SHA"
+
+      - name: main以外を削除
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "minidora-cleanup"
+          git config user.email "actions@users.noreply.github.com"
+          git ls-remote --heads origin |
+            while read -r sha ref; do
+              branch="${ref#refs/heads/}"
+              [ "$branch" = "main" ] && continue
+              echo "削除: $branch ($sha)"
+              git push origin --delete "$branch"
+            done
+
+      - name: main一本化確認
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t branches < <(git ls-remote --heads origin | awk '{sub("refs/heads/","",$2); print $2}')
+          printf '残存ブランチ: %s\n' "${branches[*]}"
+          test "${#branches[@]}" -eq 1
+          test "${branches[0]}" = "main"
