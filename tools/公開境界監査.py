@@ -61,6 +61,18 @@ def _標準出力UTF8化() -> None:
     "構文化/LLM横断_HDS日本語構文化_相対化ベンチマーク_v0_1/",
 )
 
+禁止生成成果物 = {
+    "core24_repaired_ab_full.json",
+    "gpqa_current_measurement.json",
+    "gpqa_formal_parallel_full.json",
+}
+
+禁止生成成果接頭辞 = (
+    "artifacts/refs_",
+    "artifacts/gpqa_formal_",
+    "artifacts/core_ab_",
+)
+
 
 def 追跡一覧() -> list[str]:
     out = subprocess.check_output(
@@ -77,6 +89,9 @@ def 監査() -> list[str]:
             continue
         対象 = 根 / 相対
         lower = 相対.lower()
+        if 相対 in 禁止生成成果物 or any(相対.startswith(prefix) for prefix in 禁止生成成果接頭辞):
+            誤り.append("default treeへ固定しない生成成果物: " + 相対)
+            continue
         if 相対.startswith("構文化/") and (lower.endswith(".zip") or lower.endswith(".zip.sha256")):
             誤り.append("公開禁止の構文化アーカイブ: " + 相対)
             continue

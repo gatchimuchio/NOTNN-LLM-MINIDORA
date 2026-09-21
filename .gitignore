@@ -23,3 +23,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .DS_Store
+
+# 実測・診断の生成物はdefault treeへ固定しない
+/gpqa_current_measurement.json
+/gpqa_formal_parallel_full.json
+/core24_repaired_ab_full.json
+/artifacts/refs_*.json
+/artifacts/gpqa_formal_*.json
+/artifacts/core_ab_*.json
