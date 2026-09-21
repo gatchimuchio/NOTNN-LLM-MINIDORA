@@ -20,7 +20,7 @@ HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v1"
 参照成果名 = "HDS選択:参照"
 参照世代成果名 = "HDS選択:参照世代"
 計算済み成果名 = "HDS選択:計算済み"
-基準結果成果名 = "HDS選択:基準結果"
+基準結果主体名 = "HDS選択:基準結果"
 現行結果成果名 = "HDS選択:現行結果"
 評価参照署名成果名 = "HDS選択:評価参照署名"
 非退行判定成果名 = "HDS選択:非退行判定"
@@ -251,14 +251,18 @@ class HDS選択継承供給:
             current_sig = _参照署名(refs)
             結果 = self._評価(refs)
             values = self._成果(s)
-            基準 = values.get(基準結果成果名)
+            主体値 = s.主体辞書()
+            基準 = 主体値.get(基準結果主体名)
             初回 = not isinstance(基準, HDS選択実行結果)
+            基準差分: tuple[tuple[str, object], ...] = ()
             if 初回:
                 基準 = 結果
+                # 非退行基準は可変参照の現行成果ではなく、同一入力の履歴基準として保持する。
+                # 主体状態差分は成果の自動依存辺へ入らないため、追加観測で自己失効しない。
+                基準差分 = ((基準結果主体名, 基準),)
 
             解消 = frozenset(set(s.残差).intersection(選択残差集合))
             成果群: list[tuple[str, object]] = [
-                (基準結果成果名, 基準),
                 (現行結果成果名, 結果),
                 (評価参照署名成果名, current_sig),
             ]
@@ -271,6 +275,7 @@ class HDS選択継承供給:
                     追加状態=frozenset({選択閉包状態}),
                     解消残差=解消,
                     成果=tuple(成果群),
+                    主体状態差分=基準差分,
                     理由=("HDS_BASELINE_APPROVAL_LOCKED", "HDS_MINIDORA_CANONICAL_INHERITED"),
                 )
 
@@ -299,6 +304,7 @@ class HDS選択継承供給:
                         追加状態=frozenset({選択閉包状態}),
                         解消残差=解消,
                         成果=tuple(成果群),
+                        主体状態差分=基準差分,
                         理由=tuple(dict.fromkeys((*判定.理由, "HDS_MINIDORA_CANONICAL_INHERITED"))),
                     )
                 return HDS作用結果(
@@ -306,6 +312,7 @@ class HDS選択継承供給:
                     解消残差=解消,
                     追加残差=frozenset({残差_証明不足}),
                     成果=tuple(成果群),
+                    主体状態差分=基準差分,
                     理由=tuple(dict.fromkeys((*判定.理由, "HDS_EXTENSION_SHADOW_ONLY"))),
                 )
 
@@ -321,6 +328,7 @@ class HDS選択継承供給:
                 解消残差=解消差分,
                 追加残差=追加差分,
                 成果=tuple(成果群),
+                主体状態差分=基準差分,
                 理由=tuple(dict.fromkeys(("HDS_SELECTION_NOT_CLOSED", *tuple(結果.理由)))),
             )
 
@@ -451,7 +459,7 @@ class HDS選択継承供給:
             解消対象=tuple(sorted(回復可能残差)),
             資源負荷=4,
             優先度=6.0,
-            読取成果=(参照成果名, 参照世代成果名, 現行結果成果名),
+            読取成果=(参照成果名, 参照世代成果名),
             入力署名=lambda s: _署名((_参照署名(self._参照(s)), int(self._成果(s).get(参照世代成果名, 0)))),
             契約版=HDS選択継承循環版,
             作用定義ID="HDS継承/追加参照",
@@ -473,7 +481,7 @@ __all__ = [
     "参照成果名",
     "参照世代成果名",
     "計算済み成果名",
-    "基準結果成果名",
+    "基準結果主体名",
     "現行結果成果名",
     "評価参照署名成果名",
     "非退行判定成果名",
