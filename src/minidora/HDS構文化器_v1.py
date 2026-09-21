@@ -26,6 +26,8 @@ from .HDS構文化記録_v1_2 import HDS失敗署名BankSnapshot, HDS抽出規�
 from .HDS構文化記録_v1_3 import HDS作用差分構造
 from .HDS構文化暗黙知 import HDS暗黙知IR射影, HDS暗黙知抽出
 from .HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
+from .HDSコア入力 import HDSコア入力束
+from .HDSコア入力射影 import HDSコア入力へ
 from .HDS言語協調 import HDS英語AND展開
 from .HDS言語関係 import HDS英語基底関係射影
 from .HDS言語範囲 import HDS英語関係範囲射影
@@ -49,10 +51,11 @@ class _意味基礎HDSコンパイラ(_基礎HDSコンパイラ):
 
 
 class 公開HDSコンパイラ(_基礎HDSコンパイラ):
-    'MINIDORA公開標準HDS 構文化器。\n\n    構造 v1.3ではMeaning/Audit v1.2を維持しつつ、状態遷移から\n    作用→状態差→後続利用の構造を並列成果として保持する。\n    処理系列 v1.4では意味IR・計算計画・作用差分構造を分離する。\n    構文化器自身は最終採否・後続作用実行を行わない。\n    '
+    'MINIDORA公開標準HDS 構文化器。\n\n    構造 v1.3の意味・監査観測を維持しつつ、Core v3が消費する情報だけを\n    HDSコア入力束へ射影し、これを正本とする。意味IR・計算計画・作用差分構造は\n    Legacy互換・監査・局所降下のために並列保持する。\n    構文化器自身は作用選択・最終採否・後続作用実行を行わない。\n    '
 
     構造版 = "v1.3"
-    処理系列版 = "v1.4"
+    処理系列版 = "v1.5"
+    コア入力版 = "HDS-コア入力-v1"
     規定言語 = "日本語"
     基底言語 = "日本語"
     基底言語コード = "ja"
@@ -138,7 +141,10 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         detailed = self._完成(意味_base, HDS履歴=HDS履歴)
         意味_ir = replace(detailed.IR, 手順=None, 初期状態={})
         detailed = replace(detailed, IR=意味_ir)
-        return HDSコンパイル束(意味_ir, plan, detailed.作用差分構造), detailed
+        コア入力 = HDSコア入力へ(意味_ir)
+        return HDSコンパイル束(
+            意味_ir, plan, detailed.作用差分構造, コア入力=コア入力
+        ), detailed
 
     def 意味コンパイル(
         self,
@@ -155,6 +161,23 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             文脈=文脈,
         )
         return bundle.意味IR
+
+    def コア入力コンパイル(
+        self,
+        入力: str,
+        *,
+        前回結果: object = None,
+        HDS履歴: tuple[HDSIR, ...] = (),
+        文脈: HDS文脈 | None = None,
+    ) -> HDSコア入力束:
+        """MINIDORA Core v3へ渡す正本入力だけを返す。"""
+        bundle, _ = self._意味束(
+            入力,
+            前回結果=前回結果,
+            HDS履歴=HDS履歴,
+            文脈=文脈,
+        )
+        return bundle.正本
 
     def 作用差分コンパイル(
         self,
@@ -366,6 +389,10 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
     def 問題IR(self, question: str, choices: Sequence[str]) -> HDSIR:
         completed = self._完成(self._問題基礎(question, choices)).IR
         return self._選択問題問い閉包(completed, question)
+
+    def 問題コア入力(self, question: str, choices: Sequence[str]) -> HDSコア入力束:
+        """選択問題もCore入力正本へ射影し、候補や問いを能力名へ変換しない。"""
+        return HDSコア入力へ(self.問題IR(question, choices))
 
     def 詳細問題IR(self, question: str, choices: Sequence[str]) -> HDS構文化器成果:
         return self._完成(self._問題基礎(question, choices))

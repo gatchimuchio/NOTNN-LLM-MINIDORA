@@ -6,14 +6,15 @@ from typing import Sequence
 
 from .HDS実行主体 import HDS作用機会, HDS作用結果, HDS作用状態, HDS実行状態
 from .HDS中間表現 import HDSIR
+from .HDSコア入力 import HDSコア入力束
+from .HDSコア入力射影 import HDSコア入力へ
 
 
 class HDS構文化作用:
-    """自然言語入力をHDS自身の作業状態へ構文化する知覚作用。
+    """自然言語入力をMINIDORA Coreが消費するHDS入力へ構文化する知覚作用。
 
-    構文化器は採否・回答生成を行わず、生成したHDS-IRと意味残差をHDS実行主体へ帰還する。
-    `HDSIR.実行可能` は旧計算実行境界なので、計算閉包を明示要求した場合だけ残差化する。
-    同一性はHDS全状態ではなく、構文化器が実際に消費する固定入力だけから作る。
+    正本成果は `HDSコア入力`。HDSIRはLegacy互換・監査用途として併置する。
+    構文化器は作用選択・実行計画・最終採否・回答生成を行わない。
     """
 
     def __init__(
@@ -29,9 +30,8 @@ class HDS構文化作用:
         解消対象: Sequence[str] = ("入力未構文化",),
         実行閉包要求: bool = False,
     ) -> None:
-        コンパイル関数 = getattr(構文化器, "コンパイル", None)
-        if not callable(コンパイル関数):
-            raise TypeError("HDS構文化作用にはコンパイル可能な構文化器が必要")
+        if not any(callable(getattr(構文化器, 名, None)) for 名 in ("コンパイル束", "コア入力コンパイル", "コンパイル")):
+            raise TypeError("HDS構文化作用にはCore入力又はLegacy構文化が可能な構文化器が必要")
         self.構文化器 = 構文化器
         self.入力 = str(入力)
         self.前回結果 = 前回結果
@@ -67,12 +67,13 @@ class HDS構文化作用:
             1,
             1.0,
             True,
-            ("HDS_COMPILER_AS_COGNITIVE_INPUT",),
+            ("HDSコア入力構文化器",),
+            作用定義ID="HDS構文化",
+            意味入力署名=self._入力印,
         )
 
-    def _コンパイル(self) -> HDSIR:
-        コンパイル関数 = self.構文化器.コンパイル
-        引数 = inspect.signature(コンパイル関数).parameters
+    def _追加引数(self, 呼出関数) -> dict:
+        引数 = inspect.signature(呼出関数).parameters
         可変引数 = any(項目.kind is inspect.Parameter.VAR_KEYWORD for 項目 in 引数.values())
         追加引数 = {}
         if "前回結果" in 引数 or 可変引数:
@@ -81,42 +82,67 @@ class HDS構文化作用:
             追加引数["HDS履歴"] = self.HDS履歴
         if "文脈" in 引数 or 可変引数:
             追加引数["文脈"] = self.文脈
-        return コンパイル関数(self.入力, **追加引数)
+        return 追加引数
+
+    def _コンパイル(self) -> tuple[HDSコア入力束, HDSIR | None]:
+        束関数 = getattr(self.構文化器, "コンパイル束", None)
+        if callable(束関数):
+            束 = 束関数(self.入力, **self._追加引数(束関数))
+            コア入力 = getattr(束, "コア入力", None)
+            意味IR = getattr(束, "意味IR", None)
+            if コア入力 is None and isinstance(意味IR, HDSIR):
+                コア入力 = HDSコア入力へ(意味IR)
+            if not isinstance(コア入力, HDSコア入力束):
+                raise TypeError("コンパイル束にCore入力正本がない")
+            if 意味IR is not None and not isinstance(意味IR, HDSIR):
+                raise TypeError("コンパイル束のLegacy意味IR型不正")
+            return コア入力, 意味IR
+
+        コア関数 = getattr(self.構文化器, "コア入力コンパイル", None)
+        if callable(コア関数):
+            コア入力 = コア関数(self.入力, **self._追加引数(コア関数))
+            if not isinstance(コア入力, HDSコア入力束):
+                raise TypeError("Core入力コンパイルの戻り型不正")
+            return コア入力, None
+
+        互換関数 = getattr(self.構文化器, "コンパイル")
+        意味IR = 互換関数(self.入力, **self._追加引数(互換関数))
+        if not isinstance(意味IR, HDSIR):
+            raise TypeError("Legacy構文化器の戻り型不正")
+        return HDSコア入力へ(意味IR), 意味IR
 
     def 実行(self, 状態: HDS実行状態) -> HDS作用結果:
         try:
-            中間表現 = self._コンパイル()
+            コア入力, 意味IR = self._コンパイル()
         except Exception as exc:
             return HDS作用結果(
                 HDS作用状態.失敗,
                 追加残差=frozenset({f"構文化失敗:{type(exc).__name__}"}),
-                理由=("HDS_COMPILE_FAILED", type(exc).__name__),
-            )
-
-        if not isinstance(中間表現, HDSIR):
-            return HDS作用結果(
-                HDS作用状態.失敗,
-                追加残差=frozenset({"構文化失敗:HDSIR型不正"}),
-                理由=("HDS_COMPILE_RETURN_TYPE_INVALID",),
+                理由=("HDSコア入力構文化失敗", type(exc).__name__),
             )
 
         残差群 = {
             f"HDS残差:{項目.種別}:{項目.理由}"
-            for 項目 in 中間表現.残差
+            for 項目 in コア入力.残差
         }
-        if self.実行閉包要求:
-            残差群.update(f"HDS実行阻害:{項目}" for 項目 in 中間表現.実行阻害理由)
-        理由群 = ["HDS_IR_ATTACHED_TO_HDS_STATE"]
+        if self.実行閉包要求 and 意味IR is not None:
+            残差群.update(f"HDS実行阻害:{項目}" for 項目 in 意味IR.実行阻害理由)
+        理由群 = ["HDSコア入力を状態へ接続"]
         if 残差群:
-            理由群.append("HDS_IR_HAS_RESIDUALS")
+            理由群.append("HDSコア入力に残差あり")
         else:
-            理由群.append("HDS_IR_CLOSED_FOR_CURRENT_CONTRACT")
+            理由群.append("HDSコア入力契約閉包")
+
+        成果 = [("HDSコア入力", コア入力)]
+        if 意味IR is not None:
+            成果.append(("HDS_IR", 意味IR))
         return HDS作用結果(
             HDS作用状態.成立,
             追加状態=frozenset({self.出力状態}),
             解消残差=self.解消対象,
             追加残差=frozenset(残差群),
-            成果=(("HDS_IR", 中間表現),),
+            成果=tuple(成果),
+            主体状態差分=(("HDSコア入力署名", コア入力.意味署名),),
             理由=tuple(理由群),
         )
 
