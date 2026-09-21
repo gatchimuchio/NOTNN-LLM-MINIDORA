@@ -13,7 +13,8 @@ from .HDSコア入力射影 import HDSコア入力へ
 class HDS構文化作用:
     """自然言語入力をMINIDORA Coreが消費するHDS入力へ構文化する知覚作用。
 
-    正本成果は `HDSコア入力`。HDSIRはLegacy互換・監査用途として併置する。
+    正本成果は `HDSコア入力`。Core-native構文化器ではLegacy IRを形成しない。
+    Legacy構文化器だけ互換用HDSIRを併置する。
     構文化器は作用選択・実行計画・最終採否・回答生成を行わない。
     """
 
@@ -85,6 +86,15 @@ class HDS構文化作用:
         return 追加引数
 
     def _コンパイル(self) -> tuple[HDSコア入力束, HDSIR | None]:
+        # Core-native入口を常に最優先する。Legacy成果の形成を正本入力の前提にしない。
+        コア関数 = getattr(self.構文化器, "コア入力コンパイル", None)
+        if callable(コア関数):
+            コア入力 = コア関数(self.入力, **self._追加引数(コア関数))
+            if not isinstance(コア入力, HDSコア入力束):
+                raise TypeError("Core入力コンパイルの戻り型不正")
+            return コア入力, None
+
+        # Core-native入口を持たない束形式だけ、互換的に意味IRから射影する。
         束関数 = getattr(self.構文化器, "コンパイル束", None)
         if callable(束関数):
             束 = 束関数(self.入力, **self._追加引数(束関数))
@@ -97,13 +107,6 @@ class HDS構文化作用:
             if 意味IR is not None and not isinstance(意味IR, HDSIR):
                 raise TypeError("コンパイル束のLegacy意味IR型不正")
             return コア入力, 意味IR
-
-        コア関数 = getattr(self.構文化器, "コア入力コンパイル", None)
-        if callable(コア関数):
-            コア入力 = コア関数(self.入力, **self._追加引数(コア関数))
-            if not isinstance(コア入力, HDSコア入力束):
-                raise TypeError("Core入力コンパイルの戻り型不正")
-            return コア入力, None
 
         互換関数 = getattr(self.構文化器, "コンパイル")
         意味IR = 互換関数(self.入力, **self._追加引数(互換関数))

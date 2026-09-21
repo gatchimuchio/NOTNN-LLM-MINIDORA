@@ -8,8 +8,8 @@ from .コア.値 import 署名
 from .HDSコア要求抽出 import 明示作用要求を抽出
 from .HDSコア入力 import (
     HDSコア意味項目, HDSコア条件, HDSコア関係, HDSコア目的,
-    HDSコア作用要求, HDSコア残差, HDSコア検証要求, HDSコア表現制約,
-    HDSコア入力束,
+    HDSコア作用要求, HDSコア残差, HDSコア検証要求,
+    HDSコア実行制約, HDSコア表現制約, HDSコア入力束,
 )
 
 _監査接頭辞 = ("監査.", "保持.", "暫定性.", "帰還.")
@@ -122,6 +122,14 @@ def HDSコア入力へ(IR) -> HDSコア入力束:
     # 目的.*を能力名へ読み替えず、原文に明示された作用意味だけを別経路で抽出する。
     要求抽出 = 明示作用要求を抽出(IR.原文)
     作用要求 = list(要求抽出.作用要求)
+    表現要求 = list(要求抽出.表現要求)
+    実行制約 = list(要求抽出.実行制約)
+    if bool(IR.参照必須):
+        実行制約.append(HDSコア実行制約(
+            ID="実行制約:参照必須",
+            種別="参照",
+            値="必須",
+        ))
 
     残差 = list(要求抽出.残差)
     for 項目 in tuple(IR.残差):
@@ -136,6 +144,31 @@ def HDSコア入力へ(IR) -> HDSコア入力束:
         ))
     残差.extend(追加残差)
 
+    # 完了条件は明示作用要求の期待成果だけを供給し、目的座標からは捏造しない。
+    要求成果 = tuple(dict.fromkeys(成果 for 要求 in 作用要求 for 成果 in 要求.要求成果))
+
+    明示出力言語 = tuple(dict.fromkeys(x.値 for x in 表現要求 if x.種別 == "出力言語"))
+    if len(明示出力言語) > 1:
+        残差.append(HDSコア残差(
+            ID="Core入力:出力言語競合",
+            種別="表現要求競合",
+            原文=IR.原文,
+            理由="複数の出力言語要求が競合している",
+            解消条件=("出力言語を一つに固定する",),
+        ))
+        出力言語 = None if IR.出力言語 is None else str(IR.出力言語)
+    elif 明示出力言語:
+        出力言語 = 明示出力言語[0]
+    else:
+        出力言語 = None if IR.出力言語 is None else str(IR.出力言語)
+
+    表現制約 = HDSコア表現制約(
+        str(IR.入力言語),
+        出力言語,
+        tuple(表現要求),
+    )
+
+    # 表現要求の競合を含め、最終的に残った全残差へ検証要求を対応付ける。
     検証要求 = tuple(
         HDSコア検証要求(
             ID="検証:" + 項目.ID,
@@ -145,19 +178,13 @@ def HDSコア入力へ(IR) -> HDSコア入力束:
         )
         for 項目 in 残差
     )
-
-    # 完了条件は明示作用要求の期待成果だけを供給し、目的座標からは捏造しない。
-    要求成果 = tuple(dict.fromkeys(成果 for 要求 in 作用要求 for 成果 in 要求.要求成果))
-    表現制約 = HDSコア表現制約(
-        str(IR.入力言語),
-        None if IR.出力言語 is None else str(IR.出力言語),
-        bool(IR.参照必須),
-    )
     由来署名 = 署名((
         IR.原文, IR.認知世界ID,
         tuple((x.ID, x.種別, x.内容, x.状態, x.由来, x.原文範囲) for x in 意味項目),
         tuple((x.ID, x.始点, x.終点, x.種別, x.条件ID, x.制約, x.状態, x.由来) for x in 関係),
         tuple((x.ID, x.種別, x.理由, x.影響参照, x.解消条件) for x in 残差),
+        tuple((x.ID, x.種別, x.値, x.原文範囲) for x in 実行制約),
+        tuple((x.ID, x.種別, x.値, x.原文範囲) for x in 表現要求),
     ))
     結果 = HDSコア入力束(
         原文=IR.原文,
@@ -170,6 +197,7 @@ def HDSコア入力へ(IR) -> HDSコア入力束:
         要求成果=要求成果,
         残差=tuple(残差),
         検証要求=検証要求,
+        実行制約=tuple(実行制約),
         表現制約=表現制約,
         文脈引用=tuple(str(x) for x in IR.文脈引用),
         射影由来署名=由来署名,

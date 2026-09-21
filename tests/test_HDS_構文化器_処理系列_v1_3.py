@@ -11,9 +11,9 @@ class HDS構文化器処理系列試験(unittest.TestCase):
     def setUp(self) -> None:
         self.構文化器 = 公開HDSコンパイラ()
 
-    def test_意味監査構造_v1_3と処理系列_v1_5(self) -> None:
+    def test_意味監査構造_v1_3と処理系列_v1_6(self) -> None:
         self.assertEqual(self.構文化器.構造版, "v1.3")
-        self.assertEqual(self.構文化器.処理系列版, "v1.5")
+        self.assertEqual(self.構文化器.処理系列版, "v1.6")
         self.assertEqual(self.構文化器.規定言語, "日本語")
         self.assertEqual(self.構文化器.基底言語, "日本語")
         self.assertEqual(self.構文化器.基底言語コード, "ja")

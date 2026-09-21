@@ -12,7 +12,7 @@ from .計算中間表現 import 計算中間表現
 from .言語 import 言語計画
 
 
-HDSコンパイラパイプライン版 = "v1.5"
+HDSコンパイラパイプライン版 = "v1.6"
 
 
 class HDS意味専用計画器:
