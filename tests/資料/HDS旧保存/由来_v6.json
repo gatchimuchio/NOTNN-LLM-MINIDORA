@@ -1,0 +1,8 @@
+{
+  "commit": "574f22937b093985486d23c30c829d2b25cf7182",
+  "tree": "b2611c318d151df03374e8d01a10fd7586a4e353",
+  "目録": "22f7d3d8783a0f191c2fbd74317cc12260fe9586d9b1b31be8c22966aa267c73",
+  "原本SHA256": "f9d90c3e21b1efddece82d8bca3919779b1ab2b2a1c5df3a17bed4b78ab9802c",
+  "圧縮SHA256": "14ce1429a6ef4879d32ea16251b31d245bc640e1ffe26d092406a60c67daeebc",
+  "由来": "固定mainの未変更コードで資料登録・回答・保存・復元を実行。手順形成なし。"
+}
