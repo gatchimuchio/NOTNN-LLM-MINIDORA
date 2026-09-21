@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from hashlib import sha256
-import json
 from typing import Callable, Sequence
 
 from .HDS実行主体 import HDS実行状態, HDS作用結果, HDS作用状態, HDS関数作用
@@ -14,6 +12,7 @@ from .参照 import 参照供給器, 参照記録
 from .模型 import MINIDORA模型核
 from .能力状態差循環 import 標準能力模型核
 from .計算実行器 import 計算実行器
+from .コア.値 import 署名 as _意味署名
 
 
 HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v1"
@@ -65,8 +64,7 @@ HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v1"
 
 
 def _署名(値: object) -> str:
-    raw = json.dumps(値, ensure_ascii=False, sort_keys=True, default=str, separators=(",", ":"))
-    return sha256(raw.encode("utf-8")).hexdigest()
+    return _意味署名(値)
 
 
 def _参照署名(参照群: Sequence[参照記録]) -> str:
