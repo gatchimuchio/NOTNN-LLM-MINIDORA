@@ -139,18 +139,55 @@ class HDSコア検証要求:
 
 
 @dataclass(frozen=True, slots=True)
+class HDSコア表現要求:
+    ID: str
+    種別: str
+    値: str
+    原文範囲: tuple[int, int] | None = None
+
+    def __post_init__(self) -> None:
+        for 名 in ("ID", "種別", "値"):
+            文字(getattr(self, 名), 名)
+        if self.原文範囲 is not None:
+            if (not isinstance(self.原文範囲, tuple) or len(self.原文範囲) != 2
+                    or any(type(x) is not int for x in self.原文範囲)
+                    or not 0 <= self.原文範囲[0] <= self.原文範囲[1]):
+                raise ValueError("表現要求原文範囲不正")
+
+
+@dataclass(frozen=True, slots=True)
+class HDSコア実行制約:
+    ID: str
+    種別: str
+    値: str
+    原文範囲: tuple[int, int] | None = None
+
+    def __post_init__(self) -> None:
+        for 名 in ("ID", "種別", "値"):
+            文字(getattr(self, 名), 名)
+        if self.原文範囲 is not None:
+            if (not isinstance(self.原文範囲, tuple) or len(self.原文範囲) != 2
+                    or any(type(x) is not int for x in self.原文範囲)
+                    or not 0 <= self.原文範囲[0] <= self.原文範囲[1]):
+                raise ValueError("実行制約原文範囲不正")
+
+
+@dataclass(frozen=True, slots=True)
 class HDSコア表現制約:
     入力言語: str
     出力言語: str | None = None
-    参照必須: bool = False
+    要求: tuple[HDSコア表現要求, ...] = ()
     保持条件: tuple[str, ...] = ("原文保持", "不確定保持", "残差保持")
 
     def __post_init__(self) -> None:
         文字(self.入力言語, "入力言語")
         if self.出力言語 is not None:
             文字(self.出力言語, "出力言語")
-        if type(self.参照必須) is not bool:
-            raise TypeError("参照必須はbool")
+        if not isinstance(self.要求, tuple) or any(not isinstance(x, HDSコア表現要求) for x in self.要求):
+            raise TypeError("表現要求型不正")
+        IDs = tuple(x.ID for x in self.要求)
+        if len(IDs) != len(set(IDs)):
+            raise ValueError("表現要求ID重複")
         文字列組(self.保持条件, "表現保持条件")
 
 
@@ -166,6 +203,7 @@ class HDSコア入力束:
     要求成果: tuple[str, ...]
     残差: tuple[HDSコア残差, ...]
     検証要求: tuple[HDSコア検証要求, ...]
+    実行制約: tuple[HDSコア実行制約, ...]
     表現制約: HDSコア表現制約
     文脈引用: tuple[str, ...] = ()
     射影由来署名: str = ""
@@ -181,7 +219,7 @@ class HDSコア入力束:
             ("意味項目", HDSコア意味項目), ("関係", HDSコア関係),
             ("条件", HDSコア条件), ("目的", HDSコア目的),
             ("作用要求", HDSコア作用要求), ("残差", HDSコア残差),
-            ("検証要求", HDSコア検証要求),
+            ("検証要求", HDSコア検証要求), ("実行制約", HDSコア実行制約),
         ):
             群 = getattr(self, 名)
             if not isinstance(群, tuple) or any(not isinstance(x, 型) for x in 群):
@@ -221,6 +259,7 @@ class HDSコア入力束:
             ("目的", ("C5",)),
             ("作用要求", ("C2", "C5")),
             ("要求成果", ("C5",)),
+            ("実行制約", ("C2", "C6")),
             ("残差", ("C5", "C6")),
             ("検証要求", ("C6",)),
             ("表現制約", ("C8",)),
@@ -233,6 +272,7 @@ class HDSコア入力束:
 
 __all__ = [
     "HDSコア意味項目", "HDSコア条件", "HDSコア関係", "HDSコア目的",
-    "HDSコア作用要求", "HDSコア残差", "HDSコア検証要求", "HDSコア表現制約",
+    "HDSコア作用要求", "HDSコア残差", "HDSコア検証要求",
+    "HDSコア表現要求", "HDSコア実行制約", "HDSコア表現制約",
     "HDSコア入力束",
 ]
