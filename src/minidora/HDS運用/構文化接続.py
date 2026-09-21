@@ -1,8 +1,7 @@
-"""現行構文化器と局所能力の責任境界。
+"""現行構文化器と局所能力のLegacy責任境界。
 
-v1.3の全成果は保持する。構文化器が生成した実装・委譲メタデータだけを
-局所作用の入力検査から分ける。利用者文の条件・関係・残差は免除しない。
-局所射影は原IRの置換ではなく、能力の対応範囲を検査するための別ビューである。
+Core-first正本は HDSコア入力束。ここは既存能力経路のためにLegacy意味IRへ射影し、
+局所能力の対応範囲だけを検査する。利用者文の条件・関係・残差は免除しない。
 """
 from __future__ import annotations
 from dataclasses import replace
@@ -68,6 +67,9 @@ def 局所接続を構成(ir):
 
 class 運用構文化器:
     def コンパイル(self, text):
-        self.原IR = 公開HDSコンパイラ().コンパイル(text)
+        構文化器 = 公開HDSコンパイラ()
+        束 = 構文化器.コンパイル束(text)
+        self.コア入力 = 束.正本
+        self.原IR = 束.互換IR()
         local, self.責任対応 = 局所接続を構成(self.原IR)
         return local
