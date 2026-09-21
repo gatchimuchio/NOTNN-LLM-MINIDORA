@@ -124,6 +124,25 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         )
         return HDS意味IR化(base, plan), plan
 
+    def _コア入力正本(
+        self,
+        入力: str,
+        *,
+        前回結果: object = None,
+        HDS履歴: tuple[HDSIR, ...] = (),
+        文脈: HDS文脈 | None = None,
+    ) -> HDSコア入力束:
+        """Legacy計算計画を形成せず、Coreが消費する意味入力だけを構文化する。"""
+        意味_base = self._意味基礎.コンパイル(
+            入力,
+            前回結果=前回結果,
+            HDS履歴=HDS履歴,
+            文脈=文脈,
+        )
+        detailed = self._完成(意味_base, HDS履歴=HDS履歴)
+        意味_ir = replace(detailed.IR, 手順=None, 初期状態={})
+        return HDSコア入力へ(意味_ir)
+
     def _意味束(
         self,
         入力: str,
@@ -141,7 +160,13 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         detailed = self._完成(意味_base, HDS履歴=HDS履歴)
         意味_ir = replace(detailed.IR, 手順=None, 初期状態={})
         detailed = replace(detailed, IR=意味_ir)
-        コア入力 = HDSコア入力へ(意味_ir)
+        # Legacy束の正本欄にも、計算Pから独立したCore入力を格納する。
+        コア入力 = self._コア入力正本(
+            入力,
+            前回結果=前回結果,
+            HDS履歴=HDS履歴,
+            文脈=文脈,
+        )
         return HDSコンパイル束(
             意味_ir, plan, detailed.作用差分構造, コア入力=コア入力
         ), detailed
@@ -170,14 +195,13 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         HDS履歴: tuple[HDSIR, ...] = (),
         文脈: HDS文脈 | None = None,
     ) -> HDSコア入力束:
-        """MINIDORA Core v3へ渡す正本入力だけを返す。"""
-        bundle, _ = self._意味束(
+        """MINIDORA Core v3へ渡す正本入力だけを返す。Legacy計算Pは形成しない。"""
+        return self._コア入力正本(
             入力,
             前回結果=前回結果,
             HDS履歴=HDS履歴,
             文脈=文脈,
         )
-        return bundle.正本
 
     def 作用差分コンパイル(
         self,
