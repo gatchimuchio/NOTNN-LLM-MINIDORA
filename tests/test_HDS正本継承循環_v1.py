@@ -4,7 +4,7 @@ import unittest
 
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 from minidora.HDS駆動コア import HDS駆動コア, HDS駆動コア版
-from minidora.HDS実行主体 import HDS終端
+from minidora.HDS実行主体 import HDS終端, HDS作用供給器, HDS関数作用, HDS作用結果, HDS作用状態
 from minidora.HDS選択継承循環 import (
     回答成果名,
     基準結果成果名,
@@ -49,6 +49,30 @@ class HDS正本継承循環試験(unittest.TestCase):
 
     def test_版はv5(self):
         self.assertEqual(HDS駆動コア版, "MINIDORA-HDS-FIRST-v5")
+
+
+    def test_駆動コアが要求単位の動的作用供給を保持(self):
+        def 供給(状態):
+            if "継承確認済み" in 状態.成立状態:
+                return ()
+            return (
+                HDS関数作用(
+                    "継承確認",
+                    lambda _状態: HDS作用結果(
+                        HDS作用状態.成立,
+                        追加状態=frozenset({"継承確認済み"}),
+                    ),
+                    出力状態=("継承確認済み",),
+                ),
+            )
+
+        結果 = HDS駆動コア().実行(
+            "継承確認",
+            要求状態=("継承確認済み",),
+            追加作用供給器=(HDS作用供給器("継承確認供給", 供給),),
+        )
+        self.assertEqual(結果.終端, HDS終端.採用)
+        self.assertEqual([x.作用ID for x in 結果.履歴], ["継承確認"])
 
     def test_基準承認済みは追加観測せず完全保持(self):
         provider = 固定追加参照((証拠("Molecule B", 識別子="late"),))
