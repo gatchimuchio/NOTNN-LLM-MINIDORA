@@ -5,12 +5,14 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/cleanup_forward_port_once.yml"
+      - ".github/workflows/PR整理_前方移植_一時実行.yml"
 
 permissions:
   contents: write
 
 jobs:
-  前方移植:
+  forward_port:
+    name: 前方移植
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
