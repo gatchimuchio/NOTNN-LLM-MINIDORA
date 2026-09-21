@@ -12,6 +12,7 @@ from minidora.HDS選択継承循環 import (
     影結果成果名,
     非退行判定成果名,
     参照世代成果名,
+    入力残差影成果名,
 )
 from minidora.参照 import 参照記録
 
@@ -105,6 +106,30 @@ class HDS正本継承循環試験(unittest.TestCase):
         )
         self.assertEqual(結果.終端, HDS終端.採用)
         self.assertEqual([x.作用ID for x in 結果.履歴], ["継承確認"])
+
+    def test_未解共参照は入力正本に保持しAPPROVE時だけ非阻害化する(self):
+        問い = "Which molecule inhibits this molecule?"
+        選択肢 = ("Molecule A", "Molecule B")
+        初期参照 = (
+            参照記録(
+                識別子="coref",
+                対象="Molecule A",
+                内容="Molecule A inhibits this molecule.",
+                由来="試験",
+                供給器="試験資料",
+                信頼=1.0,
+            ),
+        )
+        入力束 = self.構文化器.問題コア入力(問い, 選択肢)
+        self.assertEqual([x.種別 for x in 入力束.残差], ["未解共参照"])
+
+        結果 = self.コア.選択実行(問い, 選択肢, 初期参照=初期参照)
+        self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
+        成果 = 結果.状態.成果辞書()
+        self.assertEqual(成果[回答成果名], "A")
+        self.assertTrue(成果[入力残差影成果名])
+        self.assertEqual([x.種別 for x in 成果["HDSコア入力"].残差], ["未解共参照"])
+        self.assertFalse(any(x.startswith("HDS残差:未解共参照:") for x in 結果.状態.残差))
 
     def test_基準承認済みは追加観測せず完全保持(self):
         provider = 固定追加参照((証拠("Molecule B", 識別子="late"),))
