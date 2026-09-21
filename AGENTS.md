@@ -1,6 +1,6 @@
 # AGENTS.md — MINIDORA 実装・監査規約
 
-## 1. Authority
+## 1. 正本優先順位
 
 矛盾時の優先順位:
 
@@ -16,20 +16,20 @@
 
 ### 非公開内部参照
 
-内部理論の参照先・固定commit・完全な抽象定義は公開リポジトリへ記載しない。
+内部理論の参照先・固定コミット・完全な抽象定義は公開リポジトリへ記載しない。
 公開側では `PUBLICATION_BOUNDARY.md`、局所設計、現行実装、試験、評価を用いて作業する。
 
 ### 言語模型成立条件の責任正本
 
-- Repository: https://github.com/gatchimuchio/LLM-Constitutive-Specification
+- リポジトリ: https://github.com/gatchimuchio/LLM-Constitutive-Specification
 - 版: `2026-08-28-成立規定-8`
-- 参照commit: `fcbc2fa4bc89d749942e8ebee2764115488d29c4`
+- 参照コミット: `fcbc2fa4bc89d749942e8ebee2764115488d29c4`
 - 正本: `規定/02_大規模言語模型成立.md`
 - 能力作用構成: `規定/07_能力作用構成.md`
 
 MINIDORA内の参照定数は `src/minidora/規定参照.py` を正とする。
 
-Authorityは責任衝突を解く順序であり、理論・構文化・構文化器・MINIDORA・実測を固定直列化しない。重大な新観測があれば必要な前提まで再開放する。
+正本優先順位は責任衝突を解く順序であり、理論・構文化・構文化器・MINIDORA・実測を固定直列化しない。重大な新観測があれば必要な前提まで再開放する。
 
 ## 2. 日本語基底
 
@@ -37,7 +37,7 @@ Authorityは責任衝突を解く順序であり、理論・構文化・構文�
 
 基本言語、規定言語、意味正本、設計言語、構文化言語、監査言語、独自内部概念名は日本語とする。
 
-多言語は、予約語、外部API固定名、規格、外部模型・論文の固有名、URL、hash、言語コード、外部検索、国際公開等の実務上必要な境界だけで認める。
+多言語は、予約語、外部API固定名、規格、外部模型・論文の固有名、URL、ハッシュ、言語コード、外部検索、国際公開等の実務上必要な境界だけで認める。
 
 `ja / en / zh` は外部互換識別コードであり、内部意味正本ではない。
 
@@ -108,7 +108,7 @@ MINIDORA能力模型核
 
 K3はこのv3再構文化対象外。
 
-## 10. Legacy / 互換性能経路
+## 10. 旧系統 / 互換性能経路
 
 過去の構文化、v0.3/v0.4評価、旧Layer-0、旧HDS処理系列、GPQA実測は削除しない。履歴として残し、現行意味へ無言復帰させない。
 
@@ -123,22 +123,22 @@ K3はこのv3再構文化対象外。
 
 は MINIDORA30 / GPQA正本 / 既存API比較再現の互換性能経路として保持する。
 
-旧HDS終端判断主体をHDS-firstとして復活させない。HDS-firstは「MINIDORAの後でHDSが採否する」経路ではなく、最初からHDSが部品を駆動する経路である。
+旧HDS終端判断主体をHDS主体実行として復活させない。HDS主体実行は「MINIDORAの後でHDSが採否する」経路ではなく、最初からHDSが部品を駆動する経路である。
 
-MINIDORA30 / MINIDORA80の既存性能値をHDS-firstの性能値へ読み替えない。
+MINIDORA30 / MINIDORA80の既存性能値をHDS主体実行の性能値へ読み替えない。
 
 ## 11. 実装原則
 
 - 日本語で成立する独自内部概念は日本語で記述する。
 - 多言語例外は外部互換境界へ局所化する。
-- 候補ID・正解ラベル・benchmark固有名を厳密言語模型法則へ埋め込まない。
-- benchmark gold / case ID / 正解表をHDS作用選択へ渡さない。
+- 候補識別子・正解ラベル・評価課題固有名を厳密言語模型法則へ埋め込まない。
+- 評価課題の正解情報 / 事例識別子 / 正解表をHDS作用選択へ渡さない。
 - 世界知識を最小言語模型の初期資産へ埋め込まない。
 - 根拠差がない能力経路で勝手な候補確定をしない。
 - Pへ資料を埋め込まない。
 - HDS型を厳密言語模型核へ逆流させない。
 - K3固有型を新HDS実行状態へ逆流させない。
-- 能力得点・候補得点だけでHDS最終COMMITしない。
+- 能力得点・候補得点だけでHDS最終採用確定しない。
 - 個別作用の局所成功を全体目的達成へ読み替えない。
 - 発火数・非ゼロ計数を目的化しない。
 - 実装都合だけを理由に理論正本を曲げない。
@@ -146,7 +146,7 @@ MINIDORA30 / MINIDORA80の既存性能値をHDS-firstの性能値へ読み替え
 
 ## 12. 検証
 
-`main` を現行正本とする。完成差分だけmainへ還元する。
+`main` を現行正本とする。完成差分だけ `main` へ還元する。
 
 ```bash
 python tools/リポジトリ整合性監査.py
@@ -157,14 +157,14 @@ python -m unittest discover -s tests -v
 python -m minidora "2+3"
 ```
 
-HDS-first差分では最低限次も確認する。
+HDS主体実行の差分では最低限次も確認する。
 
 ```bash
 python -m unittest discover -s tests -p 'test_HDS実行主体_v1.py' -v
 python -m unittest discover -s tests -p 'test_HDS汎用作用_v1.py' -v
 ```
 
-CIはUbuntu / Windows × Python 3.11–3.14を確認する。
+継続的統合ではUbuntu / Windows × Python 3.11–3.14を確認する。
 
 v3切片の再検証:
 
@@ -173,11 +173,11 @@ python tools/HDS内包統合_検証.py --output 検証結果.json
 python tools/HDS領域横断_実演.py --output 領域横断.json
 ```
 
-この切片試験のPASSを上流全回帰・Windows実機・外部性能ベンチのPASSへ読み替えない。
+この切片試験の合格を上流全回帰・Windows実機・外部性能評価の合格へ読み替えない。
 自動経験形成の再実行対象は、明示的に純粋と契約された作用列のみ。純粋性宣言はOS隔離の証明ではない。
-保存形式v3はv2保存物を無言移行しない。公開署名は明示的意味値だけを扱い、任意objectのreprへ戻さない。
+保存形式v3はv2保存物を無言移行しない。公開署名は明示的意味値だけを扱い、任意対象の文字列表現へ戻さない。
 
-### v4資料文章・明示移行
+### v4 資料文章・明示移行
 
 全体運用v4の局所契約は `設計/66_HDS_MINIDORA_資料意味と内容構成_v4.md`。
 一般依頼への能力開発順は `docs/HDS全能力開発_ロードマップ.md`、未完了範囲は同台帳を参照する。
@@ -188,7 +188,7 @@ python tools/HDS領域横断_実演.py --output 領域横断.json
 python -m unittest discover -s tests -p 'test_HDS運用v4_*.py' -v
 ```
 
-## 13. GPQA正本Benchmark運用
+## 13. GPQA正本評価運用
 
 GPQA Diamondの現行性能評価は [`評価/評価契約_v2.md`](評価/評価契約_v2.md) を正本とする。
 
@@ -198,12 +198,12 @@ GPQA Diamondの現行性能評価は [`評価/評価契約_v2.md`](評価/評価
 
 - C2等の固定参照コーパス
 - 保存済み検索結果・参照結果
-- 問題別Reference/Data bundle
-- Replay fixture
-- 過去runの参照資料再投入
-- goldを使って選別・整形した参照資料
+- 問題別の参照資料一式
+- 再現用固定入力
+- 過去実行の参照資料再投入
+- 正解情報を使って選別・整形した参照資料
 
-過去の固定Replay資産は履歴として削除しないが、現行GPQA性能、将来GPQA正本、正本性能比較の入力へ再利用しない。
+過去の固定再現資産は履歴として削除しないが、現行GPQA性能、将来GPQA正本、正本性能比較の入力へ再利用しない。
 
 GPQA正本入口は次だけとする。
 
@@ -216,24 +216,23 @@ python tools/正本評価.py gpqa-e2e --out gpqa_e2e.json
 ```text
 GPQA Diamond 198/198
 CSV SHA256 = 41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305
-choice seed = 0
-OpenAlex = disabled
+選択肢乱数種 = 0
+OpenAlex = 無効
 Wikipedia = en
-reference = LIVE_ONLY
-controlled A/B = required
-fixed reference Data = forbidden
+参照方式 = 都度取得のみ（実装識別値: LIVE_ONLY）
+統制比較試験 = 必須
+固定参照資料 = 禁止
 ```
 
 `benchmark.py` / `benchmark_formal.py` の部分実行・任意条件は診断用途であり、直接の出力を正本性能値として引用しない。
 
-MINIDORA30系の現行GPQA性能正本セーブポイントは `MINIDORA30 / 30/198`。MINIDORA80系は能力モジュール込みシステム正本、HDS-MINIDORA系は別系統の実行主体正本として扱う。詳細は `正本系統.md`、`現行正本.md`、`HDS_MINIDORA_現行正本.md` を参照する。
+MINIDORA30系の現行GPQA性能正本保存点は `MINIDORA30 / 30/198`。MINIDORA80系は能力モジュール込みシステム正本、HDS-MINIDORA系は別系統の実行主体正本として扱う。詳細は `正本系統.md`、`現行正本.md`、`HDS_MINIDORA_現行正本.md` を参照する。
 
-HDS-MINIDORA系の性能数値を正本化する場合は、MINIDORA30系の値を置換せず、HDS-MINIDORA系としてLIVE_ONLY 198/198全数測定と成果物を別途保存する。
+HDS-MINIDORA系の性能数値を正本化する場合は、MINIDORA30系の値を置換せず、HDS-MINIDORA系として都度取得のみの198/198全数測定と成果物を別途保存する。
 
+### v5 関係読解・不足取得・根拠説明
 
-### v5関係読解・不足取得・根拠説明
-
-全体運用v5の局所契約は`設計/67_HDS_MINIDORA_関係読解と根拠説明_v5.md`。既存HDS・命題推論・知識取得・文章作成・形成を使う。未束縛指示語、未知例外、資料間同名を勝手に確定しない。取得成功・局所導出・世界事実・意思決定を区別する。保存版v5は標準v1〜v4を明示移行し、過去の移行履歴も原本内に保持する。
+全体運用v5の局所契約は `設計/67_HDS_MINIDORA_関係読解と根拠説明_v5.md`。既存HDS・命題推論・知識取得・文章作成・形成を使う。未束縛指示語、未知例外、資料間同名を勝手に確定しない。取得成功・局所導出・世界事実・意思決定を区別する。保存版v5は標準v1〜v4を明示移行し、過去の移行履歴も原本内に保持する。
 
 ```bash
 python -m unittest discover -s tests -p 'test_HDS運用v5_*.py' -v
