@@ -1,292 +1,92 @@
-# 評価
+# MINIDORA 評価案内
 
-`評価/` はMINIDORAの適合・性能・回帰・完成判定の実測記録を保持する。
+`評価/` は適合・性能・回帰・失敗実測を保持する。履歴ファイルを現在の値で上書きせず、評価系列ごとに正本を分ける。
 
-## 正本系統
+## 現行正本
 
-評価正本も系統別に保持する。
+| 系列 | 正本 | 値 / 位置づけ |
+|---|---|---|
+| MINIDORA30 | [GPQA E2E正本](GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md) | **30 / 198 (15.15%)** |
+| MINIDORA80 | [能力モジュール込みE2E正本](GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.md) | **80 / 198 (40.40%)** |
+| HDS-MINIDORA | [受入正本](HDS_MINIDORA_受入正本_2026-09-17.md) | MINIDORA30 / 80とは別系列 |
 
-- MINIDORA30系: 模型核GPQA性能正本
-- MINIDORA80系: 能力モジュール込みシステムGPQA性能正本
-- HDS-MINIDORA系: `HDS_MINIDORA_受入正本_2026-09-17.md`
+全体案内:
+- [現行正本群](../現行正本.md)
+- [正本系統](../正本系統.md)
+- [評価契約 v2](評価契約_v2.md)
 
-一方の系統の評価結果で他方を旧版化・置換しない。全体規定は `../正本系統.md` を参照する。
-
-## MINIDORA30系現行性能正本 — MINIDORA30 / 2026-09-09
-
-現行GPQA Diamond性能正本は次とする。
+## MINIDORA30
 
 ```text
-MINIDORA30
 GPQA-E2E-LIVE
 30 / 198
 15.151515151515152%
+回答 130 / 198
 ```
 
-実測由来:
+正本資産:
+- [Markdown](GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md)
+- [JSON](GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json)
+- [SAVEPOINT](../docs/SAVEPOINT_2026-09-09_MINIDORA30.md)
 
-- GitHub Actions run `34281226412`
-- benchmark head `63603f39d62bd77ae40732f6c51701aaab9fe468`
-- measured implementation parent `a3473fbdacc5e0e2ac1927faa08c60717ace0544`
-- aggregate artifact `10078256754`
-- dataset CSV SHA256 `41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305`
-
-| 条件 | 正答 | 全体正答率 | 回答数 | 回答率 |
-|---|---:|---:|---:|---:|
-| 現行MINIDORA | **30 / 198** | **15.15%** | 130 | 65.66% |
-| 同run controlled baseline | 27 / 198 | 13.64% | 109 | 55.05% |
+## MINIDORA80
 
 ```text
-正答差       = +3
-正答率差     = +1.52 points
-changed      = 21
-改善case     = 3
-退行case     = 0
-```
-
-正本:
-
-- [`GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md`](GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md)
-- [`GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json`](GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json)
-- [`BENCHMARK_CONTRACT_v2.md`](BENCHMARK_CONTRACT_v2.md)
-- [`../docs/SAVEPOINT_2026-09-09_MINIDORA30.md`](../docs/SAVEPOINT_2026-09-09_MINIDORA30.md)
-
-2026-09-09以後、**GPQA正本性能評価では固定参照Dataを禁止する。** C2、保存済み検索結果、固定Reference/Data bundle、Replay fixture、過去run参照の再投入は現行性能・将来正本・GPQA性能比較の入力へ使わない。
-
-GPQA正本は198/198全数・seed 0・OpenAlex disabled・Wikipedia en・LIVE_ONLY・controlled A/Bで実行する。
-
-## MINIDORA80系現行性能正本 — MINIDORA80 / 2026-09-09
-
-現行能力モジュール込みGPQA Diamondシステム能力正本は **MINIDORA80** とする。模型核正本MINIDORA30は置換せず、評価層を分離して併存させる。
-
-```text
-MINIDORA80
-GPQA-E2E-LIVE + SCIENTIFIC-CAPABILITY-MODULE
-80 / 198
-40.4040404040404%
-```
-
-同一run controlled A/B:
-
-| 条件 | 正答 | 正答率 | 回答数 | SUSPEND |
-|---|---:|---:|---:|---:|
-| 能力モジュール OFF | 29 / 198 | 14.65% | 123 | 75 |
-| 能力モジュール ON | **80 / 198** | **40.40%** | 148 | 50 |
-
-```text
-正答純増   = +51
-正答率差   = +25.76 points
+能力モジュール OFF = 29 / 198
+能力モジュール ON  = 80 / 198
+正答純増           = +51
 能力モジュール発火 = 55
-発火正答   = 55 / 55
-改善       = 51
-退行       = 0
-changed    = 51
+退行               = 0
 ```
 
-実測は固定参照Dataを使わず、198/198全数、seed 0、OpenAlex disabled、Wikipedia en、LIVE_ONLYで実行した。
+正本資産:
+- [Markdown](GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.md)
+- [JSON](GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.json)
+- [SAVEPOINT](../docs/SAVEPOINT_2026-09-09_MINIDORA80.md)
 
-実行証拠:
+これは模型核単体性能ではなく、能力モジュール込みシステム性能である。
 
-- GitHub Actions run `34301888230`
-- benchmark head `562f6c915eff4a1da863153b3f8be63e888139ca`
-- measured implementation content `55463b40df987fc77b36bd4ce69cc6858dcf43bc`
-- aggregate artifact `10085678050`
-- artifact SHA256 `819633bd8a102e4687fcdf23e82e75ca076481eed9eb77d6f00af108ce08aebc`
-- dataset CSV SHA256 `41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305`
+## HDS-MINIDORA
 
-GPQA原論文の最強GPT-4ベースラインは39%である。MINIDORA80の40.40%は、**GPQAスコアという限定軸ではGPT-4ベースラインと同じ約40%帯**に位置する。評価subset・実行条件が完全同一ではないため、GPT-4との総合能力同等とは扱わない。
+[HDS_MINIDORA_受入正本_2026-09-17.md](HDS_MINIDORA_受入正本_2026-09-17.md) を別系列として保持する。MINIDORA30の30/198、MINIDORA80の80/198をHDS-MINIDORA固有性能へ転記しない。
 
-正本:
+## GPQA正本運用
 
-- [`GPQA_Diamond_MINIDORA80_能力モジュール_E2E_正本_2026-09-09.md`](GPQA_Diamond_MINIDORA80_能力モジュール_E2E_正本_2026-09-09.md)
-- [`GPQA_Diamond_MINIDORA80_能力モジュール_E2E_正本_2026-09-09.json`](GPQA_Diamond_MINIDORA80_能力モジュール_E2E_正本_2026-09-09.json)
-- [`../docs/SAVEPOINT_2026-09-09_MINIDORA80.md`](../docs/SAVEPOINT_2026-09-09_MINIDORA80.md)
+2026-09-09以後、正本GPQAでは固定参照資料を禁止する。
 
-## HDS-MINIDORA系受入正本 — 2026-09-17
+禁止:
+- 保存済み検索結果
+- 問題別固定参照資料束
+- 過去run参照の再投入
+- 正解情報で選別した参照資料
 
-HDS-MINIDORA系は別系統の正本として `HDS_MINIDORA_受入正本_2026-09-17.md` を保持する。MINIDORA30系の30/198、MINIDORA80系の80/198をHDS-MINIDORA固有性能へ転記しない。
+許可:
+- 公式問題集合の同一性確認用キャッシュ
+- 同一run内で新規取得した同一参照を共有するcontrolled A/B
 
-RMW修正後同runではMINIDORA30互換25/198、並列HDS-v3 24/198を観測し、その後の非退行包絡受入再生で25/198・差0を確認した。この25/198はHDS-MINIDORA固有の新GPQA性能正本ではなく、性能下限契約の受入証拠である。
+全数実測の個票JSONはdefault treeへ固定せず、GitHub Actions artifactへ分離する。
 
-## 主要成立証拠 — モジュール拡張可能性
+## 履歴
 
-2026-09-02、MINIDORAの**モジュール拡張可能性を実測で確認した**。
+過去の評価・失敗実測は履歴証拠として残すが、現行正本へ無言昇格しない。
 
-この実証の意味は「科学能力モジュールを付けたらGPQAスコアが上がった」ことではない。
+代表:
+- [prototype baseline](GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json)
+- [v0.4再構成受入](MINIDORA_v0_4_REBUILD_ACCEPTANCE_2026-08-26.md)
+- [能力状態差循環](MINIDORA_v0_5_能力状態差循環_GPQA_2026-08-28.md)
+- [最小汎用Core](GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md)
+- [科学専門能力 Replay](GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.md)
+- [モジュール拡張成立実証](MINIDORA_モジュール拡張成立実証_2026-09-02.md)
+- [HDS Compiler Pipeline v1.3受入](HDS_Compiler_Pipeline_v1_3_受入_2026-08-26.md)
 
-> **MINIDORAは既にLLMとして成立している。その成立済み模型核を再学習・再訓練・大型化せず、模型核外に分離した能力能力モジュールを追加接続することで、システム全体の実効能力と性能を後から拡張できる。**
-
-これを、同一baselineへ既存科学専門能力群を接続するcontrolled replayで確認した。
-
-| 条件 | 正答 | 全体正答率 | 回答時正答率 |
-|---|---:|---:|---:|
-| 能力モジュール OFF | 8 / 198 | 4.04% | 20.51% |
-| 能力モジュール ON | **63 / 198** | **31.82%** | **73.26%** |
+## 区別
 
 ```text
-能力モジュール発火  55
-改善        55
-退行         0
-正答差      +55
+言語模型成立
+!= 推論機構成立
+!= GPQA得点
+!= 能力モジュール込み性能
+!= 製品完成度
 ```
 
-不発火時は保存済みbaselineをそのまま返すため、差分は能力モジュールが実際に作用したケースへ限定される。発火55ケースは、このReplay境界では55ケースすべてgoldと一致した。
-
-したがって、この系列は模型核単体のGPQA性能比較ではなく、次の成立証拠として保持する。
-
-```text
-MINIDORA成立済み
-      ↓
-模型核と専門能力を分離可能
-      ↓
-外部能力モジュールを後付け可能
-      ↓
-複数能力モジュールを累積接続可能
-      ↓
-能力モジュール追加が実際の性能増加を発生
-      ↓
-模型核再学習なしでシステム能力を継続拡張可能
-```
-
-### 固定有限ベンチにおける100%到達可能性
-
-GPQA Diamond 100%を実測したわけではない。
-
-しかし、GPQA Diamondは198問の固定有限集合である。今回、その未被覆集合のうち55問を、模型核の再学習なしに能力モジュール追加だけで新たに正答可能へ変えた。
-
-未被覆問題へ正しく作用する能力モジュールを追加し、不発火時の透過性と既存正答を退行させない接続境界を維持できる限り、未被覆集合は反復的に縮小できる。
-
-```text
-未被覆 U0
-↓ 能力モジュール追加
-U1 ⊂ U0
-↓ 能力モジュール追加
-U2 ⊂ U1
-↓
-...
-↓
-未被覆 = 0
-```
-
-したがって、**GPQA Diamondのような固定有限ベンチに限れば、能力モジュール被覆を追加し続けることで理論上100%へ到達可能な構成である。**
-
-この主張の価値は「100点を取れる」というベンチ攻略そのものではない。
-
-> **MINIDORAの能力上限が成立済み模型核の初期性能へ固定されず、外部Capability集合の増設によって後から押し上げられることが、実装と実測で示された。**
-
-これがこの履歴系列の主要成果である。
-
-正本履歴:
-
-- [`MINIDORA_モジュール拡張成立実証_2026-09-02.md`](MINIDORA_モジュール拡張成立実証_2026-09-02.md)
-- [`GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.md`](GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.md)
-- [`GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.summary.json`](GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.summary.json)
-
-このReplay実証は履歴証拠として保持するが、2026-09-09以後のGPQA現行性能測定へ固定参照Dataを再利用しない。
-
-## 旧セーブポイント — 2026-09-01
-
-旧能力観測:
-
-- [`GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md`](GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md)
-- [`MINIDORA_v0_5_厳密LM受入_2026-08-28.md`](MINIDORA_v0_5_厳密LM受入_2026-08-28.md)
-
-当時のGPQA:
-
-| 条件 | 正答 | 全体正答率 | 回答数 | 回答率 |
-|---|---:|---:|---:|---:|
-| 最小汎用core + HDS異常時最小介入 | 23 / 198 | 11.62% | 124 | 62.63% |
-| 同一正式汎用模型核 / HDS非介入 | 19 / 198 | 9.60% | 88 | 44.44% |
-
-```text
-正答差          = +4
-正答率差        = +2.02 points
-回答数差        = +36
-改善case        = 4
-退行case        = 0
-専門作用起動    = 0
-retrieval空振り = 0
-```
-
-この値は当時の汎用core現在地として履歴保持する。MINIDORA30系の現行性能正本はMINIDORA30である。
-
-## 現行区別
-
-```text
-厳密言語模型成立
-!= 能力
-!= GPQA
-!= Large
-!= 現代LLM呼称
-```
-
-v0.5のLargeは **再監査要**。v0.4の三面規模 `局所成立候補` を自動継承しない。
-
-## HDS境界
-
-2026-09-01の測定では、HDSは未閉包・競合・観測不足等の異常時だけ介入した。
-
-- HDS intervention cases: 108
-- HDS supervisory interventions: 483
-- `REFERENCE`: 108
-- `EXISTING_COMPUTE_EXECUTOR`: 9
-- specialist actions: 0
-
-HDSは回答を生成せず、候補winnerを選ばない。
-
-## GPQA履歴
-
-GPQAは推論・知識能力評価として保持し、言語模型成立判定へ直接投影しない。
-
-代表履歴:
-
-| 時点 | 正答 | 扱い |
-|---|---:|---|
-| 2026-08-22 prototype baseline | 8 / 198 | 履歴baseline |
-| 2026-08-23 v0.6系 | 31 / 198 | 過去workflow |
-| 2026-08-26 v0.4再構成 | 19 / 198 | 完走実測 |
-| 2026-08-26 再作用P0 | 22 / 198 | 再作用効果には帰属しない |
-| 2026-08-28 状態差起動current | 16 / 198 | 機構発火PASS・能力退行 |
-| 2026-08-28 同run controlled baseline | 22 / 198 | 同一取得資料対照 |
-| 2026-09-01 最小汎用core baseline | 19 / 198 | HDS非介入対照 |
-| 2026-09-01 最小汎用core + HDS | 23 / 198 | 旧savepoint |
-| 2026-09-02 能力モジュール OFF replay | 8 / 198 | 履歴モジュール拡張実証対照 |
-| 2026-09-02 能力モジュール ON replay | 63 / 198 | 履歴モジュール拡張成立証拠 |
-| 2026-09-08 模型核37 C2 replay | 37 / 198 | 履歴固定Replay。現行性能ではない |
-| 2026-09-09 MINIDORA30 E2E LIVE | **30 / 198** | **現行模型核正本** |
-| 2026-09-09 能力モジュール OFF E2E LIVE | 29 / 198 | MINIDORA80同run対照 |
-| 2026-09-09 MINIDORA80 能力モジュール ON E2E LIVE | **80 / 198** | **現行能力モジュール込みシステム正本** |
-
-専門領域解決器接続版の高得点は、現行汎用coreの比較系列へ混ぜない。
-
-過去Replay差分自体は当時の構造実証として保持する。ただし今後のGPQA性能測定では固定参照Dataを禁止する。
-
-## v0.4履歴
-
-次は削除せず履歴として保持する。
-
-- [`MINIDORA_v0_4_REBUILD_ACCEPTANCE_2026-08-26.md`](MINIDORA_v0_4_REBUILD_ACCEPTANCE_2026-08-26.md)
-- [`計算中間表現_実行境界_v1_受入_2026-08-26.md`](計算中間表現_実行境界_v1_受入_2026-08-26.md)
-- [`HDS_構文化器_処理系列_v1_3_受入_2026-08-26.md`](HDS_構文化器_処理系列_v1_3_受入_2026-08-26.md)
-- [`MINIDORA_v0_4_規模測定_v2_2026-08-26.md`](MINIDORA_v0_4_規模測定_v2_2026-08-26.md)
-- [`GPQA_Diamond_V0_4_CURRENT_2026-08-26.summary.json`](GPQA_Diamond_V0_4_CURRENT_2026-08-26.summary.json)
-
-v0.4三面規模測定は当時の上位規定に基づく履歴値であり、v0.5のLarge証拠ではない。
-
-## 状態の区別
-
-```text
-v0.3 PROTOTYPE COMPLETE
-!= v0.4構造受入
-!= v0.5厳密言語模型受入
-!= v0.5能力状態差循環受入
-!= 2026-09-01最小汎用core savepoint
-!= 2026-09-02モジュール拡張成立実証
-!= 2026-09-08 模型核37 Replay履歴
-!= 2026-09-09 MINIDORA30 模型核正本
-!= 2026-09-09 MINIDORA80 能力モジュール込みシステム正本
-!= 推論能力
-!= Large
-!= 現代LLM呼称適合
-!= 製品完成
-```
+評価条件・値・比較可能範囲は各正本ファイルと [評価契約 v2](評価契約_v2.md) を正とする。

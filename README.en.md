@@ -1,71 +1,77 @@
 # NOTNN-LLM-MINIDORA — MINIDORA
 
-> **A Japanese-first non-neural LLM research and implementation project that separates a minimal language-model 模型核 from exchangeable capability 能力モジュールs, without using neural networks or Transformers as the core architecture.**
+> **A Japanese-first non-neural LLM research and implementation project that separates LLM constitutive requirements and capability effects from today's dominant implementation architecture, then reimplements them without neural networks or Transformers as the core.**
 
-[日本語正本](README.md) / [Product Prototype](製品版/README.en.md) / [Design canon](設計/README.md) / [Evaluation evidence](評価/README.md)
+[日本語正本](README.md) / [Product](製品版/README.en.md) / [Design](設計/README.md) / [Evaluation](評価/README.md)
 
-> This file is an English translation for international access. The Japanese documents are the normative source of meaning and design.
+The Japanese documents are the normative source of meaning. The public repository does not publish complete internal-theory definitions or full theory-to-implementation mappings.
 
+## Current status
 
-## Current GPQA canon — 模型核 30 / System with 能力モジュールs 80
+| Evaluation line | Canon | GPQA Diamond |
+|---|---|---:|
+| Model core | **MINIDORA30** | **30 / 198 (15.15%)** |
+| Core + scientific capability modules | **MINIDORA80** | **80 / 198 (40.40%)** |
+| Integrated execution system | separate line | separate acceptance evidence |
 
-Since 2026-09-09, canonical GPQA performance runs forbid frozen reference data and use newly retrieved `LIVE_ONLY` references.
+Since 2026-09-09, canonical GPQA runs use newly retrieved `LIVE_ONLY` references and forbid frozen reference bundles.
 
-| Layer | Canon | GPQA Diamond | Meaning |
-|---|---|---:|---|
-| 模型核 / HDS | **MINIDORA30** | **30 / 198 (15.15%)** | current general E2E 模型核 savepoint |
-| 模型核 + scientific 能力モジュールs | **MINIDORA80** | **80 / 198 (40.40%)** | current system-capability savepoint |
-
-In the same-run LIVE controlled A/B that established MINIDORA80:
+MINIDORA80 same-run controlled A/B:
 
 ```text
-能力モジュール OFF = 29 / 198 (14.65%)
-能力モジュール ON  = 80 / 198 (40.40%)
+modules OFF = 29 / 198 (14.65%)
+modules ON  = 80 / 198 (40.40%)
 net correct gain = +51
-能力モジュール activations = 55
-correct 能力モジュール activations = 55
-improvements = 51
+module activations = 55
+correct activations = 55 / 55
 regressions = 0
 ```
 
-> **On the limited axis of GPQA score, MINIDORA + scientific 能力モジュールs reached the same roughly-40% score range as the strongest GPT-4-based baseline reported by the original GPQA paper (39%).**
+On the limited GPQA-score axis, this is in the same roughly-40% band as the 39% GPT-4 baseline reported by the original GPQA paper. The evaluation conditions are not identical, so this is not a claim of overall GPT-4 capability equivalence.
 
-MINIDORA80 is numerically above 39%, but the original GPT-4 result and this GPQA Diamond LIVE E2E run do not use identical subsets or execution conditions. This is therefore a **same-score-band statement, not a claim of overall GPT-4 capability equivalence**.
+Canonical references:
+- [Current canon](CURRENT_CANONICAL.md)
+- [MINIDORA30](評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md)
+- [MINIDORA80](評価/GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.md)
+- [Evaluation contract](評価/評価契約_v2.md)
 
-## Public specification boundary
+## Architecture boundary
 
-Internal theory references, fixed upstream commits, and complete theory-to-implementation mappings are not published in this repository.
-Public documentation is limited to interfaces, implementation behavior, tests, limitations, and evaluation evidence.
+MINIDORA separates a compact model core from exchangeable capabilities.
 
-## Product Prototype v1
+```text
+model core
+├─ non-neural language model
+├─ general capabilities
+├─ deterministic computation
+├─ external references
+└─ execution / audit
 
-The hackathon demonstration is "today's news → summarize it", but the implementation is not a news-only demo. The product layer adds a common Capability contract and 登録簿 around the established MINIDORA 模型核.
+capability modules
+├─ conversation
+├─ summarization
+├─ extraction
+├─ calculation
+├─ knowledge reference
+└─ additional general or specialist capabilities
+```
 
-Implemented capabilities include:
+Adding a capability module is not the same as retraining, fine-tuning, enlarging, or replacing the model core.
 
-- basic chat;
-- RSS news retrieval;
-- grounded summarization from the retrieved reference bodies;
-- explicit-text summarization;
-- context transformation;
-- information extraction;
-- deterministic calculation;
-- Wikipedia knowledge reference;
-- delegation to the existing MINIDORA 模型核 when no specialist 能力モジュール applies;
-- session-範囲d conversation state;
-- end-to-end execution tracing;
-- a browser UI and HTTP API.
-
-Run:
+## Run
 
 ```bash
 python -m pip install -e .
+python -m minidora.製品版 --HDS --serve
+```
+
+Product-only entry:
+
+```bash
 python -m minidora.製品版 --serve
 ```
 
-Open `http://localhost:8080/`.
-
-API:
+HTTP:
 
 ```text
 POST /api/chat
@@ -74,71 +80,57 @@ GET  /api/capabilities
 GET  /health
 ```
 
-## Capability growth
+## Evaluation boundaries
 
-Every capability 能力モジュール follows a common contract: **name / version / priority / applicability decision / execution**. New capabilities can be registered without retraining the established 模型核.
-
-The current LIVE GPQA Diamond same-run controlled A/B measured 能力モジュール OFF **29/198 (14.65%)** → 能力モジュール ON **80/198 (40.40%)**, with 55 能力モジュール activations, 55 correct activations, 51 net improvements, and 0 regressions. The earlier 8/198 → 63/198 frozen replay remains historical evidence only. This is **not claimed as 模型核-only performance**; it is evidence that external capability 能力モジュールs can create measurable system-level capability gains without retraining the established 模型核.
-
-The Product Prototype adds `tools/製品能力モジュール実証.py` so the same OFF/ON structure can also be measured on everyday, non-benchmark-specific tasks. Formal values should be taken from execution on the actual current MINIDORA 模型核.
-
-## Governance
-
-MINIDORA records the actual execution path rather than asking a generative model to invent a post-hoc explanation.
-
-```text
-input
-→ capability candidates
-→ 能力モジュール selection
-→ 能力モジュール I/O and references
-→ optional 模型核 代替経路
-→ response composition
-→ conversation-state update
-→ root hash
-→ previous response hash linked to the next response
-```
-
-Audit events are chained with SHA-256. This provides tamper detection, not immutable WORM storage or cryptographic signing. Production WORM/signature/external anchoring remains a deployment-layer responsibility.
-
-## Performance target
-
-A **GPT-4-class general chat experience** remains a development target. MINIDORA80 has reached the same roughly-40% GPQA score band as the original GPT-4-based baseline, but this is not a general capability equivalence claim. Progress should be measured through real-use capabilities such as conversation continuity, summarization, knowledge reference, comparison, reasoning, calculation, transformation, search, and coding as 能力モジュールs are added.
-
-Current canonical GPQA savepoints:
-
-```text
-MINIDORA30 模型核 E2E LIVE              = 30 / 198 (15.15%)
-MINIDORA80 模型核 + scientific 能力モジュールs  = 80 / 198 (40.40%)
-```
-
-The v0.5 **Large** classification remains subject to **re-audit**; older scale judgments are not automatically inherited.
-
-## Japanese-first policy
-
-MINIDORA treats Japanese as its normative language, base language, and internal semantic source of truth.
-
-- LLM Constitutive Specification version: `2026-08-28-成立規定-8`
-- LLM Constitutive Specification referenced commit: `fcbc2fa4bc89d749942e8ebee2764115488d29c4`
-
-## Claim boundaries
+MINIDORA keeps these separate:
 
 ```text
 strict language-model conformance
-!= 模型核 general capability
-!= GPQA score
-!= system performance with 能力モジュールs
-!= Product Prototype maturity
+!= reasoning mechanism
+!= model-core performance
+!= system performance with capability modules
+!= product maturity
 != Large classification
-GPQA same score band as GPT-4 baseline
-!= overall GPT-4 capability equivalence
+```
+
+Historical replay results and failed experiments remain in [evaluation](評価/) and [docs](docs/), but frozen replay data is not reused as current GPQA performance input.
+
+## Repository
+
+| Path | Responsibility |
+|---|---|
+| [`src/minidora/`](src/minidora/) | current implementation |
+| [`tests/`](tests/) | unit, regression and acceptance tests |
+| [`設計/`](設計/) | public local design / compatibility boundaries |
+| [`評価/`](評価/) | canonical and historical evaluation |
+| [`docs/`](docs/) | supporting documents and savepoints |
+| [`構文化/`](構文化/) | observation / reconstruction history |
+| [`製品版/`](製品版/) | product documentation |
+| [`artifacts/`](artifacts/) | small fixed artifacts only |
+
+Large benchmark result JSON and frozen reference bundles are kept out of the default tree.
+
+## Japanese-first policy
+
+Japanese is the normative language and internal semantic source of truth. English is an external/publication surface.
+
+## Verification
+
+```bash
+python tools/リポジトリ整合性監査.py
+python tools/日本語基底監査.py
+python tools/日本語基底詳細監査.py
+python tools/公開境界監査.py
+python -m compileall -q src tests tools
+python -m unittest discover -s tests -q
 ```
 
 ## License
 
-- Source code and implementation: **Apache License 2.0** — [`LICENSE-APACHE-2.0`](LICENSE-APACHE-2.0)
-- Specifications, design, theory, evaluation, README and other documents: **CC-BY-4.0** — [`LICENSE-CC-BY-4.0`](LICENSE-CC-BY-4.0)
-- Scope: [`LICENSE`](LICENSE)
-- Attribution and third-party material: [`NOTICE`](NOTICE)
+- Source code and implementation: **Apache License 2.0** — [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0)
+- Specifications, design, evaluation and documentation: **CC-BY-4.0** — [LICENSE-CC-BY-4.0](LICENSE-CC-BY-4.0)
+- Scope: [LICENSE](LICENSE)
+- Attribution: [NOTICE](NOTICE)
 
 ## Author
 
