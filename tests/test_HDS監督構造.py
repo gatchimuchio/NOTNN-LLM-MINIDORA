@@ -13,6 +13,7 @@ class HDS監督構造Test(unittest.TestCase):
     def test_active_実行系は旧outer_HDS_wrapperをimportしない(self):
         text = inspect.getsource(実行系)
         self.assertNotIn("実行系_HDS_v1", text)
+        self.assertNotIn("実行系_hds_v1", text)
         self.assertNotIn("HDS駆動選択実行", text)
         self.assertNotIn("MINIDORAHDS判断主体", text)
 
