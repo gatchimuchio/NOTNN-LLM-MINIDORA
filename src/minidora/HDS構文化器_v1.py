@@ -124,6 +124,38 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         )
         return HDS意味IR化(base, plan), plan
 
+    def _コア意味IR(
+        self,
+        入力: str,
+        *,
+        前回結果: object = None,
+        HDS履歴: tuple[HDSIR, ...] = (),
+        文脈: HDS文脈 | None = None,
+    ) -> HDSIR:
+        """監査副産物とLegacy計算Pを生成せず、Core入力に必要な意味だけを形成する。"""
+        ir = self._意味基礎.コンパイル(
+            入力,
+            前回結果=前回結果,
+            HDS履歴=(),
+            文脈=文脈,
+        )
+        ir = HDS英日意味射影(ir)
+        ir = HDS英語基底関係射影(ir, self.言語基底P)
+        ir = HDS英語AND展開(ir)
+        ir = HDS英語関係範囲射影(ir)
+        ir = HDS問い主題射影(ir, 上限=self.方針.最大主題語数)
+
+        関係図 = HDS状態遷移抽出(ir.正規化文 or ir.原文)
+        ir = HDS状態遷移IR射影(ir, 関係図)
+        暗黙知 = HDS暗黙知抽出(ir.正規化文 or ir.原文)
+        ir = HDS暗黙知IR射影(ir, 暗黙知)
+        return replace(
+            ir,
+            手順=None,
+            初期状態={},
+            閉包状態="HDSコア入力射影",
+        )
+
     def _コア入力正本(
         self,
         入力: str,
@@ -132,16 +164,13 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         HDS履歴: tuple[HDSIR, ...] = (),
         文脈: HDS文脈 | None = None,
     ) -> HDSコア入力束:
-        """Legacy計算計画を形成せず、Coreが消費する意味入力だけを構文化する。"""
-        意味_base = self._意味基礎.コンパイル(
+        """Coreが消費する意味入力だけを構文化する。計画・監査成果は形成しない。"""
+        return HDSコア入力へ(self._コア意味IR(
             入力,
             前回結果=前回結果,
             HDS履歴=HDS履歴,
             文脈=文脈,
-        )
-        detailed = self._完成(意味_base, HDS履歴=HDS履歴)
-        意味_ir = replace(detailed.IR, 手順=None, 初期状態={})
-        return HDSコア入力へ(意味_ir)
+        ))
 
     def _意味束(
         self,
