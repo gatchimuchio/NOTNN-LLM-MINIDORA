@@ -47,7 +47,7 @@ class HDS正本継承試験(unittest.TestCase):
     def test_継承基準は再設計直前HDSミニドラ正本を固定する(self):
         self.assertEqual(HDS継承基準版, "HDS-MINIDORA-1194452a")
 
-    def test_CoreFirst入力と旧動的作用供給を同じ通常循環で使える(self):
+    def test_コア正本入力と旧動的作用供給を同じ通常循環で使える(self):
         コア = HDS駆動コア(
             HDSコンパイラ=_コア入力構文化器(),
             作用供給器=(HDS作用供給器("供給", lambda 状態: (_完了作用(),)),),
