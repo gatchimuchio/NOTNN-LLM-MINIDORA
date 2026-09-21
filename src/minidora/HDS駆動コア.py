@@ -12,16 +12,18 @@ from .統合駆動_v2.記憶 import HDS記憶
 from .統合駆動_v2.検証 import HDS検証器, HDS草案
 from .統合駆動_v2.形成 import HDS形成関係
 from .統合駆動_v2.入力境界 import HDS異種表象, HDS異種入力作用
+from .HDSコア入力 import HDSコア入力束
 
 
-HDS駆動コア版 = "MINIDORA-HDS-FIRST-v3"
+HDS駆動コア版 = "MINIDORA-HDS-FIRST-v4"
 
 
 class HDS駆動コア:
     """MINIDORA内部のHDS-first公開実行入口。
 
     外向きLLM成立用の厳密言語模型核を置換しない。ここではHDSが目的・状態・残差を所有し、
-    MINIDORAの構文化器・参照・計算・模型・能力モジュール等を作用器として起動する。
+    MINIDORAの構文化器・参照・計算・模型・能力モジュール等を接続する。
+    Core-native HDS構文化器はCore起動前に入力正本を形成し、Legacy構文化器だけ作用器として起動する。
 
     `目的` は説明であり完了条件ではない。COMMITには、呼出側が `要求状態`、
     `初期残差` または `要求認識` によって閉包条件を明示する必要がある。構文化の成功だけを利用者目的の
@@ -94,28 +96,61 @@ class HDS駆動コア:
 
         作用群: list[HDS作用器] = []
         残差群 = set(明示残差)
+        成果初期値 = dict(初期成果 or {})
+        主体初期値 = dict(主体状態 or {})
+        成立初期値 = set(str(x) for x in 初期成立状態)
+        目的初期値 = list(str(x) for x in 目的)
+
         if self.HDSコンパイラ is not None:
-            from .HDS構文化作用 import HDS構文化作用
-            残差群.add("入力未構文化")
-            作用群.append(HDS構文化作用(
-                self.HDSコンパイラ,
-                問合せ,
-                前回結果=前回結果,
-                HDS履歴=tuple(HDS履歴),
-                文脈=文脈,
-            ))
+            コア関数 = getattr(self.HDSコンパイラ, "コア入力コンパイル", None)
+            if callable(コア関数):
+                # Core-native構文化器はCore起動前に入力を形成する。
+                # 構文化自体を後段作用へ戻さず、Coreが最初に見る状態へ直接供給する。
+                コア入力 = コア関数(
+                    問合せ,
+                    前回結果=前回結果,
+                    HDS履歴=tuple(HDS履歴),
+                    文脈=文脈,
+                )
+                if not isinstance(コア入力, HDSコア入力束):
+                    raise TypeError("Core-native構文化器がHDSコア入力束を返さなかった")
+                if "HDSコア入力" in 成果初期値 or "HDSコア入力署名" in 主体初期値:
+                    raise ValueError("HDSコア入力の予約初期キーは呼出側から上書きできない")
+                成果初期値["HDSコア入力"] = コア入力
+                主体初期値["HDSコア入力署名"] = コア入力.意味署名
+                成立初期値.add("HDSコア入力済み")
+                残差群.update(
+                    f"HDS残差:{項目.種別}:{項目.理由}"
+                    for 項目 in コア入力.残差
+                )
+                # 任意の目的内容を状態名へ文字列化しない。安定したIDと種別だけを索引化する。
+                目的初期値.extend(
+                    f"HDS目的:{項目.ID}:{項目.種別}"
+                    for 項目 in コア入力.目的
+                )
+            else:
+                # Legacy構文化器だけ従来の知覚作用として保持する。
+                from .HDS構文化作用 import HDS構文化作用
+                残差群.add("入力未構文化")
+                作用群.append(HDS構文化作用(
+                    self.HDSコンパイラ,
+                    問合せ,
+                    前回結果=前回結果,
+                    HDS履歴=tuple(HDS履歴),
+                    文脈=文脈,
+                ))
         if 異種表象:
             残差群.add("異種入力未接続")
             作用群.append(HDS異種入力作用(tuple(異種表象)))
         作用群.extend(tuple(追加作用))
 
         初期 = HDS実行状態(
-            tuple(str(x) for x in 目的),
+            tuple(dict.fromkeys(目的初期値)),
             frozenset(明示要求状態),
-            frozenset(str(x) for x in 初期成立状態),
+            frozenset(成立初期値),
             frozenset(残差群),
-            tuple(sorted(dict(初期成果 or {}).items(), key=lambda 行: 行[0])),
-            tuple(sorted(dict(主体状態 or {}).items(), key=lambda 行: 行[0])),
+            tuple(sorted(成果初期値.items(), key=lambda 行: 行[0])),
+            tuple(sorted(主体初期値.items(), key=lambda 行: 行[0])),
             0,
             認識=tuple(初期認識), 要求認識=明示要求認識,
             依存=tuple(初期依存), 観測要求=tuple(観測要求),

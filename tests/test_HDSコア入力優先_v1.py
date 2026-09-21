@@ -6,7 +6,8 @@ from minidora.HDSコア入力 import HDSコア入力束
 from minidora.HDS適合器 import HDS独立コア入力コンパイル
 from minidora.HDS構文化作用 import HDS構文化作用
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
-from minidora.HDS実行主体 import HDS実行状態, HDS作用状態
+from minidora.HDS実行主体 import HDS実行状態, HDS作用状態, HDS終端
+from minidora.HDS駆動コア import HDS駆動コア
 
 
 class HDSコア入力優先試験(unittest.TestCase):
@@ -83,14 +84,80 @@ class HDSコア入力優先試験(unittest.TestCase):
         self.assertEqual(入力束.文脈引用, ())
         self.assertTrue(any(x.種別 == "阻害" for x in 入力束.関係))
 
-    def test_構文化作用はコア入力を第一級成果として返す(self):
+    def test_構文化作用はCore_native入口をLegacyより先に使う(self):
         作用 = HDS構文化作用(self.構文化器, "A causes B")
         結果 = 作用.実行(HDS実行状態())
         self.assertEqual(結果.状態, HDS作用状態.成立)
         成果 = dict(結果.成果)
         self.assertIsInstance(成果["HDSコア入力"], HDSコア入力束)
-        self.assertIn("HDS_IR", 成果)
+        self.assertNotIn("HDS_IR", 成果)
         self.assertEqual(dict(結果.主体状態差分)["HDSコア入力署名"], 成果["HDSコア入力"].意味署名)
+
+    def test_HDS駆動コアはCore入力を実行開始前に受け取る(self):
+        コア = HDS駆動コア(HDSコンパイラ=self.構文化器, 最大作用回数=2)
+        結果 = コア.実行(
+            "A causes B",
+            目的=("Core入力接続",),
+            要求状態=("HDSコア入力済み",),
+        )
+        self.assertEqual(結果.終端, HDS終端.採用)
+        self.assertEqual(結果.履歴, ())
+        self.assertIn("HDSコア入力", 結果.状態.成果辞書())
+        self.assertIn("HDSコア入力済み", 結果.状態.成立状態)
+
+    def test_表現要求と実行制約をCore責任へ分離する(self):
+        入力束 = self.構文化器.コア入力コンパイル(
+            "提供資料だけで、簡潔に本文をJSONに変換してください。"
+        )
+        self.assertIn(("形式", "JSON"), {(x.種別, x.値) for x in 入力束.表現制約.要求})
+        self.assertIn(("詳細度", "簡潔"), {(x.種別, x.値) for x in 入力束.表現制約.要求})
+        self.assertIn(("資料範囲", "提供資料のみ"), {(x.種別, x.値) for x in 入力束.実行制約})
+
+    def test_参照必須は表現ではなく実行制約である(self):
+        入力束 = self.構文化器.問題コア入力("Which is correct?", ("A", "B", "C"))
+        self.assertIn(("参照", "必須"), {(x.種別, x.値) for x in 入力束.実行制約})
+        self.assertFalse(any(x.種別 == "参照" for x in 入力束.表現制約.要求))
+
+    def test_出力言語競合残差にも検証要求が対応する(self):
+        入力束 = self.構文化器.コア入力コンパイル(
+            "日本語で英語で本文を要約してください。"
+        )
+        対象 = [x for x in 入力束.残差 if x.ID == "Core入力:出力言語競合"]
+        self.assertEqual(len(対象), 1)
+        self.assertIn(
+            "検証:Core入力:出力言語競合",
+            {x.ID for x in 入力束.検証要求},
+        )
+
+    def test_Core初期目的索引は任意内容の文字列表現へ依存しない(self):
+        from minidora.HDSコア入力 import HDSコア目的, HDSコア表現制約
+
+        class 固定Core入力構文化器:
+            def コア入力コンパイル(self, 入力, **kwargs):
+                return HDSコア入力束(
+                    原文=入力,
+                    認知世界ID="試験",
+                    意味項目=(),
+                    関係=(),
+                    条件=(),
+                    目的=(HDSコア目的("目的:任意", "比較", ("文字列化しない", 1)),),
+                    作用要求=(),
+                    要求成果=(),
+                    残差=(),
+                    検証要求=(),
+                    実行制約=(),
+                    表現制約=HDSコア表現制約("ja"),
+                )
+
+        コア = HDS駆動コア(HDSコンパイラ=固定Core入力構文化器(), 最大作用回数=2)
+        結果 = コア.実行(
+            "入力",
+            目的=("試験",),
+            要求状態=("HDSコア入力済み",),
+        )
+        self.assertEqual(結果.終端, HDS終端.採用)
+        self.assertIn("HDS目的:目的:任意:比較", 結果.状態.目的)
+        self.assertFalse(any("文字列化しない" in x for x in 結果.状態.目的))
 
     def test_コア入力からC7用の経験効果を捏造しない(self):
         入力束 = self.構文化器.コア入力コンパイル("A causes B")
