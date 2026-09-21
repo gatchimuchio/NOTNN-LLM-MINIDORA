@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
-from minidora.HDS駆動コア import HDS駆動コア, HDS駆動コア版
+from minidora.HDS駆動コア import HDS駆動コア, HDS駆動コア版, HDS継承基準版
 from minidora.HDS実行主体 import HDS終端, HDS作用供給器, HDS関数作用, HDS作用結果, HDS作用状態
 from minidora.HDS選択継承循環 import (
     回答成果名,
@@ -49,6 +49,38 @@ class HDS正本継承循環試験(unittest.TestCase):
 
     def test_版はv5(self):
         self.assertEqual(HDS駆動コア版, "MINIDORA-HDS-FIRST-v5")
+        self.assertEqual(HDS継承基準版, "HDS-MINIDORA-63d5d7e7")
+
+    def test_一般非退行入口は基準承認済みなら拡張を起動しない(self):
+        基準 = object()
+        呼出 = []
+        判定 = HDS駆動コア().非退行継承実行(
+            "入力",
+            基準実行=lambda: 基準,
+            基準承認判定=lambda 値: 値 is 基準,
+            拡張実行=lambda: 呼出.append("拡張"),
+            拡張承認判定=lambda _値: True,
+            拡張採用証明=lambda _旧, _新: True,
+        )
+        self.assertIs(判定.出力, 基準)
+        self.assertTrue(判定.基準固定)
+        self.assertFalse(判定.拡張採用)
+        self.assertEqual(呼出, [])
+
+    def test_一般非退行入口は証明なし拡張を昇格しない(self):
+        基準 = {"状態": "SUSPEND"}
+        拡張 = {"状態": "APPROVE"}
+        判定 = HDS駆動コア().非退行継承実行(
+            "入力",
+            基準実行=lambda: 基準,
+            基準承認判定=lambda _値: False,
+            拡張実行=lambda: 拡張,
+            拡張承認判定=lambda _値: True,
+            拡張採用証明=lambda _旧, _新: False,
+        )
+        self.assertIs(判定.出力, 基準)
+        self.assertTrue(判定.基準固定)
+        self.assertFalse(判定.拡張採用)
 
 
     def test_駆動コアが要求単位の動的作用供給を保持(self):
