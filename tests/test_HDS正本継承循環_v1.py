@@ -7,7 +7,7 @@ from minidora.HDS駆動コア import HDS駆動コア, HDS駆動コア版, HDS継
 from minidora.HDS実行主体 import HDS終端, HDS作用供給器, HDS関数作用, HDS作用結果, HDS作用状態
 from minidora.HDS選択継承循環 import (
     回答成果名,
-    基準結果成果名,
+    基準結果主体名,
     現行結果成果名,
     影結果成果名,
     非退行判定成果名,
@@ -117,7 +117,7 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
         成果 = 結果.状態.成果辞書()
         self.assertEqual(成果[回答成果名], "A")
-        self.assertIs(成果[基準結果成果名], 成果[現行結果成果名])
+        self.assertIs(結果.状態.主体辞書()[基準結果主体名], 成果[現行結果成果名])
         self.assertEqual(provider.呼出回数, 0)
         self.assertEqual([x.作用ID for x in 結果.履歴], ["HDS継承/模型再評価"])
 
@@ -163,7 +163,7 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual(結果.終端, HDS終端.保留)
         成果 = 結果.状態.成果辞書()
         self.assertNotIn(回答成果名, 成果)
-        self.assertEqual(成果[基準結果成果名].状態, "SUSPEND")
+        self.assertEqual(結果.状態.主体辞書()[基準結果主体名].状態, "SUSPEND")
 
 
 if __name__ == "__main__":
