@@ -53,7 +53,6 @@ _現行説明資料 = (
     "tests/README.md",
     "tools/README.md",
     "製品版/README.md",
-    "aistudio/README.md",
 )
 _旧状態値 = {
     "PROVISIONAL_BY_DEFAULT",
@@ -93,7 +92,7 @@ def _履歴または外部境界(対象: Path) -> bool:
     相対 = 対象.relative_to(根).as_posix()
     if 相対.startswith(("docs/", "artifacts/", "設計/旧/", "構文化/正本パッケージ/")):
         return True
-    if "/web/" in 相対 or 相対.startswith("aistudio/public/"):
+    if "/web/" in 相対:
         return True
     if 対象.name.startswith("README.en."):
         return True

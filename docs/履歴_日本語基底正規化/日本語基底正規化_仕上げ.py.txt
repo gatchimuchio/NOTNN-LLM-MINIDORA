@@ -152,7 +152,7 @@ def _パス整理() -> None:
 
 def _現役Python() -> list[Path]:
     out=[]
-    for base in (根/'src/minidora',根/'tests',根/'tools',根/'aistudio'):
+    for base in (根/'src/minidora',根/'tests',根/'tools'):
         if not base.exists(): continue
         for p in base.rglob('*.py'):
             rel=p.relative_to(根).as_posix()

@@ -1,6 +1,6 @@
 # MINIDORA Product Prototype v1
 
-This is not a thin hackathon mock. It is a product-oriented chat layer built by attaching everyday capability modules to the established MINIDORA 模型核 without retraining the 模型核.
+This is a product-oriented chat layer built by attaching everyday capability modules to the established MINIDORA 模型核 without retraining the 模型核.
 
 The Japanese document is the normative source. This English file is a translation for international access.
 

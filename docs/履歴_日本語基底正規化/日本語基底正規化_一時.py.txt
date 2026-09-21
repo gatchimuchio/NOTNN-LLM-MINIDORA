@@ -426,7 +426,7 @@ def _監査器を補正() -> None:
 
 
 def _現行説明を正規化() -> None:
-    for 相対 in ("tools/README.md", "製品版/README.md", "aistudio/README.md", "現行正本.md", "参照正本.md", "設計/README.md", "src/README.md", "tests/README.md"):
+    for 相対 in ("tools/README.md", "製品版/README.md", "現行正本.md", "参照正本.md", "設計/README.md", "src/README.md", "tests/README.md"):
         対象 = 根 / 相対
         if not 対象.exists():
             continue

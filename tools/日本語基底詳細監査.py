@@ -45,7 +45,7 @@ def 互換入口か(対象: Path) -> bool:
 
 def 現役Python一覧() -> list[Path]:
     結果: list[Path] = []
-    for 基点 in (根 / "src/minidora", 根 / "tests", 根 / "tools", 根 / "aistudio"):
+    for 基点 in (根 / "src/minidora", 根 / "tests", 根 / "tools"):
         if not 基点.exists():
             continue
         for 対象 in 基点.rglob("*.py"):
