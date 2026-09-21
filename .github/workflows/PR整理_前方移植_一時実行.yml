@@ -1,0 +1,77 @@
+name: PR整理・前方移植・一時実行
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cleanup_forward_port_once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  前方移植:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: pr127
+            branch: sandbox/hds-v7-source-identity-20260919
+            expected_old: 1b3b6140604dc2fde4cb5b86aefcb31c3b7fa7f4
+            commits: "1b3b6140604dc2fde4cb5b86aefcb31c3b7fa7f4"
+          - label: pr139
+            branch: fix/hds-selection-residual-floor-20260922
+            expected_old: 822baeb630ddab994c7805d0e562688f5d4f124a
+            commits: "98436437bc9390dedbc8e35d44459448928a3420 5aad6be67e7c8afd332ed1c343138ff15bd76a9f c755177eaa49db0f1153086571b5a8be0be79f49 07577a9ff24fb641935ad100e5097a07568bbed0 822baeb630ddab994c7805d0e562688f5d4f124a"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 最新mainへ前方移植
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "minidora-cleanup"
+          git config user.email "actions@users.noreply.github.com"
+          git fetch origin main "${{ matrix.branch }}"
+          test "$(git rev-parse "origin/${{ matrix.branch }}")" = "${{ matrix.expected_old }}"
+          git switch -C "${{ matrix.branch }}" origin/main
+          for c in ${{ matrix.commits }}; do
+            if git cherry-pick "$c"; then
+              continue
+            fi
+            mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+            if [ "${{ matrix.label }}" = "pr127" ] && [ "${#conflicts[@]}" -eq 1 ] && [ "${conflicts[0]}" = "HDS_MINIDORA_現行正本.md" ]; then
+              git checkout --ours -- "HDS_MINIDORA_現行正本.md"
+              git add "HDS_MINIDORA_現行正本.md"
+              git cherry-pick --continue
+            else
+              printf '未解決競合:\n'
+              printf '%s\n' "${conflicts[@]}"
+              exit 1
+            fi
+          done
+
+      - name: 基本監査
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/リポジトリ整合性監査.py
+          python tools/日本語基底監査.py
+          python tools/日本語基底詳細監査.py
+          python tools/公開境界監査.py
+          python -m compileall -q src tests tools
+
+      - name: 全単体試験
+        shell: bash
+        run: python -m unittest discover -s tests -q
+
+      - name: 前方移植済みブランチを更新
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push --force-with-lease=refs/heads/${{ matrix.branch }}:${{ matrix.expected_old }} origin HEAD:refs/heads/${{ matrix.branch }}
+          echo "NEW_HEAD=$(git rev-parse HEAD)"
