@@ -20,6 +20,15 @@ class HDSコア入力優先試験(unittest.TestCase):
         for 名 in ("手順", "計算計画", "作用差分構造", "意味作用履歴", "初期状態"):
             self.assertFalse(hasattr(入力束, 名), 名)
 
+    def test_コア入力正本ではLegacy計算計画器を呼ばない(self):
+        class 計画禁止:
+            def 計画(self, *args, **kwargs):
+                raise AssertionError("Core入力正本でLegacy計画器を呼んだ")
+
+        self.構文化器._計算計画器 = 計画禁止()
+        入力束 = self.構文化器.コア入力コンパイル("A causes B")
+        self.assertIsInstance(入力束, HDSコア入力束)
+
     def test_コンパイル束はコア入力を正本としてLegacy成果を分離する(self):
         束 = self.構文化器.コンパイル束("2+3")
         self.assertIs(束.正本, 束.コア入力)
