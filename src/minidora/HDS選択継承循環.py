@@ -15,7 +15,7 @@ from .計算実行器 import 計算実行器
 from .コア.値 import 署名 as _意味署名
 
 
-HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v1"
+HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v2"
 
 参照成果名 = "HDS選択:参照"
 参照世代成果名 = "HDS選択:参照世代"
@@ -26,6 +26,7 @@ HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v1"
 非退行判定成果名 = "HDS選択:非退行判定"
 影結果成果名 = "HDS選択:影結果"
 回答成果名 = "HDS選択:回答ラベル"
+入力残差影成果名 = "HDS選択:入力残差影"
 選択閉包状態 = "HDS選択:閉包"
 
 残差_未評価 = "HDS選択:未評価"
@@ -198,6 +199,7 @@ class HDS選択継承供給:
         計算実行器_: 計算実行器 | None = None,
         設定: HDS選択継承設定 | None = None,
         拡張採用証明: Callable[[HDS選択実行結果, HDS選択実行結果], bool] | None = None,
+        入力残差非阻害対象: Sequence[str] = (),
     ) -> None:
         self.質問IR = 質問IR
         self.検索IR = HDSR質問射影(質問IR)
@@ -209,6 +211,7 @@ class HDS選択継承供給:
         self.計算実行器 = 計算実行器_
         self.設定 = 設定 or HDS選択継承設定()
         self.拡張採用証明 = 拡張採用証明
+        self.入力残差非阻害対象 = frozenset(str(x) for x in 入力残差非阻害対象)
         self.選択肢 = tuple(
             x.座標ID.split(":", 1)[1]
             for x in 質問IR.座標
@@ -261,7 +264,8 @@ class HDS選択継承供給:
                 # 主体状態差分は成果の自動依存辺へ入らないため、追加観測で自己失効しない。
                 基準差分 = ((基準結果主体名, 基準),)
 
-            解消 = frozenset(set(s.残差).intersection(選択残差集合))
+            選択解消 = frozenset(set(s.残差).intersection(選択残差集合))
+            承認時入力解消 = frozenset(set(s.残差).intersection(self.入力残差非阻害対象))
             成果群: list[tuple[str, object]] = [
                 (現行結果成果名, 結果),
                 (評価参照署名成果名, current_sig),
@@ -270,10 +274,12 @@ class HDS選択継承供給:
             if _承認済み(基準):
                 # 受入正本の非退行下限。初回APPROVEは後続拡張を起動せず完全保持する。
                 成果群.extend(((回答成果名, 基準.回答ラベル),))
+                if 承認時入力解消:
+                    成果群.append((入力残差影成果名, tuple(sorted(承認時入力解消))))
                 return HDS作用結果(
                     HDS作用状態.成立,
                     追加状態=frozenset({選択閉包状態}),
-                    解消残差=解消,
+                    解消残差=frozenset((*選択解消, *承認時入力解消)),
                     成果=tuple(成果群),
                     主体状態差分=基準差分,
                     理由=("HDS_BASELINE_APPROVAL_LOCKED", "HDS_MINIDORA_CANONICAL_INHERITED"),
@@ -299,17 +305,19 @@ class HDS選択継承供給:
                 成果群.extend(((非退行判定成果名, 判定), (影結果成果名, 結果)))
                 if 判定.拡張採用:
                     成果群.append((回答成果名, 結果.回答ラベル))
+                    if 承認時入力解消:
+                        成果群.append((入力残差影成果名, tuple(sorted(承認時入力解消))))
                     return HDS作用結果(
                         HDS作用状態.成立,
                         追加状態=frozenset({選択閉包状態}),
-                        解消残差=解消,
+                        解消残差=frozenset((*選択解消, *承認時入力解消)),
                         成果=tuple(成果群),
                         主体状態差分=基準差分,
                         理由=tuple(dict.fromkeys((*判定.理由, "HDS_MINIDORA_CANONICAL_INHERITED"))),
                     )
                 return HDS作用結果(
                     HDS作用状態.成立,
-                    解消残差=解消,
+                    解消残差=選択解消,
                     追加残差=frozenset({残差_証明不足}),
                     成果=tuple(成果群),
                     主体状態差分=基準差分,
@@ -321,7 +329,7 @@ class HDS選択継承供給:
             if self._計算計画() is not None and not bool(values.get(計算済み成果名, False)):
                 residuals = frozenset((*residuals, 残差_計算要求))
             # 同じ残差を一作用で解消・再追加しない。前状態との差だけを原子的に返す。
-            解消差分 = frozenset(set(解消).difference(residuals))
+            解消差分 = frozenset(set(選択解消).difference(residuals))
             追加差分 = frozenset(set(residuals).difference(s.残差))
             return HDS作用結果(
                 HDS作用状態.成立,
@@ -336,7 +344,7 @@ class HDS選択継承供給:
             "HDS継承/模型再評価",
             実行,
             出力状態=(選択閉包状態,),
-            解消対象=tuple(sorted(選択残差集合)),
+            解消対象=tuple(sorted(選択残差集合 | self.入力残差非阻害対象)),
             資源負荷=2,
             優先度=10.0,
             読取成果=(参照成果名,),
@@ -487,6 +495,7 @@ __all__ = [
     "非退行判定成果名",
     "影結果成果名",
     "回答成果名",
+    "入力残差影成果名",
     "選択閉包状態",
     "残差_未評価",
 ]
