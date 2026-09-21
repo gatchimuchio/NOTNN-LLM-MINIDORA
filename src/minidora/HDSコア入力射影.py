@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from .コア.値 import 署名
+from .HDSコア要求抽出 import 明示作用要求を抽出
 from .HDSコア入力 import (
     HDSコア意味項目, HDSコア条件, HDSコア関係, HDSコア目的,
     HDSコア作用要求, HDSコア残差, HDSコア検証要求, HDSコア表現制約,
@@ -118,11 +119,11 @@ def HDSコア入力へ(IR) -> HDSコア入力束:
             項目.ID, 種別, 項目.内容, tuple(dict.fromkeys(関連参照)), 項目.原文範囲
         ))
 
-    # 現行IRの目的.*には候補・検索焦点も含まれる。
-    # それらを能力又は作用へ読み替えない。明示作用意味の専用抽出が導入されるまで空で保持する。
-    作用要求 = []
+    # 目的.*を能力名へ読み替えず、原文に明示された作用意味だけを別経路で抽出する。
+    要求抽出 = 明示作用要求を抽出(IR.原文)
+    作用要求 = list(要求抽出.作用要求)
 
-    残差 = []
+    残差 = list(要求抽出.残差)
     for 項目 in tuple(IR.残差):
         解消条件 = tuple(str(x) for x in getattr(項目, "解消条件", ()))
         残差.append(HDSコア残差(
@@ -145,8 +146,8 @@ def HDSコア入力へ(IR) -> HDSコア入力束:
         for 項目 in 残差
     )
 
-    # 目的.*には検索焦点・未知端点・選択候補が混在するため、完了条件へ自動昇格しない。
-    要求成果 = ()
+    # 完了条件は明示作用要求の期待成果だけを供給し、目的座標からは捏造しない。
+    要求成果 = tuple(dict.fromkeys(成果 for 要求 in 作用要求 for 成果 in 要求.要求成果))
     表現制約 = HDSコア表現制約(
         str(IR.入力言語),
         None if IR.出力言語 is None else str(IR.出力言語),
