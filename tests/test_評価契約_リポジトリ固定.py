@@ -36,11 +36,10 @@ class 外部評価契約RepositoryLockTest(unittest.TestCase):
         self.assertIn('固定参照資料を禁止', text)
         self.assertIn('評価契約_v2.md', text)
 
-    def test_AGENTSはGPQA固定参照禁止を要求する(self) -> None:
+    def test_AGENTSは評価固有情報の実装混入を禁止する(self) -> None:
         text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn('GPQA正本では固定参照資料を禁止', text)
-        self.assertIn("reference = LIVE_ONLY", text)
-        self.assertIn("MINIDORA30 / 30/198", text)
+        self.assertIn("評価用正解・問題固有情報の実装混入", text)
+        self.assertIn("固定入力専用処理の一般能力化", text)
 
     def test_厳密評価入口にGPQA固定再生経路がない(self) -> None:
         text = (ROOT / "tools/正本評価.py").read_text(encoding="utf-8")
