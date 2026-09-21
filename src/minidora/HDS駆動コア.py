@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence
 
-from .HDS実行主体 import HDS実行主体, HDS実行状態, HDS作用器, HDS実行結果, HDS作用供給器
+from .HDS実行主体 import HDS実行主体, HDS実行状態, HDS作用器, HDS実行結果, HDS作用供給器, HDS終端
 from .統合駆動_v2.政策 import HDS運用政策
 from .統合駆動_v2.認識 import HDS認識項目
 from .統合駆動_v2.観測 import HDS観測器, HDS観測要求
@@ -13,9 +13,11 @@ from .統合駆動_v2.検証 import HDS検証器, HDS草案
 from .統合駆動_v2.形成 import HDS形成関係
 from .統合駆動_v2.入力境界 import HDS異種表象, HDS異種入力作用
 from .HDSコア入力 import HDSコア入力束
+from .HDS非退行包絡 import HDS非退行判定, HDS非退行包絡
 
 
 HDS駆動コア版 = "MINIDORA-HDS-FIRST-v5"
+HDS継承基準版 = "HDS-MINIDORA-63d5d7e7"
 
 
 class HDS駆動コア:
@@ -173,6 +175,47 @@ class HDS駆動コア:
             作用供給器=(*self.作用供給器, *tuple(追加作用供給器)), 停止要求=self.停止要求,
         ).実行(初期)
 
+
+    def 非退行継承実行(
+        self,
+        問合せ: str,
+        *,
+        基準実行: Callable[[], object],
+        基準承認判定: Callable[[object], bool],
+        拡張採用証明: Callable[[object, object], bool],
+        拡張実行: Callable[[], object] | None = None,
+        拡張承認判定: Callable[[object], bool] | None = None,
+        **実行引数,
+    ) -> HDS非退行判定:
+        """再設計直前HDS-MINIDORAの成立結果を下限として拡張を非退行で実行する。
+
+        基準承認済みなら拡張を起動せず完全保持する。基準未承認時だけ拡張を許可し、
+        拡張承認と明示的な追加採用証明が両方成立した場合だけ昇格する。
+        """
+        if not callable(基準実行):
+            raise TypeError("基準実行は呼出可能である必要がある")
+        if not callable(基準承認判定):
+            raise TypeError("基準承認判定は呼出可能である必要がある")
+        if not callable(拡張採用証明):
+            raise TypeError("拡張採用証明は呼出可能である必要がある")
+        if 拡張実行 is not None and not callable(拡張実行):
+            raise TypeError("拡張実行は呼出可能である必要がある")
+        if 拡張承認判定 is not None and not callable(拡張承認判定):
+            raise TypeError("拡張承認判定は呼出可能である必要がある")
+
+        基準結果 = 基準実行()
+        実拡張実行 = 拡張実行 or (lambda: self.実行(問合せ, **実行引数))
+        実拡張承認判定 = 拡張承認判定 or (
+            lambda 結果: isinstance(結果, HDS実行結果) and 結果.終端 == HDS終端.採用
+        )
+        return HDS非退行包絡(
+            基準結果,
+            基準承認判定=基準承認判定,
+            拡張実行=実拡張実行,
+            拡張承認判定=実拡張承認判定,
+            拡張採用証明=拡張採用証明,
+        )
+
     def 選択実行(
         self,
         問合せ: str,
@@ -236,4 +279,4 @@ class HDS駆動コア:
         )
 
 
-__all__ = ["HDS駆動コア版", "HDS駆動コア"]
+__all__ = ["HDS駆動コア版", "HDS継承基準版", "HDS駆動コア"]
