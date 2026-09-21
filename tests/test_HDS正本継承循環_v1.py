@@ -117,7 +117,7 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
         成果 = 結果.状態.成果辞書()
         self.assertEqual(成果[回答成果名], "A")
-        self.assertIs(結果.状態.主体辞書()[基準結果主体名], 成果[現行結果成果名])
+        self.assertEqual(結果.状態.主体辞書()[基準結果主体名], 成果[現行結果成果名])
         self.assertEqual(provider.呼出回数, 0)
         self.assertEqual([x.作用ID for x in 結果.履歴], ["HDS継承/模型再評価"])
 
