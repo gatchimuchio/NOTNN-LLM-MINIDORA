@@ -84,7 +84,7 @@ class HDSコア入力優先試験(unittest.TestCase):
         self.assertEqual(入力束.文脈引用, ())
         self.assertTrue(any(x.種別 == "阻害" for x in 入力束.関係))
 
-    def test_構文化作用はCore_native入口をLegacyより先に使う(self):
+    def test_構文化作用はコア正本入口を旧経路より先に使う(self):
         作用 = HDS構文化作用(self.構文化器, "A causes B")
         結果 = 作用.実行(HDS実行状態())
         self.assertEqual(結果.状態, HDS作用状態.成立)
@@ -93,7 +93,7 @@ class HDSコア入力優先試験(unittest.TestCase):
         self.assertNotIn("HDS_IR", 成果)
         self.assertEqual(dict(結果.主体状態差分)["HDSコア入力署名"], 成果["HDSコア入力"].意味署名)
 
-    def test_HDS駆動コアはCore入力を実行開始前に受け取る(self):
+    def test_HDS駆動コアはコア入力を実行開始前に受け取る(self):
         コア = HDS駆動コア(HDSコンパイラ=self.構文化器, 最大作用回数=2)
         結果 = コア.実行(
             "A causes B",
@@ -105,7 +105,7 @@ class HDSコア入力優先試験(unittest.TestCase):
         self.assertIn("HDSコア入力", 結果.状態.成果辞書())
         self.assertIn("HDSコア入力済み", 結果.状態.成立状態)
 
-    def test_表現要求と実行制約をCore責任へ分離する(self):
+    def test_表現要求と実行制約をコア責任へ分離する(self):
         入力束 = self.構文化器.コア入力コンパイル(
             "提供資料だけで、簡潔に本文をJSONに変換してください。"
         )
@@ -129,10 +129,10 @@ class HDSコア入力優先試験(unittest.TestCase):
             {x.ID for x in 入力束.検証要求},
         )
 
-    def test_Core初期目的索引は任意内容の文字列表現へ依存しない(self):
+    def test_コア初期目的索引は任意内容の文字列表現へ依存しない(self):
         from minidora.HDSコア入力 import HDSコア目的, HDSコア表現制約
 
-        class 固定Core入力構文化器:
+        class 固定コア入力構文化器:
             def コア入力コンパイル(self, 入力, **kwargs):
                 return HDSコア入力束(
                     原文=入力,
@@ -149,7 +149,7 @@ class HDSコア入力優先試験(unittest.TestCase):
                     表現制約=HDSコア表現制約("ja"),
                 )
 
-        コア = HDS駆動コア(HDSコンパイラ=固定Core入力構文化器(), 最大作用回数=2)
+        コア = HDS駆動コア(HDSコンパイラ=固定コア入力構文化器(), 最大作用回数=2)
         結果 = コア.実行(
             "入力",
             目的=("試験",),
