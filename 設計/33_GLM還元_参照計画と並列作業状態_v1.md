@@ -13,4 +13,4 @@ GLM由来の構文化成果自体は破棄しない。次の条件を満たす�
 - HDSへ回答ラベル・候補本文・候補得点を逆流させない
 - final COMMIT権限を候補生成/監督へ移さない
 
-現行active 模型核は `32_MINIDORA_HDS監督介入制御_v1.md` と `docs/CORE_FREEZE_CANDIDATE_2026-09-05.md` に従う。
+現行active 模型核は `32_MINIDORA_HDS監督介入制御_v1.md` と [`../開発正本履歴.md`](../開発正本履歴.md) に記録した採用commitに従う。

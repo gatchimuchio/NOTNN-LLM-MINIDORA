@@ -31,7 +31,7 @@ GPQA-E2E-LIVE
 
 GPQAでは、C2、保存済み検索結果、固定Reference/Data bundle、Replay fixture等の**固定参照資料を正本性能評価へ使用しない**。
 
-過去の固定Replay資産は履歴として保持するが、現行性能・将来正本・GPQA性能比較の入力へ再利用しない。
+過去の固定Replay資産はdefault treeへ重複保存せず、必要な場合は開発正本履歴のcommitから復元する。現行性能・将来正本・GPQA性能比較の入力へ再利用しない。
 
 ## 正本GPQA入口
 
@@ -71,21 +71,10 @@ fixed reference Data = forbidden
 
 `fixed_reference_data_allowed` は必ず `false`。
 
-## MINIDORA30系現行性能セーブポイント
+## 開発正本履歴
 
-MINIDORA30系の現行性能正本は [`../docs/SAVEPOINT_2026-09-09_MINIDORA30.md`](../docs/SAVEPOINT_2026-09-09_MINIDORA30.md)。HDS-MINIDORA系は別系統であり、`../HDS_MINIDORA_現行正本.md` と `../評価/HDS_MINIDORA_受入正本_2026-09-17.md` を参照する。
-
-```text
-MINIDORA30
-GPQA-E2E-LIVE
-30 / 198
-15.151515151515152%
-```
-
-正本実測記録:
-
-- [`../評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md`](../評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md)
-- [`../評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json`](../評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json)
+過去の採用正本コードは [`../開発正本履歴.md`](../開発正本履歴.md) の固定commitから復元する。
+旧セーブポイント文書・旧評価個票をdefault treeへ重複保存しない。
 
 ## E2E run間の比較
 

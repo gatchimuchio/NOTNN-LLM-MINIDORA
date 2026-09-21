@@ -1,6 +1,7 @@
 # MINIDORA 評価案内
 
-`評価/` は適合・性能・回帰・失敗実測を保持する。履歴ファイルを現在の値で上書きせず、評価系列ごとに正本を分ける。
+`評価/` は**現行正本と、現行能力に直接対応する受入証拠**を保持する。
+過去の作業ログ・旧ベンチ個票・旧セーブポイントはGit履歴へ委ね、default treeへ重複保存しない。
 
 ## 現行正本
 
@@ -10,83 +11,22 @@
 | MINIDORA80 | [能力モジュール込みE2E正本](GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.md) | **80 / 198 (40.40%)** |
 | HDS-MINIDORA | [受入正本](HDS_MINIDORA_受入正本_2026-09-17.md) | MINIDORA30 / 80とは別系列 |
 
-全体案内:
-- [現行正本群](../現行正本.md)
-- [正本系統](../正本系統.md)
+機械可読正本:
+- [MINIDORA30 JSON](GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json)
+- [MINIDORA80 JSON](GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.json)
+- [HDS非退行受入 JSON](GPQA_Diamond_HDSv3_MINIDORA30非退行受入_2026-09-17.json)
+
+評価条件:
 - [評価契約 v2](評価契約_v2.md)
-
-## MINIDORA30
-
-```text
-GPQA-E2E-LIVE
-30 / 198
-15.151515151515152%
-回答 130 / 198
-```
-
-正本資産:
-- [Markdown](GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md)
-- [JSON](GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json)
-- [SAVEPOINT](../docs/SAVEPOINT_2026-09-09_MINIDORA30.md)
-
-## MINIDORA80
-
-```text
-能力モジュール OFF = 29 / 198
-能力モジュール ON  = 80 / 198
-正答純増           = +51
-能力モジュール発火 = 55
-退行               = 0
-```
-
-正本資産:
-- [Markdown](GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.md)
-- [JSON](GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.json)
-- [SAVEPOINT](../docs/SAVEPOINT_2026-09-09_MINIDORA80.md)
-
-これは模型核単体性能ではなく、能力モジュール込みシステム性能である。
-
-## HDS-MINIDORA
-
-[HDS_MINIDORA_受入正本_2026-09-17.md](HDS_MINIDORA_受入正本_2026-09-17.md) を別系列として保持する。MINIDORA30の30/198、MINIDORA80の80/198をHDS-MINIDORA固有性能へ転記しない。
-
-## GPQA正本運用
-
-2026-09-09以後、正本GPQAでは固定参照資料を禁止する。
-
-禁止:
-- 保存済み検索結果
-- 問題別固定参照資料束
-- 過去run参照の再投入
-- 正解情報で選別した参照資料
-
-許可:
-- 公式問題集合の同一性確認用キャッシュ
-- 同一run内で新規取得した同一参照を共有するcontrolled A/B
-
-全数実測の個票JSONはdefault treeへ固定せず、GitHub Actions artifactへ分離する。
+- [旧英字名互換](BENCHMARK_CONTRACT_v2.md)
 
 ## 履歴
 
-過去の評価・失敗実測は履歴証拠として残すが、現行正本へ無言昇格しない。
+採用された開発正本の節目と過去コードの復元commitは [開発正本履歴](../開発正本履歴.md) を正とする。
 
-代表:
-- [prototype baseline](GPQA_Diamond_PROTOTYPE_BASELINE_2026-08-22.json)
-- [v0.4再構成受入](MINIDORA_v0_4_REBUILD_ACCEPTANCE_2026-08-26.md)
-- [能力状態差循環](MINIDORA_v0_5_能力状態差循環_GPQA_2026-08-28.md)
-- [最小汎用Core](GPQA_Diamond_MINIMAL_GENERIC_CORE_2026-09-01.md)
-- [科学専門能力 Replay](GPQA_Diamond_既存科学専門能力_Replay_2026-09-02.md)
-- [モジュール拡張成立実証](MINIDORA_モジュール拡張成立実証_2026-09-02.md)
-- [HDS Compiler Pipeline v1.3受入](HDS_Compiler_Pipeline_v1_3_受入_2026-08-26.md)
+過去runの個票、旧Replay、旧失敗実験、開発途中の性能記録はdefault treeへ残さない。必要な場合は対応commitから復元する。
 
-## 区別
+## 現行能力の受入証拠
 
-```text
-言語模型成立
-!= 推論機構成立
-!= GPQA得点
-!= 能力モジュール込み性能
-!= 製品完成度
-```
-
-評価条件・値・比較可能範囲は各正本ファイルと [評価契約 v2](評価契約_v2.md) を正とする。
+各現行能力の局所受入記録は、対応する `設計/` と `tests/` の補助証拠として保持する。
+これらを模型核全体の性能正本へ読み替えない。

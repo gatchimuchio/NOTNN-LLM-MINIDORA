@@ -18,8 +18,7 @@ class 外部評価契約RepositoryLockTest(unittest.TestCase):
             "評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.json",
             '評価/GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.md',
             '評価/GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.json',
-            "docs/SAVEPOINT_2026-09-09_MINIDORA30.md",
-            "docs/SAVEPOINT_2026-09-09_MINIDORA80.md",
+            "開発正本履歴.md",
             "現行正本.md",
         )
         for path in required:

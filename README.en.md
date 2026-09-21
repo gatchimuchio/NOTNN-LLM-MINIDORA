@@ -93,7 +93,7 @@ strict language-model conformance
 != Large classification
 ```
 
-Historical replay results and failed experiments remain in [evaluation](評価/) and [docs](docs/), but frozen replay data is not reused as current GPQA performance input.
+Historical work logs and obsolete evaluation payloads are not duplicated in the default tree. Canonical development milestones and restore commits are recorded in [開発正本履歴.md](開発正本履歴.md). The `構文化/` corpus is retained as construction input, not treated as disposable work logs.
 
 ## Repository
 
@@ -102,8 +102,8 @@ Historical replay results and failed experiments remain in [evaluation](評価/)
 | [`src/minidora/`](src/minidora/) | current implementation |
 | [`tests/`](tests/) | unit, regression and acceptance tests |
 | [`設計/`](設計/) | public local design / compatibility boundaries |
-| [`評価/`](評価/) | canonical and historical evaluation |
-| [`docs/`](docs/) | supporting documents and savepoints |
+| [`評価/`](評価/) | current canonical and acceptance evidence |
+| [`docs/`](docs/) | current supporting documents |
 | [`構文化/`](構文化/) | observation / reconstruction history |
 | [`製品版/`](製品版/) | product documentation |
 | [`artifacts/`](artifacts/) | small fixed artifacts only |
