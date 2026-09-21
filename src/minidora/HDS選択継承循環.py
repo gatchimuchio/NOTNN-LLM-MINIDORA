@@ -310,13 +310,16 @@ class HDS選択継承供給:
                 )
 
             residuals = _選択残差(結果, refs)
-            # 計算可能性は評価後に追加する。旧正本の計算機会をCore作用へ移したもの。
+            # 計算可能性は評価後に追加する。旧正本の計算機会をHDS作用へ移したもの。
             if self._計算計画() is not None and not bool(values.get(計算済み成果名, False)):
                 residuals = frozenset((*residuals, 残差_計算要求))
+            # 同じ残差を一作用で解消・再追加しない。前状態との差だけを原子的に返す。
+            解消差分 = frozenset(set(解消).difference(residuals))
+            追加差分 = frozenset(set(residuals).difference(s.残差))
             return HDS作用結果(
                 HDS作用状態.保留,
-                解消残差=解消,
-                追加残差=residuals,
+                解消残差=解消差分,
+                追加残差=追加差分,
                 成果=tuple(成果群),
                 理由=tuple(dict.fromkeys(("HDS_SELECTION_NOT_CLOSED", *tuple(結果.理由)))),
             )
