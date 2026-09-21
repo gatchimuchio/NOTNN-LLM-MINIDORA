@@ -62,6 +62,21 @@ class HDSコア入力優先試験(unittest.TestCase):
         self.assertEqual(入力束.作用要求, ())
         self.assertEqual(入力束.要求成果, ())
 
+    def test_明示作用要求を能力名なしで供給する(self):
+        入力束 = self.構文化器.コア入力コンパイル("本文を要約してください。")
+        self.assertEqual(tuple(x.種別 for x in 入力束.作用要求), ("要約",))
+        self.assertEqual(入力束.要求成果, ("要約結果",))
+        self.assertFalse(any(hasattr(x, "能力") for x in 入力束.作用要求))
+
+    def test_未知命令形を黙って捨てない(self):
+        入力束 = self.構文化器.コア入力コンパイル("本文を未知操作してください。")
+        self.assertTrue(any(x.種別 == "作用要求未構文化" for x in 入力束.残差))
+        self.assertEqual(入力束.作用要求, ())
+
+    def test_説明文中の英語動詞を要求へ誤認しない(self):
+        入力束 = self.構文化器.コア入力コンパイル("We compare A and B.")
+        self.assertEqual(入力束.作用要求, ())
+
     def test_独立コア入力コンパイルは会話文脈を混入しない(self):
         入力束 = HDS独立コア入力コンパイル(self.構文化器, "A inhibits B")
         self.assertIsInstance(入力束, HDSコア入力束)
