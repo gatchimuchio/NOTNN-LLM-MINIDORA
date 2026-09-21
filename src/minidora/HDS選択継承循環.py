@@ -390,7 +390,9 @@ class HDS選択継承供給:
             merged = refs if any(x.識別子 == record.識別子 for x in refs) else (*refs, record)
             return HDS作用結果(
                 HDS作用状態.成立,
-                解消残差=frozenset({残差_計算要求}),
+                解消残差=frozenset(set(s.残差).intersection({
+                    残差_計算要求, 残差_観測不足, 残差_候補識別不足,
+                })),
                 成果=((参照成果名, tuple(merged)), (計算済み成果名, True)),
                 理由=("HDS_INHERITED_COMPUTE_EXECUTED",),
             )
@@ -398,7 +400,7 @@ class HDS選択継承供給:
         return HDS関数作用(
             "HDS継承/計算",
             実行,
-            解消対象=(残差_計算要求,),
+            解消対象=(残差_計算要求, 残差_観測不足, 残差_候補識別不足),
             資源負荷=1,
             優先度=8.0,
             読取成果=(参照成果名, 計算済み成果名),
