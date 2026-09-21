@@ -302,7 +302,7 @@ class HDS選択継承供給:
                         理由=tuple(dict.fromkeys((*判定.理由, "HDS_MINIDORA_CANONICAL_INHERITED"))),
                     )
                 return HDS作用結果(
-                    HDS作用状態.保留,
+                    HDS作用状態.成立,
                     解消残差=解消,
                     追加残差=frozenset({残差_証明不足}),
                     成果=tuple(成果群),
@@ -317,7 +317,7 @@ class HDS選択継承供給:
             解消差分 = frozenset(set(解消).difference(residuals))
             追加差分 = frozenset(set(residuals).difference(s.残差))
             return HDS作用結果(
-                HDS作用状態.保留,
+                HDS作用状態.成立,
                 解消残差=解消差分,
                 追加残差=追加差分,
                 成果=tuple(成果群),
@@ -432,7 +432,7 @@ class HDS選択継承供給:
             解消 = frozenset(set(s.残差).intersection(回復可能残差))
             if after == before:
                 return HDS作用結果(
-                    HDS作用状態.保留,
+                    HDS作用状態.成立,
                     解消残差=解消,
                     追加残差=frozenset({残差_観測無進展}),
                     成果=((参照世代成果名, level),),
