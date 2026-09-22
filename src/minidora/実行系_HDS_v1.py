@@ -12,17 +12,17 @@ from .実行系 import ミニドラ as _MINIDORAV05
 from .実行系_v03 import 結果, 要求
 
 
-def _選択肢(ir) -> tuple[str, ...]:
-    rows = [
-        (coord.座標ID.split(":", 1)[1], str(coord.内容))
-        for coord in ir.座標
-        if coord.座標ID.startswith("選択肢:")
+def _選択肢(中間表現) -> tuple[str, ...]:
+    行群 = [
+        (座標.座標ID.split(":", 1)[1], str(座標.内容))
+        for 座標 in 中間表現.座標
+        if 座標.座標ID.startswith("選択肢:")
     ]
-    return tuple(value for _, value in sorted(rows, key=lambda row: row[0]))
+    return tuple(値 for _, 値 in sorted(行群, key=lambda 行: 行[0]))
 
 
 def _作用履歴(実行結果) -> tuple[str, ...]:
-    return tuple(record.作用ID for record in 実行結果.履歴)
+    return tuple(記録.作用ID for 記録 in 実行結果.履歴)
 
 
 class HDS駆動ミニドラ(_MINIDORAV05):
@@ -34,13 +34,13 @@ class HDS駆動ミニドラ(_MINIDORAV05):
 
     版 = "v2-hds-first-core-inheritance"
 
-    def _初期参照(self, ir):
+    def _初期参照(self, 中間表現):
         if self.参照供給器 is None:
             return ()
-        予算 = HDS参照予算選択(ir)
+        予算 = HDS参照予算選択(中間表現)
         return HDS参照検索(
             self.参照供給器,
-            HDSR質問射影(ir),
+            HDSR質問射影(中間表現),
             上限=予算.取得上限,
             一問合せ上限=予算.一問合せ上限,
             最大問合せ並列=予算.最大問合せ並列,
@@ -50,84 +50,84 @@ class HDS駆動ミニドラ(_MINIDORAV05):
         if 要求_.手順 is not None or self.HDSコンパイラ is None:
             return super().実行(要求_)
         try:
-            ir = self.コンパイル(要求_.問合せ)
+            中間表現 = self.コンパイル(要求_.問合せ)
         except (ValueError, TypeError):
             return super().実行(要求_)
-        if not HDS選択問題(ir):
+        if not HDS選択問題(中間表現):
             return super().実行(要求_)
 
-        choices = _選択肢(ir)
-        if len(choices) < 2:
+        選択肢 = _選択肢(中間表現)
+        if len(選択肢) < 2:
             return super().実行(要求_)
 
-        initial_references = self._初期参照(ir)
-        core = HDS駆動コア(
+        初期参照 = self._初期参照(中間表現)
+        コア = HDS駆動コア(
             HDSコンパイラ=self.HDSコンパイラ,
             最大作用回数=32,
         )
-        driven = core.選択実行(
+        駆動結果 = コア.選択実行(
             要求_.問合せ,
-            choices,
-            初期参照=initial_references,
+            選択肢,
+            初期参照=初期参照,
             参照供給器=self.参照供給器,
             計算実行器_=self.計算実行器,
             模型核=self.能力模型核,
             最大回復回数=6,
         )
 
-        成果 = driven.状態.成果辞書()
-        selection = 成果.get(現行結果成果名)
-        if not isinstance(selection, HDS選択実行結果):
+        成果 = 駆動結果.状態.成果辞書()
+        選択結果 = 成果.get(現行結果成果名)
+        if not isinstance(選択結果, HDS選択実行結果):
             raise RuntimeError("HDS-first Coreが選択評価結果を帰還しなかった")
 
-        final_references = 成果.get(参照成果名, initial_references)
-        if not isinstance(final_references, tuple):
+        最終参照 = 成果.get(参照成果名, 初期参照)
+        if not isinstance(最終参照, tuple):
             raise TypeError("HDS-first Coreの参照成果はtupleである必要がある")
 
-        core_reasons = tuple(dict.fromkeys((*tuple(selection.理由), *tuple(driven.理由))))
-        if driven.終端 == HDS終端.採用:
-            answer_label = 成果.get(回答成果名)
-            if answer_label is None or selection.回答ラベル != answer_label:
+        コア理由 = tuple(dict.fromkeys((*tuple(選択結果.理由), *tuple(駆動結果.理由))))
+        if 駆動結果.終端 == HDS終端.採用:
+            回答ラベル = 成果.get(回答成果名)
+            if 回答ラベル is None or 選択結果.回答ラベル != 回答ラベル:
                 raise RuntimeError("HDS-first CoreのCOMMIT回答と選択評価結果が一致しない")
-            selection = replace(
-                selection,
+            選択結果 = replace(
+                選択結果,
                 状態="APPROVE",
-                理由=tuple(dict.fromkeys((*core_reasons, "HDS_FIRST_CORE_COMMIT"))),
+                理由=tuple(dict.fromkeys((*コア理由, "HDS_FIRST_CORE_COMMIT"))),
             )
         else:
-            terminal_reason = (
-                "HDS_FIRST_CORE_FAIL" if driven.終端 == HDS終端.失敗
+            終端理由 = (
+                "HDS_FIRST_CORE_FAIL" if 駆動結果.終端 == HDS終端.失敗
                 else "HDS_FIRST_CORE_SUSPEND"
             )
-            selection = replace(
-                selection,
+            選択結果 = replace(
+                選択結果,
                 状態="SUSPEND",
                 回答ラベル=None,
                 回答内容=None,
-                理由=tuple(dict.fromkeys((*core_reasons, terminal_reason))),
+                理由=tuple(dict.fromkeys((*コア理由, 終端理由))),
             )
 
-        result = self._HDS選択結果(要求_, ir, final_references, selection)
-        state = dict(result.状態)
-        state["HDS駆動コアRun"] = {
-            "終端": driven.終端.value,
+        出力結果 = self._HDS選択結果(要求_, 中間表現, 最終参照, 選択結果)
+        状態 = dict(出力結果.状態)
+        状態["HDS駆動コアRun"] = {
+            "終端": 駆動結果.終端.value,
             "コア版": HDS駆動コア版,
             "継承基準": HDS継承基準版,
-            "状態版": driven.状態.版,
-            "参照数": len(final_references),
-            "成立状態": tuple(sorted(driven.状態.成立状態)),
-            "残差": tuple(sorted(driven.状態.残差)),
-            "作用履歴": _作用履歴(driven),
-            "理由": tuple(driven.理由),
+            "状態版": 駆動結果.状態.版,
+            "参照数": len(最終参照),
+            "成立状態": tuple(sorted(駆動結果.状態.成立状態)),
+            "残差": tuple(sorted(駆動結果.状態.残差)),
+            "作用履歴": _作用履歴(駆動結果),
+            "理由": tuple(駆動結果.理由),
         }
-        history = result.履歴 + ({
+        履歴 = 出力結果.履歴 + ({
             "op": "HDS_FIRST_CORE_INHERITANCE_RUN",
-            "terminal": driven.終端.value,
-            "core_version": HDS駆動コア版,
-            "inheritance_baseline": HDS継承基準版,
-            "actions": _作用履歴(driven),
+            "終端": 駆動結果.終端.value,
+            "コア版": HDS駆動コア版,
+            "継承基準": HDS継承基準版,
+            "作用履歴": _作用履歴(駆動結果),
         },)
-        return replace(result, 状態=state, 履歴=history)
+        return replace(出力結果, 状態=状態, 履歴=履歴)
 
 
 __all__ = ["HDS駆動ミニドラ"]
