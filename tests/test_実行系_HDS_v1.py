@@ -97,32 +97,32 @@ class Provider:
 
 
 class 実行系HDSV1試験(unittest.TestCase):
-    def test_実実行系がHDS_first_Core継承循環でCOMMITする(self):
-        runtime = HDS駆動ミニドラ(Provider(), HDSコンパイラ_=構文化器())
-        result = runtime.実行(要求("What does Alpha use?"))
+    def test_実実行系がHDS正本継承循環でCOMMITする(self):
+        実行系 = HDS駆動ミニドラ(Provider(), HDSコンパイラ_=構文化器())
+        実行結果 = 実行系.実行(要求("What does Alpha use?"))
 
-        self.assertEqual(result.採否.状態, 実行状態.合格, result.採否.理由)
-        self.assertEqual(result.値, "engine")
-        run = result.状態["HDS駆動コアRun"]
-        self.assertEqual(run["終端"], "COMMIT")
-        self.assertEqual(run["コア版"], HDS駆動コア版)
-        self.assertEqual(run["継承基準"], HDS継承基準版)
-        self.assertEqual(run["作用履歴"], ("HDS継承/模型再評価",))
-        self.assertIn("HDS_BASELINE_APPROVAL_LOCKED", result.採否.理由)
-        self.assertIn("HDS_MINIDORA_CANONICAL_INHERITED", result.採否.理由)
-        self.assertIn("HDS_FIRST_CORE_COMMIT", result.採否.理由)
-        self.assertEqual(result.履歴[-1]["op"], "HDS_FIRST_CORE_INHERITANCE_RUN")
+        self.assertEqual(実行結果.採否.状態, 実行状態.合格, 実行結果.採否.理由)
+        self.assertEqual(実行結果.値, "engine")
+        実行記録 = 実行結果.状態["HDS駆動コアRun"]
+        self.assertEqual(実行記録["終端"], "COMMIT")
+        self.assertEqual(実行記録["コア版"], HDS駆動コア版)
+        self.assertEqual(実行記録["継承基準"], HDS継承基準版)
+        self.assertEqual(実行記録["作用履歴"], ("HDS継承/模型再評価",))
+        self.assertIn("HDS_BASELINE_APPROVAL_LOCKED", 実行結果.採否.理由)
+        self.assertIn("HDS_MINIDORA_CANONICAL_INHERITED", 実行結果.採否.理由)
+        self.assertIn("HDS_FIRST_CORE_COMMIT", 実行結果.採否.理由)
+        self.assertEqual(実行結果.履歴[-1]["op"], "HDS_FIRST_CORE_INHERITANCE_RUN")
 
     def test_現行HDS実行系は旧prototype統合器をimportしない(self):
         import inspect
         import minidora.実行系_HDS_v1 as module
 
-        source = inspect.getsource(module)
-        self.assertNotIn("HDS統合実行系", source)
-        self.assertNotIn("HDS駆動選択実行", source)
-        self.assertNotIn("HDS判断主体Run", source)
-        self.assertIn("HDS駆動コア", source)
-        self.assertIn("選択実行", source)
+        原文 = inspect.getsource(module)
+        self.assertNotIn("HDS統合実行系", 原文)
+        self.assertNotIn("HDS駆動選択実行", 原文)
+        self.assertNotIn("HDS判断主体Run", 原文)
+        self.assertIn("HDS駆動コア", 原文)
+        self.assertIn("選択実行", 原文)
 
 
 if __name__ == "__main__":
