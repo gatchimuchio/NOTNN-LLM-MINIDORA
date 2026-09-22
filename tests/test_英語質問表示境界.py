@@ -320,6 +320,43 @@ class 英語質問表示境界試験(unittest.TestCase):
                     else:
                         self.assertIsNone(結果.回答内容)
 
+    def test_英語命令形の質問要求を平叙文へ落とさない(self) -> None:
+        例群 = (
+            ("Find the energy spectrum.", "数量同定", "the energy spectrum"),
+            ("Identify the number of carbon signals.", "数量同定", "the number of carbon signals"),
+            ("Calculate the net potential energy of this system.", "数量同定", "the net potential energy of this system"),
+            ("Estimate the lower limit on the redshift.", "数量同定", "the lower limit on the redshift"),
+            ("Determine the reaction product.", "同定", "the reaction product"),
+            ("Name the compound.", "同定", "the compound"),
+            ("Select the proper starting materials.", "同定", "the proper starting materials"),
+            ("Indicate the molecular-weight range.", "同定", "the molecular-weight range"),
+            ("Arrange the substances in increasing order.", "同定", "the substances in increasing order"),
+            ("Complete the following reaction.", "同定", "the following reaction"),
+        )
+        for 本文, 種別, 端点 in 例群:
+            with self.subTest(本文=本文):
+                境界 = 英語質問境界解析(本文)
+                self.assertTrue(境界.質問表示)
+                self.assertEqual(境界.表示根拠, "命令質問")
+                抽出結果 = 強化抽出(本文).関係質問
+                self.assertIsNotNone(抽出結果)
+                assert 抽出結果 is not None
+                self.assertEqual(抽出結果.種別, 種別)
+                self.assertEqual(抽出結果.既知端点, 端点)
+
+        背景付き = "The potential is V(r)=kr^2 and the particle is confined Find the energy spectrum."
+        境界 = 英語質問境界解析(背景付き)
+        self.assertEqual(境界.本体, "Find the energy spectrum")
+        self.assertEqual(境界.表示根拠, "命令質問")
+        抽出結果 = 強化抽出(背景付き).関係質問
+        self.assertIsNotNone(抽出結果)
+        assert 抽出結果 is not None
+        self.assertEqual(抽出結果.種別, "数量同定")
+
+        for 本文 in ("Do not activate the lamp.", "The report identifies the product.", "The archive contains routine records."):
+            with self.subTest(本文=本文):
+                self.assertFalse(英語質問表示(本文))
+
     def test_宣言内の疑問語と引用を質問残差へ昇格しない(self) -> None:
         for 宣言 in _宣言群:
             for 本文 in _前後追加(宣言):
@@ -349,6 +386,17 @@ class 英語質問表示境界試験(unittest.TestCase):
                 ir = self.コンパイラ.意味コンパイル(本文)
                 self.assertTrue(any(残差.残差ID == "lang-sem:question-loss" for 残差 in ir.残差))
                 self.assertFalse(HDS内部言語状態(HDSK資料射影(ir), 証拠境界=True).証拠利用可)
+
+    def test_受動態givenを後置条件と誤認しない(self) -> None:
+        本文 = "You are given four plasmids containing different sequences, which one are you going to use?"
+        境界 = 英語質問境界解析(本文)
+        self.assertTrue(境界.質問表示)
+        self.assertEqual(境界.本体, "which one are you going to use")
+        self.assertEqual(境界.条件範囲, ())
+        質問 = 強化抽出(本文).関係質問
+        self.assertIsNotNone(質問)
+        assert 質問 is not None
+        self.assertNotEqual(質問.種別, "問い適合")
 
     def test_条件whenの主節が平叙文か問いかを区別する(self) -> None:
         self.assertFalse(英語質問表示("When the gate is open, blue widgets activate gamma."))

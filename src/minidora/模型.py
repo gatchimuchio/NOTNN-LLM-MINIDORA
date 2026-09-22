@@ -323,6 +323,29 @@ class 候補共同参照作用:
             return {cid:関係寄与(name,1,("一般関係再結合:全体成立",)) for cid in sorted(complete)}
         if any(st.矛盾 for st in matched.values()):
             return {}
+        if not reverse:
+            # 完全支持へ届かない観測も捨てず、候補間で一意な部分支持差だけを
+            # 弱い参照差として保持する。未観測を支持へ昇格せず、反証候補も除外する。
+            部分支持 = {
+                cid: st.支持
+                for cid, st in matched.items()
+                if st.支持 > 0 and not st.反証 and not st.矛盾
+            }
+            if 部分支持:
+                最大支持 = max(部分支持.values())
+                先頭 = tuple(sorted(cid for cid, value in 部分支持.items() if value == 最大支持))
+                if len(先頭) == 1:
+                    cid = 先頭[0]
+                    st = matched[cid]
+                    総関係 = st.支持 + st.未観測
+                    # 1本だけの偶然一致を抑え、複数支持または半数以上被覆した時だけ差を残す。
+                    if 最大支持 >= 2 or (総関係 > 0 and 最大支持 * 2 >= 総関係):
+                        return {
+                            cid: 関係寄与(
+                                name, 1,
+                                (f"一般関係再結合:部分支持差:{最大支持}/{総関係}",),
+                            )
+                        }
         if reverse:
             # 反転選択は世界関係の「無観測=反証」へ変換しない。
             # ただし他候補がすべて明示支持され、未支持が一候補だけなら、

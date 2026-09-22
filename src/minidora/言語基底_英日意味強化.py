@@ -57,6 +57,24 @@ _一般同定 = re.compile(r"^(?:what|which)\s+(?:(?:would|could|may|might|shoul
 _様相コピュラ同定 = re.compile(
     r"^(?:what|which)\s+(?:would|could|may|might|should|can|will|must)\s+be\b", re.I,
 )
+_命令同定 = re.compile(
+    r"^(?P<v>find|identify|determine|calculate|compute|name|select|choose|indicate|estimate|arrange|complete|compare|mention|make)\s+(?P<o>.+)$", re.I,
+)
+_数量要求名詞 = re.compile(r"\b(?:number|count|amount|value|energy|mass|density|probability|ratio|frequency|wavelength)\b", re.I)
+_前置数量質問 = re.compile(
+    r"^(?:from|by)\s+what\s+(?P<kind>energy|factor|value|amount|mass|density|probability|ratio|distance|time|frequency|wavelength|radius|area|dimension)\s+(?P<o>.+)$",
+    re.I,
+)
+_程度数量質問 = re.compile(r"^how\s+(?P<kind>long|far|fast|high|low|large|small)\s+(?P<o>.+)$", re.I)
+_比較質問 = re.compile(
+    r"^how\s+(?:does|do|did|will|would)\s+(?P<s>.+?)\s+(?P<v>compare\s+(?:to|with)|change\s+with|vary\s+with)\s+(?P<o>.+)$",
+    re.I,
+)
+_非倒置変化質問 = re.compile(r"^how\s+(?P<s>.+?)\s+(?P<v>changes?|varies?)\s+with\s+(?P<o>.+)$", re.I)
+_which_one同定 = re.compile(r"^which\s+(?:one|option|choice)\s+(?:is|are|was|were|will|would|should|can|could)\s+(?P<o>.+)$", re.I)
+_場所質問 = re.compile(r"^where\s+(?:is|are|was|were|do|does|did|can|could|would|will)\s+(?P<o>.+)$", re.I)
+_方法質問 = re.compile(r"^how\s+(?:would|could|should|can|do|does|did)\s+(?P<o>.+)$", re.I)
+_是非質問 = re.compile(r"^(?:is|are|was|were|can|could|does|do|did|will|would|should|has|have)\s+(?P<o>.+)$", re.I)
 _協調主語 = re.compile(r"\b(?:and|or|nor)\b", re.I)
 _協調接続終端 = re.compile(r"\b(?:and|or|nor)\s*$", re.I)
 _末尾補助語 = re.compile(
@@ -235,7 +253,45 @@ def _代替質問(focus: str, 境界: 英語質問境界 | None = None) -> 英�
     quantity = _数量.fullmatch(body)
     if quantity:
         return 英日関係質問("数量同定", "終点", "数量", _端点(quantity.group("o")), "count", _反転(body), False, _修飾(body, conditions))
-    # "What would be ..." 等は内容語をopen述語と誤認する前に同定要求として閉じる。
+    imperative = _命令同定.fullmatch(body)
+    if imperative:
+        verb = imperative.group("v").casefold()
+        target = _端点(imperative.group("o"))
+        is_quantity = verb in {"calculate", "compute", "estimate"} or _数量要求名詞.search(target) is not None
+        return 英日関係質問(
+            "数量同定" if is_quantity else "同定",
+            "終点",
+            "数量" if is_quantity else "未特定",
+            target,
+            "calculate" if verb in {"calculate", "compute", "estimate"} else "identify",
+            _反転(body), False, _修飾(body, conditions),
+        )
+    pre_quantity = _前置数量質問.fullmatch(body)
+    if pre_quantity:
+        target = _端点(pre_quantity.group("o"))
+        return 英日関係質問("数量同定", "終点", "数量", target, pre_quantity.group("kind").casefold(), _反転(body), False, _修飾(body, conditions))
+    degree_quantity = _程度数量質問.fullmatch(body)
+    if degree_quantity:
+        target = _端点(degree_quantity.group("o"))
+        return 英日関係質問("数量同定", "終点", "数量", target, degree_quantity.group("kind").casefold(), _反転(body), False, _修飾(body, conditions))
+    comparison = _比較質問.fullmatch(body)
+    if comparison:
+        return 英日関係質問("同定", "終点", "関係", _端点(body), "compare", _反転(body), False, _修飾(body, conditions))
+    implicit_change = _非倒置変化質問.fullmatch(body)
+    if implicit_change:
+        return 英日関係質問("同定", "終点", "関係", _端点(body), "change", _反転(body), False, _修飾(body, conditions))
+    which_one = _which_one同定.fullmatch(body)
+    if which_one:
+        return 英日関係質問("同定", "終点", "未特定", _端点(which_one.group("o")), "identify", _反転(body), False, _修飾(body, conditions))
+    location = _場所質問.fullmatch(body)
+    if location:
+        return 英日関係質問("同定", "終点", "場所", _端点(location.group("o")), "locate", _反転(body), False, _修飾(body, conditions))
+    method = _方法質問.fullmatch(body)
+    if method:
+        return 英日関係質問("説明適合", "始点", "選択肢", _端点(method.group("o")), "explain", _反転(body), False, _修飾(body, conditions))
+    yesno = _是非質問.fullmatch(body)
+    if yesno:
+        return 英日関係質問("命題適合", "始点", "選択肢", _端点(body), "proposition_match", _反転(body), False, _修飾(body, conditions))
     if _様相コピュラ同定.match(body):
         identity = _一般同定.fullmatch(body)
         if identity:
@@ -248,9 +304,6 @@ def _代替質問(focus: str, 境界: 英語質問境界 | None = None) -> 英�
     if identity:
         target = _端点(identity.group("o"))
         return 英日関係質問("同定", "終点", "未特定", target, "identify", _反転(body), False, _修飾(body, conditions))
-
-    # 既知構文へ閉じられなくても、質問として明示された意味内容はtopic bagへ捨てない。
-    # 世界事実を補わず、質問表層そのものを既知端点にした「問い適合」として保持する。
     content_字句 = [
         字句 for 字句 in _語.findall(body)
         if 字句.casefold() not in _機能語 and 字句.casefold() not in _補助語
@@ -260,7 +313,6 @@ def _代替質問(focus: str, 境界: 英語質問境界 | None = None) -> 英�
             "問い適合", "始点", "選択肢", body, "match", _反転(body), False, _修飾(body, conditions),
         )
     return None
-
 
 def 英日意味フレーム抽出(text: str) -> 英日意味フレーム:
     境界 = 英語質問境界解析(text)
@@ -275,13 +327,17 @@ def 英日意味フレーム抽出(text: str) -> 英日意味フレーム:
     base = _旧抽出(text)
     if base.関係質問 is not None:
         conditions = 境界.条件範囲
-        modifiers = tuple(dict.fromkeys((*base.関係質問.修飾, *_修飾(focus, conditions))))
-        return replace(base, 関係質問=replace(base.関係質問, 修飾=modifiers))
+        採用質問 = base.関係質問
+        if (採用質問.種別 == "問い適合" and 代替経路 is not None and 代替経路.種別 != "問い適合"):
+            採用質問 = 代替経路
+        modifiers = tuple(dict.fromkeys((*採用質問.修飾, *_修飾(focus, conditions))))
+        採用質問 = replace(採用質問, 修飾=modifiers)
+        canonical = tuple((*base.正本意味, f"関係:{採用質問.種別}", f"述語:{採用質問.検索述語}", f"不足位置:{採用質問.未知位置}"))
+        return 英日意味フレーム(tuple(dict.fromkeys(canonical)), base.外部検索語, base.制御, 採用質問)
     if 代替経路 is None:
         return base
     canonical = tuple((*base.正本意味, f"関係:{代替経路.種別}", f"述語:{代替経路.検索述語}", f"不足位置:{代替経路.未知位置}"))
     return 英日意味フレーム(tuple(dict.fromkeys(canonical)), base.外部検索語, base.制御, 代替経路)
-
 
 def _declaration_conditions(text: str) -> tuple[str, tuple[tuple[str, str], ...]]:
     head, conditions = _条件分離(text)

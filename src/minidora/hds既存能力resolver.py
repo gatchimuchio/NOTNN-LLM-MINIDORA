@@ -134,13 +134,17 @@ def 既存MINIDORA提案解決(
         )
     if len(answers) == 1:
         answer = next(iter(answers))
-        selected = tuple(row.源 for row in valid if row.回答 == answer)
+        selected = tuple(dict.fromkeys(row.源 for row in valid if row.回答 == answer))
+        if len(selected) == 1:
+            理由 = ("EXISTING_SINGLE_CAPABILITY_PROPOSAL", "EXISTING_CAPABILITY_COUNT:1")
+        else:
+            理由 = ("EXISTING_CAPABILITIES_AGREE", f"AGREEING_EXISTING_CAPABILITIES:{len(selected)}")
         return 既存解決結果(
             既存提案状態.承認候補,
             answer,
             (),
-            tuple(dict.fromkeys(selected)),
-            ("EXISTING_CAPABILITIES_AGREE", f"AGREEING_EXISTING_CAPABILITIES:{len(selected)}"),
+            selected,
+            理由,
         )
 
     if any(row.状態 == 既存提案状態.失敗 for row in rows):

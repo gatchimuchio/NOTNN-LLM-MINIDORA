@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from minidora.HDS選択仮説 import HDS候補代入仮説群
+from minidora.HDS選択実行系_v24 import _正式模型候補群
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, HDS残差, 値状態
 from minidora.HDS言語関係 import HDS英語基底関係射影
@@ -154,22 +155,25 @@ class 三層射影忠実度試験(unittest.TestCase):
 
     def test_選択問題型は疑問符WHなしでも問いを最終閉包する(self) -> None:
         構文化器 = 公開HDSコンパイラ()
+        precise = 構文化器.問題IR("Find the energy spectrum.", ("A", "B", "C", "D"))
+        precise_projected = HDSK質問射影(precise)
+        self.assertTrue(any(r.種別 == "数量同定" and _cond(r, "不足位置") == "終点" for r in precise_projected.関係))
+        self.assertFalse(any(_cond(r, "選択問題閉包") == "v0.1" for r in precise_projected.関係))
+
         cases = (
-            ("Find the energy spectrum.", "通常"),
-            ("All the following statements are correct except", "反転"),
-            ("Based on the provided information, the researchers have chosen to observe:", "通常"),
+            ("All the following statements are correct except", "命題適合", "始点", "反転"),
+            ("Based on the provided information, the researchers have chosen to observe:", "同定", "終点", "通常"),
         )
-        for text, intent in cases:
+        for text, kind, missing, intent in cases:
             with self.subTest(text=text):
                 question = 構文化器.問題IR(text, ("A", "B", "C", "D"))
                 projected = HDSK質問射影(question)
-                closure = next(r for r in projected.関係 if _cond(r, "選択問題閉包") == "v0.1")
-                self.assertEqual(str(closure.種別), "問い適合")
-                self.assertEqual(_cond(closure, "不足位置"), "始点")
+                closure = next(r for r in projected.関係 if _cond(r, "選択問題欠損閉包") == "v0.1")
+                self.assertEqual(str(closure.種別), kind)
+                self.assertEqual(_cond(closure, "不足位置"), missing)
                 self.assertEqual(_cond(closure, "選択意図"), intent)
                 self.assertFalse(any(r.種別 == '意味_loss' for r in projected.残差))
 
-        # 選択問題型だけでは選択基準の欠落を埋めない。
         contentless = 構文化器.問題IR("Which?", ("A", "B"))
         unresolved = HDSK質問射影(contentless)
         self.assertTrue(any(r.種別 == '意味_loss' for r in unresolved.残差))
@@ -240,6 +244,39 @@ class 三層射影忠実度試験(unittest.TestCase):
             (HDS関係("r", ("a",), ("b",), "活性化"),),
         )
         self.assertFalse(HDS模型候補代入可能(world_question, proposition))
+
+    def test_正式模型の同定候補は代入仮説だけを回答条件にする(self) -> None:
+        question = _ir(
+            "Find the result.",
+            (HDS座標("known", "対象.始点", "result"), HDS座標("unknown", "目的.未知終点", "未特定", 値状態.未観測)),
+            (HDS関係("q", ("known",), ("unknown",), "同定", 条件=("不足位置=終点", "検索述語=identify"), 値状態=値状態.未観測),),
+            kind="knowledge_query",
+        )
+        候補 = _ir(
+            "A = 3.0",
+            (HDS座標("lhs", "対象.始点", "A"), HDS座標("rhs", "値.数量", "3.0")),
+            (HDS関係("eq", ("lhs",), ("rhs",), "等価"),),
+        )
+        結果 = _正式模型候補群(question, {"A": 候補}, {"A": 候補})["A"]
+        self.assertTrue(結果.関係)
+        self.assertTrue(all(r.由来 == "HDS候補代入仮説" for r in 結果.関係))
+        self.assertEqual({str(r.種別) for r in 結果.関係}, {"同定"})
+
+    def test_正式模型の命題候補は本文関係を判断対象として保持する(self) -> None:
+        question = _ir(
+            "Which statement is correct?",
+            (HDS座標("unknown", "目的.未知始点", "選択肢", 値状態.未観測), HDS座標("known", "対象.終点", "candidate proposition")),
+            (HDS関係("q", ("unknown",), ("known",), "命題適合", 条件=("不足位置=始点", "検索述語=proposition_match"), 値状態=値状態.未観測),),
+            kind="knowledge_query",
+        )
+        候補 = _ir(
+            "A inhibits B",
+            (HDS座標("a", "対象.始点", "A"), HDS座標("b", "対象.終点", "B")),
+            (HDS関係("r", ("a",), ("b",), "阻害", 由来="共有言語基底P"),),
+        )
+        結果 = _正式模型候補群(question, {"A": 候補}, {"A": 候補})["A"]
+        self.assertEqual({str(r.種別) for r in 結果.関係}, {"阻害"})
+        self.assertTrue(all(r.由来 != "HDS候補代入仮説" for r in 結果.関係))
 
     def test_正式模型候補代入は意味_loss候補を強制採用しない(self) -> None:
         question = _ir(

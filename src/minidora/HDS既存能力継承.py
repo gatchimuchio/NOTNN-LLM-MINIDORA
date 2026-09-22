@@ -124,7 +124,7 @@ def HDS既存能力選択評価(
         模型核=模型核,
         正式模型評価=True,
     )
-    if _承認済み(正本結果) or 基礎能力核 is None:
+    if 基礎能力核 is None:
         return 正本結果
 
     旧補助結果 = HDS選択推論実行(
@@ -146,6 +146,9 @@ def HDS既存能力選択評価(
     )
 
     提案群: list[既存能力提案] = []
+    正本提案 = _能力模型提案(正本結果)
+    if 正本提案 is not None:
+        提案群.append(正本提案)
     旧提案 = _旧補助提案(旧補助結果)
     if 旧提案 is not None:
         提案群.append(旧提案)
@@ -160,6 +163,9 @@ def HDS既存能力選択評価(
     if 解決.状態 != 既存提案状態.承認候補 or 解決.回答 is None:
         return replace(
             正本結果,
+            状態="SUSPEND",
+            回答ラベル=None,
+            回答内容=None,
             理由=tuple(dict.fromkeys((
                 *tuple(正本結果.理由),
                 *tuple(解決.理由),
@@ -174,6 +180,12 @@ def HDS既存能力選択評価(
         and 既存提案源.能力模型 not in 採用元
     ):
         採用結果 = 旧補助結果
+    elif (
+        既存提案源.能力模型 in 採用元
+        and 正本結果.回答ラベル == 解決.回答
+        and _模型根拠成立(正本結果)
+    ):
+        採用結果 = 正本結果
     elif (
         既存提案源.能力模型 in 採用元
         and 能力結果.回答ラベル == 解決.回答
@@ -199,7 +211,84 @@ def HDS既存能力選択評価(
             *tuple(採用結果.理由),
             *tuple(解決.理由),
             "HDS_EXISTING_CAPABILITY_INHERITED",
+            "HDS_EXISTING_CAPABILITIES_PARALLEL_AUDITED",
             *tuple(f"HDS_EXISTING_SOURCE:{x.value}" for x in 解決.採用源),
+        ))),
+    )
+
+
+def HDS多重解釈選択評価(
+    質問IR群: tuple[HDSIR, ...],
+    参照群: tuple[参照記録, ...],
+    *,
+    コンパイル,
+    模型核: MINIDORA模型核,
+    基礎能力核: K3相当能力核 | None = None,
+) -> HDS選択実行結果:
+    """同一入力から成立した複数の意味解釈を並列評価し、無証明で一つへ潰さない。"""
+    解釈群 = tuple(質問IR群)
+    if not 解釈群:
+        raise ValueError("HDS多重解釈選択評価には1件以上の質問IRが必要")
+
+    結果群 = tuple(
+        HDS既存能力選択評価(
+            質問IR,
+            参照群,
+            コンパイル=コンパイル,
+            模型核=模型核,
+            基礎能力核=基礎能力核,
+        )
+        for 質問IR in 解釈群
+    )
+    if len(結果群) == 1:
+        return 結果群[0]
+
+    承認群 = tuple(結果 for 結果 in 結果群 if _承認済み(結果))
+    if not 承認群:
+        return replace(
+            結果群[0],
+            理由=tuple(dict.fromkeys((
+                *tuple(結果群[0].理由),
+                "HDS_MULTI_INTERPRETATION_UNCLOSED",
+                f"HDS_INTERPRETATION_COUNT:{len(結果群)}",
+            ))),
+        )
+
+    回答群 = {str(結果.回答ラベル) for 結果 in 承認群 if 結果.回答ラベル is not None}
+    if len(回答群) > 1:
+        全理由: list[str] = []
+        for 結果 in 承認群:
+            全理由.extend(str(x) for x in 結果.理由)
+        return replace(
+            結果群[0],
+            状態="SUSPEND",
+            回答ラベル=None,
+            回答内容=None,
+            理由=tuple(dict.fromkeys((
+                *tuple(結果群[0].理由),
+                *tuple(全理由),
+                "HDS_MULTI_INTERPRETATION_CONFLICT",
+                f"HDS_INTERPRETATION_COUNT:{len(結果群)}",
+            ))),
+        )
+
+    回答 = next(iter(回答群))
+    採用結果 = next(
+        結果 for 結果 in 結果群
+        if _承認済み(結果) and str(結果.回答ラベル) == 回答
+    )
+    標識 = (
+        "HDS_MULTI_INTERPRETATION_AGREEMENT"
+        if len(承認群) > 1
+        else "HDS_MULTI_INTERPRETATION_SINGLE_CLOSED"
+    )
+    return replace(
+        採用結果,
+        理由=tuple(dict.fromkeys((
+            *tuple(採用結果.理由),
+            標識,
+            f"HDS_INTERPRETATION_COUNT:{len(結果群)}",
+            f"HDS_INTERPRETATION_APPROVED:{len(承認群)}",
         ))),
     )
 
@@ -207,4 +296,5 @@ def HDS既存能力選択評価(
 __all__ = [
     "HDS既存能力結果証明済み",
     "HDS既存能力選択評価",
+    "HDS多重解釈選択評価",
 ]

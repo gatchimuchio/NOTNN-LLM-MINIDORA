@@ -43,20 +43,25 @@ def _結果(
 
 
 class HDS既存能力継承試験(unittest.TestCase):
-    def test_正本formal閉包済みは旧能力を起動せず完全透過(self):
+    def test_正本formal閉包済みでも既存能力群を並列監査する(self):
         正本 = _結果("APPROVE", "A", 模型=_模型結果("A", {"A": 2, "B": 0}))
+        旧補助 = _結果("SUSPEND")
+        能力結果 = _結果("SUSPEND")
         with patch(
             "minidora.HDS既存能力継承.HDS選択推論実行",
-            return_value=正本,
+            side_effect=(正本, 旧補助),
         ) as 選択, patch(
-            "minidora.HDS既存能力継承.HDS適応候補提案実行"
+            "minidora.HDS既存能力継承.HDS適応候補提案実行",
+            return_value=能力結果,
         ) as 能力:
             out = HDS既存能力選択評価(
                 object(), (), コンパイル=lambda x: x, 模型核=object(), 基礎能力核=object()
             )
-        self.assertIs(out, 正本)
-        self.assertEqual(選択.call_count, 1)
-        能力.assert_not_called()
+        self.assertEqual(out.状態, "APPROVE")
+        self.assertEqual(out.回答ラベル, "A")
+        self.assertIn("HDS_EXISTING_CAPABILITIES_PARALLEL_AUDITED", out.理由)
+        self.assertEqual(選択.call_count, 2)
+        能力.assert_called_once()
 
     def test_formal未閉包ならK3既存能力を継承(self):
         正本 = _結果("SUSPEND", 理由=("NO_GUESS",))

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import re
 from typing import Sequence
 
 from .選択意図 import HDS選択意図判定
@@ -318,16 +319,135 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         return detailed
 
     @staticmethod
-    def _問い関係を持つ(ir: HDSIR) -> bool:
-        for 関係 in ir.関係:
-            for raw in 関係.条件:
-                key, sep, payload = str(raw).partition("=")
-                if sep and key.strip() == "不足位置" and payload.strip() in {"始点", "終点"}:
-                    return True
+    def _問い関係か(関係: HDS関係) -> bool:
+        for raw in 関係.条件:
+            key, sep, payload = str(raw).partition("=")
+            if sep and key.strip() == "不足位置" and payload.strip() in {"始点", "終点"}:
+                return True
         return False
+
+    @classmethod
+    def _問い関係を持つ(cls, ir: HDSIR) -> bool:
+        return any(cls._問い関係か(関係) for 関係 in ir.関係)
+
+    @classmethod
+    def _具体問い関係を持つ(cls, ir: HDSIR) -> bool:
+        return any(cls._問い関係か(関係) and str(関係.種別) != "問い適合" for 関係 in ir.関係)
+
+    @staticmethod
+    def _選択問題欠損仕様(question: str, choices: Sequence[str]) -> tuple[str, str, str, str] | None:
+        """選択肢が明示された場合だけ、文末の回答スロットを有限型へ具体化する。
+
+        世界知識や正解候補は使わない。平叙文一般には適用せず、選択問題の明示的な
+        反転・複合割当・文末欠損だけを同定/数量/説明/命題の既存型へ落とす。
+        """
+        本文 = " ".join(str(question).split()).strip()
+        if not 本文 or len(choices) < 2:
+            return None
+        小文字 = 本文.casefold().rstrip()
+
+        if re.search(r"\ball\b.+\b(?:correct|true|valid|supported)\b.+\bexcept\s*$", 小文字):
+            return ("命題適合", "始点", "proposition_match", 本文)
+
+        割当群: list[frozenset[str]] = []
+        for 選択肢 in choices:
+            labels = frozenset(re.findall(r"(?i)(?<![A-Za-z0-9])([A-D])\s*=", str(選択肢)))
+            割当群.append(labels)
+        if 割当群 and all(len(x) >= 2 for x in 割当群):
+            共通 = set(割当群[0])
+            for labels in 割当群[1:]:
+                共通.intersection_update(labels)
+            if len(共通) >= 2:
+                return ("同定", "終点", "identify", 本文)
+
+        if re.search(r"\b(?:reason|explanation|cause)\s*[.!?]*$", 小文字):
+            return ("説明適合", "始点", "explain", 本文)
+
+        if re.search(r"\b(?:factor|fraction|probability|value|amount|number|count)\s+of\s*[:：]?\s*$", 小文字):
+            return ("数量同定", "終点", "identify", 本文)
+
+        if re.search(r"\bfinal\s+product(?:\s+[A-Za-z0-9_-]+)?\s*[.!?]*$", 本文, re.I):
+            return ("同定", "終点", "identify", 本文)
+
+        if re.search(r"\b(?:is|are)\s*,?\s*respectively\s*[,;:：]?\s*$", 本文, re.I):
+            return ("同定", "終点", "identify", 本文)
+        if re.search(r"\b(?:is|are)\s*(?:\([^)]{0,120}\))?\s*[,;:：]?\s*$", 本文, re.I):
+            return ("同定", "終点", "identify", 本文)
+
+        if re.search(r"[:：]\s*$", 本文):
+            return ("同定", "終点", "identify", 本文)
+        return None
+
+    def _選択問題欠損閉包(self, ir: HDSIR, question: str, choices: Sequence[str]) -> HDSIR:
+        仕様 = self._選択問題欠損仕様(question, choices)
+        if 仕様 is None:
+            return ir
+        種別, 不足位置, 述語, 焦点 = 仕様
+        既存座標 = {座標.座標ID for 座標 in ir.座標}
+        既存関係 = {関係.関係ID for 関係 in ir.関係}
+
+        def 一意(基底: str, 集合: set[str]) -> str:
+            候補 = 基底
+            番号 = 1
+            while 候補 in 集合:
+                候補 = f"{基底}:{番号}"
+                番号 += 1
+            集合.add(候補)
+            return 候補
+
+        未知ID = 一意("selection-slot:未知", 既存座標)
+        既知ID = 一意("selection-slot:焦点", 既存座標)
+        関係ID = 一意("selection-slot:関係", 既存関係)
+        intent = HDS選択意図判定(question)
+        選択意図 = "反転" if intent.種別 == "EXCEPTION" else "通常"
+        if 不足位置 == "始点":
+            始点, 終点 = (未知ID,), (既知ID,)
+            未知種別 = "目的.未知始点"
+            既知種別 = "対象.終点"
+        else:
+            始点, 終点 = (既知ID,), (未知ID,)
+            未知種別 = "目的.未知終点"
+            既知種別 = "対象.始点"
+        座標群 = (
+            *ir.座標,
+            HDS座標(
+                未知ID, 未知種別,
+                "選択肢" if 不足位置 == "始点" else ("数量" if 種別 == "数量同定" else "未特定"),
+                値状態.未観測, 由来="選択問題欠損構造", 暫定性="SELECTION_SLOT_TYPED_CLOSURE",
+            ),
+            HDS座標(
+                既知ID, 既知種別, 焦点, 値状態.確定,
+                由来="選択問題欠損構造", 暫定性="SELECTION_SLOT_TYPED_CLOSURE",
+            ),
+        )
+        関係群 = tuple(
+            関係 for 関係 in ir.関係
+            if not (self._問い関係か(関係) and str(関係.種別) == "問い適合")
+        )
+        新関係 = HDS関係(
+            関係ID, 始点, 終点, 種別,
+            条件=(
+                f"検索述語={述語}", f"不足位置={不足位置}",
+                "選択問題欠損閉包=v0.1", f"選択意図={選択意図}",
+            ),
+            値状態=値状態.未観測,
+            由来="選択問題欠損構造",
+            暫定性="SELECTION_SLOT_TYPED_CLOSURE",
+        )
+        残差群 = tuple(
+            残差 for 残差 in ir.残差
+            if not (str(残差.残差ID) == "lang-sem:question-loss" and str(残差.種別) == "意味_loss")
+        )
+        return replace(ir, 座標=座標群, 関係=(*関係群, 新関係), 残差=残差群)
 
     def _選択問題問い閉包(self, ir: HDSIR, question: str) -> HDSIR:
         """明示された選択問題型で、表層だけでは閉じなかった問いを世界知識なしで保持する。"""
+        if self._具体問い関係を持つ(ir):
+            return ir
+        選択肢本文 = tuple(str(座標.内容) for 座標 in ir.座標 if 座標.座標ID.startswith("選択肢:"))
+        欠損閉包 = self._選択問題欠損閉包(ir, question, 選択肢本文)
+        if self._具体問い関係を持つ(欠損閉包):
+            return 欠損閉包
         if self._問い関係を持つ(ir):
             return ir
         choices = tuple(coord for coord in ir.座標 if coord.座標ID.startswith('選択肢:'))
@@ -439,9 +559,29 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             閉包状態='CLOSED_FOR_意味_TRANSFER',
         )
 
-    def 問題IR(self, question: str, choices: Sequence[str]) -> HDSIR:
+    def 問題IR群(self, question: str, choices: Sequence[str]) -> tuple[HDSIR, ...]:
+        """選択問題の意味解釈を無欠損で並列保持する。
+
+        具体的な問い関係を抽出できた場合も、それを唯一の解釈として固定しない。
+        同じ入力から成立する汎用の問い適合viewを第二解釈として保持し、
+        後段HDSが同一参照上で両方を評価・監査できるようにする。
+        """
         completed = self._完成(self._問題基礎(question, choices)).IR
-        return self._選択問題問い閉包(completed, question)
+        primary = self._選択問題問い閉包(completed, question)
+        if not self._問い関係を持つ(completed):
+            return (primary,)
+
+        parallel_base = replace(
+            completed,
+            関係=tuple(関係 for 関係 in completed.関係 if not self._問い関係か(関係)),
+        )
+        generic = self._選択問題問い閉包(parallel_base, question)
+        if generic == primary or not self._問い関係を持つ(generic):
+            return (primary,)
+        return (primary, generic)
+
+    def 問題IR(self, question: str, choices: Sequence[str]) -> HDSIR:
+        return self.問題IR群(question, choices)[0]
 
     def 問題コア入力(self, question: str, choices: Sequence[str]) -> HDSコア入力束:
         """選択問題もCore入力正本へ射影し、候補や問いを能力名へ変換しない。"""
