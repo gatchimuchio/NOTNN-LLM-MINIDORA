@@ -24,6 +24,9 @@ class 意味語正規化試験(unittest.TestCase):
         terms = 意味語("Select the best answer that could describe protein transport")
         self.assertEqual(terms, frozenset({"protein", "transport"}))
 
+    def test_英語選択操作語は外部入力の回答操作語として意味証拠へ混入しない(self) -> None:
+        self.assertEqual(意味語("Which choice describes protein transport?"), frozenset({"protein", "transport"}))
+
     def test_日本語意味語は保持する(self) -> None:
         self.assertEqual(意味語("触媒 反応 促進"), frozenset({"触媒", "反応", "促進"}))
 

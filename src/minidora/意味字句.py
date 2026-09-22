@@ -29,7 +29,7 @@ _STOP = {
     "why", "how", "this", "that", "these", "those", "it", "its", "as", "by", "than", "then",
     "do", "does", "did", "have", "has", "had", "will", "shall", "would", "could", "should",
     "may", "might", "can", "about", "into", "through", "during", "after", "before", "between", "among",
-    "following", "statement", "statements", "answer", "answers", "option", "options", '選択肢', "choices",
+    "following", "statement", "statements", "answer", "answers", "option", "options", "choice", "choices", '選択肢',
     "correct", "incorrect", "true", "false", "most", "least", "likely", "unlikely", "best", "except",
     "select", "choose", "chosen", "consider", "considered", "describe", "describes", "described",
     "regarding", "according", "given", "respect", "respectively", "not",

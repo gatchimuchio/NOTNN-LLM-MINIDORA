@@ -7,6 +7,7 @@ from .HDS実行主体 import HDS実行状態, HDS作用結果, HDS作用状態, 
 from .HDS実行系射影 import HDSR質問射影
 from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
 from .HDS非退行包絡 import HDS非退行包絡
+from .HDS既存能力継承 import HDS既存能力結果証明済み, HDS既存能力選択評価
 from .hds参照拡張 import HDS候補被覆優先統合, HDS追加参照検索
 from .参照 import 参照供給器, 参照記録
 from .模型 import MINIDORA模型核
@@ -154,22 +155,7 @@ def _標準追加採用証明(
         return False
     if 初期参照署名 == 現在参照署名:
         return False
-    模型結果 = getattr(拡張, "MINIDORA模型結果", None)
-    if 模型結果 is None:
-        return False
-    winner = getattr(模型結果, "参照最有力候補ID", None)
-    if winner is None or winner != 拡張.回答ラベル:
-        return False
-    scores_fn = getattr(模型結果, "参照候補辞書", None)
-    if not callable(scores_fn):
-        return False
-    scores = dict(scores_fn())
-    if float(scores.get(winner, 0)) <= 0:
-        return False
-    top = max(scores.values(), default=0)
-    if top <= 0 or sum(1 for value in scores.values() if value == top) != 1:
-        return False
-    return True
+    return HDS既存能力結果証明済み(拡張)
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,6 +181,8 @@ class HDS選択継承供給:
         初期参照: Sequence[参照記録],
         *,
         模型核: MINIDORA模型核 | None = None,
+        基礎能力核=None,
+        既存能力継承: bool = True,
         参照供給器: 参照供給器 | None = None,
         計算実行器_: 計算実行器 | None = None,
         設定: HDS選択継承設定 | None = None,
@@ -207,6 +195,11 @@ class HDS選択継承供給:
         self.初期参照 = tuple(初期参照)
         self.初期参照署名 = _参照署名(self.初期参照)
         self.模型核 = 模型核 or 標準能力模型核()
+        if 基礎能力核 is None and 既存能力継承:
+            from .K3機能 import K3相当能力核
+            基礎能力核 = K3相当能力核()
+        self.基礎能力核 = 基礎能力核 if 既存能力継承 else None
+        self.既存能力継承 = bool(既存能力継承)
         self.参照供給器 = 参照供給器
         self.計算実行器 = 計算実行器_
         self.設定 = 設定 or HDS選択継承設定()
@@ -232,13 +225,21 @@ class HDS選択継承供給:
         compile_fn = getattr(self.コンパイラ, "コンパイル", None)
         if not callable(compile_fn):
             raise TypeError("選択継承循環にはコンパイル可能なHDSコンパイラが必要")
-        return HDS選択推論実行(
+        if not self.既存能力継承:
+            return HDS選択推論実行(
+                self.質問IR,
+                参照群,
+                コンパイル=compile_fn,
+                基礎能力核=None,
+                模型核=self.模型核,
+                正式模型評価=True,
+            )
+        return HDS既存能力選択評価(
             self.質問IR,
             参照群,
             コンパイル=compile_fn,
-            基礎能力核=None,
             模型核=self.模型核,
-            正式模型評価=True,
+            基礎能力核=self.基礎能力核,
         )
 
     def _評価作用(self, 状態: HDS実行状態):
@@ -276,13 +277,18 @@ class HDS選択継承供給:
                 成果群.extend(((回答成果名, 基準.回答ラベル),))
                 if 承認時入力解消:
                     成果群.append((入力残差影成果名, tuple(sorted(承認時入力解消))))
+                継承理由 = (
+                    "HDS_MINIDORA_EXISTING_CAPABILITIES_INHERITED"
+                    if "HDS_EXISTING_CAPABILITY_INHERITED" in 基準.理由
+                    else "HDS_MINIDORA_CANONICAL_INHERITED"
+                )
                 return HDS作用結果(
                     HDS作用状態.成立,
                     追加状態=frozenset({選択閉包状態}),
                     解消残差=frozenset((*選択解消, *承認時入力解消)),
                     成果=tuple(成果群),
                     主体状態差分=基準差分,
-                    理由=("HDS_BASELINE_APPROVAL_LOCKED", "HDS_MINIDORA_CANONICAL_INHERITED"),
+                    理由=("HDS_BASELINE_APPROVAL_LOCKED", 継承理由),
                 )
 
             if not 初回 and _承認済み(結果):
