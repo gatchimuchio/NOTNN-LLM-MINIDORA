@@ -1,0 +1,66 @@
+{
+  "契約形式": "minidora.gpqa.current-core-canonical.v1",
+  "正本名": "現行MINIDORA Core",
+  "日付JST": "2026-09-23",
+  "外部評価識別子": "gpqa-diamond-e2e-live-v3",
+  "評価種別": "CURRENT_INTEGRATED_CORE_CANONICAL",
+  "課題": "GPQA Diamond",
+  "正本": true,
+  "評価条件": {
+    "全問題数": 198,
+    "選択番号群": "0..197",
+    "資料集合CSV_SHA256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+    "選択肢シャッフル種": 0,
+    "OpenAlex有効": false,
+    "EuropePMC有効": true,
+    "Crossref有効": true,
+    "Wikipedia言語群": ["en"],
+    "参照方式": "LIVE_ONLY",
+    "固定参照資料許可": false,
+    "Core入口": "HDS駆動コア.選択実行",
+    "既存能力継承": true,
+    "学習循環": true,
+    "外付け能力モジュール": false,
+    "科学専門モジュール": false,
+    "旧HDS監督": false,
+    "gold境界": "Core実行後の採点のみ"
+  },
+  "結果": {
+    "正答": 29,
+    "全数": 198,
+    "正答率": 14.646464646464647,
+    "回答": 141,
+    "回答率": 71.21212121212122,
+    "COMMIT": 141,
+    "SUSPEND": 57,
+    "FAIL": 0
+  },
+  "実行内状態遷移": {
+    "初期継承正答": 22,
+    "初期継承回答": 119,
+    "改善": 7,
+    "退行": 0,
+    "新規回答": 22,
+    "基準回答変更": 0,
+    "追加参照実行": 78,
+    "拡張採用": 22
+  },
+  "由来": {
+    "workflow_run_id": 35825892895,
+    "workflow_name": "現行MINIDORA Core GPQA全数・一時実行",
+    "benchmark_head_commit": "e673e3a6e467d09e6b87c7d151bef72ad9f7fb59",
+    "core_implementation_restore_commit": "7c7abed6f949b9c642e8bc0f490607dd1f67149d",
+    "aggregate_artifact_id": 10736541284,
+    "aggregate_zip_sha256": "36a293e399322811511b82d4f67163e9a1835d51f4963b025a41753762e35e3e",
+    "aggregate_json_sha256": "953ca65797832366ccac0d49dbf12d65e053008c898ae2a37baee58f9ba4893a",
+    "workflow_conclusion": "success"
+  },
+  "採用": {
+    "現行正本性能": "29/198",
+    "現行正本正答率": 14.646464646464647,
+    "旧MINIDORA30は履歴セーブポイント": true,
+    "旧MINIDORA80は履歴セーブポイント": true,
+    "別run間コード因果差主張許可": false,
+    "実行内状態遷移記録許可": true
+  }
+}
