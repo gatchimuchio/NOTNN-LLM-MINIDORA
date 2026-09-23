@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from minidora.hds参照拡張 import HDS候補被覆優先統合, HDS参照履歴統合, HDS観測窓更新
+from minidora.hds参照拡張 import HDS候補被覆優先統合
 from minidora.参照 import 参照記録
 
 
@@ -20,23 +20,6 @@ class HDS参照ExtensionTest(unittest.TestCase):
             4,
         )
         self.assertEqual({row.識別子 for row in out}, {"A", "B", "C", "D"})
-
-    def test_満杯の旧窓でも新観測を再評価窓へ入れる(self):
-        現行 = tuple(rec(f"old{i}") for i in range(4))
-        新規 = (rec("newA", "A"), rec("newB", "B"), rec("newX"))
-        窓 = HDS観測窓更新(現行, 新規, ("A", "B"), 4)
-        self.assertEqual(len(窓), 4)
-        self.assertIn("newA", {x.識別子 for x in 窓})
-        self.assertIn("newB", {x.識別子 for x in 窓})
-        self.assertTrue({"A", "B"}.issubset({
-            v for x in 窓 for k, v in x.条件 if k == "hds_query_選択肢"
-        }))
-
-    def test_参照履歴は窓から外れた旧観測も保持する(self):
-        現行 = (rec("old1"), rec("old2"))
-        新規 = (rec("new1"), rec("new2"))
-        履歴 = HDS参照履歴統合(現行, 新規)
-        self.assertEqual({x.識別子 for x in 履歴}, {"old1", "old2", "new1", "new2"})
 
     def test_同一情報源はquery_provenanceだけ統合する(self):
         out = HDS候補被覆優先統合(

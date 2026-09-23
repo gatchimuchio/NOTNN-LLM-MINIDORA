@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from .HDS適合器 import HDS独立コンパイル
@@ -250,27 +250,6 @@ def _検証候補群(
     return {label: substituted.get(label, 候補_ir) for label, 候補_ir in k_candidates.items()}
 
 
-def _正式模型候補関係整理(question_ir: HDSIR, 候補_ir: HDSIR) -> HDSIR:
-    """正式模型の評価対象を、質問へ接続された候補仮説と候補本文の命題へ分別する。
-
-    候補本文に偶然含まれる数量・等価・別関係を、同定/数量同定/世界関係の
-    回答条件へ自動的に連言しない。命題・説明選択だけは候補本文そのものが
-    判断対象なので、本文由来関係を優先して保持する。
-    """
-    仮説 = tuple(関係 for 関係 in 候補_ir.関係 if str(関係.由来) == "HDS候補代入仮説")
-    if not 仮説:
-        return 候補_ir
-    問い種別 = {
-        str(関係.種別)
-        for 関係 in question_ir.関係
-        if any(str(raw).startswith("不足位置=") for raw in 関係.条件)
-    }
-    if 問い種別.intersection({"命題適合", "説明適合"}):
-        本文関係 = tuple(関係 for 関係 in 候補_ir.関係 if str(関係.由来) != "HDS候補代入仮説")
-        return replace(候補_ir, 関係=本文関係 or 仮説)
-    return replace(候補_ir, 関係=仮説)
-
-
 def _正式模型候補群(
     k_question_ir: HDSIR,
     full_candidates: dict[str, HDSIR],
@@ -283,10 +262,7 @@ def _正式模型候補群(
         if label in k_candidates and HDS模型候補代入可能(k_question_ir, full_ir)
     }
     substituted = HDS候補代入仮説群(k_question_ir, substitutable)
-    return {
-        label: _正式模型候補関係整理(k_question_ir, substituted.get(label, 候補_ir))
-        for label, 候補_ir in k_candidates.items()
-    }
+    return {label: substituted.get(label, 候補_ir) for label, 候補_ir in k_candidates.items()}
 
 
 def _候補強度(結果: HDSK3結果) -> tuple[int, int, float, int, float]:

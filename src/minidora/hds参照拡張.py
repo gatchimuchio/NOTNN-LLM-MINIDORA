@@ -75,40 +75,6 @@ def HDS候補被覆優先統合(
     return tuple(selected)
 
 
-
-def HDS参照履歴統合(
-    履歴: Iterable[参照記録],
-    新規観測: Iterable[参照記録],
-) -> tuple[参照記録, ...]:
-    """評価窓とは独立に、観測済み参照を重複統合して全保持する。"""
-    既存 = tuple(履歴)
-    新規 = tuple(新規観測)
-    return HDS候補被覆優先統合(既存, 新規, (), len(既存) + len(新規))
-
-
-def HDS観測窓更新(
-    現行窓: Iterable[参照記録],
-    新規観測: Iterable[参照記録],
-    expected_labels: Iterable[str],
-    limit: int,
-) -> tuple[参照記録, ...]:
-    """学習世代の新観測を評価窓へ優先投入し、旧窓は残枠へ退避する。
-
-    参照履歴は別成果で全保持する。ここでは評価に使う有限窓だけを更新する。
-    """
-    現行 = tuple(現行窓)
-    観測 = tuple(新規観測)
-    既存ID = {str(record.識別子) for record in 現行}
-    新規優先 = tuple(record for record in 観測 if str(record.識別子) not in 既存ID)
-    再観測 = tuple(record for record in 観測 if str(record.識別子) in 既存ID)
-    return HDS候補被覆優先統合(
-        (*新規優先, *再観測),
-        現行,
-        expected_labels,
-        limit,
-    )
-
-
 def HDS参照検索強化(
     provider: 参照供給器,
     ir: HDSIR,
@@ -171,35 +137,20 @@ def HDS追加参照検索(
     *,
     段階: int = 1,
     最大取得上限: int = 32,
-    探索種別: str = "標準",
 ) -> tuple[参照記録, ...]:
-    """残差から導出した探索種別に従い、既存Rのquery集合を再利用して再観測する。"""
+    """HDS介入時だけ既存Rの予算を段階的に広げて再観測する。"""
     予算 = HDS参照予算選択(ir)
     factor = max(2, 1 + int(段階))
     total_limit = min(max(1, int(最大取得上限)), max(予算.取得上限, 予算.取得上限 * factor))
     per_query = min(total_limit, max(予算.一問合せ上限, 予算.一問合せ上限 * factor))
-    parallel = 予算.最大問合せ並列
-
-    種別 = str(探索種別)
-    if 種別 in {"候補差", "縮退"}:
-        仕様群 = _縮退仕様(ir)
-        if 種別 == "候補差":
-            候補仕様 = tuple(仕様 for 仕様 in 仕様群 if 仕様.候補 is not None)
-            仕様群 = 候補仕様 or 仕様群
-        if 仕様群:
-            return _round_robin(
-                _query_pools(provider, 仕様群, per_query, max_parallel=parallel),
-                total_limit,
-            )
-
     return HDS参照検索強化(
         provider,
         ir,
         上限=total_limit,
         一問合せ上限=per_query,
-        最大問合せ並列=parallel,
+        最大問合せ並列=予算.最大問合せ並列,
         最大候補補完回数=1,
     )
 
 
-__all__ = ["HDS候補被覆優先統合", "HDS参照履歴統合", "HDS観測窓更新", "HDS参照検索強化", "HDS追加参照検索"]
+__all__ = ["HDS候補被覆優先統合", "HDS参照検索強化", "HDS追加参照検索"]

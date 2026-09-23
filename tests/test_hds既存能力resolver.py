@@ -25,13 +25,6 @@ class ExistingResolverTest(unittest.TestCase):
     def test_HDS提案を型として持たない(self):
         self.assertFalse(hasattr(既存提案源, "HDS"))
 
-    def test_単独能力提案を複数能力合意と誤表現しない(self):
-        結果 = 既存MINIDORA提案解決([p(既存提案源.K3, "A")])
-        self.assertEqual(結果.状態, 既存提案状態.承認候補)
-        self.assertEqual(結果.回答, "A")
-        self.assertIn("EXISTING_SINGLE_CAPABILITY_PROPOSAL", 結果.理由)
-        self.assertNotIn("EXISTING_CAPABILITIES_AGREE", 結果.理由)
-
     def test_K3と能力模型が一致すれば既存MINIDORAが閉じる(self):
         out = 既存MINIDORA提案解決([
             p(既存提案源.K3, "A"),

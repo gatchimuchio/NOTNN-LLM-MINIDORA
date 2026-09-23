@@ -160,13 +160,8 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertGreaterEqual(provider.呼出回数, 1)
         self.assertGreaterEqual(int(成果[参照世代成果名]), 1)
         self.assertEqual(
-            [x.作用ID for x in 結果.履歴[:4]],
-            [
-                "HDS継承/模型再評価",
-                "HDS継承/観測計画導出",
-                "HDS継承/追加参照",
-                "HDS継承/模型再評価",
-            ],
+            [x.作用ID for x in 結果.履歴[:3]],
+            ["HDS継承/模型再評価", "HDS継承/追加参照", "HDS継承/模型再評価"],
         )
         判定 = 成果[非退行判定成果名]
         self.assertTrue(判定.拡張採用)
