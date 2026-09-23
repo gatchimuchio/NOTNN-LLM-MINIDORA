@@ -1,0 +1,337 @@
+name: MINIDORA30継承 同一LIVE参照AB・一時実行
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/MINIDORA30継承_同一参照AB_一時.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: minidora30-inheritance-ab-once
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { shard: "000-004", start: 0, limit: 5 }
+          - { shard: "005-009", start: 5, limit: 5 }
+          - { shard: "010-014", start: 10, limit: 5 }
+          - { shard: "015-019", start: 15, limit: 5 }
+          - { shard: "020-024", start: 20, limit: 5 }
+          - { shard: "025-029", start: 25, limit: 5 }
+          - { shard: "030-034", start: 30, limit: 5 }
+          - { shard: "035-039", start: 35, limit: 5 }
+          - { shard: "040-044", start: 40, limit: 5 }
+          - { shard: "045-049", start: 45, limit: 5 }
+          - { shard: "050-054", start: 50, limit: 5 }
+          - { shard: "055-059", start: 55, limit: 5 }
+          - { shard: "060-064", start: 60, limit: 5 }
+          - { shard: "065-069", start: 65, limit: 5 }
+          - { shard: "070-074", start: 70, limit: 5 }
+          - { shard: "075-079", start: 75, limit: 5 }
+          - { shard: "080-084", start: 80, limit: 5 }
+          - { shard: "085-089", start: 85, limit: 5 }
+          - { shard: "090-094", start: 90, limit: 5 }
+          - { shard: "095-099", start: 95, limit: 5 }
+          - { shard: "100-104", start: 100, limit: 5 }
+          - { shard: "105-109", start: 105, limit: 5 }
+          - { shard: "110-114", start: 110, limit: 5 }
+          - { shard: "115-119", start: 115, limit: 5 }
+          - { shard: "120-124", start: 120, limit: 5 }
+          - { shard: "125-129", start: 125, limit: 5 }
+          - { shard: "130-134", start: 130, limit: 5 }
+          - { shard: "135-139", start: 135, limit: 5 }
+          - { shard: "140-144", start: 140, limit: 5 }
+          - { shard: "145-149", start: 145, limit: 5 }
+          - { shard: "150-154", start: 150, limit: 5 }
+          - { shard: "155-159", start: 155, limit: 5 }
+          - { shard: "160-164", start: 160, limit: 5 }
+          - { shard: "165-169", start: 165, limit: 5 }
+          - { shard: "170-174", start: 170, limit: 5 }
+          - { shard: "175-179", start: 175, limit: 5 }
+          - { shard: "180-184", start: 180, limit: 5 }
+          - { shard: "185-189", start: 185, limit: 5 }
+          - { shard: "190-194", start: 190, limit: 5 }
+          - { shard: "195-197", start: 195, limit: 3 }
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: 現行main取得
+        uses: actions/checkout@v4
+        with:
+          path: current
+      - name: MINIDORA30実装取得
+        uses: actions/checkout@v4
+        with:
+          ref: a3473fbdacc5e0e2ac1927faa08c60717ace0544
+          path: old
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 同一LIVE参照を旧30で取得し旧30を評価
+        env:
+          START: ${{ matrix.start }}
+          LIMIT: ${{ matrix.limit }}
+          OUT: shared_${{ matrix.shard }}.json
+        run: |
+          cd old
+          PYTHONPATH=src:tools python - <<'PY'
+          from __future__ import annotations
+          import json, os, tempfile
+          from pathlib import Path
+          import benchmark_formal as bf
+          import gpqa_measure_current as gm
+          from minidora.参照 import 固定参照供給器
+          from minidora.standard_reference import 一般知識参照供給器
+
+          START=int(os.environ["START"]); LIMIT=int(os.environ["LIMIT"])
+          OUT=Path("..")/os.environ["OUT"]
+          EXPECTED="41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305"
+
+          with tempfile.TemporaryDirectory(prefix="old30-ab-") as td:
+              csv_path, zip_hash, csv_hash=gm._download_dataset(Path(td))
+              cases=gm._load_cases(csv_path)
+          if len(cases)!=198 or csv_hash!=EXPECTED:
+              raise RuntimeError(f"dataset mismatch n={len(cases)} sha={csv_hash}")
+
+          live=一般知識参照供給器(
+              OpenAlex_API_key=None,
+              EuropePMC有効=True,
+              EuropePMC同義語展開=False,
+              Crossref有効=True,
+              Wikipedia言語=("en",),
+              timeout=8.0,
+              最大本文文字数=6000,
+              並列=True,
+              最大並列=4,
+          )
+          compiler=gm.汎用意味射影Compiler()
+          base_core=gm.K3相当能力核()
+
+          def dump_ref(r):
+              return {
+                  "識別子":r.識別子,"対象":r.対象,"内容":r.内容,"由来":r.由来,"供給器":r.供給器,
+                  "信頼":r.信頼,"意味キー":r.意味キー,"値":r.値,"時点":r.時点,"範囲":r.範囲,
+                  "条件":[list(x) for x in r.条件],"意味確定":r.意味確定,
+              }
+
+          rows=[]
+          for index in range(START,min(198,START+LIMIT)):
+              q,choices,gold=cases[index]
+              qir=compiler.問題IR(q,choices)
+              refs=tuple(bf._監督初期参照検索(live,qir))
+              # 以後の旧30側追加観測も、この同一LIVE初期参照束だけに閉じる。
+              bf._現在Provider=固定参照供給器(refs,"同一LIVE参照束")
+              old=bf._監督HDS選択推論実行(
+                  qir,refs,
+                  コンパイル=compiler.コンパイル,
+                  基礎能力核=base_core,
+                  作業再作用=True,
+                  局所再照合=True,
+              )
+              old_pred=old.回答ラベル if old.状態=="APPROVE" and old.回答ラベル is not None else None
+              rows.append({
+                  "index":index,"question":q,"choices":list(choices),"gold":gold,
+                  "refs":[dump_ref(x) for x in refs],
+                  "old_predicted":old_pred,
+                  "old_answered":old_pred is not None,
+                  "old_correct":old_pred==gold,
+                  "old_status":old.状態,
+                  "old_reasons":list(old.理由),
+              })
+              print(f"OLD CASE {index+1:03d}/198 pred={old_pred} correct={old_pred==gold} refs={len(refs)}",flush=True)
+
+          OUT.write_text(json.dumps({
+              "protocol":{
+                  "old_commit":"a3473fbdacc5e0e2ac1927faa08c60717ace0544",
+                  "shared_reference_origin":"MINIDORA30 canonical HDS initial LIVE retrieval",
+                  "OpenAlex":False,"EuropePMC":True,"Crossref":True,"Wikipedia":["en"],
+                  "reference":"LIVE_ONCE_THEN_SHARED_FIXED_WITHIN_CASE",
+                  "GPQA_CSV_SHA256":csv_hash,
+              },
+              "rows":rows,
+          },ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          PY
+
+      - name: 現行Core初期継承と学習後を同一参照で評価
+        env:
+          IN: shared_${{ matrix.shard }}.json
+          OUT: ab_${{ matrix.shard }}.json
+        run: |
+          cd current
+          PYTHONPATH=src:tools python - <<'PY'
+          from __future__ import annotations
+          import json, os
+          from pathlib import Path
+          from minidora.参照 import 参照記録, 固定参照供給器
+          from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
+          from minidora.HDS実行主体 import HDS終端
+          from minidora.HDS選択継承循環 import 回答成果名, 基準結果主体名
+          from minidora.HDS選択実行系 import HDS選択実行結果
+          from minidora.HDS駆動コア import HDS駆動コア
+          from minidora.計算実行器 import 計算実行器
+
+          src=json.loads((Path("..")/os.environ["IN"]).read_text(encoding="utf-8"))
+          outrows=[]
+
+          def load_ref(d):
+              return 参照記録(
+                  識別子=d["識別子"],対象=d["対象"],内容=d["内容"],由来=d["由来"],供給器=d["供給器"],
+                  信頼=float(d["信頼"]),意味キー=d.get("意味キー"),値=d.get("値"),時点=d.get("時点"),
+                  範囲=d.get("範囲"),条件=tuple(tuple(x) for x in d.get("条件",[])),意味確定=bool(d.get("意味確定",False)),
+              )
+
+          for row in src["rows"]:
+              refs=tuple(load_ref(x) for x in row["refs"])
+              provider=固定参照供給器(refs,"同一LIVE参照束")
+              compiler=公開HDSコンパイラ()
+              core=HDS駆動コア(HDSコンパイラ=compiler,最大作用回数=40)
+              run=core.選択実行(
+                  row["question"],tuple(row["choices"]),
+                  初期参照=refs,
+                  参照供給器=provider,
+                  計算実行器_=計算実行器(),
+                  既存能力継承=True,
+                  最大回復回数=6,
+              )
+              products=run.状態.成果辞書()
+              subject=run.状態.主体辞書()
+              base=subject.get(基準結果主体名)
+              if not isinstance(base,HDS選択実行結果):
+                  raise RuntimeError(f"{row['index']}: current baseline missing")
+              base_pred=base.回答ラベル if base.状態=="APPROVE" and base.回答ラベル is not None else None
+              final=products.get(回答成果名)
+              final_pred=final if run.終端==HDS終端.採用 and final in {"A","B","C","D"} else None
+              gold=row["gold"]
+              out={
+                  **{k:row[k] for k in ("index","gold","old_predicted","old_answered","old_correct","old_status","old_reasons")},
+                  "reference_count":len(refs),
+                  "current_initial_predicted":base_pred,
+                  "current_initial_answered":base_pred is not None,
+                  "current_initial_correct":base_pred==gold,
+                  "current_initial_status":base.状態,
+                  "current_initial_reasons":list(base.理由),
+                  "current_final_predicted":final_pred,
+                  "current_final_answered":final_pred is not None,
+                  "current_final_correct":final_pred==gold,
+                  "current_final_terminal":run.終端.value,
+                  "current_final_reasons":list(run.理由),
+              }
+              outrows.append(out)
+              print(
+                  f"AB CASE {row['index']+1:03d} old={row['old_predicted']} init={base_pred} final={final_pred} "
+                  f"gold={gold} old_ok={row['old_correct']} init_ok={out['current_initial_correct']} final_ok={out['current_final_correct']}",
+                  flush=True
+              )
+
+          (Path("..")/os.environ["OUT"]).write_text(json.dumps({
+              "protocol":{
+                  **src["protocol"],
+                  "current_core_commit":"7c7abed6f949b9c642e8bc0f490607dd1f67149d",
+                  "current_entry":"HDS駆動コア.選択実行",
+                  "same_reference_records":True,
+                  "current_additional_network_reference":False,
+                  "external_modules":False,
+              },
+              "rows":outrows,
+          },ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora30-inheritance-ab-${{ matrix.shard }}
+          path: ab_${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  aggregate:
+    needs: compare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: minidora30-inheritance-ab-*
+          path: shards
+          merge-multiple: true
+      - name: 全198問A/B集計
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          payloads=[json.loads(p.read_text(encoding="utf-8")) for p in sorted(Path("shards").glob("ab_*.json"))]
+          rows=[r for p in payloads for r in p["rows"]]
+          rows.sort(key=lambda x:x["index"])
+          assert [x["index"] for x in rows]==list(range(198)), len(rows)
+          expected="41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305"
+          assert {p["protocol"]["GPQA_CSV_SHA256"] for p in payloads}=={expected}
+          assert all(p["protocol"]["same_reference_records"] is True for p in payloads)
+          assert all(p["protocol"]["current_additional_network_reference"] is False for p in payloads)
+
+          def score(prefix):
+              correct=sum(bool(r[f"{prefix}_correct"]) for r in rows)
+              answered=sum(bool(r[f"{prefix}_answered"]) for r in rows)
+              return {"correct":correct,"answered":answered,"suspended":198-answered,
+                      "accuracy_percent":100*correct/198,"answer_rate_percent":100*answered/198}
+
+          old=score("old")
+          init=score("current_initial")
+          final=score("current_final")
+
+          old_to_init_losses=[r for r in rows if r["old_correct"] and not r["current_initial_correct"]]
+          old_to_init_gains=[r for r in rows if (not r["old_correct"]) and r["current_initial_correct"]]
+          init_to_final_improve=[r for r in rows if (not r["current_initial_correct"]) and r["current_final_correct"]]
+          init_to_final_regress=[r for r in rows if r["current_initial_correct"] and not r["current_final_correct"]]
+          old_to_final_losses=[r for r in rows if r["old_correct"] and not r["current_final_correct"]]
+          old_to_final_gains=[r for r in rows if (not r["old_correct"]) and r["current_final_correct"]]
+
+          loss_reasons=Counter()
+          for r in old_to_init_losses:
+              loss_reasons.update(r["current_initial_reasons"])
+
+          metrics={
+              "old_MINIDORA30_same_refs":old,
+              "current_initial_same_refs":init,
+              "current_final_same_refs":final,
+              "inheritance_old_to_initial":{
+                  "correct_delta":init["correct"]-old["correct"],
+                  "answered_delta":init["answered"]-old["answered"],
+                  "lost_old_correct":len(old_to_init_losses),
+                  "gained_new_correct":len(old_to_init_gains),
+                  "net_correct":len(old_to_init_gains)-len(old_to_init_losses),
+                  "lost_old_correct_indices":[r["index"] for r in old_to_init_losses],
+                  "gained_new_correct_indices":[r["index"] for r in old_to_init_gains],
+              },
+              "learning_initial_to_final":{
+                  "correct_delta":final["correct"]-init["correct"],
+                  "answered_delta":final["answered"]-init["answered"],
+                  "improved":len(init_to_final_improve),
+                  "regressed":len(init_to_final_regress),
+                  "improved_indices":[r["index"] for r in init_to_final_improve],
+                  "regressed_indices":[r["index"] for r in init_to_final_regress],
+              },
+              "old_to_final":{
+                  "correct_delta":final["correct"]-old["correct"],
+                  "lost_old_correct":len(old_to_final_losses),
+                  "gained_new_correct":len(old_to_final_gains),
+                  "lost_indices":[r["index"] for r in old_to_final_losses],
+                  "gained_indices":[r["index"] for r in old_to_final_gains],
+              },
+              "top_current_initial_loss_reasons":loss_reasons.most_common(20),
+          }
+          out={"protocol":payloads[0]["protocol"],"metrics":metrics,"rows":rows}
+          Path("minidora30_inheritance_ab_full.json").write_text(json.dumps(out,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          print("MINIDORA30_INHERITANCE_AB="+json.dumps(metrics,ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora30-inheritance-ab-full
+          path: minidora30_inheritance_ab_full.json
+          if-no-files-found: error
