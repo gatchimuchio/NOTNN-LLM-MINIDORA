@@ -19,22 +19,46 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { shard: "000-011", start: 0, limit: 12 }
-          - { shard: "012-023", start: 12, limit: 12 }
-          - { shard: "024-035", start: 24, limit: 12 }
-          - { shard: "036-047", start: 36, limit: 12 }
-          - { shard: "048-059", start: 48, limit: 12 }
-          - { shard: "060-071", start: 60, limit: 12 }
-          - { shard: "072-083", start: 72, limit: 12 }
-          - { shard: "084-095", start: 84, limit: 12 }
-          - { shard: "096-107", start: 96, limit: 12 }
-          - { shard: "108-119", start: 108, limit: 12 }
-          - { shard: "120-131", start: 120, limit: 12 }
-          - { shard: "132-143", start: 132, limit: 12 }
-          - { shard: "144-155", start: 144, limit: 12 }
-          - { shard: "156-167", start: 156, limit: 12 }
-          - { shard: "168-179", start: 168, limit: 12 }
-          - { shard: "180-197", start: 180, limit: 18 }
+          - { shard: "000-004", start: 0, limit: 5 }
+          - { shard: "005-009", start: 5, limit: 5 }
+          - { shard: "010-014", start: 10, limit: 5 }
+          - { shard: "015-019", start: 15, limit: 5 }
+          - { shard: "020-024", start: 20, limit: 5 }
+          - { shard: "025-029", start: 25, limit: 5 }
+          - { shard: "030-034", start: 30, limit: 5 }
+          - { shard: "035-039", start: 35, limit: 5 }
+          - { shard: "040-044", start: 40, limit: 5 }
+          - { shard: "045-049", start: 45, limit: 5 }
+          - { shard: "050-054", start: 50, limit: 5 }
+          - { shard: "055-059", start: 55, limit: 5 }
+          - { shard: "060-064", start: 60, limit: 5 }
+          - { shard: "065-069", start: 65, limit: 5 }
+          - { shard: "070-074", start: 70, limit: 5 }
+          - { shard: "075-079", start: 75, limit: 5 }
+          - { shard: "080-084", start: 80, limit: 5 }
+          - { shard: "085-089", start: 85, limit: 5 }
+          - { shard: "090-094", start: 90, limit: 5 }
+          - { shard: "095-099", start: 95, limit: 5 }
+          - { shard: "100-104", start: 100, limit: 5 }
+          - { shard: "105-109", start: 105, limit: 5 }
+          - { shard: "110-114", start: 110, limit: 5 }
+          - { shard: "115-119", start: 115, limit: 5 }
+          - { shard: "120-124", start: 120, limit: 5 }
+          - { shard: "125-129", start: 125, limit: 5 }
+          - { shard: "130-134", start: 130, limit: 5 }
+          - { shard: "135-139", start: 135, limit: 5 }
+          - { shard: "140-144", start: 140, limit: 5 }
+          - { shard: "145-149", start: 145, limit: 5 }
+          - { shard: "150-154", start: 150, limit: 5 }
+          - { shard: "155-159", start: 155, limit: 5 }
+          - { shard: "160-164", start: 160, limit: 5 }
+          - { shard: "165-169", start: 165, limit: 5 }
+          - { shard: "170-174", start: 170, limit: 5 }
+          - { shard: "175-179", start: 175, limit: 5 }
+          - { shard: "180-184", start: 180, limit: 5 }
+          - { shard: "185-189", start: 185, limit: 5 }
+          - { shard: "190-194", start: 190, limit: 5 }
+          - { shard: "195-197", start: 195, limit: 3 }
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
