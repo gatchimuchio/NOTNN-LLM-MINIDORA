@@ -9,7 +9,7 @@ _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状�
 _RELATION_META_KEYS = frozenset({
     "検索述語", "不足位置", "英日意味射影", "受動態", "選択意図", "選択問題閉包",
 })
-_GENERIC_RELATIONS = frozenset({"問い適合"})
+_GENERIC_RELATIONS = frozenset({"問い適合", "命題適合", "説明適合"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,7 +130,7 @@ def _監査表層(ir: HDSIR) -> tuple[str, ...]:
         str(coord.内容)
         for coord in ir.座標
         if str(coord.種別) == "監査.R_query"
-        and coord.値状態 not in {値状態.矛盾, 値状態.留保}
+        and coord.値状態 != 値状態.矛盾
     )
 
 
@@ -208,6 +208,21 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
     concrete = 0
     planned_relations = 0
     relation_signatures: set[tuple[object, ...]] = set()
+    canonical_relation_keys: set[tuple[object, ...]] = set()
+
+    for candidate_relation in ir.関係:
+        candidate_position = _条件値(candidate_relation, "不足位置")
+        candidate_predicate = _条件値(candidate_relation, "検索述語")
+        if candidate_position not in {"始点", "終点"} or not candidate_predicate:
+            continue
+        if not _条件値(candidate_relation, "英日意味射影"):
+            continue
+        candidate_known = _既知端点(ir, candidate_relation, candidate_position)
+        canonical_relation_keys.add((
+            candidate_position,
+            str(candidate_relation.種別),
+            tuple(str(x).casefold() for x in candidate_known),
+        ))
 
     for 関係 in ir.関係:
         position = _条件値(関係, "不足位置")
@@ -219,6 +234,13 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
         scope = _局所scope(関係)
         generic = str(関係.種別) in _GENERIC_RELATIONS or bool(_条件値(関係, "選択問題閉包"))
         relation_kind = str(関係.種別)
+        canonical_key = (
+            position,
+            relation_kind,
+            tuple(str(x).casefold() for x in known),
+        )
+        if not _条件値(関係, "英日意味射影") and canonical_key in canonical_relation_keys:
+            continue
         predicate_key = (
             str(predicate).casefold()
             if relation_kind in {"開放述語", "問い適合"}
