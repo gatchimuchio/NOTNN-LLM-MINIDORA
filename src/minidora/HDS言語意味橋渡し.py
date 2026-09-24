@@ -116,7 +116,7 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
         for index, 関係候補 in enumerate(relations):
             if str(関係候補.種別) != str(question.種別):
                 continue
-            if _条件値(relation, "不足位置") != question.未知位置:
+            if _条件値(関係候補, "不足位置") != question.未知位置:
                 continue
             known_ids = 関係候補.終点 if question.未知位置 == "始点" else 関係候補.始点
             known_values = [
