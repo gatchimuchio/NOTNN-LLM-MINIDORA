@@ -7,6 +7,7 @@ from typing import Callable
 
 from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
 from .HDS中間表現 import HDSIR
+from .HDS観測計画 import HDS参照観測要求群
 from .hds介入制御 import (
     HDS介入制御,
     HDS介入記録,
@@ -117,9 +118,12 @@ class _Session:
         計算実行器_: 計算実行器 | None,
         初期選択: HDS選択実行結果 | None,
         評価実行: Callable[[tuple[参照記録, ...]], HDS選択実行結果] | None = None,
+        参照観測要求=None,
+        計算計画=None,
     ) -> None:
         self.question_ir = question_ir
         self.search_ir = question_ir
+        self.参照観測要求 = tuple(参照観測要求) if 参照観測要求 is not None else HDS参照観測要求群(question_ir)
         self.references = tuple(references)
         self.コンパイル = コンパイル
         self.基礎能力核 = 基礎能力核
@@ -131,7 +135,7 @@ class _Session:
         self.extra_r_level = 0
         self.compute_done = False
         self._compute_plan_checked = False
-        self._compute_plan = None
+        self._compute_plan = 計算計画
         self.評価実行 = 評価実行
         self.initial = 初期選択 if 初期選択 is not None else self._normal()
         self.current = self.initial
@@ -156,26 +160,18 @@ class _Session:
         )
 
     def _計算機会(self):
+        """上流Kernelが形成済みの計算降下物だけを消費する。原文を再コンパイルしない。"""
         if self._compute_plan_checked:
             return self._compute_plan
         self._compute_plan_checked = True
-        if self.計算実行器 is None:
-            return None
-        owner = getattr(self.コンパイル, "__self__", None)
-        構文化器 = getattr(owner, "HDSコンパイラ", None)
-        if 構文化器 is None and callable(getattr(owner, "計算コンパイル", None)):
-            構文化器 = owner
-        compile_compute = getattr(構文化器, "計算コンパイル", None)
-        if not callable(compile_compute):
-            return None
-        try:
-            plan = compile_compute(self.question_ir.原文)
-        except (ValueError, TypeError):
+        plan = self._compute_plan
+        if self.計算実行器 is None or plan is None:
+            self._compute_plan = None
             return None
         compute_ir = getattr(plan, "計算IR", None)
         if bool(getattr(plan, "参照必須", True)) or not tuple(getattr(compute_ir, "命令列", ())):
+            self._compute_plan = None
             return None
-        self._compute_plan = plan
         return plan
 
     def _ref_sig(self) -> str:
@@ -303,6 +299,7 @@ class _Session:
                 self.参照供給器,
                 self.search_ir,
                 段階=self.extra_r_level,
+                観測要求=self.参照観測要求,
             )
             limit = max(len(self.references), len(observed))
             merged = HDS候補被覆優先統合(
@@ -364,6 +361,8 @@ def HDS監督選択実行(
     HDS介入予算: int = 6,
     初期選択: HDS選択実行結果 | None = None,
     評価実行: Callable[[tuple[参照記録, ...]], HDS選択実行結果] | None = None,
+    参照観測要求=None,
+    計算計画=None,
 ) -> HDS監督選択結果:
     """HDSをMINIDORAフィードバックループの監督介入層として実行する。
 
@@ -380,6 +379,8 @@ def HDS監督選択実行(
         計算実行器_=計算実行器_,
         初期選択=初期選択,
         評価実行=評価実行,
+        参照観測要求=参照観測要求,
+        計算計画=計算計画,
     )
 
     if HDS制御 is None or _approved(session.initial):
