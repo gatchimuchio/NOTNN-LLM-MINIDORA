@@ -502,4 +502,12 @@ class 公開HDSコンパイラ:
         )
 
 
-__all__ = ["公開HDSコンパイラ方針", "公開HDSコンパイラ"]
+# 旧実装は現行Kernelの意味抽出前段としてだけ保持する。公開入口としては使わない。
+公開HDS基礎コンパイラ = 公開HDSコンパイラ
+
+def 公開HDSコンパイラ(*args, **kwargs):
+    """互換入口。公開Compilerは常に現行MINIDORA Kernelを返す。"""
+    from .HDS構文化器_v1 import 公開HDSコンパイラ as 現行HDSコンパイラ
+    return 現行HDSコンパイラ(*args, **kwargs)
+
+__all__ = ["公開HDSコンパイラ方針", "公開HDS基礎コンパイラ", "公開HDSコンパイラ"]
