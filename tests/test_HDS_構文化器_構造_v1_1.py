@@ -4,6 +4,7 @@ import unittest
 
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 from minidora.HDS参照 import HDS参照問合せ候補, HDS参照縮退問合せ候補
+from minidora.HDS観測計画 import HDS参照観測要求群
 
 
 class HDS構文化器構造V11試験(unittest.TestCase):
@@ -54,10 +55,12 @@ class HDS構文化器構造V11試験(unittest.TestCase):
 
     def test_監査R_probeは主検索へ混入せず縮退時だけ利用する(self) -> None:
         結果 = self.構文化器.詳細コンパイル("Which mechanism could make this possible?")
-        primary = " ".join(HDS参照問合せ候補(結果.IR)).casefold()
-        代替経路 = " ".join(HDS参照縮退問合せ候補(結果.IR)).casefold()
-        self.assertNotIn("counterexample", primary)
-        self.assertTrue("counterexample" in 代替経路 or "failure conditions" in 代替経路)
+        requests = HDS参照観測要求群(結果.IR)
+        audit = [x for x in requests if x.ID.startswith("監査表層:")]
+        self.assertTrue(audit)
+        self.assertTrue(all(x.段階 == "fallback" for x in audit))
+        primary = tuple(x for x in requests if x.段階 == "primary")
+        self.assertFalse(any(x.ID.startswith("監査表層:") for x in primary))
 
     def test_CognitiveWorld差分は旧世界を消さず再解釈要求を出す(self) -> None:
         first = self.構文化器.詳細コンパイル("AIが市場を変える。")
