@@ -7,7 +7,6 @@ from .HDS適合器 import HDSコンパイラProtocol, HDS文脈
 from .HDS選択実行系 import HDS選択実行結果, HDS選択問題, HDS選択推論実行
 from .HDS中間表現 import HDSIR
 from .HDS参照 import HDS参照予算選択, HDS参照検索
-from .HDS実行系射影 import HDSR質問射影
 from .第0層 import Layer0
 from .多言語表層 import 表面化 as 多言語表面化
 from .トリニティ文脈 import Trinity文脈系
@@ -296,7 +295,7 @@ class ミニドラ:
                 予算 = HDS参照予算選択(HDS中間表現)
                 参照 = HDS参照検索(
                     self.参照供給器,
-                    HDSR質問射影(HDS中間表現),
+                    HDS中間表現,
                     上限=予算.取得上限,
                     一問合せ上限=予算.一問合せ上限,
                     最大問合せ並列=予算.最大問合せ並列,
