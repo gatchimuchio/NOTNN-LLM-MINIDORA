@@ -32,6 +32,7 @@ from .HDSコア入力 import HDSコア入力束
 from .HDSコア入力射影 import HDSコア入力へ
 from .HDS観測計画 import HDS参照観測要求群
 from .HDS候補検証契約 import HDS候補検証契約群
+from .HDS数量計算契約 import HDS数量計算契約を形成
 from .HDS言語協調 import HDS英語AND展開
 from .HDS言語関係 import HDS英語基底関係射影
 from .HDS言語範囲 import HDS英語関係範囲射影
@@ -157,6 +158,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             コア入力=コア入力,
             参照観測要求=観測要求,
             候補検証契約=HDS候補検証契約群(意味_ir, 観測要求),
+            数量計算契約=HDS数量計算契約を形成(意味_ir, None, plan),
             失敗署名候補=detailed.失敗署名候補,
             チェックリスト=detailed.チェックリスト,
             認知世界差分=detailed.認知世界差分,
@@ -286,6 +288,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             参照観測要求=観測要求,
             候補意味IR=候補意味IR,
             候補検証契約=HDS候補検証契約群(ir, 観測要求),
+            数量計算契約=HDS数量計算契約を形成(ir, dict(候補意味IR), plan),
             失敗署名候補=detailed.失敗署名候補,
             チェックリスト=detailed.チェックリスト,
             認知世界差分=detailed.認知世界差分,

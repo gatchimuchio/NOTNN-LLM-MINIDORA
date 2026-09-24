@@ -11,6 +11,7 @@ from .HDS中間表現 import HDSIR, HDS実行核
 from .HDSコア入力 import HDSコア入力束
 from .HDS観測計画 import HDS参照観測要求
 from .HDS候補検証契約 import HDS候補検証契約
+from .HDS数量計算契約 import HDS数量計算契約
 from .命令 import 手順
 from .命令計算降下 import 命令計算降下
 from .計算中間表現 import 計算中間表現
@@ -76,6 +77,7 @@ class HDSカーネル束:
     参照観測要求: tuple[HDS参照観測要求, ...] = ()
     候補意味IR: tuple[tuple[str, HDSIR], ...] = ()
     候補検証契約: tuple[HDS候補検証契約, ...] = ()
+    数量計算契約: HDS数量計算契約 = HDS数量計算契約()
     失敗署名候補: tuple[HDS失敗署名候補, ...] = ()
     チェックリスト: tuple[HDSチェックリスト項目, ...] = ()
     認知世界差分: HDS認知世界差分 = HDS認知世界差分()
@@ -105,6 +107,7 @@ class HDSカーネル束:
             tuple((x.ID, x.外部検索表層, x.段階, x.優先度) for x in self.参照観測要求),
             self.候補意味IR,
             self.候補検証契約,
+            self.数量計算契約,
             self.計算計画,
             self.失敗署名候補,
             self.チェックリスト,

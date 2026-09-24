@@ -1,0 +1,170 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Mapping
+
+from .HDS中間表現 import HDSIR, 値状態
+from .言語 import 言語計画
+
+
+_阻害状態 = frozenset({値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保})
+_明示関係種別 = frozenset({
+    "等価", "不同", "比較.大", "比較.小", "比較.以上", "比較.以下",
+})
+
+
+@dataclass(frozen=True, slots=True)
+class HDS数量値:
+    所属: str
+    座標ID: str
+    値: str
+    単位: tuple[str, ...] = ()
+    原文範囲: tuple[int, int] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class HDS明示数量関係:
+    関係ID: str
+    種別: str
+    始点: tuple[str, ...]
+    終点: tuple[str, ...]
+    条件: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class HDS数量計算契約:
+    問い数量: tuple[HDS数量値, ...] = ()
+    候補数量: tuple[HDS数量値, ...] = ()
+    明示関係: tuple[HDS明示数量関係, ...] = ()
+    数量問い関係ID: tuple[str, ...] = ()
+    計算P実行可能: bool = False
+    状態: str = "非数量"
+    不足: tuple[str, ...] = ()
+
+    @property
+    def 数量問題(self) -> bool:
+        return self.状態 != "非数量"
+
+    @property
+    def 候補被覆ラベル(self) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(
+            x.所属.split(":", 1)[1]
+            for x in self.候補数量
+            if x.所属.startswith("候補:")
+        ))
+
+
+def _数量値群(ir: HDSIR, 所属: str) -> tuple[HDS数量値, ...]:
+    coords = ir.座標辞書()
+    単位索引: dict[str, list[str]] = {}
+    for 関係 in ir.関係:
+        if 関係.種別 != "数量単位" or 関係.値状態 in _阻害状態:
+            continue
+        for value_id in 関係.始点:
+            if value_id not in coords:
+                continue
+            for unit_id in 関係.終点:
+                unit = coords.get(unit_id)
+                if unit is None or unit.値状態 in _阻害状態:
+                    continue
+                text = " ".join(str(unit.内容).split()).strip()
+                if text and text not in 単位索引.setdefault(value_id, []):
+                    単位索引[value_id].append(text)
+
+    out: list[HDS数量値] = []
+    for coord in ir.座標:
+        if str(coord.種別) != "値.数量" or coord.値状態 in _阻害状態:
+            continue
+        value = " ".join(str(coord.内容).split()).strip()
+        if not value:
+            continue
+        out.append(HDS数量値(
+            所属=所属,
+            座標ID=str(coord.座標ID),
+            値=value,
+            単位=tuple(単位索引.get(str(coord.座標ID), ())),
+            原文範囲=coord.原文範囲,
+        ))
+    return tuple(out)
+
+
+def _明示関係群(ir: HDSIR) -> tuple[HDS明示数量関係, ...]:
+    coords = ir.座標辞書()
+    out: list[HDS明示数量関係] = []
+    for 関係 in ir.関係:
+        if str(関係.種別) not in _明示関係種別 or 関係.値状態 in _阻害状態:
+            continue
+        starts = tuple(
+            " ".join(str(coords[x].内容).split()).strip()
+            for x in 関係.始点 if x in coords and coords[x].値状態 not in _阻害状態
+        )
+        ends = tuple(
+            " ".join(str(coords[x].内容).split()).strip()
+            for x in 関係.終点 if x in coords and coords[x].値状態 not in _阻害状態
+        )
+        if not starts or not ends:
+            continue
+        out.append(HDS明示数量関係(
+            関係ID=str(関係.関係ID),
+            種別=str(関係.種別),
+            始点=starts,
+            終点=ends,
+            条件=tuple(str(x) for x in 関係.条件),
+        ))
+    return tuple(out)
+
+
+def HDS数量計算契約を形成(
+    問いIR: HDSIR,
+    候補意味IR: Mapping[str, HDSIR] | None,
+    計算計画: 言語計画,
+) -> HDS数量計算契約:
+    """形成済みKernel意味から数量・計算可能性だけを固定する。
+
+    専門法則や式を推測しない。計算Pが既に閉じている場合だけ実行可能とし、
+    数量はあるが明示関係も計算Pも無い場合は「法則不足」として残す。
+    """
+
+    問い数量 = _数量値群(問いIR, "問い")
+    候補数量: list[HDS数量値] = []
+    for label, ir in sorted((候補意味IR or {}).items()):
+        候補数量.extend(_数量値群(ir, "候補:" + str(label)))
+
+    明示関係 = _明示関係群(問いIR)
+    数量問い関係 = tuple(
+        str(x.関係ID)
+        for x in 問いIR.関係
+        if str(x.種別) == "数量同定" and x.値状態 not in _阻害状態
+    )
+    実行可能 = bool(
+        not bool(getattr(計算計画, "参照必須", True))
+        and tuple(getattr(getattr(計算計画, "手順", None), "命令列", ()))
+    )
+
+    数量あり = bool(問い数量 or 候補数量 or 明示関係 or 数量問い関係)
+    if not 数量あり:
+        return HDS数量計算契約()
+    if 実行可能:
+        状態, 不足 = "実行可能", ()
+    elif 明示関係:
+        状態, 不足 = "明示関係あり・計画未閉包", ("計算P未閉包",)
+    else:
+        状態, 不足 = "法則不足", ("計算法則未形成",)
+
+    return HDS数量計算契約(
+        問い数量=問い数量,
+        候補数量=tuple(候補数量),
+        明示関係=明示関係,
+        数量問い関係ID=数量問い関係,
+        計算P実行可能=実行可能,
+        状態=状態,
+        不足=不足,
+    )
+
+
+__all__ = [
+    "HDS数量値",
+    "HDS明示数量関係",
+    "HDS数量計算契約",
+    "HDS数量計算契約を形成",
+]
