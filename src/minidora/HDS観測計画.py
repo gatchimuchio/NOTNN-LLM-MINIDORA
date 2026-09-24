@@ -108,6 +108,23 @@ def _fallback対象(ir: HDSIR) -> tuple[str, ...]:
     )
 
 
+def _汎用外部文脈(ir: HDSIR) -> tuple[str, ...]:
+    """関係未閉包時にもKernelが保持する外部観測用の意味文脈。
+
+    Rで原文を読み直さず、Compilerが既に構文化した対象・関係表層・状態・属性・値・条件だけを使う。
+    制御・監査・選択肢・未知位置などの実行メタは混ぜない。
+    """
+    prefixes = ("対象.", "実体.", "関係.", "状態.", "属性.", "値.", "条件.", "時刻.", "時間.", "範囲.")
+    return _unique(
+        str(coord.内容)
+        for coord in ir.座標
+        if not str(coord.座標ID).startswith("選択肢:")
+        and str(coord.種別).startswith(prefixes)
+        and coord.値状態 not in _BLOCKING
+        and str(coord.内容).strip()
+    )
+
+
 def _監査表層(ir: HDSIR) -> tuple[str, ...]:
     return _unique(
         str(coord.内容)
@@ -342,6 +359,26 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
         ))
 
     if choices and planned_relations == 0:
+        generic_context = _汎用外部文脈(ir)
+        generic_primary = search_surfaces[0] if search_surfaces else " ".join(generic_context)
+        if generic_primary:
+            requests.append(HDS参照観測要求(
+                ID="汎用文脈:0",
+                関係ID=None,
+                関係種別="未解決関係",
+                未知位置=None,
+                既知端点=fallback_targets,
+                条件scope=(),
+                候補ラベル=None,
+                候補表層=None,
+                外部言語=language,
+                外部検索表層=generic_primary,
+                必須被覆=False,
+                外部文脈アンカー=generic_context or (generic_primary,),
+                段階="primary",
+                優先度=35,
+                provenance=("Compiler汎用外部文脈",),
+            ))
         anchor = search_surfaces[0] if search_surfaces else " ".join(fallback_targets)
         for label, candidate in choices:
             observation_id = f"generic:候補:{label}"
