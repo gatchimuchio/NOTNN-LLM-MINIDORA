@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from .HDS中間表現 import HDSIR
-from .HDS観測計画 import HDS参照観測要求, HDS参照観測要求群
+from .HDS観測計画 import HDS参照観測要求, HDS参照観測要求群, HDS追加観測要求群
 from .HDS参照 import HDS参照予算選択, HDS参照検索, _候補被覆, _query_pools, _round_robin, _縮退仕様, _記録統合
 from .参照 import 参照供給器, 参照記録
 
@@ -60,10 +60,20 @@ def HDS参照検索強化(provider: 参照供給器, ir: HDSIR, *, 上限: int |
     return references
 
 def HDS追加参照検索(provider: 参照供給器, ir: HDSIR, *, 段階: int=1, 最大取得上限: int=32,
-             観測要求: Iterable[HDS参照観測要求] | None=None) -> tuple[参照記録,...]:
+             観測要求: Iterable[HDS参照観測要求] | None=None,
+             残差群: Iterable[str]=()) -> tuple[参照記録,...]:
+    """追加Rでは初期primaryを繰り返さず、Kernel形成済みfallbackを世代別に観測する。"""
     予算=HDS参照予算選択(ir); factor=max(2,1+int(段階))
     total_limit=min(max(1,int(最大取得上限)),max(予算.取得上限,予算.取得上限*factor))
     per_query=min(total_limit,max(予算.一問合せ上限,予算.一問合せ上限*factor))
-    return HDS参照検索強化(provider,ir,上限=total_limit,一問合せ上限=per_query,最大問合せ並列=予算.最大問合せ並列,最大候補補完回数=1,観測要求=観測要求)
+    requests=_要求群(ir,観測要求)
+    planned=HDS追加観測要求群(requests,残差群=残差群,世代=max(1,int(段階)))
+    specs=_縮退仕様(ir,観測要求=planned)
+    if not specs:
+        return ()
+    return _round_robin(
+        _query_pools(provider,specs,per_query,max_parallel=予算.最大問合せ並列),
+        total_limit,
+    )
 
 __all__=["HDS候補被覆優先統合","HDS参照検索強化","HDS追加参照検索"]
