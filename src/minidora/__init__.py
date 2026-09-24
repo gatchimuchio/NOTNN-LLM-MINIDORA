@@ -56,6 +56,8 @@ _公開経路 = {
     'HDSIR辞書化': ('HDS再生', 'HDSIR辞書化'),
     'HDSK3結果': ('K3_HDSネイティブ', 'HDSK3結果'),
     'HDSコンパイラProtocol': ('HDS適合器', 'HDSコンパイラProtocol'),
+    'HDSカーネルコンパイラProtocol': ('HDS適合器', 'HDSカーネルコンパイラProtocol'),
+    'HDS独立カーネルコンパイル': ('HDS適合器', 'HDS独立カーネルコンパイル'),
     'HDSコア入力コンパイラProtocol': ('HDS適合器', 'HDSコア入力コンパイラProtocol'),
     'HDS独立コア入力コンパイル': ('HDS適合器', 'HDS独立コア入力コンパイル'),
     'HDSコンパイラパイプライン版': ('HDS構文化処理系列_v1_4', 'HDSコンパイラパイプライン版'),
