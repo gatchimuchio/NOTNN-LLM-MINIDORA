@@ -155,7 +155,10 @@ class HDS選択継承供給:
         if generation >= self.設定.最大回復回数: return None
         def 実行(s: HDS実行状態):
             values=self._成果(s); refs=self._参照(s); level=int(values.get(参照世代成果名,0))+1
-            observed=HDS追加参照検索(self.参照供給器,self.質問IR,段階=level,観測要求=self.参照観測要求)
+            observed=HDS追加参照検索(
+                self.参照供給器,self.質問IR,段階=level,
+                観測要求=self.参照観測要求,残差群=s.残差,
+            )
             merged=HDS候補被覆優先統合(refs,observed,self.選択肢,max(len(refs),len(observed)))
             before=tuple((x.識別子,x.条件) for x in refs); after=tuple((x.識別子,x.条件) for x in merged); 解消=frozenset(set(s.残差).intersection(回復可能残差))
             if after==before:
