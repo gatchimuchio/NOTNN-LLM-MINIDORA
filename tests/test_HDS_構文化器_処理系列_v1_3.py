@@ -52,6 +52,14 @@ class HDS構文化器処理系列試験(unittest.TestCase):
         labels = {item.候補ラベル for item in bundle.参照観測要求 if item.必須被覆}
         self.assertEqual(labels, {"A", "B", "C", "D"})
 
+    def test_Kernel束は監査成果を一級成果として保持する(self) -> None:
+        bundle = self.構文化器.コンパイル束("この構成は実現可能である。")
+        self.assertTrue(bundle.失敗署名候補)
+        self.assertTrue(bundle.チェックリスト)
+        self.assertTrue(bundle.監査参照候補)
+        self.assertTrue(bundle.認知世界差分.現行世界参照)
+        self.assertTrue(bundle.カーネル署名)
+
     def test_詳細問題IRも通常問題IRと同じ問い閉包を観測する(self) -> None:
         detailed = self.構文化器.詳細問題IR(
             "Which statement about entropy is correct?",
