@@ -327,12 +327,13 @@ class ミニドラ:
 
             if HDS選択問題(HDS中間表現):
                 references: tuple[参照記録, ...] = ()
+                観測要求 = HDS参照観測要求群(HDS中間表現)
                 if self.参照供給器 is not None:
                     予算 = HDS参照予算選択(HDS中間表現)
                     references = HDS参照検索(
                         self.参照供給器, HDS中間表現, 上限=予算.取得上限,
                         一問合せ上限=予算.一問合せ上限, 最大問合せ並列=予算.最大問合せ並列,
-                        観測要求=HDS参照観測要求群(HDS中間表現),
+                        観測要求=観測要求,
                     )
                 initial = HDS選択推論実行(
                     HDS中間表現, references, コンパイル=self.コンパイル, 基礎能力核=None,
@@ -344,6 +345,7 @@ class ミニドラ:
                     HDS中間表現, references, コンパイル=self.コンパイル, 基礎能力核=None,
                     模型核=self.能力模型核, 参照供給器=self.参照供給器,
                     計算実行器_=self.計算実行器, HDS制御=self.HDS監督制御, 初期選択=initial,
+                    参照観測要求=観測要求,
                 )
                 return self._HDS選択結果(要求_, HDS中間表現, supervised.参照, supervised.選択)
 
