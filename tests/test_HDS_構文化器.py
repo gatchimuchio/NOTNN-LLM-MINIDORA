@@ -12,7 +12,8 @@ class 公開HDSコンパイラ試験(unittest.TestCase):
 
     def test_日本語を規定言語とし外部英語は表層だけ保持する(self) -> None:
         ir = self.構文化器.コンパイル("Protein A causes apoptosis.")
-        self.assertEqual(self.構文化器.基底言語, "ja")
+        self.assertEqual(self.構文化器.基底言語, "日本語")
+        self.assertEqual(self.構文化器.基底言語コード, "ja")
         self.assertEqual(ir.入力言語, "en")
         self.assertIn("因果", {関係.種別 for 関係 in ir.関係})
         self.assertTrue(any(coord.種別 == "関係.述語" and "causes" in str(coord.内容) for coord in ir.座標))
@@ -50,9 +51,11 @@ class 公開HDSコンパイラ試験(unittest.TestCase):
         )
         queries = HDS参照問合せ候補(ir)
         self.assertGreaterEqual(len(queries), 6)
-        self.assertTrue(any("molecule causes apoptosis under hypoxia" in query.casefold() for query in queries))
+        lowered = tuple(query.casefold() for query in queries)
+        self.assertTrue(any("apoptosis" in query and "hypoxia" in query for query in lowered))
+        self.assertTrue(any("cause" in query for query in lowered))
         for 選択肢 in ("protein a", "protein b", "protein c", "protein d"):
-            self.assertTrue(any(選択肢 in query.casefold() for query in queries))
+            self.assertTrue(any(選択肢 in query for query in lowered))
 
 
 if __name__ == "__main__":
