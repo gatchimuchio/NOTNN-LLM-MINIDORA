@@ -68,7 +68,7 @@ class HDS参照観測要求試験(unittest.TestCase):
         関係要求群 = [x for x in requests if x.関係ID == "question" and x.段階 == "primary"]
         self.assertTrue(関係要求群)
         self.assertTrue(all("molecule causes apoptosis under hypoxia" in x.外部文脈アンカー for x in 関係要求群))
-        self.assertTrue(all("molecule causes apoptosis under hypoxia" in x.外部検索表層.casefold() for x in relation))
+        self.assertTrue(all("molecule causes apoptosis under hypoxia" in x.外部検索表層.casefold() for x in 関係要求群))
         self.assertTrue(any(x.ID.startswith("検索表層:") and x.外部検索表層 == "molecule causes apoptosis under hypoxia" for x in requests))
 
     def test_複数関係を全保持し条件範囲を関係局所化する(self) -> None:
