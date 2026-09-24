@@ -72,7 +72,7 @@ class HDS候補検証契約試験(unittest.TestCase):
         with self.assertRaises(ValueError):
             HDS候補検証契約群(ir, tuple(観測要求))
 
-    def test_問題Compilerは候補検証契約をKernel署名へ固定する(self) -> None:
+    def test_問題コンパイラは候補検証契約をKernel署名へ固定する(self) -> None:
         構文化器 = 公開HDSコンパイラ()
         束 = 構文化器.問題コンパイル束(
             "Which molecule causes apoptosis under hypoxia?",
