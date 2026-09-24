@@ -14,6 +14,19 @@ def _norm(value: object) -> str:
     return " ".join(str(value).split()).strip()
 
 
+def _条件値(関係: HDS関係, key: str) -> str:
+    prefix = key + "="
+    for raw in 関係.条件:
+        value = str(raw)
+        if value.startswith(prefix):
+            return value[len(prefix):].strip()
+    return ""
+
+
+def _同じ表層(a: object, b: object) -> bool:
+    return _norm(a).casefold() == _norm(b).casefold()
+
+
 def HDS英日意味射影(ir: HDSIR) -> HDSIR:
     """英語表層を日本語正本の意味フレームへ有限射影する。
 
@@ -97,22 +110,39 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
     question = frame.関係質問
     if question is not None:
         known = question.既知端点 or "問い対象"
-        if question.未知位置 == "始点":
+        coord_map = {coord.座標ID: coord for coord in coords}
+        existing_question_index = None
+        existing_question = None
+        for index, relation in enumerate(relations):
+            if str(relation.種別) != str(question.種別):
+                continue
+            if _条件値(relation, "不足位置") != question.未知位置:
+                continue
+            known_ids = relation.終点 if question.未知位置 == "始点" else relation.始点
+            known_values = [
+                coord_map[cid].内容
+                for cid in known_ids
+                if cid in coord_map and coord_map[cid].値状態 not in {値状態.矛盾, 値状態.留保}
+            ]
+            if any(_同じ表層(value, known) for value in known_values):
+                existing_question_index = index
+                existing_question = relation
+                break
+
+        if existing_question is not None:
+            start_id = existing_question.始点[0]
+            end_id = existing_question.終点[0]
+        elif question.未知位置 == "始点":
             start_id = add_coord('lang-sem:未知:start', "目的.未知始点", question.要求型 or "未特定", 値状態.未観測)
             end_id = add_coord("lang-sem:known:end", "対象.終点", known)
         else:
             start_id = add_coord("lang-sem:known:start", "対象.始点", known)
             end_id = add_coord('lang-sem:未知:end', "目的.未知終点", question.要求型 or "未特定", 値状態.未観測)
 
-        add_coord("lang-sem:missing", "目的.不足位置", question.未知位置)
-        if question.要求型:
+        if not any(str(coord.種別) == "目的.不足位置" and _同じ表層(coord.内容, question.未知位置) for coord in coords):
+            add_coord("lang-sem:missing", "目的.不足位置", question.未知位置)
+        if question.要求型 and not any(str(coord.種別) == "目的.要求型" and _同じ表層(coord.内容, question.要求型) for coord in coords):
             add_coord("lang-sem:type", "目的.要求型", question.要求型)
-
-        rid = 'lang-sem:関係-question'
-        serial = 1
-        while rid in existing_関係_ids:
-            rid = f"lang-sem:relation-question:{serial}"
-            serial += 1
 
         関係_conditions = [
             f"検索述語={question.検索述語}",
@@ -123,19 +153,39 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
         ]
         関係_conditions.extend(f"{key}={value}" for key, value in question.修飾)
 
-        relations.insert(
-            0,
-            HDS関係(
-                rid,
-                (start_id,),
-                (end_id,),
-                question.種別,
-                条件=tuple(dict.fromkeys(関係_conditions)),
+        if existing_question is not None and existing_question_index is not None:
+            canonical_keys = {str(raw).partition("=")[0].strip() for raw in 関係_conditions}
+            inherited = tuple(
+                str(raw)
+                for raw in existing_question.条件
+                if str(raw).partition("=")[0].strip() not in canonical_keys
+            )
+            relations[existing_question_index] = replace(
+                existing_question,
+                条件=tuple(dict.fromkeys((*関係_conditions, *inherited))),
                 値状態=値状態.未観測,
                 由来="共有言語基底P",
                 暫定性='EN_TO_JA_意味_射影',
-            ),
-        )
+            )
+        else:
+            rid = 'lang-sem:関係-question'
+            serial = 1
+            while rid in existing_関係_ids:
+                rid = f"lang-sem:relation-question:{serial}"
+                serial += 1
+            relations.insert(
+                0,
+                HDS関係(
+                    rid,
+                    (start_id,),
+                    (end_id,),
+                    question.種別,
+                    条件=tuple(dict.fromkeys(関係_conditions)),
+                    値状態=値状態.未観測,
+                    由来="共有言語基底P",
+                    暫定性='EN_TO_JA_意味_射影',
+                ),
+            )
 
         if question.反転 and not any(
             str(coord.種別) == "制御.選択意図" and str(coord.内容) == "反転" for coord in coords
