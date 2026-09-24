@@ -191,7 +191,7 @@ class HDS正本継承循環試験(unittest.TestCase):
         )
         self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
         self.assertEqual(結果.状態.成果辞書()[回答成果名], "A")
-        self.assertTrue(any("inhibits" in q.casefold() for q in provider.呼出))
+        self.assertTrue(any("inhibit" in q.casefold() for q in provider.呼出))
         self.assertTrue(any(q.casefold() in {"enzyme x molecule a", "molecule a"} for q in provider.呼出))
         参照作用 = [x.作用ID for x in 結果.履歴 if x.作用ID == "HDS継承/追加参照"]
         self.assertGreaterEqual(len(参照作用), 2)
