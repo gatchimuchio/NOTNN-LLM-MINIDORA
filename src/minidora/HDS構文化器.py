@@ -19,9 +19,26 @@ _節分割 = re.compile(r"(?<=[。！？!?;；])\s*|\n+")
 _語 = re.compile(r"[A-Za-z0-9_+./^%µμΩ°\-]+|[Α-Ωα-ωϐ-Ͽ]+|[ぁ-んァ-ヶー]+|[一-龥々]+")
 _数量 = re.compile(
     r"(?<![A-Za-z0-9_.])"
-    r"(?P<value>[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?(?:/\d+(?:\.\d+)?)?)"
+    r"(?P<value>"
+    r"(?:(?:[-+]?(?:\d+(?:\.\d+)?|\.\d+)\s*(?:[x×*]\s*)?)?10\s*\^\s*\{?\s*[-+]?\d+\s*\}?"
+    r"|[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?(?:/\d+(?:\.\d+)?)?)"
+    r")"
     r"\s*(?P<unit>%|[A-Za-zµμΩ°][A-Za-z0-9µμΩ°/%^+\-]*)?"
 )
+_十冪数量 = re.compile(
+    r"(?P<係数>[-+]?(?:\d+(?:\.\d+)?|\.\d+))?"
+    r"\s*(?:[x×*]\s*)?10\s*\^\s*\{?\s*(?P<指数>[-+]?\d+)\s*\}?\Z"
+)
+
+
+def _数量値を正規化(raw: str) -> str:
+    value = str(raw).strip()
+    match = _十冪数量.fullmatch(value)
+    if match:
+        coefficient = match.group("係数") or "1"
+        exponent = str(int(match.group("指数")))
+        return coefficient + "e" + exponent
+    return re.sub(r"\s+", "", value).lower()
 _記号関係 = re.compile(
     r"(?P<s>[A-Za-zΑ-Ωα-ωϐ-Ͽ0-9_µμΩ.+\-]+)\s*"
     r"(?P<op>->|=>|→|⇒|>=|<=|≥|≤|!=|≠|>|<|=)\s*"
@@ -368,7 +385,7 @@ class 公開HDSコンパイラ:
                 関係を追加(kind, match.group("s"), match.group("v"), match.group("o"), reverse=reverse)
 
         for index, match in enumerate(_数量.finditer(normalized)):
-            value_id = add_coord("値.数量", match.group("value"))
+            value_id = add_coord("値.数量", _数量値を正規化(match.group("value")))
             unit = match.group("unit")
             if unit:
                 unit_id = add_coord("属性.単位", unit)

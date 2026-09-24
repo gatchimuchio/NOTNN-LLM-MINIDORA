@@ -44,6 +44,22 @@ class 公開HDSコンパイラ試験(unittest.TestCase):
         self.assertTrue(any(関係.種別 == "数量単位" for 関係 in ir.関係))
         self.assertTrue(any(coord.種別 == "条件.前提" and "under hypoxia" in str(coord.内容).casefold() for coord in ir.座標))
 
+    def test_十冪科学表記を単一数量へ正規化する(self) -> None:
+        ir = self.構文化器.コンパイル("Lifetime is 10^-9 s, another is 2×10^{-8} s, and concentration is 6.3e-7 M.")
+        values = [str(x.内容) for x in ir.座標 if x.種別 == "値.数量"]
+        self.assertIn("1e-9", values)
+        self.assertIn("2e-8", values)
+        self.assertIn("6.3e-7", values)
+        self.assertNotIn("-9", values)
+        coords = ir.座標辞書()
+        pairs = {
+            str(coords[r.始点[0]].内容): str(coords[r.終点[0]].内容)
+            for r in ir.関係 if r.種別 == "数量単位"
+        }
+        self.assertEqual(pairs["1e-9"], "s")
+        self.assertEqual(pairs["2e-8"], "s")
+        self.assertEqual(pairs["6.3e-7"], "M")
+
     def test_R問い合わせへ構造化された焦点が反映される(self) -> None:
         ir = self.構文化器.問題IR(
             "Which molecule causes apoptosis under hypoxia?",
