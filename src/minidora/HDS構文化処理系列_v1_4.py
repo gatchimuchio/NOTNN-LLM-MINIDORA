@@ -15,6 +15,34 @@ from .言語 import 言語計画
 
 HDSコンパイラパイプライン版 = "v2.0"
 
+_互換除外接頭辞 = ("監査.", "保持.", "暫定性.", "帰還.")
+
+
+def _旧consumer互換意味射影(ir: HDSIR) -> HDSIR:
+    """Kernel正本から旧consumerが扱える意味面だけを射影する。
+
+    意味決定をやり直さず、監査・保持・帰還sidebandだけを除く。
+    関係・残差・意味作用も残存座標へ閉じるため、旧consumerへ未処理監査座標を漏らさない。
+    """
+    座標 = tuple(
+        x for x in ir.座標
+        if not str(x.種別).startswith(_互換除外接頭辞)
+    )
+    ids = {x.座標ID for x in 座標}
+    関係 = tuple(
+        r for r in ir.関係
+        if all(ref in ids for ref in (*r.始点, *r.終点))
+    )
+    残差 = tuple(
+        r for r in ir.残差
+        if not r.影響座標 or any(ref in ids for ref in r.影響座標)
+    )
+    履歴 = tuple(
+        op for op in ir.意味作用履歴
+        if not op.出力参照 or any(ref in ids for ref in op.出力参照)
+    )
+    return replace(ir, 座標=座標, 関係=関係, 残差=残差, 意味作用履歴=履歴)
+
 
 class HDS意味専用計画器:
     """基礎意味フロントエンドから計算計画責任を外すための無作用計画器。"""
@@ -62,8 +90,9 @@ class HDSカーネル束:
     def 互換IR(self) -> HDSIR:
         """旧実行系向け射影。Kernel正本を変更しない。"""
         plan = self.計算計画
+        互換 = _旧consumer互換意味射影(self.意味IR)
         return replace(
-            self.意味IR,
+            互換,
             実行核=HDS実行核(
                 plan.種別,
                 (),
