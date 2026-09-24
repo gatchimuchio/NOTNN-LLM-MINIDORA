@@ -62,16 +62,16 @@ class _一般HitProvider:
 
 
 class HDS参照観測要求試験(unittest.TestCase):
-    def test_外部検索文脈はCompilerが明示anchorとして保持する(self) -> None:
+    def test_外部検索文脈は構文化器が明示アンカーとして保持する(self) -> None:
         ir = _関係質問()
         requests = HDS参照観測要求群(ir)
-        relation = [x for x in requests if x.関係ID == "question" and x.段階 == "primary"]
-        self.assertTrue(relation)
-        self.assertTrue(all("molecule causes apoptosis under hypoxia" in x.外部文脈アンカー for x in relation))
+        関係要求群 = [x for x in requests if x.関係ID == "question" and x.段階 == "primary"]
+        self.assertTrue(関係要求群)
+        self.assertTrue(all("molecule causes apoptosis under hypoxia" in x.外部文脈アンカー for x in 関係要求群))
         self.assertTrue(all("molecule causes apoptosis under hypoxia" in x.外部検索表層.casefold() for x in relation))
         self.assertTrue(any(x.ID.startswith("検索表層:") and x.外部検索表層 == "molecule causes apoptosis under hypoxia" for x in requests))
 
-    def test_複数関係を全保持しscopeを関係局所化する(self) -> None:
+    def test_複数関係を全保持し条件範囲を関係局所化する(self) -> None:
         ir = HDSIR(
             原文="synthetic",
             正規化文="synthetic",
@@ -128,7 +128,7 @@ class HDS参照観測要求試験(unittest.TestCase):
         self.assertTrue(all(x.段階 == "fallback" for x in requests))
         self.assertFalse(any(" match " in f" {x.外部検索表層.casefold()} " for x in requests))
 
-    def test_一般1件hitでも必須観測未被覆ならfallbackする(self) -> None:
+    def test_一般1件hitでも必須観測未被覆なら縮退する(self) -> None:
         provider = _一般HitProvider()
         ir = _関係質問()
         requests = HDS参照観測要求群(ir)
@@ -143,8 +143,8 @@ class HDS参照観測要求試験(unittest.TestCase):
         queries = HDS参照問合せ候補(_関係質問())
         self.assertEqual(len(queries), 6)
         lowered = tuple(x.casefold() for x in queries)
-        for candidate in ("protein a", "protein b", "protein c", "protein d"):
-            self.assertTrue(any(candidate in query and "causes apoptosis under hypoxia" in query for query in lowered))
+        for 候補 in ("protein a", "protein b", "protein c", "protein d"):
+            self.assertTrue(any(候補 in query and "causes apoptosis under hypoxia" in query for query in lowered))
         self.assertIn("molecule causes apoptosis under hypoxia", lowered)
 
 
