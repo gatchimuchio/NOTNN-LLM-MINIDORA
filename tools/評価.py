@@ -383,8 +383,13 @@ def _run_gpqa(args: argparse.Namespace) -> int:
             print(f"CASE {index + 1:03d}/198 resume=skip", flush=True)
             continue
         question, choices, gold = cases[index]
-        question_ir = 構文化器.問題IR(question, choices)
-        references = gpqa.HDS参照検索(provider, question_ir)
+        kernel = 構文化器.問題コンパイル束(question, choices)
+        question_ir = kernel.意味IR
+        references = gpqa.HDS参照検索(
+            provider,
+            question_ir,
+            観測要求=kernel.参照観測要求,
+        )
 
         baseline = None
         if args.controlled_ab:
