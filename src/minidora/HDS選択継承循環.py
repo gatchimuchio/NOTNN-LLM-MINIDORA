@@ -172,7 +172,7 @@ class HDS選択継承供給:
             residuals=_選択残差(結果,refs)
             if self._計算計画() is not None and not bool(values.get(計算済み成果名,False)): residuals=frozenset((*residuals,残差_計算要求))
             return HDS作用結果(HDS作用状態.成立,解消残差=frozenset(set(選択解消).difference(residuals)),追加残差=frozenset(set(residuals).difference(s.残差)),成果=tuple(成果群),主体状態差分=基準差分,理由=tuple(dict.fromkeys(("HDS_SELECTION_NOT_CLOSED",*tuple(結果.理由)))))
-        return HDS関数作用("HDS継承/模型再評価",実行,出力状態=(選択閉包状態,),解消対象=tuple(sorted(選択残差集合|self.入力残差非阻害対象)),資源負荷=2,優先度=10.0,読取成果=(参照成果名,),入力署名=lambda s:_参照署名(self._参照(s)),契約版=HDS選択継承循環版,作用定義ID="HDS継承/模型再評価")
+        return HDS関数作用("HDS継承/模型再評価",実行,解消対象=tuple(sorted(選択残差集合|self.入力残差非阻害対象)),資源負荷=2,優先度=10.0,読取成果=(参照成果名,),入力署名=lambda s:_参照署名(self._参照(s)),契約版=HDS選択継承循環版,作用定義ID="HDS継承/模型再評価")
 
     def _計算計画(self):
         if self.計算実行器 is None: return None
