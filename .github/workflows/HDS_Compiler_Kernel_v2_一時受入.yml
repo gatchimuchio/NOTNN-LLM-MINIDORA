@@ -62,3 +62,5 @@ jobs:
             tests.test_HDS自律接続_v3
 
 # rerun after sideband and relation dedupe
+
+# rerun after kernel contract test migration
