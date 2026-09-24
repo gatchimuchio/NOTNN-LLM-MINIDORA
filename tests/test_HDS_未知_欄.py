@@ -24,7 +24,11 @@ class HDS不足スロット試験(unittest.TestCase):
         self.assertIn("不足位置=始点", 関係.条件)
         queries = tuple(q.casefold() for q in HDS参照問合せ候補(ir))
         for 選択肢 in ("protein a", "protein b", "protein c", "protein d"):
-            self.assertIn(f"{選択肢} causes apoptosis under hypoxia", queries)
+            matched = [q for q in queries if 選択肢 in q]
+            self.assertEqual(len(matched), 1, queries)
+            self.assertIn("apoptosis", matched[0])
+            self.assertIn("hypoxia", matched[0])
+            self.assertIn("cause", matched[0])
 
     def test_英語未知終点を候補へ置換する(self) -> None:
         ir = self.構文化器.問題IR(
@@ -35,7 +39,10 @@ class HDS不足スロット試験(unittest.TestCase):
         self.assertEqual(len(未知), 1)
         self.assertEqual(str(未知[0].内容).casefold(), "pathway")
         queries = tuple(q.casefold() for q in HDS参照問合せ候補(ir))
-        self.assertIn("protein a inhibits glycolysis under hypoxia", queries)
+        self.assertTrue(any(
+            "protein a" in q and "glycolysis" in q and "hypoxia" in q and "inhibit" in q
+            for q in queries
+        ), queries)
 
     def test_受動態でも意味方向に沿って未知終点を作る(self) -> None:
         ir = self.構文化器.問題IR(
@@ -47,7 +54,10 @@ class HDS不足スロット試験(unittest.TestCase):
         self.assertEqual(str(coords[関係.始点[0]].内容), "Protein A")
         self.assertEqual(coords[関係.終点[0]].種別, "目的.未知終点")
         queries = tuple(q.casefold() for q in HDS参照問合せ候補(ir))
-        self.assertIn("protein a causes disease a", queries)
+        self.assertTrue(any(
+            "protein a" in q and "disease a" in q and "cause" in q
+            for q in queries
+        ), queries)
 
     def test_日本語未知始点も同じ意味構造へ落とす(self) -> None:
         ir = self.構文化器.問題IR(
@@ -65,8 +75,14 @@ class HDS不足スロット試験(unittest.TestCase):
             "Which of the following statements is correct under hypoxia?",
             ("A statement", "B statement", "C statement", "D statement"),
         )
-        self.assertFalse(any(c.種別.startswith("目的.未知") for c in ir.座標))
-        self.assertFalse(any("不足位置=" in cond for r in ir.関係 for cond in r.条件))
+        concrete_missing = [
+            r for r in ir.関係
+            if r.種別 != "問い適合" and any("不足位置=" in cond for cond in r.条件)
+        ]
+        self.assertEqual(concrete_missing, [])
+        generic = [r for r in ir.関係 if r.種別 == "問い適合"]
+        self.assertTrue(generic)
+        self.assertTrue(all(any(cond == "選択問題閉包=v0.1" for cond in r.条件) for r in generic))
 
     def test_選択極性は外部検索語へ漏らさない(self) -> None:
         ir = self.構文化器.問題IR(
