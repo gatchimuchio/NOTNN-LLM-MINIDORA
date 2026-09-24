@@ -27,6 +27,23 @@ class HDS数量計算契約試験(unittest.TestCase):
         self.assertTrue(any(x.値 == "1e-9" and "s" in x.単位 for x in 契約.問い数量))
         self.assertEqual(set(契約.候補被覆ラベル), set("ABCD"))
 
+    def test_法則不足は問題文そのものを法則観測へ追加する(self) -> None:
+        問い = "A state has lifetime 1e-9 s. Which energy difference is resolvable?"
+        束 = self.構文化器.問題コンパイル束(
+            問い,
+            ("1e-9 eV", "1e-6 eV", "1e-3 eV", "1 eV"),
+        )
+        法則 = [x for x in 束.参照観測要求 if x.ID == "数量法則:0"]
+        self.assertEqual(len(法則), 1)
+        self.assertEqual(法則[0].外部検索表層, 問い)
+        self.assertEqual(法則[0].関係種別, "数量計算法則")
+        self.assertEqual(法則[0].段階, "primary")
+        self.assertFalse(法則[0].必須被覆)
+
+    def test_実行可能算術には法則観測を追加しない(self) -> None:
+        束 = self.構文化器.コンパイル束("2+3")
+        self.assertFalse(any(x.ID == "数量法則:0" for x in 束.参照観測要求))
+
     def test_非数量問題は非数量のままにする(self) -> None:
         束 = self.構文化器.問題コンパイル束(
             "Which molecule inhibits Enzyme X?",

@@ -32,7 +32,7 @@ from .HDSコア入力 import HDSコア入力束
 from .HDSコア入力射影 import HDSコア入力へ
 from .HDS観測計画 import HDS参照観測要求群
 from .HDS候補検証契約 import HDS候補検証契約群
-from .HDS数量計算契約 import HDS数量計算契約を形成
+from .HDS数量計算契約 import HDS数量計算契約を形成, HDS数量法則観測要求群
 from .HDS言語協調 import HDS英語AND展開
 from .HDS言語関係 import HDS英語基底関係射影
 from .HDS言語範囲 import HDS英語関係範囲射影
@@ -151,14 +151,15 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         意味_ir = replace(detailed.IR, 手順=None, 初期状態={})
         detailed = replace(detailed, IR=意味_ir)
         コア入力 = HDSコア入力へ(意味_ir)
-        観測要求 = HDS参照観測要求群(意味_ir)
+        数量契約 = HDS数量計算契約を形成(意味_ir, None, plan)
+        観測要求 = tuple((*HDS数量法則観測要求群(意味_ir, 数量契約), *HDS参照観測要求群(意味_ir)))
         return HDSコンパイル束(
             意味IR=意味_ir,
             計算計画=plan,
             コア入力=コア入力,
             参照観測要求=観測要求,
             候補検証契約=HDS候補検証契約群(意味_ir, 観測要求),
-            数量計算契約=HDS数量計算契約を形成(意味_ir, None, plan),
+            数量計算契約=数量契約,
             失敗署名候補=detailed.失敗署名候補,
             チェックリスト=detailed.チェックリスト,
             認知世界差分=detailed.認知世界差分,
@@ -278,17 +279,18 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         base, plan = self._問題基礎(question, choices)
         detailed = self._完成(base)
         ir = self._選択問題問い閉包(replace(detailed.IR, 手順=None, 初期状態={}), question)
-        観測要求 = HDS参照観測要求群(ir)
         候補意味IR = tuple(
             (chr(ord("A") + index), self._意味束(str(text))[0].意味IR)
             for index, text in enumerate(choices)
         )
+        数量契約 = HDS数量計算契約を形成(ir, dict(候補意味IR), plan)
+        観測要求 = tuple((*HDS数量法則観測要求群(ir, 数量契約), *HDS参照観測要求群(ir)))
         return HDS選択コンパイル束(
             意味IR=ir, 計算計画=plan, コア入力=HDSコア入力へ(ir),
             参照観測要求=観測要求,
             候補意味IR=候補意味IR,
             候補検証契約=HDS候補検証契約群(ir, 観測要求),
-            数量計算契約=HDS数量計算契約を形成(ir, dict(候補意味IR), plan),
+            数量計算契約=数量契約,
             失敗署名候補=detailed.失敗署名候補,
             チェックリスト=detailed.チェックリスト,
             認知世界差分=detailed.認知世界差分,

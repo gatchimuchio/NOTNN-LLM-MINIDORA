@@ -5,6 +5,7 @@ from typing import Mapping
 
 from .HDS中間表現 import HDSIR, 値状態
 from .言語 import 言語計画
+from .HDS観測計画 import HDS参照観測要求
 
 
 _阻害状態 = frozenset({値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保})
@@ -114,6 +115,44 @@ def _明示関係群(ir: HDSIR) -> tuple[HDS明示数量関係, ...]:
     return tuple(out)
 
 
+def HDS数量法則観測要求群(
+    問いIR: HDSIR,
+    契約: HDS数量計算契約,
+) -> tuple[HDS参照観測要求, ...]:
+    """法則不足の数量問題だけ、問題文そのものを法則観測へ降下する。
+
+    候補値・専門式・分野知識をquery側で推測しない。問題文はCompiler入力の保持表層として
+    利用し、下流Rで再解釈しない。
+    """
+
+    if 契約.状態 != "法則不足":
+        return ()
+    surface = " ".join(str(問いIR.原文).split()).strip()
+    if not surface:
+        return ()
+    known = tuple(dict.fromkeys(
+        tuple(x.値 for x in 契約.問い数量)
+        + tuple(unit for x in 契約.問い数量 for unit in x.単位)
+    ))
+    return (HDS参照観測要求(
+        ID="数量法則:0",
+        関係ID=None,
+        関係種別="数量計算法則",
+        未知位置=None,
+        既知端点=known,
+        条件範囲=(),
+        候補ラベル=None,
+        候補表層=None,
+        外部言語=str(問いIR.入力言語 or "ja"),
+        外部検索表層=surface,
+        必須被覆=False,
+        外部文脈アンカー=(surface,),
+        段階="primary",
+        優先度=5,
+        provenance=("数量計算契約", "計算法則不足"),
+    ),)
+
+
 def HDS数量計算契約を形成(
     問いIR: HDSIR,
     候補意味IR: Mapping[str, HDSIR] | None,
@@ -166,5 +205,6 @@ __all__ = [
     "HDS数量値",
     "HDS明示数量関係",
     "HDS数量計算契約",
+    "HDS数量法則観測要求群",
     "HDS数量計算契約を形成",
 ]
