@@ -4,6 +4,8 @@
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from .コア.値 import 署名
 from .HDSコア要求抽出 import 明示作用要求を抽出
 from .HDSコア入力 import (
@@ -13,6 +15,13 @@ from .HDSコア入力 import (
 )
 
 _監査接頭辞 = ("監査.", "保持.", "暫定性.", "帰還.")
+_関係メタ鍵群 = frozenset({
+    "検索述語", "不足位置", "英日意味射影", "受動態", "選択意図", "選択問題閉包", "由来",
+})
+
+
+def _条件内容キー(値: object) -> str:
+    return " ".join(str(値).split()).casefold()
 
 
 def _状態名(値) -> str:
@@ -64,6 +73,9 @@ def HDSコア入力へ(IR) -> HDSコア入力束:
             由来=項目.由来,
             原文範囲=項目.原文範囲,
         ))
+    条件内容索引: dict[str, list[str]] = {}
+    for 項目 in 条件:
+        条件内容索引.setdefault(_条件内容キー(項目.内容), []).append(項目.ID)
 
     関係 = []
     追加残差 = []
@@ -93,17 +105,37 @@ def HDSコア入力へ(IR) -> HDSコア入力束:
             ))
             continue
         # HDS関係.条件には検索述語・不足位置など構文化/照合用メタデータが含まれる。
-        # これを意味条件へ昇格せず、関係制約として分離保持する。
+        # メタは制約として保持し、既に構文化済みの条件座標と一致する意味条件だけを明示bindingする。
+        制約 = tuple(str(x) for x in getattr(関係元, "条件", ()))
+        関係条件ID: list[str] = []
+        for raw in 制約:
+            鍵, 区切り, 値 = str(raw).partition("=")
+            鍵, 値 = 鍵.strip(), 値.strip()
+            if not 区切り or not 値 or 鍵 in _関係メタ鍵群:
+                continue
+            for 条件ID in 条件内容索引.get(_条件内容キー(値), ()):
+                if 条件ID not in 関係条件ID:
+                    関係条件ID.append(条件ID)
         関係.append(HDSコア関係(
             ID=関係ID,
             始点=始点,
             終点=終点,
             種別=str(getattr(関係元, "種別")),
-            条件ID=(),
-            制約=tuple(str(x) for x in getattr(関係元, "条件", ())),
+            条件ID=tuple(関係条件ID),
+            制約=制約,
             状態=_状態名(getattr(関係元, "値状態")),
             由来=str(getattr(関係元, "由来", "自然言語入力")),
         ))
+
+    条件適用先: dict[str, list[str]] = {x.ID: [] for x in 条件}
+    for 関係項 in 関係:
+        for 条件ID in 関係項.条件ID:
+            if 条件ID in 条件適用先 and 関係項.ID not in 条件適用先[条件ID]:
+                条件適用先[条件ID].append(関係項.ID)
+    条件 = [
+        replace(項目, 適用先=tuple(条件適用先[項目.ID]))
+        for 項目 in 条件
+    ]
 
     目的 = []
     for 項目 in 意味項目:
@@ -182,6 +214,7 @@ def HDSコア入力へ(IR) -> HDSコア入力束:
         IR.原文, IR.認知世界ID,
         tuple((x.ID, x.種別, x.内容, x.状態, x.由来, x.原文範囲) for x in 意味項目),
         tuple((x.ID, x.始点, x.終点, x.種別, x.条件ID, x.制約, x.状態, x.由来) for x in 関係),
+        tuple((x.ID, x.種別, x.内容, x.適用先) for x in 条件),
         tuple((x.ID, x.種別, x.理由, x.影響参照, x.解消条件) for x in 残差),
         tuple((x.ID, x.種別, x.値, x.原文範囲) for x in 実行制約),
         tuple((x.ID, x.種別, x.値, x.原文範囲) for x in 表現要求),
