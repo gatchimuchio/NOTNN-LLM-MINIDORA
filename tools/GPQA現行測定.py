@@ -114,8 +114,13 @@ def main() -> int:
         details: list[dict[str, object]] = []
 
         for index, (question, choices, gold) in enumerate(cases):
-            question_ir = 構文化器.問題IR(question, choices)
-            references = HDS参照検索(provider, question_ir)
+            kernel = 構文化器.問題コンパイル束(question, choices)
+            question_ir = kernel.意味IR
+            references = HDS参照検索(
+                provider,
+                question_ir,
+                観測要求=kernel.参照観測要求,
+            )
             if not references:
                 取得_empty += 1
             docs_total += len(references)
