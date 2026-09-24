@@ -9,7 +9,7 @@ from .HDS観測計画 import HDS追加観測要求群
 from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
 from .HDS非退行包絡 import HDS非退行包絡, HDS証拠優越包絡
 from .HDS既存能力継承 import HDS既存能力結果証明済み, HDS既存能力選択評価, HDS既存能力直接反証評価
-from .hds参照拡張 import HDS候補被覆優先統合, HDS追加参照検索
+from .hds参照拡張 import HDS候補被覆優先統合, HDS追加参照統合上限, HDS追加参照検索
 from .参照 import 参照供給器, 参照記録
 from .模型 import MINIDORA模型核
 from .能力状態差循環 import 標準能力模型核
@@ -210,7 +210,8 @@ class HDS選択継承供給:
                 self.参照供給器,self.質問IR,段階=level,
                 観測要求=self.参照観測要求,残差群=s.残差,
             )
-            merged=HDS候補被覆優先統合(refs,observed,self.選択肢,max(len(refs),len(observed)))
+            統合上限=HDS追加参照統合上限(len(refs),len(observed))
+            merged=HDS候補被覆優先統合(refs,observed,self.選択肢,統合上限)
             before=tuple((x.識別子,x.条件) for x in refs); after=tuple((x.識別子,x.条件) for x in merged); 解消=frozenset(set(s.残差).intersection(回復可能残差))
             if after==before:
                 if 残差_基準反証検証 in s.残差:

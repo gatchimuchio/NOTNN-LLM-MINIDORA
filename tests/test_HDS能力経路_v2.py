@@ -4,6 +4,7 @@ import unittest
 
 from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標
 from minidora.HDS参照 import HDS参照問合せ候補
+from minidora.hds参照拡張 import HDS追加参照統合上限
 from minidora.hds能力経路_v2 import (
     HDS参照検索V2,
     HDS局所観測view,
@@ -76,6 +77,12 @@ class _CoverageProvider:
 
 
 class HDS能力経路V2試験(unittest.TestCase):
+    def test_追加参照統合は少数新規資料の格納余地を確保する(self) -> None:
+        self.assertEqual(HDS追加参照統合上限(16, 4), 20)
+        self.assertEqual(HDS追加参照統合上限(16, 16), 32)
+        self.assertEqual(HDS追加参照統合上限(32, 4), 32)
+        self.assertEqual(HDS追加参照統合上限(0, 1), 1)
+
     def test_generic主検索だけでは候補被覆を閉じない(self) -> None:
         provider = _CoverageProvider()
         records = HDS参照検索V2(provider, _ir(), 上限=4, 一問合せ上限=1, 最大問合せ並列=1)

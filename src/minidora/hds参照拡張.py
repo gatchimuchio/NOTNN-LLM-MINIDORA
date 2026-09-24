@@ -10,6 +10,15 @@ from .参照 import 参照供給器, 参照記録
 def _候補ラベル群(record: 参照記録) -> frozenset[str]:
     return frozenset(str(value) for key,value in record.条件 if str(key)=='hds_query_選択肢' and str(value))
 
+def HDS追加参照統合上限(既存件数: int, 追加件数: int, 最大件数: int = 32) -> int:
+    """追加観測で得た少数資料も捨てず、全体件数だけを上限内へ閉じる。"""
+    for 名, 値 in (("既存件数",既存件数),("追加件数",追加件数),("最大件数",最大件数)):
+        if type(値) is not int or 値 < 0:
+            raise ValueError(名 + "は0以上の整数である必要がある")
+    if 最大件数 == 0:
+        return 0
+    return min(最大件数, 既存件数 + 追加件数)
+
 def HDS候補被覆優先統合(primary: Iterable[参照記録], extra: Iterable[参照記録], expected_labels: Iterable[str], limit: int) -> tuple[参照記録,...]:
     total_limit=max(0,int(limit))
     if total_limit<=0: return ()
@@ -76,4 +85,4 @@ def HDS追加参照検索(provider: 参照供給器, ir: HDSIR, *, 段階: int=1
         total_limit,
     )
 
-__all__=["HDS候補被覆優先統合","HDS参照検索強化","HDS追加参照検索"]
+__all__=["HDS候補被覆優先統合","HDS追加参照統合上限","HDS参照検索強化","HDS追加参照検索"]
