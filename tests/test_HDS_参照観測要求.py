@@ -139,7 +139,7 @@ class HDS参照観測要求試験(unittest.TestCase):
         self.assertIn(("hds_observation_id", "関係:question:候補:A"), conditions["fallback:a"])
         self.assertIn(("hds_observation_id", "関係:question:候補:B"), conditions["fallback:b"])
 
-    def test_追加観測は局所検証から始めprimaryを再発行しない(self) -> None:
+    def test_追加観測は局所検証から始めprimaryを初期には再発行しない(self) -> None:
         ir = _関係質問()
         requests = HDS参照観測要求群(ir)
         local = HDS追加観測要求群(
@@ -186,19 +186,24 @@ class HDS参照観測要求試験(unittest.TestCase):
         self.assertTrue(planned)
         self.assertTrue(planned[0].ID.startswith("監査表層:"))
 
-    def test_追加観測は同じ観測層を世代間で再実行しない(self) -> None:
+    def test_追加観測は各層を一度だけ通り最後にprimaryを一回だけ再観測する(self) -> None:
         requests = HDS参照観測要求群(_関係質問())
-        第一 = HDS追加観測要求群(requests, 残差群=("HDS選択:観測不足",), 世代=1)
-        第二 = HDS追加観測要求群(requests, 残差群=("HDS選択:観測不足",), 世代=2)
-        第三 = HDS追加観測要求群(requests, 残差群=("HDS選択:観測不足",), 世代=3)
-        第四 = HDS追加観測要求群(requests, 残差群=("HDS選択:観測不足",), 世代=4)
-        第一表層 = {x.外部検索表層.casefold() for x in 第一}
-        第二表層 = {x.外部検索表層.casefold() for x in 第二}
-        第三表層 = {x.外部検索表層.casefold() for x in 第三}
-        self.assertFalse(第一表層 & 第二表層)
-        self.assertFalse(第一表層 & 第三表層)
-        self.assertFalse(第二表層 & 第三表層)
-        self.assertEqual(第四, ())
+        計画群 = [
+            HDS追加観測要求群(requests, 残差群=("HDS選択:観測不足",), 世代=世代)
+            for 世代 in range(1, 8)
+        ]
+        有効 = [群 for 群 in 計画群 if 群]
+        self.assertGreaterEqual(len(有効), 3)
+        self.assertTrue(all(all(x.段階 == "fallback" for x in 群) for 群 in 有効[:-1]))
+        self.assertTrue(all(x.段階 == "primary" for x in 有効[-1]))
+        self.assertEqual(計画群[len(有効)], ())
+        層署名 = [
+            {(x.ID, x.段階, x.外部検索表層.casefold()) for x in 群}
+            for 群 in 有効
+        ]
+        for index, 左 in enumerate(層署名):
+            for 右 in 層署名[index+1:]:
+                self.assertFalse(左 & 右)
 
     def test_既存単関係六query契約を維持する(self) -> None:
         queries = HDS参照問合せ候補(_関係質問())

@@ -32,6 +32,20 @@ class 固定追加参照:
         return self.記録群[:上限]
 
 
+class 第二層追加参照:
+    名称 = "第二層試験追加参照"
+
+    def __init__(self):
+        self.呼出: list[str] = []
+
+    def 検索(self, 問合せ, 上限=8):
+        query = " ".join(str(問合せ).split())
+        self.呼出.append(query)
+        if query.casefold() in {"enzyme x molecule a", "molecule a"}:
+            return (証拠("Molecule A", 識別子="second-layer"),)
+        return ()
+
+
 def 証拠(主体: str, *, 否定: bool = False, 識別子: str = "r1"):
     本文 = f"{主体} {'does not inhibit' if 否定 else 'inhibits'} Enzyme X."
     return 参照記録(
@@ -167,6 +181,21 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual(結果.状態.主体辞書()[基準結果主体名].回答ラベル, "A")
         self.assertEqual(成果[回答成果名], "B")
         self.assertTrue(成果[非退行判定成果名].拡張採用)
+
+    def test_第一観測層が0件でも第二層へ進んで回復する(self):
+        provider = 第二層追加参照()
+        結果 = self.コア.選択実行(
+            self.問い,
+            self.選択肢,
+            初期参照=(),
+            参照供給器=provider,
+        )
+        self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
+        self.assertEqual(結果.状態.成果辞書()[回答成果名], "A")
+        self.assertTrue(any("inhibits" in q.casefold() for q in provider.呼出))
+        self.assertTrue(any(q.casefold() in {"enzyme x molecule a", "molecule a"} for q in provider.呼出))
+        参照作用 = [x.作用ID for x in 結果.履歴 if x.作用ID == "HDS継承/追加参照"]
+        self.assertGreaterEqual(len(参照作用), 2)
 
     def test_未閉包は追加参照して再評価し閉包(self):
         provider = 固定追加参照((証拠("Molecule A", 識別子="extra"),))

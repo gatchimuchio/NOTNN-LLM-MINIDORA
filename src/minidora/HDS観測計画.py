@@ -491,14 +491,15 @@ def HDS追加観測要求群(
 ) -> tuple[HDS参照観測要求, ...]:
     """形成済みKernel観測要求から、追加Rで次に見る観測だけを段階選択する。
 
-    原文や意味IRを再解釈しない。初期primaryを再実行せず、
-    局所検証 → 縮退 → 監査/反証の順に観測面を変える。
+    原文や意味IRを再解釈しない。初期primaryを世代ごとに反復せず、
+    局所検証 → 縮退 → 監査/反証 → その他 → primary最終再観測1回の順に観測面を変える。
     候補競合・候補識別不足では第2世代から監査/反証を優先する。
     """
 
     requests = tuple(観測要求)
     縮退要求群 = tuple(x for x in requests if x.段階 == "fallback")
-    if not 縮退要求群:
+    primary要求群 = tuple(x for x in requests if x.段階 == "primary")
+    if not 縮退要求群 and not primary要求群:
         return ()
 
     局所 = tuple(x for x in 縮退要求群 if "局所検証" in x.provenance)
@@ -513,7 +514,7 @@ def HDS追加観測要求群(
     residuals = tuple(str(x) for x in 残差群)
     conflict = any("候補競合" in x or "候補識別不足" in x for x in residuals)
 
-    優先層 = [局所, 監査, 縮退, その他] if conflict else [局所, 縮退, 監査, その他]
+    優先層 = [局所, 監査, 縮退, その他, primary要求群] if conflict else [局所, 縮退, 監査, その他, primary要求群]
     有効層 = [層 for 層 in 優先層 if 層]
     層番号 = generation - 1
     if 層番号 >= len(有効層):

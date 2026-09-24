@@ -5,6 +5,7 @@ from typing import Callable, Sequence
 
 from .HDS実行主体 import HDS実行状態, HDS作用結果, HDS作用状態, HDS関数作用
 from .HDS構文化処理系列_v1_4 import HDSカーネル束
+from .HDS観測計画 import HDS追加観測要求群
 from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
 from .HDS非退行包絡 import HDS非退行包絡, HDS証拠優越包絡
 from .HDS既存能力継承 import HDS既存能力結果証明済み, HDS既存能力選択評価, HDS既存能力直接反証評価
@@ -222,6 +223,16 @@ class HDS選択継承供給:
                             成果=((参照世代成果名,level),(回答成果名,基準.回答ラベル)),
                             理由=("HDS_BASELINE_REVERIFY_NO_NEW_EVIDENCE",),
                         )
+                次層 = (
+                    HDS追加観測要求群(self.参照観測要求, 残差群=s.残差, 世代=level+1)
+                    if level < self.設定.最大回復回数 else ()
+                )
+                if 次層:
+                    return HDS作用結果(
+                        HDS作用状態.成立,
+                        成果=((参照世代成果名,level),),
+                        理由=("HDS_INHERITED_REFERENCE_LAYER_NO_PROGRESS_CONTINUE",f"世代:{level}"),
+                    )
                 return HDS作用結果(HDS作用状態.成立,解消残差=解消,追加残差=frozenset({残差_観測無進展}),成果=((参照世代成果名,level),),理由=("HDS_INHERITED_REFERENCE_NO_PROGRESS",))
             return HDS作用結果(HDS作用状態.成立,解消残差=解消,成果=((参照成果名,tuple(merged)),(参照世代成果名,level)),理由=("HDS_INHERITED_REFERENCE_EXPANDED",f"世代:{level}",f"件数:{len(merged)}"))
         return HDS関数作用("HDS継承/追加参照",実行,解消対象=tuple(sorted(回復可能残差)),資源負荷=4,優先度=6.0,読取成果=(参照成果名,参照世代成果名),入力署名=lambda s:_署名((_参照署名(self._参照(s)),int(self._成果(s).get(参照世代成果名,0)))),契約版=HDS選択継承循環版,作用定義ID="HDS継承/追加参照")
