@@ -68,7 +68,7 @@ class HDSカーネル束:
                 plan.種別,
                 (),
                 "結果",
-                境界=("HDS-IR", "日本語基底", "Kernel互換橋"),
+                境界=("HDS-IR", "日本語基底", "互換橋", "Kernel互換橋"),
                 検証=("公開構文化器", "Compiler Kernelからの一方向射影"),
             ),
             初期状態=dict(plan.初期状態),
