@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
-from minidora.HDS観測計画 import HDS参照観測要求群
+from minidora.HDS観測計画 import HDS参照観測要求群, HDS追加観測要求群
 from minidora.HDS参照 import HDS参照問合せ候補, HDS参照検索
 from minidora.参照 import 参照記録
 
@@ -138,6 +138,53 @@ class HDS参照観測要求試験(unittest.TestCase):
         conditions = {record.識別子: set(record.条件) for record in records}
         self.assertIn(("hds_observation_id", "関係:question:候補:A"), conditions["fallback:a"])
         self.assertIn(("hds_observation_id", "関係:question:候補:B"), conditions["fallback:b"])
+
+    def test_追加観測は局所検証から始めprimaryを再発行しない(self) -> None:
+        ir = _関係質問()
+        requests = HDS参照観測要求群(ir)
+        local = HDS追加観測要求群(
+            requests,
+            残差群=("HDS選択:観測不足",),
+            世代=1,
+        )
+        self.assertTrue(local)
+        self.assertTrue(all(x.段階 == "fallback" for x in local))
+        self.assertTrue(all("局所検証" in x.provenance for x in local))
+        self.assertFalse(any(x.段階 == "primary" for x in local))
+        surfaces = tuple(x.外部検索表層.casefold() for x in local)
+        self.assertIn("protein a causes apoptosis under hypoxia", surfaces)
+        self.assertNotIn(
+            "molecule causes apoptosis under hypoxia protein a causes apoptosis under hypoxia",
+            surfaces,
+        )
+
+    def test_候補競合の第二世代は監査観測を先行する(self) -> None:
+        ir = _関係質問()
+        requests = list(HDS参照観測要求群(ir))
+        requests.append(type(requests[0])(
+            ID="監査表層:test",
+            関係ID=None,
+            関係種別=None,
+            未知位置=None,
+            既知端点=(),
+            条件範囲=(),
+            候補ラベル=None,
+            候補表層=None,
+            外部言語="en",
+            外部検索表層="apoptosis failure conditions",
+            必須被覆=False,
+            外部文脈アンカー=(),
+            段階="fallback",
+            優先度=80,
+            provenance=("監査.R_query",),
+        ))
+        planned = HDS追加観測要求群(
+            tuple(requests),
+            残差群=("HDS選択:候補競合",),
+            世代=2,
+        )
+        self.assertTrue(planned)
+        self.assertTrue(planned[0].ID.startswith("監査表層:"))
 
     def test_既存単関係六query契約を維持する(self) -> None:
         queries = HDS参照問合せ候補(_関係質問())
