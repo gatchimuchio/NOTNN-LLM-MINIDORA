@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Iterable
 
 from .HDS中間表現 import HDSIR, HDS関係, 値状態
@@ -343,6 +343,24 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
                 優先度=基礎優先度 + 1,
                 provenance=(f"関係:{関係.関係ID}", f"候補:{label}", "Compiler外部文脈"),
             ))
+            if 候補 and local_surface and local_surface.casefold() != surface.casefold():
+                requests.append(HDS参照観測要求(
+                    ID=observation_id,
+                    関係ID=str(関係.関係ID),
+                    関係種別=str(関係.種別),
+                    未知位置=position,
+                    既知端点=known,
+                    条件範囲=条件範囲,
+                    候補ラベル=label,
+                    候補表層=候補,
+                    外部言語=外部言語名,
+                    外部検索表層=local_surface,
+                    必須被覆=True,
+                    外部文脈アンカー=(),
+                    段階="fallback",
+                    優先度=基礎優先度 + 10,
+                    provenance=(f"関係:{関係.関係ID}", f"候補:{label}", "局所検証"),
+                ))
             if 候補:
                 縮退表層群 = (
                     " ".join(_unique((*known, 候補))),
@@ -465,4 +483,52 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
     return tuple(out)
 
 
-__all__ = ["HDS参照観測要求", "HDS参照観測要求群"]
+def HDS追加観測要求群(
+    観測要求: Iterable[HDS参照観測要求],
+    *,
+    残差群: Iterable[str] = (),
+    世代: int = 1,
+) -> tuple[HDS参照観測要求, ...]:
+    """形成済みKernel観測要求から、追加Rで次に見る観測だけを段階選択する。
+
+    原文や意味IRを再解釈しない。初期primaryを再実行せず、
+    局所検証 → 縮退 → 監査/反証の順に観測面を変える。
+    候補競合・候補識別不足では第2世代から監査/反証を優先する。
+    """
+
+    requests = tuple(観測要求)
+    fallback = tuple(x for x in requests if x.段階 == "fallback")
+    if not fallback:
+        return ()
+
+    局所 = tuple(x for x in fallback if "局所検証" in x.provenance)
+    監査 = tuple(
+        x for x in fallback
+        if x.ID.startswith("監査表層:") or "監査.R_query" in x.provenance
+    )
+    縮退 = tuple(x for x in fallback if "縮退" in x.provenance)
+    その他 = tuple(x for x in fallback if x not in 局所 and x not in 監査 and x not in 縮退)
+
+    generation = max(1, int(世代))
+    residuals = tuple(str(x) for x in 残差群)
+    conflict = any("候補競合" in x or "候補識別不足" in x for x in residuals)
+
+    if generation == 1:
+        selected = 局所 or 縮退 or その他 or 監査
+    elif generation == 2:
+        selected = ((*監査, *縮退) if conflict else (*縮退, *監査)) or その他 or 局所
+    else:
+        selected = (*監査, *その他, *縮退, *局所)
+
+    out: list[HDS参照観測要求] = []
+    seen: set[tuple[str, str]] = set()
+    for request in selected:
+        key = (request.ID, request.外部検索表層.casefold())
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(request)
+    return tuple(out)
+
+
+__all__ = ["HDS参照観測要求", "HDS参照観測要求群", "HDS追加観測要求群"]
