@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 
 from minidora.HDSコア入力 import HDSコア入力束
+from minidora.HDSコア入力射影 import HDSコア入力へ
+from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係
 from minidora.HDS適合器 import HDS独立コア入力コンパイル
 from minidora.HDS構文化作用 import HDS構文化作用
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
@@ -61,6 +63,33 @@ class HDSコア入力優先試験(unittest.TestCase):
         self.assertFalse(any(any(v.startswith("検索述語=") for v in (str(x.内容),)) for x in 入力束.条件))
         self.assertEqual(入力束.作用要求, ())
         self.assertEqual(入力束.要求成果, ())
+
+    def test_意味条件を関係へ明示bindingする(self):
+        ir = HDSIR(
+            原文="A causes B under hypoxia",
+            正規化文="A causes B under hypoxia",
+            認知世界ID="condition-binding",
+            座標=(
+                HDS座標("a", "対象.始点", "A"),
+                HDS座標("b", "対象.終点", "B"),
+                HDS座標("c", "条件.前提", "under hypoxia"),
+            ),
+            関係=(
+                HDS関係(
+                    "r", ("a",), ("b",), "因果",
+                    条件=("検索述語=causes", "条件範囲=under hypoxia"),
+                ),
+            ),
+            残差=(),
+            意味作用履歴=(),
+            実行核=HDS実行核(),
+            入力言語="en",
+        )
+        入力束 = HDSコア入力へ(ir)
+        self.assertEqual(入力束.関係[0].条件ID, ("c",))
+        self.assertEqual(入力束.条件[0].適用先, ("r",))
+        self.assertIn("検索述語=causes", 入力束.関係[0].制約)
+        self.assertNotIn("検索述語", str(入力束.条件[0].内容))
 
     def test_選択候補を作用要求や完了条件へ昇格しない(self):
         入力束 = self.構文化器.問題コア入力("Which is correct?", ("A", "B", "C"))
