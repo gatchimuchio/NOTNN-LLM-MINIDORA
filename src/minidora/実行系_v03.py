@@ -7,6 +7,7 @@ from .HDS適合器 import HDSコンパイラProtocol, HDS文脈
 from .HDS選択実行系 import HDS選択実行結果, HDS選択問題, HDS選択推論実行
 from .HDS中間表現 import HDSIR
 from .HDS参照 import HDS参照予算選択, HDS参照検索
+from .HDS観測計画 import HDS参照観測要求群
 from .第0層 import Layer0
 from .多言語表層 import 表面化 as 多言語表面化
 from .トリニティ文脈 import Trinity文脈系
