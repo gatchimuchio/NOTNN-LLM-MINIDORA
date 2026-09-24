@@ -20,9 +20,9 @@ def HDS候補被覆優先統合(primary: Iterable[参照記録], extra: Iterable
         index_by_id[rid]=len(combined); combined.append(record)
     selected=[]; selected_ids=set()
     for label in sorted({str(x) for x in expected_labels if str(x)}):
-        candidate=next((r for r in combined if str(r.識別子) not in selected_ids and label in _候補ラベル群(r)),None)
-        if candidate is None: continue
-        selected.append(candidate); selected_ids.add(str(candidate.識別子))
+        候補=next((r for r in combined if str(r.識別子) not in selected_ids and label in _候補ラベル群(r)),None)
+        if 候補 is None: continue
+        selected.append(候補); selected_ids.add(str(候補.識別子))
         if len(selected)>=total_limit: return tuple(selected)
     for record in combined:
         rid=str(record.識別子)
