@@ -183,7 +183,7 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertTrue(成果[非退行判定成果名].基準固定)
         self.assertFalse(成果[非退行判定成果名].拡張採用)
 
-    def test_外部で形成済みKernel正本はCore内で再コンパイルしない(self):
+    def test_外部で形成済みKernel正本は中核内で再コンパイルしない(self):
         kernel = self.構文化器.問題コンパイル束(self.問い, self.選択肢)
         original = self.構文化器.問題コンパイル束
 
