@@ -513,12 +513,12 @@ def HDS追加観測要求群(
     residuals = tuple(str(x) for x in 残差群)
     conflict = any("候補競合" in x or "候補識別不足" in x for x in residuals)
 
-    if generation == 1:
-        selected = 局所 or 縮退 or その他 or 監査
-    elif generation == 2:
-        selected = ((*監査, *縮退) if conflict else (*縮退, *監査)) or その他 or 局所
-    else:
-        selected = (*監査, *その他, *縮退, *局所)
+    優先層 = [局所, 監査, 縮退, その他] if conflict else [局所, 縮退, 監査, その他]
+    有効層 = [層 for 層 in 優先層 if 層]
+    層番号 = generation - 1
+    if 層番号 >= len(有効層):
+        return ()
+    selected = 有効層[層番号]
 
     out: list[HDS参照観測要求] = []
     seen: set[tuple[str, str]] = set()
