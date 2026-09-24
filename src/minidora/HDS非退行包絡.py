@@ -90,4 +90,61 @@ def HDS非退行包絡(
     )
 
 
-__all__ = ["HDS非退行判定", "HDS非退行包絡"]
+def HDS証拠優越包絡(
+    基準結果: object,
+    拡張結果: object,
+    *,
+    基準承認判定: Callable[[object], bool],
+    拡張承認判定: Callable[[object], bool],
+    証拠優越証明: Callable[[object, object], bool],
+) -> HDS非退行判定:
+    """承認済み基準を床として保持し、明示的な証拠優越時だけ更新する。
+
+    従来の `HDS非退行包絡` は変更しない。承認済み基準の再検証を明示的に要求する
+    呼出側だけが本関数を使い、拡張承認と証拠優越証明の双方が真の時だけ更新する。
+    """
+    for 名, 関数 in (
+        ("基準承認判定", 基準承認判定),
+        ("拡張承認判定", 拡張承認判定),
+        ("証拠優越証明", 証拠優越証明),
+    ):
+        if not callable(関数):
+            raise TypeError(名 + "はcallableである必要がある")
+
+    if not bool(基準承認判定(基準結果)):
+        return HDS非退行包絡(
+            基準結果,
+            基準承認判定=基準承認判定,
+            拡張実行=lambda: 拡張結果,
+            拡張承認判定=拡張承認判定,
+            拡張採用証明=証拠優越証明,
+        )
+
+    拡張承認 = bool(拡張承認判定(拡張結果))
+    優越証明 = bool(証拠優越証明(基準結果, 拡張結果)) if 拡張承認 else False
+    if 拡張承認 and 優越証明:
+        return HDS非退行判定(
+            拡張結果,
+            基準結果,
+            拡張結果,
+            False,
+            True,
+            ("HDS_APPROVED_BASELINE_REPLACED_WITH_SUPERIOR_EVIDENCE",),
+        )
+
+    理由 = ["HDS_APPROVED_BASELINE_PRESERVED"]
+    if not 拡張承認:
+        理由.append("HDS_EXTENSION_NOT_APPROVED")
+    if not 優越証明:
+        理由.append("HDS_SUPERIOR_EVIDENCE_PROOF_MISSING")
+    return HDS非退行判定(
+        基準結果,
+        基準結果,
+        拡張結果,
+        True,
+        False,
+        tuple(理由),
+    )
+
+
+__all__ = ["HDS非退行判定", "HDS非退行包絡", "HDS証拠優越包絡"]

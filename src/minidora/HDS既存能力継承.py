@@ -204,7 +204,46 @@ def HDS既存能力選択評価(
     )
 
 
+def HDS既存能力直接反証評価(
+    質問IR: HDSIR,
+    参照群: tuple[参照記録, ...],
+    *,
+    コンパイル,
+    基礎能力核: K3相当能力核 | None,
+    基準ラベル: str,
+    最小独立証拠数: int = 2,
+) -> HDS選択実行結果 | None:
+    """承認済み基準に対する強い直接反証だけを返す。
+
+    goldや評価問題固有情報は使わない。旧補助器のDIRECTED関係検証が基準と異なる候補を
+    APPROVEし、かつ直接検証proofが独立2件以上ある場合だけ反証候補として返す。
+    """
+    if 基礎能力核 is None:
+        return None
+    if type(最小独立証拠数) is not int or 最小独立証拠数 < 2:
+        raise ValueError("直接反証の最小独立証拠数は2以上の整数である必要がある")
+    結果 = HDS選択推論実行(
+        質問IR,
+        参照群,
+        コンパイル=コンパイル,
+        基礎能力核=基礎能力核,
+        模型核=None,
+        正式模型評価=False,
+        作業再作用=True,
+        局所再照合=True,
+    )
+    if not _承認済み(結果) or 結果.回答ラベル == str(基準ラベル):
+        return None
+    if "DIRECTED_関係_VERIFIED" not in 結果.理由:
+        return None
+    K3結果 = 結果.K3結果
+    if K3結果 is None or int(getattr(K3結果, "根拠事実数", 0)) < 最小独立証拠数:
+        return None
+    return 結果
+
+
 __all__ = [
     "HDS既存能力結果証明済み",
     "HDS既存能力選択評価",
+    "HDS既存能力直接反証評価",
 ]

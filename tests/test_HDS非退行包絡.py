@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import unittest
 
-from minidora.HDS非退行包絡 import HDS非退行包絡
+from minidora.HDS非退行包絡 import HDS非退行包絡, HDS証拠優越包絡
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +39,34 @@ class HDS非退行包絡試験(unittest.TestCase):
         self.assertTrue(判定.基準固定)
         self.assertFalse(判定.拡張採用)
         self.assertEqual(呼出, [])
+
+    def test_承認済み基準も明示的な証拠優越時だけ更新できる(self):
+        基準 = 模擬結果("APPROVE", "A", 2)
+        拡張 = 模擬結果("APPROVE", "B", 5)
+        判定 = HDS証拠優越包絡(
+            基準,
+            拡張,
+            基準承認判定=承認済み,
+            拡張承認判定=承認済み,
+            証拠優越証明=lambda 前, 後: 後.証拠 >= 前.証拠 + 2,
+        )
+        self.assertIs(判定.出力, 拡張)
+        self.assertTrue(判定.拡張採用)
+        self.assertFalse(判定.基準固定)
+
+    def test_承認済み基準は証拠優越不足なら保持する(self):
+        基準 = 模擬結果("APPROVE", "A", 2)
+        拡張 = 模擬結果("APPROVE", "B", 3)
+        判定 = HDS証拠優越包絡(
+            基準,
+            拡張,
+            基準承認判定=承認済み,
+            拡張承認判定=承認済み,
+            証拠優越証明=lambda 前, 後: 後.証拠 >= 前.証拠 + 2,
+        )
+        self.assertIs(判定.出力, 基準)
+        self.assertFalse(判定.拡張採用)
+        self.assertTrue(判定.基準固定)
 
     def test_基準未承認でも証明なし拡張はshadowに留める(self):
         基準 = 模擬結果("SUSPEND", None, 1)

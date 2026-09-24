@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
 
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 from minidora.HDS駆動コア import HDS駆動コア, HDS駆動コア版, HDS継承基準版
 from minidora.HDS実行主体 import HDS終端, HDS作用供給器, HDS関数作用, HDS作用結果, HDS作用状態
+from minidora.HDS選択実行系 import HDS選択実行結果
 from minidora.HDS選択継承循環 import (
     回答成果名,
     基準結果主体名,
@@ -131,7 +134,7 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual([x.種別 for x in 成果["HDSコア入力"].残差], ["未解共参照"])
         self.assertFalse(any(x.startswith("HDS残差:未解共参照:") for x in 結果.状態.残差))
 
-    def test_基準承認済みは追加観測せず完全保持(self):
+    def test_正式模型承認は一回再検証し弱い反証では基準を保持(self):
         provider = 固定追加参照((証拠("Molecule B", 識別子="late"),))
         結果 = self.コア.選択実行(
             self.問い,
@@ -142,9 +145,28 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
         成果 = 結果.状態.成果辞書()
         self.assertEqual(成果[回答成果名], "A")
-        self.assertEqual(結果.状態.主体辞書()[基準結果主体名], 成果[現行結果成果名])
-        self.assertEqual(provider.呼出回数, 0)
-        self.assertEqual([x.作用ID for x in 結果.履歴], ["HDS継承/模型再評価"])
+        self.assertEqual(結果.状態.主体辞書()[基準結果主体名].回答ラベル, "A")
+        self.assertGreaterEqual(provider.呼出回数, 1)
+        self.assertIn("HDS継承/追加参照", [x.作用ID for x in 結果.履歴])
+
+    @patch("minidora.HDS選択継承循環.HDS既存能力直接反証評価")
+    def test_2独立proofの直接反証だけ承認基準を更新(self, 反証評価):
+        反証評価.return_value = HDS選択実行結果(
+            "APPROVE", "B", "Molecule B", ("DIRECTED_関係_VERIFIED",),
+            SimpleNamespace(根拠事実数=2), 0, 0, 0, 0, 2, 0,
+        )
+        provider = 固定追加参照((証拠("Molecule B", 識別子="late"),))
+        結果 = self.コア.選択実行(
+            self.問い,
+            self.選択肢,
+            初期参照=(証拠("Molecule A", 識別子="base"),),
+            参照供給器=provider,
+        )
+        self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
+        成果 = 結果.状態.成果辞書()
+        self.assertEqual(結果.状態.主体辞書()[基準結果主体名].回答ラベル, "A")
+        self.assertEqual(成果[回答成果名], "B")
+        self.assertTrue(成果[非退行判定成果名].拡張採用)
 
     def test_未閉包は追加参照して再評価し閉包(self):
         provider = 固定追加参照((証拠("Molecule A", 識別子="extra"),))

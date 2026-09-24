@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from minidora.HDS既存能力継承 import HDS既存能力選択評価
+from minidora.HDS既存能力継承 import HDS既存能力選択評価, HDS既存能力直接反証評価
 from minidora.HDS選択実行系 import HDS選択実行結果
 
 
@@ -98,6 +98,29 @@ class HDS既存能力継承試験(unittest.TestCase):
         self.assertEqual(out.状態, "SUSPEND")
         self.assertIsNone(out.回答ラベル)
         self.assertIn("HDS_EXISTING_CAPABILITY_CONFLICT_OR_UNCLOSED", out.理由)
+
+    def test_直接反証は2独立proof以上だけ返す(self):
+        強反証 = _結果("APPROVE", "B", 理由=("DIRECTED_関係_VERIFIED",), K3根拠=2)
+        with patch("minidora.HDS既存能力継承.HDS選択推論実行", return_value=強反証):
+            out = HDS既存能力直接反証評価(
+                object(), (), コンパイル=lambda x: x, 基礎能力核=object(), 基準ラベル="A"
+            )
+        self.assertIs(out, 強反証)
+
+        弱反証 = _結果("APPROVE", "B", 理由=("DIRECTED_関係_VERIFIED",), K3根拠=1)
+        with patch("minidora.HDS既存能力継承.HDS選択推論実行", return_value=弱反証):
+            out = HDS既存能力直接反証評価(
+                object(), (), コンパイル=lambda x: x, 基礎能力核=object(), 基準ラベル="A"
+            )
+        self.assertIsNone(out)
+
+    def test_直接反証は同じ基準ラベルを上書き候補にしない(self):
+        同一 = _結果("APPROVE", "A", 理由=("DIRECTED_関係_VERIFIED",), K3根拠=3)
+        with patch("minidora.HDS既存能力継承.HDS選択推論実行", return_value=同一):
+            out = HDS既存能力直接反証評価(
+                object(), (), コンパイル=lambda x: x, 基礎能力核=object(), 基準ラベル="A"
+            )
+        self.assertIsNone(out)
 
     def test_直接関係検証は能力模型競合より既存強証拠として優先(self):
         正本 = _結果("SUSPEND")
