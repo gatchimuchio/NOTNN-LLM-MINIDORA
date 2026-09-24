@@ -16,6 +16,7 @@ from .HDS構文化前処理 import 公開HDSフロントエンド射影, 公開H
 from .HDS構文化履歴 import HDS認知世界差分IR射影, HDS認知世界差分生成
 from .HDS構文化処理系列_v1_4 import (
     HDSコンパイル束,
+    HDS選択コンパイル束,
     HDS意味IR化,
     HDS意味専用計画器,
     HDS計算コンパイル成果,
@@ -28,6 +29,7 @@ from .HDS構文化暗黙知 import HDS暗黙知IR射影, HDS暗黙知抽出
 from .HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
 from .HDSコア入力 import HDSコア入力束
 from .HDSコア入力射影 import HDSコア入力へ
+from .HDS観測計画 import HDS参照観測要求群
 from .HDS言語協調 import HDS英語AND展開
 from .HDS言語関係 import HDS英語基底関係射影
 from .HDS言語範囲 import HDS英語関係範囲射影
@@ -54,7 +56,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
     'MINIDORA公開標準HDS 構文化器。\n\n    構造 v1.3の意味・監査観測を維持しつつ、Core v3が消費する情報だけを\n    HDSコア入力束へ射影し、これを正本とする。意味IR・計算計画・作用差分構造は\n    Legacy互換・監査・局所降下のために並列保持する。\n    構文化器自身は作用選択・最終採否・後続作用実行を行わない。\n    '
 
     構造版 = "v1.3"
-    処理系列版 = "v1.6"
+    処理系列版 = "v1.7"
     コア入力版 = "HDS-コア入力-v1"
     規定言語 = "日本語"
     基底言語 = "日本語"
@@ -197,7 +199,11 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             文脈=文脈,
         )
         return HDSコンパイル束(
-            意味_ir, plan, detailed.作用差分構造, コア入力=コア入力
+            意味_ir,
+            plan,
+            detailed.作用差分構造,
+            コア入力=コア入力,
+            参照観測要求=HDS参照観測要求群(意味_ir),
         ), detailed
 
     def 意味コンパイル(
@@ -263,6 +269,22 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             文脈=文脈,
         )
         return bundle
+
+    def 観測要求コンパイル(
+        self,
+        入力: str,
+        *,
+        前回結果: object = None,
+        HDS履歴: tuple[HDSIR, ...] = (),
+        文脈: HDS文脈 | None = None,
+    ):
+        """意味正本から形成済みの参照観測要求だけを返す。R側で意味を再解析しない。"""
+        return self.コンパイル束(
+            入力,
+            前回結果=前回結果,
+            HDS履歴=HDS履歴,
+            文脈=文脈,
+        ).参照観測要求
 
     def 計算降下(self, bundle: HDSコンパイル束) -> HDS計算コンパイル成果:
         """形成済み束を計算中間表現へ降下する。自然言語を再解析しない。"""
@@ -439,16 +461,30 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             閉包状態='CLOSED_FOR_意味_TRANSFER',
         )
 
+    def 問題コンパイル束(self, question: str, choices: Sequence[str]) -> HDS選択コンパイル束:
+        """選択問題の意味IR・Core入力・R観測要求を同一の意味正本から形成する。"""
+        detailed = self._完成(self._問題基礎(question, choices))
+        ir = self._選択問題問い閉包(detailed.IR, question)
+        return HDS選択コンパイル束(
+            意味IR=ir,
+            コア入力=HDSコア入力へ(ir),
+            参照観測要求=HDS参照観測要求群(ir),
+        )
+
     def 問題IR(self, question: str, choices: Sequence[str]) -> HDSIR:
-        completed = self._完成(self._問題基礎(question, choices)).IR
-        return self._選択問題問い閉包(completed, question)
+        return self.問題コンパイル束(question, choices).意味IR
 
     def 問題コア入力(self, question: str, choices: Sequence[str]) -> HDSコア入力束:
         """選択問題もCore入力正本へ射影し、候補や問いを能力名へ変換しない。"""
-        return HDSコア入力へ(self.問題IR(question, choices))
+        return self.問題コンパイル束(question, choices).コア入力
+
+    def 問題観測要求(self, question: str, choices: Sequence[str]):
+        """選択問題で何を外部観測すべきかをCompiler成果として返す。"""
+        return self.問題コンパイル束(question, choices).参照観測要求
 
     def 詳細問題IR(self, question: str, choices: Sequence[str]) -> HDS構文化器成果:
-        return self._完成(self._問題基礎(question, choices))
+        detailed = self._完成(self._問題基礎(question, choices))
+        return replace(detailed, IR=self._選択問題問い閉包(detailed.IR, question))
 
     def 失敗帰還(self, 成果: HDS構文化器成果, Bank: HDS失敗署名Bank, *, Run参照: str) -> HDS失敗署名BankSnapshot:
         return Bank.観測(成果.失敗署名候補, Run参照=Run参照)
@@ -463,5 +499,6 @@ __all__ = [
     'HDS構文化器成果',
     "HDS失敗署名Bank",
     "HDSコンパイル束",
+    "HDS選択コンパイル束",
     "HDS計算コンパイル成果",
 ]

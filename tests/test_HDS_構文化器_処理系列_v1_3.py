@@ -11,9 +11,9 @@ class HDS構文化器処理系列試験(unittest.TestCase):
     def setUp(self) -> None:
         self.構文化器 = 公開HDSコンパイラ()
 
-    def test_意味監査構造_v1_3と処理系列_v1_6(self) -> None:
+    def test_意味監査構造_v1_3と処理系列_v1_7(self) -> None:
         self.assertEqual(self.構文化器.構造版, "v1.3")
-        self.assertEqual(self.構文化器.処理系列版, "v1.6")
+        self.assertEqual(self.構文化器.処理系列版, "v1.7")
         self.assertEqual(self.構文化器.規定言語, "日本語")
         self.assertEqual(self.構文化器.基底言語, "日本語")
         self.assertEqual(self.構文化器.基底言語コード, "ja")
@@ -36,6 +36,31 @@ class HDS構文化器処理系列試験(unittest.TestCase):
         self.assertIs(bundle.正本, bundle.コア入力)
         self.assertEqual(bundle.正本.版, "HDS-コア入力-v1")
         self.assertFalse(hasattr(bundle.正本, "計算計画"))
+        self.assertIsInstance(bundle.参照観測要求, tuple)
+
+    def test_選択問題束は意味CoreRを同一成果で保持する(self) -> None:
+        bundle = self.構文化器.問題コンパイル束(
+            "Which molecule causes apoptosis under hypoxia?",
+            ("Protein A", "Protein B", "Protein C", "Protein D"),
+        )
+        self.assertIs(bundle.正本, bundle.コア入力)
+        self.assertTrue(bundle.参照観測要求)
+        labels = {item.候補ラベル for item in bundle.参照観測要求 if item.必須被覆}
+        self.assertEqual(labels, {"A", "B", "C", "D"})
+
+    def test_詳細問題IRも通常問題IRと同じ問い閉包を観測する(self) -> None:
+        detailed = self.構文化器.詳細問題IR(
+            "Which statement about entropy is correct?",
+            ("A", "B", "C"),
+        )
+        normal = self.構文化器.問題IR(
+            "Which statement about entropy is correct?",
+            ("A", "B", "C"),
+        )
+        self.assertEqual(
+            any(item.種別 == "問い適合" for item in detailed.IR.関係),
+            any(item.種別 == "問い適合" for item in normal.関係),
+        )
 
     def test_形成済み束の計算降下は自然言語を再解析しない(self) -> None:
         bundle = self.構文化器.コンパイル束("2+3")

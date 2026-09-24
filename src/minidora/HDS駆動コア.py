@@ -237,10 +237,11 @@ class HDS駆動コア:
         """
         if self.HDSコンパイラ is None:
             raise ValueError("選択実行にはHDSコンパイラが必要")
+        問題束関数 = getattr(self.HDSコンパイラ, "問題コンパイル束", None)
         問題IR関数 = getattr(self.HDSコンパイラ, "問題IR", None)
         問題入力関数 = getattr(self.HDSコンパイラ, "問題コア入力", None)
-        if not callable(問題IR関数) or not callable(問題入力関数):
-            raise TypeError("選択実行には問題IRと問題コア入力を持つHDSコンパイラが必要")
+        if not callable(問題束関数) and (not callable(問題IR関数) or not callable(問題入力関数)):
+            raise TypeError("選択実行には問題コンパイル束、または問題IRと問題コア入力を持つHDSコンパイラが必要")
         候補 = tuple(str(x) for x in 選択肢)
         if len(候補) < 2:
             raise ValueError("選択実行には2件以上の候補が必要")
@@ -254,8 +255,13 @@ class HDS駆動コア:
             選択閉包状態,
             残差_未評価,
         )
-        問題IR = 問題IR関数(問合せ, 候補)
-        入力束 = 問題入力関数(問合せ, 候補)
+        if callable(問題束関数):
+            問題束 = 問題束関数(問合せ, 候補)
+            問題IR = 問題束.意味IR
+            入力束 = 問題束.コア入力
+        else:
+            問題IR = 問題IR関数(問合せ, 候補)
+            入力束 = 問題入力関数(問合せ, 候補)
         入力残差非阻害対象 = tuple(
             f"HDS残差:{項目.種別}:{項目.理由}"
             for 項目 in 入力束.残差

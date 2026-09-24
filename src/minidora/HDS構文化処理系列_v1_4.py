@@ -6,13 +6,14 @@ from typing import Any
 from .HDS構文化記録_v1_3 import HDS作用差分構造
 from .HDS中間表現 import HDSIR, HDS実行核
 from .HDSコア入力 import HDSコア入力束
+from .HDS観測計画 import HDS参照観測要求
 from .命令 import 手順
 from .命令計算降下 import 命令計算降下
 from .計算中間表現 import 計算中間表現
 from .言語 import 言語計画
 
 
-HDSコンパイラパイプライン版 = "v1.6"
+HDSコンパイラパイプライン版 = "v1.7"
 
 
 class HDS意味専用計画器:
@@ -24,15 +25,13 @@ class HDS意味専用計画器:
 
 @dataclass(frozen=True, slots=True)
 class HDSコンパイル束:
-    """Core入力正本とLegacy成果を分離して保持する構文化器成果。
-
-    正本は `コア入力`。意味IR・計算計画・作用差分構造は監査・互換・局所降下のために残す。
-    """
+    """Core入力正本と各下流射影を、同一意味IRから分離して保持する構文化器成果。"""
 
     意味IR: HDSIR
     計算計画: 言語計画
     作用差分構造: HDS作用差分構造 = HDS作用差分構造()
     コア入力: HDSコア入力束 | None = None
+    参照観測要求: tuple[HDS参照観測要求, ...] = ()
     版: str = HDSコンパイラパイプライン版
 
     @property
@@ -62,6 +61,20 @@ class HDSコンパイル束:
 
 
 @dataclass(frozen=True, slots=True)
+class HDS選択コンパイル束:
+    """選択問題の意味正本・Core入力・R観測要求を同一IRから形成した成果。"""
+
+    意味IR: HDSIR
+    コア入力: HDSコア入力束
+    参照観測要求: tuple[HDS参照観測要求, ...] = ()
+    版: str = HDSコンパイラパイプライン版
+
+    @property
+    def 正本(self) -> HDSコア入力束:
+        return self.コア入力
+
+
+@dataclass(frozen=True, slots=True)
 class HDS計算コンパイル成果:
     意味IR: HDSIR
     計算IR: 計算中間表現
@@ -70,6 +83,7 @@ class HDS計算コンパイル成果:
     種別: str
     作用差分構造: HDS作用差分構造 = HDS作用差分構造()
     コア入力: HDSコア入力束 | None = None
+    参照観測要求: tuple[HDS参照観測要求, ...] = ()
     版: str = HDSコンパイラパイプライン版
 
 
@@ -118,6 +132,7 @@ class HDS計算降下バックエンド:
             種別=plan.種別,
             作用差分構造=bundle.作用差分構造,
             コア入力=bundle.コア入力,
+            参照観測要求=bundle.参照観測要求,
         )
 
 
@@ -125,6 +140,7 @@ __all__ = [
     "HDSコンパイラパイプライン版",
     "HDS意味専用計画器",
     "HDSコンパイル束",
+    "HDS選択コンパイル束",
     "HDS計算コンパイル成果",
     "HDS意味IR化",
     "HDS計算降下バックエンド",

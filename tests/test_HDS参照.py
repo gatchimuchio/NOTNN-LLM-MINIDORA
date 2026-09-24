@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標
-from minidora.HDS参照 import HDS参照問合せ候補, HDS参照検索
+from minidora.HDS参照 import HDS参照問合せ候補, HDS参照検索, HDS参照縮退問合せ候補
 from minidora.実行系 import ミニドラ, 要求
 from minidora.参照 import 参照記録
 from minidora.命令 import 作用, 命令, 手順
@@ -102,8 +102,8 @@ class _構文化器:
 
 
 class HDS参照拡張試験(unittest.TestCase):
-    def test_問題主題と全候補を対称にquery化する(self) -> None:
-        queries = HDS参照問合せ候補(_ir())
+    def test_関係未解決では全候補を対称な縮退queryとして保持する(self) -> None:
+        queries = HDS参照縮退問合せ候補(_ir())
         self.assertGreaterEqual(len(queries), 4)
         self.assertTrue(any("catalysis" in q for q in queries))
         self.assertTrue(any("transport" in q for q in queries))
