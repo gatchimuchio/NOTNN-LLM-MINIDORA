@@ -136,29 +136,44 @@ class HDS駆動コア:
 
     def 選択実行(self, 問合せ: str, 選択肢: Sequence[str], *, 初期参照=(), 参照供給器=None,
              計算実行器_=None, 模型核=None, 基礎能力核=None, 既存能力継承: bool = True,
-             最大回復回数: int = 6, 拡張採用証明=None) -> HDS実行結果:
+             最大回復回数: int = 6, 拡張採用証明=None,
+             カーネル正本: HDSカーネル束 | None = None) -> HDS実行結果:
         if self.HDSコンパイラ is None:
             raise ValueError("選択実行にはHDSコンパイラが必要")
         候補 = tuple(str(x) for x in 選択肢)
         if len(候補) < 2:
             raise ValueError("選択実行には2件以上の候補が必要")
-        問題束関数 = getattr(self.HDSコンパイラ, "問題コンパイル束", None)
-        if callable(問題束関数):
-            問題束 = 問題束関数(問合せ, 候補)
+        問題束 = カーネル正本
+        if 問題束 is not None:
             if not isinstance(問題束, HDSカーネル束):
-                raise TypeError("問題コンパイル束がHDSカーネル束を返さなかった")
-        else:
-            問題IR関数 = getattr(self.HDSコンパイラ, "問題IR", None)
-            問題入力関数 = getattr(self.HDSコンパイラ, "問題コア入力", None)
-            if not callable(問題IR関数) or not callable(問題入力関数):
-                raise TypeError("選択実行には問題コンパイル束、または問題IRと問題コア入力が必要")
-            from .HDS観測計画 import HDS参照観測要求群
-            問題IR = 問題IR関数(問合せ, 候補)
-            入力束 = 問題入力関数(問合せ, 候補)
-            問題束 = HDSカーネル束(
-                意味IR=問題IR, 計算計画=HDS意味専用計画器().計画(問合せ), コア入力=入力束,
-                参照観測要求=HDS参照観測要求群(問題IR),
+                raise TypeError("カーネル正本はHDSカーネル束である必要がある")
+            束候補 = tuple(
+                str(x.内容)
+                for x in sorted(
+                    (x for x in 問題束.意味IR.座標 if x.座標ID.startswith("選択肢:")),
+                    key=lambda x: x.座標ID,
+                )
             )
+            if 束候補 and 束候補 != 候補:
+                raise ValueError("カーネル正本の選択肢と実行引数が一致しない")
+        else:
+            問題束関数 = getattr(self.HDSコンパイラ, "問題コンパイル束", None)
+            if callable(問題束関数):
+                問題束 = 問題束関数(問合せ, 候補)
+                if not isinstance(問題束, HDSカーネル束):
+                    raise TypeError("問題コンパイル束がHDSカーネル束を返さなかった")
+            else:
+                問題IR関数 = getattr(self.HDSコンパイラ, "問題IR", None)
+                問題入力関数 = getattr(self.HDSコンパイラ, "問題コア入力", None)
+                if not callable(問題IR関数) or not callable(問題入力関数):
+                    raise TypeError("選択実行には問題コンパイル束、または問題IRと問題コア入力が必要")
+                from .HDS観測計画 import HDS参照観測要求群
+                問題IR = 問題IR関数(問合せ, 候補)
+                入力束 = 問題入力関数(問合せ, 候補)
+                問題束 = HDSカーネル束(
+                    意味IR=問題IR, 計算計画=HDS意味専用計画器().計画(問合せ), コア入力=入力束,
+                    参照観測要求=HDS参照観測要求群(問題IR),
+                )
         問題IR = 問題束.意味IR
         入力束 = 問題束.コア入力
         from .HDS選択継承循環 import (
