@@ -257,6 +257,16 @@ def _観測取得被覆(records: Iterable[参照記録]) -> frozenset[str]:
     return frozenset(covered)
 
 
+def _候補被覆(records: Iterable[参照記録]) -> frozenset[str]:
+    """取得済みrecordのquery provenanceから候補ラベル被覆だけを読む互換境界。"""
+    labels: set[str] = set()
+    for record in records:
+        for key, value in record.条件:
+            if str(key) == "hds_query_選択肢" and str(value):
+                labels.add(str(value))
+    return frozenset(labels)
+
+
 def _必須観測(
     ir: HDSIR,
     観測要求: Iterable[HDS参照観測要求] | None = None,

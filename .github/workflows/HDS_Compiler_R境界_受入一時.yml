@@ -5,6 +5,16 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/HDS_Compiler_R境界_受入一時.yml"
+      - "src/minidora/HDS参照.py"
+      - "src/minidora/HDS観測計画.py"
+      - "src/minidora/HDS構文化処理系列_v1_4.py"
+      - "src/minidora/HDS構文化器_v1.py"
+      - "src/minidora/HDS駆動コア.py"
+      - "src/minidora/hds参照拡張.py"
+      - "src/minidora/hds能力経路_v2.py"
+      - "tests/test_HDS_参照観測要求.py"
+      - "tests/test_HDS_参照_代替経路.py"
+      - "tests/test_HDS参照.py"
 
 permissions:
   contents: read

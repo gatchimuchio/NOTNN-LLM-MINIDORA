@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import Iterable
 
 from .HDS中間表現 import HDSIR
+from .HDS観測計画 import HDS参照観測要求群
 from .HDS参照 import (
     HDS参照予算選択,
     HDS参照検索,
     _候補被覆,
     _query_pools,
     _round_robin,
-    _役割語群,
     _縮退仕様,
     _記録統合,
 )
@@ -99,8 +99,11 @@ def HDS参照検索強化(
         一問合せ上限=per_query,
         最大問合せ並列=parallel,
     )
-    _, choices = _役割語群(ir)
-    expected = {label for label, _ in choices}
+    expected = {
+        request.候補ラベル
+        for request in HDS参照観測要求群(ir)
+        if request.必須被覆 and request.候補ラベル is not None
+    }
     if not expected:
         return references
 
