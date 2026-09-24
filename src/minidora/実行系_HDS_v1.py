@@ -4,7 +4,6 @@ from dataclasses import replace
 
 from .HDS参照 import HDS参照予算選択, HDS参照検索
 from .HDS実行主体 import HDS終端
-from .HDS実行系射影 import HDSR質問射影
 from .HDS選択実行系 import HDS選択実行結果, HDS選択問題
 from .HDS選択継承循環 import 回答成果名, 参照成果名, 現行結果成果名
 from .HDS駆動コア import HDS駆動コア, HDS駆動コア版, HDS継承基準版
@@ -40,7 +39,7 @@ class HDS駆動ミニドラ(_MINIDORAV05):
         予算 = HDS参照予算選択(中間表現)
         return HDS参照検索(
             self.参照供給器,
-            HDSR質問射影(中間表現),
+            中間表現,
             上限=予算.取得上限,
             一問合せ上限=予算.一問合せ上限,
             最大問合せ並列=予算.最大問合せ並列,
