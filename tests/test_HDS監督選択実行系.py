@@ -52,21 +52,12 @@ class _StopControl:
         return HDS指令(HDS指令種別.停止要求, 理由=("TEST_STOP",))
 
 
-class _計算構文化器:
-    def 計算コンパイル(self, _text):
-        return SimpleNamespace(
-            参照必須=False,
-            計算IR=SimpleNamespace(名称="generic", 版="v1", 命令列=(object(),)),
-            初期状態={"x": 1},
-        )
-
-
-class _CompileOwner:
-    def __init__(self):
-        self.HDSコンパイラ = _計算構文化器()
-
-    def コンパイル(self, _text):
-        return qir()
+def _形成済み計算計画():
+    return SimpleNamespace(
+        参照必須=False,
+        計算IR=SimpleNamespace(名称="generic", 版="v1", 命令列=(object(),)),
+        初期状態={"x": 1},
+    )
 
 
 class _計算実行器:
@@ -101,11 +92,11 @@ class Supervisory選択肢実行系Test(unittest.TestCase):
     def test_閉包済み計算IRがある時だけ汎用計算を起動して通常MINIDORAへ戻す(self, mock_normal):
         initial = 結果("SUSPEND", None, ('NO_KNOWLEDGE_証拠',))
         mock_normal.return_value = 結果("APPROVE", "B", ('証拠_PRESENT',), proof=3)
-        owner = _CompileOwner()
         out = HDS監督選択実行(
-            qir(), (), コンパイル=owner.コンパイル, 基礎能力核=None,
+            qir(), (), コンパイル=lambda x: qir(), 基礎能力核=None,
             模型核=標準能力模型核(), 計算実行器_=_計算実行器(),
             HDS制御=標準HDS介入制御(), 初期選択=initial,
+            計算計画=_形成済み計算計画(),
         )
         self.assertEqual(out.選択.状態, "APPROVE")
         self.assertEqual(out.選択.回答ラベル, "B")
@@ -117,6 +108,22 @@ class Supervisory選択肢実行系Test(unittest.TestCase):
         self.assertEqual(out.参照[-1].値, 2)
         self.assertEqual(out.参照[-1].供給器, "MINIDORA計算実行器")
         self.assertIn("HDS_SUPERVISORY_INTERVENTION", out.選択.理由)
+
+    @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
+    def test_形成済み計算計画がなければ原文を再コンパイルしない(self, mock_normal):
+        initial = 結果("SUSPEND", None, ('NO_KNOWLEDGE_証拠',))
+
+        class 再コンパイル禁止:
+            def __call__(self, _text):
+                raise AssertionError("監督が質問原文を再コンパイルした")
+
+        out = HDS監督選択実行(
+            qir(), (), コンパイル=再コンパイル禁止(), 基礎能力核=None,
+            模型核=標準能力模型核(), 計算実行器_=_計算実行器(),
+            HDS制御=_StopControl(), 初期選択=initial,
+        )
+        self.assertEqual(out.HDS介入数, 0)
+        mock_normal.assert_not_called()
 
     @patch("minidora.HDS監督選択実行系.HDS追加参照検索")
     @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
@@ -134,6 +141,8 @@ class Supervisory選択肢実行系Test(unittest.TestCase):
         self.assertEqual(out.HDS作用, ('参照',))
         self.assertEqual(out.参照, (extra,))
         mock_extra.assert_called_once()
+        self.assertIn("観測要求", mock_extra.call_args.kwargs)
+        self.assertIsInstance(mock_extra.call_args.kwargs["観測要求"], tuple)
         mock_normal.assert_called_once()
 
     @patch("minidora.HDS監督選択実行系.HDS選択推論実行")
