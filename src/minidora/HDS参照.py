@@ -113,8 +113,8 @@ def _問合せ仕様(
     required = tuple(request for request in requests if request.必須被覆)
     optional = tuple(request for request in requests if not request.必須被覆)
 
-    budget = max(max(0, int(最大候補数)), len(required))
-    selected = (*required, *optional[:max(0, budget - len(required))])
+    仕様予算 = max(max(0, int(最大候補数)), len(required))
+    selected = (*required, *optional[:max(0, 仕様予算 - len(required))])
     specs = tuple(spec for request in selected if (spec := _仕様化(request)) is not None)
     return _重複仕様除去(specs)
 
@@ -319,21 +319,21 @@ def HDS参照検索(
     if primary_records and not missing:
         return primary_records
 
-    fallback_specs = _縮退仕様(ir, 観測要求=requests)
-    if not fallback_specs:
+    縮退仕様群 = _縮退仕様(ir, 観測要求=requests)
+    if not 縮退仕様群:
         return primary_records
     filtered_specs = tuple(
         spec
-        for spec in fallback_specs
+        for spec in 縮退仕様群
         if not spec.必須被覆 or spec.観測ID in missing
     )
     if not filtered_specs:
         return primary_records
-    fallback_records = _round_robin(
+    縮退記録群 = _round_robin(
         _query_pools(provider, filtered_specs, per_query, max_parallel=parallel),
         total_limit,
     )
-    return _記録群統合(primary_records, fallback_records, total_limit)
+    return _記録群統合(primary_records, 縮退記録群, total_limit)
 
 
 __all__ = [
