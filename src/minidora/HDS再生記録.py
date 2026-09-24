@@ -77,14 +77,25 @@ def HDS選択肢再生収録(
     資料_failed = 0
 
     for problem in 問題群:
-        question_ir = _問題IR(構文化器, problem)
+        kernel_builder = getattr(構文化器, "問題コンパイル束", None)
+        if callable(kernel_builder):
+            ordered = tuple(sorted((str(label), str(text)) for label, text in problem.選択肢.items()))
+            kernel = kernel_builder(problem.問題文, tuple(text for _, text in ordered))
+            question_ir = kernel.意味IR
+            observation_requests = tuple(kernel.参照観測要求)
+        else:
+            question_ir = _問題IR(構文化器, problem)
+            observation_requests = None
         選択肢_irs: dict[str, Any] = {}
         for label, text in sorted(problem.選択肢.items(), key=lambda item: str(item[0])):
             選択中間表現 = HDS独立コンパイル(構文化器, str(text))
             選択肢_irs[str(label)] = HDSIR辞書化(選択中間表現)
             選択肢_compiled += 1
 
-        references = HDS参照検索(provider, question_ir) if provider is not None else ()
+        references = (
+            HDS参照検索(provider, question_ir, 観測要求=observation_requests)
+            if provider is not None else ()
+        )
         資料_rows: list[dict[str, Any]] = []
         資料_count += len(references)
         for record in references:
