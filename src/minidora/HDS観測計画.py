@@ -207,6 +207,7 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
     requests: list[HDS参照観測要求] = []
     concrete = 0
     planned_relations = 0
+    relation_signatures: set[tuple[object, ...]] = set()
 
     for 関係 in ir.関係:
         position = _条件値(関係, "不足位置")
@@ -217,6 +218,16 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
         known = _既知端点(ir, 関係, position)
         scope = _局所scope(関係)
         generic = str(関係.種別) in _GENERIC_RELATIONS or bool(_条件値(関係, "選択問題閉包"))
+        signature = (
+            position,
+            str(predicate).casefold(),
+            tuple(str(x).casefold() for x in known),
+            tuple((str(k), str(v).casefold()) for k, v in scope),
+            generic,
+        )
+        if signature in relation_signatures:
+            continue
+        relation_signatures.add(signature)
         stage = "fallback" if generic else "primary"
         base_priority = 90 if generic else 10
         if not generic:
