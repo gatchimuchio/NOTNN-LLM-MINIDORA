@@ -21,18 +21,23 @@ class HDSコア入力優先試験(unittest.TestCase):
         for 名 in ("手順", "計算計画", "作用差分構造", "意味作用履歴", "初期状態"):
             self.assertFalse(hasattr(入力束, 名), 名)
 
-    def test_コア入力正本ではLegacy計画と監査副産物を生成しない(self):
+    def test_コア入力はKernel束の射影をそのまま返し別意味経路を持たない(self):
+        束 = self.構文化器.コンパイル束("A causes B")
+
         class 計画禁止:
             def 計画(self, *args, **kwargs):
-                raise AssertionError("Core入力正本でLegacy計画器を呼んだ")
+                raise AssertionError("Core入力取得で第二の計画経路を起動した")
 
         def 監査禁止(*args, **kwargs):
-            raise AssertionError("Core入力正本で監査副産物を生成した")
+            raise AssertionError("Core入力取得で第二の監査経路を起動した")
 
         self.構文化器._計算計画器 = 計画禁止()
         self.構文化器._完成 = 監査禁止
+        self.構文化器.コンパイル束 = lambda _入力, **_kwargs: 束
+
         入力束 = self.構文化器.コア入力コンパイル("A causes B")
-        self.assertIsInstance(入力束, HDSコア入力束)
+        self.assertIs(入力束, 束.コア入力)
+        self.assertEqual(入力束.意味署名, 束.コア入力.意味署名)
 
     def test_コンパイル束はコア入力を正本としてLegacy成果を分離する(self):
         束 = self.構文化器.コンパイル束("2+3")
