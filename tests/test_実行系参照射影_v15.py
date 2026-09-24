@@ -17,7 +17,7 @@ class _空R:
 
 
 class 実行系参照射影V15試験(unittest.TestCase):
-    def test_完全IRで予算を決めCompiler観測要求をRへ渡す(self) -> None:
+    def test_完全IRで予算を決め構文化器観測要求をRへ渡す(self) -> None:
         構文化器 = 公開HDSコンパイラ()
         実行系 = ミニドラ(参照供給器_=_空R(), HDSコンパイラ_=構文化器)
         予算 = HDS参照予算("max", 16, 4, 4)
