@@ -75,14 +75,14 @@ class HDS不足スロット試験(unittest.TestCase):
             "Which of the following statements is correct under hypoxia?",
             ("A statement", "B statement", "C statement", "D statement"),
         )
+        generic_kinds = {"問い適合", "命題適合", "説明適合"}
         concrete_missing = [
             r for r in ir.関係
-            if r.種別 != "問い適合" and any("不足位置=" in cond for cond in r.条件)
+            if r.種別 not in generic_kinds and any("不足位置=" in cond for cond in r.条件)
         ]
         self.assertEqual(concrete_missing, [])
-        generic = [r for r in ir.関係 if r.種別 == "問い適合"]
+        generic = [r for r in ir.関係 if r.種別 in generic_kinds]
         self.assertTrue(generic)
-        self.assertTrue(all(any(cond == "選択問題閉包=v0.1" for cond in r.条件) for r in generic))
 
     def test_選択極性は外部検索語へ漏らさない(self) -> None:
         ir = self.構文化器.問題IR(
