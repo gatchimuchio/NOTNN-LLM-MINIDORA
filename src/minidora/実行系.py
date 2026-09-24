@@ -10,7 +10,6 @@ from .HDS適合器 import HDS文脈
 from .HDS選択実行系 import HDS選択実行結果, HDS選択問題, HDS選択推論実行
 from .HDS中間表現 import HDSIR
 from .HDS参照 import HDS参照予算選択, HDS参照検索
-from .HDS実行系射影 import HDSR質問射影
 from .hds介入制御 import HDS介入制御, 標準HDS介入制御
 from .HDS監督選択実行系 import HDS監督選択実行
 from .多言語表層 import 表面化 as 多言語表面化
@@ -330,7 +329,7 @@ class ミニドラ:
                 if self.参照供給器 is not None:
                     予算 = HDS参照予算選択(HDS中間表現)
                     references = HDS参照検索(
-                        self.参照供給器, HDSR質問射影(HDS中間表現), 上限=予算.取得上限,
+                        self.参照供給器, HDS中間表現, 上限=予算.取得上限,
                         一問合せ上限=予算.一問合せ上限, 最大問合せ並列=予算.最大問合せ並列,
                     )
                 initial = HDS選択推論実行(
@@ -371,7 +370,7 @@ class ミニドラ:
         if self.参照供給器 is not None:
             if HDS中間表現 is not None:
                 予算 = HDS参照予算選択(HDS中間表現)
-                references = HDS参照検索(self.参照供給器, HDSR質問射影(HDS中間表現), 上限=予算.取得上限, 一問合せ上限=予算.一問合せ上限, 最大問合せ並列=予算.最大問合せ並列)
+                references = HDS参照検索(self.参照供給器, HDS中間表現, 上限=予算.取得上限, 一問合せ上限=予算.一問合せ上限, 最大問合せ並列=予算.最大問合せ並列)
             else:
                 references = self.参照供給器.検索(要求_.問合せ)
         if 参照_required and not references:
