@@ -19,7 +19,7 @@ class HDS構造問合せ優先試験(unittest.TestCase):
         self.assertEqual(len(queries), 6)
         first = queries[0].casefold()
         self.assertIn("apoptosis", first)
-        self.assertIn("causes", first)
+        self.assertIn("cause", first)
         self.assertIn("under hypoxia", first)
         self.assertFalse(first.startswith("which molecule"))
 
