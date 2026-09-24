@@ -78,3 +78,5 @@ jobs:
 # rerun after kernel contract test migration
 
 # rerun after canonical relation and audit fallback fixes
+
+# rerun after semantic canonical relation dominance
