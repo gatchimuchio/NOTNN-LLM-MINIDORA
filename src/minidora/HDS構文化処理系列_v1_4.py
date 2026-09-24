@@ -13,7 +13,7 @@ from .計算中間表現 import 計算中間表現
 from .言語 import 言語計画
 
 
-HDSコンパイラパイプライン版 = "v1.7"
+HDSコンパイラパイプライン版 = "v2.0"
 
 
 class HDS意味専用計画器:
@@ -24,24 +24,43 @@ class HDS意味専用計画器:
 
 
 @dataclass(frozen=True, slots=True)
-class HDSコンパイル束:
-    """Core入力正本と各下流射影を、同一意味IRから分離して保持する構文化器成果。"""
+class HDSカーネル束:
+    """MINIDORA内部で一度だけ形成し、全下流が共有するCompiler Kernel成果。
+
+    原文の意味決定はこの束を形成する時点で閉じる。Core/R/計算/既存能力は、
+    ここから必要な射影を読むだけで原文を再解釈しない。
+    """
 
     意味IR: HDSIR
     計算計画: 言語計画
-    作用差分構造: HDS作用差分構造 = HDS作用差分構造()
-    コア入力: HDSコア入力束 | None = None
+    コア入力: HDSコア入力束
     参照観測要求: tuple[HDS参照観測要求, ...] = ()
+    作用差分構造: HDS作用差分構造 = HDS作用差分構造()
     版: str = HDSコンパイラパイプライン版
 
     @property
     def 正本(self) -> HDSコア入力束:
-        if self.コア入力 is None:
-            raise ValueError("Core入力正本が形成されていないLegacy束")
+        """旧利用側互換。MINIDORA全体の正本はこの束自身で、これはCore射影だけを返す。"""
         return self.コア入力
 
+    @property
+    def カーネル正本(self) -> "HDSカーネル束":
+        return self
+
+    @property
+    def カーネル署名(self) -> str:
+        # Core入力の意味署名に、外部観測と計算降下の決定済み表現も結合する。
+        from .コア.値 import 署名
+        return 署名((
+            self.コア入力.意味署名,
+            tuple((x.ID, x.外部検索表層, x.段階, x.優先度) for x in self.参照観測要求),
+            self.計算計画,
+            self.作用差分構造,
+            self.版,
+        ))
+
     def 互換IR(self) -> HDSIR:
-        """旧実行系向け射影。Core入力正本を変更しない。"""
+        """旧実行系向け射影。Kernel正本を変更しない。"""
         plan = self.計算計画
         return replace(
             self.意味IR,
@@ -49,8 +68,8 @@ class HDSコンパイル束:
                 plan.種別,
                 (),
                 "結果",
-                境界=("HDS-IR", "日本語基底", "互換橋"),
-                検証=("公開構文化器", "Core入力正本と計算Pを分離"),
+                境界=("HDS-IR", "日本語基底", "Kernel互換橋"),
+                検証=("公開構文化器", "Compiler Kernelからの一方向射影"),
             ),
             初期状態=dict(plan.初期状態),
             参照必須=bool(plan.参照必須),
@@ -60,18 +79,9 @@ class HDSコンパイル束:
         )
 
 
-@dataclass(frozen=True, slots=True)
-class HDS選択コンパイル束:
-    """選択問題の意味正本・Core入力・R観測要求を同一IRから形成した成果。"""
-
-    意味IR: HDSIR
-    コア入力: HDSコア入力束
-    参照観測要求: tuple[HDS参照観測要求, ...] = ()
-    版: str = HDSコンパイラパイプライン版
-
-    @property
-    def 正本(self) -> HDSコア入力束:
-        return self.コア入力
+# 公開互換名は維持するが、一般入力と選択入力は同じKernel契約を使う。
+HDSコンパイル束 = HDSカーネル束
+HDS選択コンパイル束 = HDSカーネル束
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +98,7 @@ class HDS計算コンパイル成果:
 
 
 def HDS意味IR化(base: HDSIR, plan: 言語計画) -> HDSIR:
-    """Legacy意味IRを計算Pから分離する。Core入力正本は別射影で形成する。"""
+    """Legacy意味IRを計算У񋣂񥈆離する。Kernel正本は別束で形成する。"""
     return replace(
         base,
         実行核=HDS実行核(
@@ -96,7 +106,7 @@ def HDS意味IR化(base: HDSIR, plan: 言語計画) -> HDSIR:
             (),
             "結果",
             境界=("HDS意味", "日本語基底", "Legacy意味IR"),
-            検証=("計算P非内包", "Core入力正本は別形成"),
+            検証=("計算P非内包", "Compiler Kernelへ統合"),
         ),
         初期状態={},
         参照必須=bool(plan.参照必須),
@@ -107,11 +117,11 @@ def HDS意味IR化(base: HDSIR, plan: 言語計画) -> HDSIR:
 
 
 class HDS計算降下バックエンド:
-    """形成済み計算PをLegacy計算中間表現へ降下する。自然言語は再解析しない。"""
+    """Kernelに形成済みの計算PをLegacy計算中間表現へ降下する。原文は再解析しない。"""
 
     版 = HDSコンパイラパイプライン版
 
-    def 降下(self, bundle: HDSコンパイル束) -> HDS計算コンパイル成果:
+    def 降下(self, bundle: HDSカーネル束) -> HDS計算コンパイル成果:
         plan = bundle.計算計画
         compute_ir = 命令計算降下(plan.手順)
         refs: list[str] = [bundle.意味IR.認知世界ID]
@@ -119,10 +129,10 @@ class HDS計算降下バックエンド:
         compute_ir = replace(
             compute_ir,
             名称=plan.種別 or compute_ir.名称,
-            由来=f"HDS意味IR:{bundle.意味IR.認知世界ID}",
+            由来=f"HDSKernel:{bundle.意味IR.認知世界ID}",
             由来参照=tuple(dict.fromkeys(refs)),
-            境界=("Core入力正本と計算P分離", "作用差分構造は計算Pへ自動降下しない"),
-            検証=("自然言語再解析なし", "計算実行境界v1"),
+            境界=("Compiler Kernelから計算Pを降下", "作用差分構造は計算Pへ自動降下しない"),
+            検証=("自然言語再解析なし", "計算実行境界v2"),
         )
         return HDS計算コンパイル成果(
             意味IR=bundle.意味IR,
@@ -139,6 +149,7 @@ class HDS計算降下バックエンド:
 __all__ = [
     "HDSコンパイラパイプライン版",
     "HDS意味専用計画器",
+    "HDSカーネル束",
     "HDSコンパイル束",
     "HDS選択コンパイル束",
     "HDS計算コンパイル成果",
