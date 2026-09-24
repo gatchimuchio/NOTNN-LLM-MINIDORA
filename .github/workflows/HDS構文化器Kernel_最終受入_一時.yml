@@ -1,0 +1,72 @@
+name: HDS構文化器Kernel 最終受入 一時
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/HDS構文化器Kernel_最終受入_一時.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  accept:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e .
+      - name: リポジトリ整合性
+        run: python tools/リポジトリ整合性監査.py
+      - name: 日本語基底
+        run: |
+          python tools/日本語基底監査.py
+          python tools/日本語基底詳細監査.py
+      - name: 公開境界
+        run: python tools/公開境界監査.py
+      - name: 構文
+        run: python -m compileall -q src tests tools
+      - name: 日本語入出力境界
+        run: python -m unittest discover -s tests -p test_日本語基底境界.py -v
+      - name: Kernelと既存資産の回帰
+        run: |
+          python -m unittest -v \
+            tests.test_HDS_構文化器_処理系列_v1_3 \
+            tests.test_HDSコア入力優先_v1 \
+            tests.test_HDS_参照観測要求 \
+            tests.test_HDS参照 \
+            tests.test_HDS_参照_代替経路 \
+            tests.test_HDS_参照_予算 \
+            tests.test_HDS_参照_並列 \
+            tests.test_HDS_参照_優先度 \
+            tests.test_HDS能力経路_v2 \
+            tests.test_HDS正本継承循環_v1 \
+            tests.test_HDS監督選択実行系 \
+            tests.test_実行系_HDS_v1 \
+            tests.test_実行系射影_v15 \
+            tests.test_実行系参照射影_v15 \
+            tests.test_HDS_構文化器 \
+            tests.test_HDS_未知_欄 \
+            tests.test_HDS_構文化器_構造_v1 \
+            tests.test_HDS_構文化器_構造_v1_1 \
+            tests.test_HDS構文化構造_v1 \
+            tests.test_HDS構文化構造_v1_2 \
+            tests.test_HDS_言語_関係 \
+            tests.test_HDS_言語_範囲 \
+            tests.test_言語_意味_橋渡し \
+            tests.test_一般_関係_整理_v11 \
+            tests.test_連言_協調_整理_v09 \
+            tests.test_極性保持_v17 \
+            tests.test_関係修飾_v18 \
+            tests.test_射影連鎖忠実度_v1 \
+            tests.test_英語質問表示境界 \
+            tests.test_局所解釈連続性 \
+            tests.test_要求解釈_HDS \
+            tests.test_会話意味統合 \
+            tests.test_目的会話 \
+            tests.test_命題会話 \
+            tests.test_集合会話 \
+            tests.test_HDS自律接続_v3
