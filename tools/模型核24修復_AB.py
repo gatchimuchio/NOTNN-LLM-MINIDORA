@@ -86,8 +86,13 @@ def main() -> int:
 
     for index in selected:
         question, choices, gold = cases[index]
-        question_ir = 構文化器.問題IR(question, choices)
-        references = tuple(HDS参照検索(provider, question_ir))
+        kernel = 構文化器.問題コンパイル束(question, choices)
+        question_ir = kernel.意味IR
+        references = tuple(HDS参照検索(
+            provider,
+            question_ir,
+            観測要求=kernel.参照観測要求,
+        ))
 
         baseline = 模型核24選択(
             question_ir,
