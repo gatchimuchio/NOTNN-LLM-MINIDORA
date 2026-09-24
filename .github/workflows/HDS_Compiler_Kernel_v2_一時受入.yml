@@ -32,6 +32,12 @@ jobs:
           print("QUERIES", HDS参照問合せ候補(ir))
           for r in HDS参照観測要求群(ir):
               print("REQ", r.ID, r.関係ID, r.関係種別, r.候補ラベル, r.段階, r.優先度, repr(r.外部検索表層))
+          ir2=c.問題IR("Which molecule causes apoptosis under hypoxia?", ("Protein A","Protein B","Protein C","Protein D"))
+          print("APOPTOSIS_QUERIES", HDS参照問合せ候補(ir2))
+          for rel in ir2.関係:
+              print("APOPTOSIS_REL", rel.関係ID, rel.種別, rel.始点, rel.終点, rel.条件)
+          for r in HDS参照観測要求群(ir2):
+              print("APOPTOSIS_REQ", r.ID, r.関係ID, r.関係種別, r.候補ラベル, r.段階, r.優先度, repr(r.外部検索表層))
           PY
       - name: Kernelと既存資産の回帰
         run: |
