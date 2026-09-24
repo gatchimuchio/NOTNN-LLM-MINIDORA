@@ -5,7 +5,8 @@ from typing import Any, Callable, Protocol
 
 from .HDS選択実行系 import HDS選択実行結果
 from .HDS中間表現 import HDSIR
-from .HDS参照 import HDS参照予算選択\nfrom .HDS観測計画 import HDS参照観測要求群
+from .HDS参照 import HDS参照予算選択
+from .HDS観測計画 import HDS参照観測要求群
 from .hds能力経路_v2 import HDS参照検索V2
 from .hds統合判断主体 import HDS作用種別, MINIDORA認知世界, MINIDORAHDS判断主体
 from .hds適応候補調停 import HDS適応候補提案実行
