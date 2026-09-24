@@ -53,7 +53,7 @@ class HDS駆動コア:
         明示残差 = tuple(str(x) for x in (初期残差 or ()))
         明示要求認識 = frozenset(要求認識)
         if not 明示要求状態 and not 明示残差 and not 明示要求認識:
-            raise ValueError("HDS駆動コアには明示的な完了条件が必要")
+            raise ValueError("HDS駆動コアには要求状態・初期残差・要求認識のいずれかによる明示的な完了条件が必要")
 
         作用群: list[HDS作用器] = []
         残差群 = set(明示残差)
