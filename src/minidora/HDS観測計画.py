@@ -7,10 +7,10 @@ from .HDS中間表現 import HDSIR, HDS関係, 値状態
 from .意味字句 import 意味語
 
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
-_RELATION_META_KEYS = frozenset({
+_関係メタ鍵群 = frozenset({
     "検索述語", "不足位置", "英日意味射影", "受動態", "選択意図", "選択問題閉包",
 })
-_GENERIC_RELATIONS = frozenset({"問い適合", "命題適合", "説明適合"})
+_汎用関係種別群 = frozenset({"問い適合", "命題適合", "説明適合"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,7 +26,7 @@ class HDS参照観測要求:
     関係種別: str | None
     未知位置: str | None
     既知端点: tuple[str, ...]
-    条件scope: tuple[tuple[str, str], ...]
+    条件範囲: tuple[tuple[str, str], ...]
     候補ラベル: str | None
     候補表層: str | None
     外部言語: str
@@ -69,13 +69,13 @@ def _条件値(関係: HDS関係, key: str) -> str:
     return ""
 
 
-def _局所scope(関係: HDS関係) -> tuple[tuple[str, str], ...]:
+def _局所条件範囲(関係: HDS関係) -> tuple[tuple[str, str], ...]:
     out: list[tuple[str, str]] = []
     seen: set[tuple[str, str]] = set()
     for raw in 関係.条件:
         key, sep, payload = str(raw).partition("=")
         key, payload = key.strip(), payload.strip()
-        if not sep or not key or not payload or key in _RELATION_META_KEYS:
+        if not sep or not key or not payload or key in _関係メタ鍵群:
             continue
         item = (key, payload)
         if item in seen:
@@ -106,7 +106,7 @@ def _検索表層(ir: HDSIR) -> tuple[str, ...]:
     )
 
 
-def _fallback対象(ir: HDSIR) -> tuple[str, ...]:
+def _縮退対象(ir: HDSIR) -> tuple[str, ...]:
     return _unique(
         str(coord.内容)
         for coord in ir.座標
@@ -157,18 +157,18 @@ def _query_surface(
     predicate: str,
     position: str,
     known: tuple[str, ...],
-    scope: tuple[tuple[str, str], ...],
-    candidate: str | None,
+    条件範囲: tuple[tuple[str, str], ...],
+    候補: str | None,
 ) -> str:
-    scoped = tuple(value for _key, value in scope)
-    if candidate is None:
+    scoped = tuple(value for _key, value in 条件範囲)
+    if 候補 is None:
         if position == "始点":
             return " ".join(_unique((predicate, *known, *scoped)))
         return " ".join(_unique((*known, predicate, *scoped)))
     if position == "始点":
-        parts = (candidate, predicate, *known, *scoped)
+        parts = (候補, predicate, *known, *scoped)
     else:
-        parts = (*known, predicate, candidate, *scoped)
+        parts = (*known, predicate, 候補, *scoped)
     return " ".join(_unique(parts))
 
 
@@ -177,7 +177,7 @@ def _関連検索文脈(
     *,
     predicate: str,
     known: tuple[str, ...],
-    scope: tuple[tuple[str, str], ...],
+    条件範囲: tuple[tuple[str, str], ...],
     最大: int = 2,
 ) -> tuple[str, ...]:
     """Compilerが既に抽出した外部検索表層から、関係観測の文脈anchorを選ぶ。
@@ -186,7 +186,7 @@ def _関連検索文脈(
     """
     if not search_surfaces:
         return ()
-    needles = _unique((predicate, *known, *(value for _key, value in scope)))
+    needles = _unique((predicate, *known, *(value for _key, value in 条件範囲)))
     scored: list[tuple[int, int, str]] = []
     for index, surface in enumerate(search_surfaces):
         low = surface.casefold()
@@ -199,9 +199,9 @@ def _関連検索文脈(
     return tuple(related[:max(1, int(最大))])
 
 
-def _外部表層(local_surface: str, context: tuple[str, ...]) -> str:
+def _外部表層(local_surface: str, 外部文脈: tuple[str, ...]) -> str:
     # 文脈anchorと局所意味を両方保持する。重複した完全表層だけを除き、語句の削除はしない。
-    return " ".join(_unique((*context, local_surface)))
+    return " ".join(_unique((*外部文脈, local_surface)))
 
 
 def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
@@ -210,86 +210,86 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
     choices = _選択肢(ir)
     search_surfaces = _検索表層(ir)
     audit_surfaces = _監査表層(ir)
-    fallback_targets = _fallback対象(ir)
-    language = str(ir.入力言語 or "ja")
+    縮退対象群 = _縮退対象(ir)
+    外部言語名 = str(ir.入力言語 or "ja")
     requests: list[HDS参照観測要求] = []
     concrete = 0
-    planned_relations = 0
-    relation_signatures: set[tuple[object, ...]] = set()
-    canonical_relations: list[tuple[str, str, frozenset[str]]] = []
+    計画済み関係数 = 0
+    関係署名群: set[tuple[object, ...]] = set()
+    正本関係群: list[tuple[str, str, frozenset[str]]] = []
 
-    for candidate_relation in ir.関係:
-        candidate_position = _条件値(candidate_relation, "不足位置")
-        candidate_predicate = _条件値(candidate_relation, "検索述語")
-        if candidate_position not in {"始点", "終点"} or not candidate_predicate:
+    for 検査関係 in ir.関係:
+        検査位置 = _条件値(検査関係, "不足位置")
+        検査述語 = _条件値(検査関係, "検索述語")
+        if 検査位置 not in {"始点", "終点"} or not 検査述語:
             continue
-        if not _条件値(candidate_relation, "英日意味射影"):
+        if not _条件値(検査関係, "英日意味射影"):
             continue
-        candidate_known = _既知端点(ir, candidate_relation, candidate_position)
-        candidate_scope = _局所scope(candidate_relation)
-        terms = _意味集合((*candidate_known, *(value for _key, value in candidate_scope)))
-        canonical_relations.append((candidate_position, str(candidate_relation.種別), terms))
+        検査既知端点 = _既知端点(ir, 検査関係, 検査位置)
+        検査条件範囲 = _局所条件範囲(検査関係)
+        terms = _意味集合((*検査既知端点, *(value for _key, value in 検査条件範囲)))
+        正本関係群.append((検査位置, str(検査関係.種別), terms))
 
     for 関係 in ir.関係:
         position = _条件値(関係, "不足位置")
         predicate = _条件値(関係, "検索述語")
         if position not in {"始点", "終点"} or not predicate:
             continue
-        planned_relations += 1
+        計画済み関係数 += 1
         known = _既知端点(ir, 関係, position)
-        scope = _局所scope(関係)
-        generic = str(関係.種別) in _GENERIC_RELATIONS or bool(_条件値(関係, "選択問題閉包"))
-        relation_kind = str(関係.種別)
+        条件範囲 = _局所条件範囲(関係)
+        generic = str(関係.種別) in _汎用関係種別群 or bool(_条件値(関係, "選択問題閉包"))
+        関係種別 = str(関係.種別)
         if not _条件値(関係, "英日意味射影"):
-            local_terms = _意味集合((*known, *(value for _key, value in scope)))
+            local_terms = _意味集合((*known, *(value for _key, value in 条件範囲)))
             dominated = any(
                 c_position == position
-                and c_kind == relation_kind
+                and c_kind == 関係種別
                 and local_terms
                 and c_terms
                 and (local_terms <= c_terms or c_terms <= local_terms)
-                for c_position, c_kind, c_terms in canonical_relations
+                for c_position, c_kind, c_terms in 正本関係群
             )
             if dominated:
                 continue
         predicate_key = (
             str(predicate).casefold()
-            if relation_kind in {"開放述語", "問い適合"}
-            else relation_kind
+            if 関係種別 in {"開放述語", "問い適合"}
+            else 関係種別
         )
         signature = (
             position,
             predicate_key,
             tuple(str(x).casefold() for x in known),
-            tuple((str(k), str(v).casefold()) for k, v in scope),
+            tuple((str(k), str(v).casefold()) for k, v in 条件範囲),
             generic,
         )
-        if signature in relation_signatures:
+        if signature in 関係署名群:
             continue
-        relation_signatures.add(signature)
+        関係署名群.add(signature)
         stage = "fallback" if generic else "primary"
-        base_priority = 90 if generic else 10
+        基礎優先度 = 90 if generic else 10
         if not generic:
             concrete += 1
 
-        context = _関連検索文脈(
+        外部文脈 = _関連検索文脈(
             search_surfaces,
             predicate=predicate,
             known=known,
-            scope=scope,
+            条件範囲=条件範囲,
         )
         local_anchor = (
-            " ".join(_unique((*known, *(value for _key, value in scope))))
+            " ".join(_unique((*known, *(value for _key, value in 条件範囲))))
             if generic
             else _query_surface(
                 predicate=predicate,
                 position=position,
                 known=known,
-                scope=scope,
-                candidate=None,
+                条件範囲=条件範囲,
+                候補=None,
             )
         )
-        anchor = _外部表層(local_anchor, context) if local_anchor else " ".join(context)
+        anchor = _外部表層(local_anchor, 外部文脈) if local_anchor else " ".join(外部文脈)
         if anchor:
             requests.append(HDS参照観測要求(
                 ID=f"関係:{関係.関係ID}:anchor",
@@ -297,32 +297,32 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
                 関係種別=str(関係.種別),
                 未知位置=position,
                 既知端点=known,
-                条件scope=scope,
+                条件範囲=条件範囲,
                 候補ラベル=None,
                 候補表層=None,
-                外部言語=language,
+                外部言語=外部言語名,
                 外部検索表層=anchor,
                 必須被覆=False,
-                外部文脈アンカー=context,
+                外部文脈アンカー=外部文脈,
                 段階=stage,
-                優先度=base_priority,
+                優先度=基礎優先度,
                 provenance=(f"関係:{関係.関係ID}", "Compiler外部文脈"),
             ))
 
         bound_choices = choices or (("_", ""),)
-        for label, candidate in bound_choices:
+        for label, 候補 in bound_choices:
             local_surface = (
-                " ".join(_unique((candidate, *known, *(value for _key, value in scope))))
-                if generic and candidate
+                " ".join(_unique((候補, *known, *(value for _key, value in 条件範囲))))
+                if generic and 候補
                 else _query_surface(
                     predicate=predicate,
                     position=position,
                     known=known,
-                    scope=scope,
-                    candidate=candidate or None,
+                    条件範囲=条件範囲,
+                    候補=候補 or None,
                 )
             )
-            surface = _外部表層(local_surface, context) if local_surface else " ".join(context)
+            surface = _外部表層(local_surface, 外部文脈) if local_surface else " ".join(外部文脈)
             if not surface:
                 continue
             observation_id = f"関係:{関係.関係ID}:候補:{label}" if choices else f"関係:{関係.関係ID}:観測"
@@ -332,24 +332,24 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
                 関係種別=str(関係.種別),
                 未知位置=position,
                 既知端点=known,
-                条件scope=scope,
+                条件範囲=条件範囲,
                 候補ラベル=None if label == "_" else label,
-                候補表層=candidate or None,
-                外部言語=language,
+                候補表層=候補 or None,
+                外部言語=外部言語名,
                 外部検索表層=surface,
                 必須被覆=True,
-                外部文脈アンカー=context,
+                外部文脈アンカー=外部文脈,
                 段階=stage,
-                優先度=base_priority + 1,
+                優先度=基礎優先度 + 1,
                 provenance=(f"関係:{関係.関係ID}", f"候補:{label}", "Compiler外部文脈"),
             ))
-            if candidate:
-                fallback_parts = (
-                    " ".join(_unique((*known, candidate))),
-                    candidate,
+            if 候補:
+                縮退表層群 = (
+                    " ".join(_unique((*known, 候補))),
+                    候補,
                 )
-                for offset, fallback_surface in enumerate(_unique(fallback_parts), start=1):
-                    if fallback_surface.casefold() == surface.casefold():
+                for offset, 縮退表層 in enumerate(_unique(縮退表層群), start=1):
+                    if 縮退表層.casefold() == surface.casefold():
                         continue
                     requests.append(HDS参照観測要求(
                         ID=observation_id,
@@ -357,15 +357,15 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
                         関係種別=str(関係.種別),
                         未知位置=position,
                         既知端点=known,
-                        条件scope=scope,
+                        条件範囲=条件範囲,
                         候補ラベル=label,
-                        候補表層=candidate,
-                        外部言語=language,
-                        外部検索表層=fallback_surface,
+                        候補表層=候補,
+                        外部言語=外部言語名,
+                        外部検索表層=縮退表層,
                         必須被覆=True,
                         外部文脈アンカー=(),
                         段階="fallback",
-                        優先度=base_priority + 20 + offset,
+                        優先度=基礎優先度 + 20 + offset,
                         provenance=(f"関係:{関係.関係ID}", f"候補:{label}", "縮退"),
                     ))
 
@@ -377,10 +377,10 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
             関係種別=None,
             未知位置=None,
             既知端点=(),
-            条件scope=(),
+            条件範囲=(),
             候補ラベル=None,
             候補表層=None,
-            外部言語=language,
+            外部言語=外部言語名,
             外部検索表層=surface,
             必須被覆=False,
             外部文脈アンカー=(surface,),
@@ -396,10 +396,10 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
             関係種別=None,
             未知位置=None,
             既知端点=(),
-            条件scope=(),
+            条件範囲=(),
             候補ラベル=None,
             候補表層=None,
-            外部言語=language,
+            外部言語=外部言語名,
             外部検索表層=surface,
             必須被覆=False,
             外部文脈アンカー=(),
@@ -408,31 +408,31 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
             provenance=("監査.R_query",),
         ))
 
-    if choices and planned_relations == 0:
-        generic_context = _汎用外部文脈(ir)
-        generic_primary = search_surfaces[0] if search_surfaces else " ".join(generic_context)
+    if choices and 計画済み関係数 == 0:
+        汎用文脈 = _汎用外部文脈(ir)
+        generic_primary = search_surfaces[0] if search_surfaces else " ".join(汎用文脈)
         if generic_primary:
             requests.append(HDS参照観測要求(
                 ID="汎用文脈:0",
                 関係ID=None,
                 関係種別="未解決関係",
                 未知位置=None,
-                既知端点=fallback_targets,
-                条件scope=(),
+                既知端点=縮退対象群,
+                条件範囲=(),
                 候補ラベル=None,
                 候補表層=None,
-                外部言語=language,
+                外部言語=外部言語名,
                 外部検索表層=generic_primary,
                 必須被覆=False,
-                外部文脈アンカー=generic_context or (generic_primary,),
+                外部文脈アンカー=汎用文脈 or (generic_primary,),
                 段階="primary",
                 優先度=35,
                 provenance=("Compiler汎用外部文脈",),
             ))
-        anchor = search_surfaces[0] if search_surfaces else " ".join(fallback_targets)
-        for label, candidate in choices:
+        anchor = search_surfaces[0] if search_surfaces else " ".join(縮退対象群)
+        for label, 候補 in choices:
             observation_id = f"generic:候補:{label}"
-            surfaces = _unique((" ".join(_unique((anchor, candidate))), candidate))
+            surfaces = _unique((" ".join(_unique((anchor, 候補))), 候補))
             for offset, surface in enumerate(surfaces):
                 if not surface:
                     continue
@@ -441,11 +441,11 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
                     関係ID=None,
                     関係種別="未解決関係",
                     未知位置=None,
-                    既知端点=fallback_targets,
-                    条件scope=(),
+                    既知端点=縮退対象群,
+                    条件範囲=(),
                     候補ラベル=label,
-                    候補表層=candidate,
-                    外部言語=language,
+                    候補表層=候補,
+                    外部言語=外部言語名,
                     外部検索表層=surface,
                     必須被覆=True,
                     外部文脈アンカー=(anchor,) if anchor and offset == 0 else (),
