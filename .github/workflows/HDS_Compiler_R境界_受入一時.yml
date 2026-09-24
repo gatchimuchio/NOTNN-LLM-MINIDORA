@@ -1,0 +1,36 @@
+name: HDS Compiler R境界 受入一時実行
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/HDS_Compiler_R境界_受入一時.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hds-compiler-r-boundary-acceptance-once
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: 構文確認
+        run: python -m compileall -q src tests
+      - name: HDS系回帰
+        run: python -m unittest discover -s tests -p "test_HDS*.py"
+      - name: R境界関連回帰
+        run: |
+          python tests/test_言語_意味_橋渡し.py
+          python tests/test_実行系射影_v15.py
+          python tests/test_一般_関係_整理_v11.py
+          python tests/test_英語質問表示境界.py
