@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Iterable
 
 from .HDS中間表現 import HDSIR, HDS関係, 値状態
@@ -497,17 +497,17 @@ def HDS追加観測要求群(
     """
 
     requests = tuple(観測要求)
-    fallback = tuple(x for x in requests if x.段階 == "fallback")
-    if not fallback:
+    縮退要求群 = tuple(x for x in requests if x.段階 == "fallback")
+    if not 縮退要求群:
         return ()
 
-    局所 = tuple(x for x in fallback if "局所検証" in x.provenance)
+    局所 = tuple(x for x in 縮退要求群 if "局所検証" in x.provenance)
     監査 = tuple(
-        x for x in fallback
+        x for x in 縮退要求群
         if x.ID.startswith("監査表層:") or "監査.R_query" in x.provenance
     )
-    縮退 = tuple(x for x in fallback if "縮退" in x.provenance)
-    その他 = tuple(x for x in fallback if x not in 局所 and x not in 監査 and x not in 縮退)
+    縮退 = tuple(x for x in 縮退要求群 if "縮退" in x.provenance)
+    その他 = tuple(x for x in 縮退要求群 if x not in 局所 and x not in 監査 and x not in 縮退)
 
     generation = max(1, int(世代))
     residuals = tuple(str(x) for x in 残差群)
