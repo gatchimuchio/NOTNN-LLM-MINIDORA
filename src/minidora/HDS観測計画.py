@@ -152,11 +152,11 @@ def _関連検索文脈(
     *,
     predicate: str,
     known: tuple[str, ...],
-    scope: tuple[tuple[str, str, ...],
+    scope: tuple[tuple[str, str], ...],
     最大: int = 2,
 ) -> tuple[str, ...]:
-    """Compilerが既に択出した外部検索表層から、関俁观測の文脈anchorを選ぶ。
-    意味分類をRでやり直さないため、ここで選択こmpiler Kernel内で選ぶ。
+    """Compilerが既に抽出した外部検索表層から、関係観測の文脈anchorを選ぶ。
+    意味分類をRでやり直さないため、ここでCompiler Kernel内で選ぶ。
 
     """
     if not search_surfaces:
