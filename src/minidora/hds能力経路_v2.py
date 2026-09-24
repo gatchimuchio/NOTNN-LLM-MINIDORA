@@ -17,6 +17,7 @@ from .HDS参照 import (
     _記録統合,
 )
 from .HDS候補提案実行系 import HDS候補提案実行
+from .hds参照拡張 import HDS参照検索強化
 from .hds局所再照合 import HDS局所Window候補
 if TYPE_CHECKING:
     from .K3機能 import K3相当能力核
@@ -99,56 +100,18 @@ def HDS参照検索V2(
     一問合せ上限: int | None = None,
     最大問合せ並列: int | None = None,
     最大候補補完回数: int = 1,
+    観測要求=None,
 ) -> tuple[参照記録, ...]:
-    '一回の参照作用内で候補被覆不足だけを追加観測するR閉包。\n\n    既存Rのprimary/代替経路規則は保持し、その出力に候補別query被覆が不足した場合だけ、\n    未被覆候補の縮退queryを追加する。generic検索量を無条件には増やさない。\n    '
-
-    予算 = HDS参照予算選択(ir)
-    total_limit = 予算.取得上限 if 上限 is None else max(0, int(上限))
-    per_query = 予算.一問合せ上限 if 一問合せ上限 is None else max(1, int(一問合せ上限))
-    parallel = 予算.最大問合せ並列 if 最大問合せ並列 is None else max(1, int(最大問合せ並列))
-    if total_limit <= 0:
-        return ()
-
-    references = HDS参照検索(
+    """互換入口。R閉包の実体はCompiler Kernel観測要求対応の共通実装へ一本化する。"""
+    return HDS参照検索強化(
         provider,
         ir,
-        上限=total_limit,
-        一問合せ上限=per_query,
-        最大問合せ並列=parallel,
+        上限=上限,
+        一問合せ上限=一問合せ上限,
+        最大問合せ並列=最大問合せ並列,
+        最大候補補完回数=最大候補補完回数,
+        観測要求=観測要求,
     )
-    expected = {
-        request.候補ラベル
-        for request in HDS参照観測要求群(ir)
-        if request.必須被覆 and request.候補ラベル is not None
-    }
-    if not expected:
-        return references
-
-    for _ in range(max(0, int(最大候補補完回数))):
-        coverage = set(_候補被覆(references))
-        missing = expected - coverage
-        if not missing:
-            break
-        代替経路_specs = tuple(
-            spec
-            for spec in _縮退仕様(ir)
-            if spec.候補 is not None and spec.候補 in missing
-        )
-        if not 代替経路_specs:
-            break
-        extra = _round_robin(
-            _query_pools(provider, 代替経路_specs, per_query, max_parallel=parallel),
-            total_limit,
-        )
-        if not extra:
-            break
-        merged = HDS候補被覆優先統合(references, extra, expected, total_limit)
-        before = tuple((record.識別子, record.条件) for record in references)
-        after = tuple((record.識別子, record.条件) for record in merged)
-        references = merged
-        if after == before:
-            break
-    return references
 
 
 def HDS能力模型核V2(模型核: MINIDORA模型核 | None = None) -> MINIDORA模型核:
