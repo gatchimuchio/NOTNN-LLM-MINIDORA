@@ -4,6 +4,9 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from .HDS構文化記録_v1_3 import HDS作用差分構造
+from .HDS構文化記録_v1_1 import (
+    HDS失敗署名候補, HDSチェックリスト項目, HDS認知世界差分, HDS監査参照候補,
+)
 from .HDS中間表現 import HDSIR, HDS実行核
 from .HDSコア入力 import HDSコア入力束
 from .HDS観測計画 import HDS参照観測要求
@@ -70,6 +73,10 @@ class HDSカーネル束:
     計算計画: 言語計画
     コア入力: HDSコア入力束
     参照観測要求: tuple[HDS参照観測要求, ...] = ()
+    失敗署名候補: tuple[HDS失敗署名候補, ...] = ()
+    チェックリスト: tuple[HDSチェックリスト項目, ...] = ()
+    認知世界差分: HDS認知世界差分 = HDS認知世界差分()
+    監査参照候補: tuple[HDS監査参照候補, ...] = ()
     作用差分構造: HDS作用差分構造 = HDS作用差分構造()
     版: str = HDSコンパイラパイプライン版
 
@@ -90,6 +97,10 @@ class HDSカーネル束:
             self.コア入力.意味署名,
             tuple((x.ID, x.外部検索表層, x.段階, x.優先度) for x in self.参照観測要求),
             self.計算計画,
+            self.失敗署名候補,
+            self.チェックリスト,
+            self.認知世界差分,
+            self.監査参照候補,
             self.作用差分構造,
             self.版,
         ))
