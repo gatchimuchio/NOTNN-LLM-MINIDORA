@@ -113,12 +113,12 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
         coord_map = {coord.座標ID: coord for coord in coords}
         existing_question_index = None
         existing_question = None
-        for index, relation in enumerate(relations):
-            if str(relation.種別) != str(question.種別):
+        for index, 関係候補 in enumerate(relations):
+            if str(関係候補.種別) != str(question.種別):
                 continue
             if _条件値(relation, "不足位置") != question.未知位置:
                 continue
-            known_ids = relation.終点 if question.未知位置 == "始点" else relation.始点
+            known_ids = 関係候補.終点 if question.未知位置 == "始点" else 関係候補.始点
             known_values = [
                 coord_map[cid].内容
                 for cid in known_ids
@@ -126,7 +126,7 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
             ]
             if any(_同じ表層(value, known) for value in known_values):
                 existing_question_index = index
-                existing_question = relation
+                existing_question = 関係候補
                 break
 
         if existing_question is not None and question.未知位置 == "始点":
