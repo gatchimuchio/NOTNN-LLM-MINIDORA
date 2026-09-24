@@ -31,6 +31,7 @@ from .HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状�
 from .HDSコア入力 import HDSコア入力束
 from .HDSコア入力射影 import HDSコア入力へ
 from .HDS観測計画 import HDS参照観測要求群
+from .HDS候補検証契約 import HDS候補検証契約群
 from .HDS言語協調 import HDS英語AND展開
 from .HDS言語関係 import HDS英語基底関係射影
 from .HDS言語範囲 import HDS英語関係範囲射影
@@ -155,6 +156,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             計算計画=plan,
             コア入力=コア入力,
             参照観測要求=観測要求,
+            候補検証契約=HDS候補検証契約群(意味_ir, 観測要求),
             失敗署名候補=detailed.失敗署名候補,
             チェックリスト=detailed.チェックリスト,
             認知世界差分=detailed.認知世界差分,
@@ -274,9 +276,11 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         base, plan = self._問題基礎(question, choices)
         detailed = self._完成(base)
         ir = self._選択問題問い閉包(replace(detailed.IR, 手順=None, 初期状態={}), question)
+        観測要求 = HDS参照観測要求群(ir)
         return HDS選択コンパイル束(
             意味IR=ir, 計算計画=plan, コア入力=HDSコア入力へ(ir),
-            参照観測要求=HDS参照観測要求群(ir),
+            参照観測要求=観測要求,
+            候補検証契約=HDS候補検証契約群(ir, 観測要求),
             失敗署名候補=detailed.失敗署名候補,
             チェックリスト=detailed.チェックリスト,
             認知世界差分=detailed.認知世界差分,
