@@ -15,6 +15,7 @@ from .HDS選択実行系 import (
 )
 from .HDS構文化記録_v1_3 import HDS作用差分構造
 from .HDS中間表現 import HDSIR, 値状態
+from .HDS候補意味正本 import HDS候補意味IR辞書
 from .HDS模型射影 import (
     HDS内部言語状態,
     HDS能力作用構造射影,
@@ -140,6 +141,7 @@ def HDS候補提案実行(
     *,
     コンパイル,
     基礎能力核: K3相当能力核 | None,
+    候補意味IR: Mapping[str, HDSIR] | None = None,
     最大コンパイル並列: int = 4,
     模型核: MINIDORA模型核 | None = None,
 ) -> HDS選択実行結果:
@@ -163,29 +165,42 @@ def HDS候補提案実行(
         else 1
     )
 
-    選択肢_payloads = _一括コンパイル(
-        compile_isolated,
-        [content for _, content, _ in choices],
-        parallel=parallel_safe,
-        max_workers=worker_count,
-    )
-    候補_irs: dict[str, HDSIR] = {}
-    for (label, _, _), compiled in zip(choices, 選択肢_payloads):
-        if isinstance(compiled, Exception):
-            return _suspend(
-                'HDS_選択肢_COMPILE_FAILED',
-                候補_count=len(候補_irs),
-                parallel=parallel_safe,
-                workers=worker_count,
-            )
-        if any(残差.種別 == '意味_loss' for 残差 in compiled.残差):
-            return _suspend(
-                'HDS_選択肢_意味_LOSS',
-                候補_count=len(候補_irs) + 1,
-                parallel=parallel_safe,
-                workers=worker_count,
-            )
-        候補_irs[label] = compiled
+    正本候補 = HDS候補意味IR辞書(候補意味IR, labels)
+    if 正本候補 is None:
+        選択肢_payloads = _一括コンパイル(
+            compile_isolated,
+            [content for _, content, _ in choices],
+            parallel=parallel_safe,
+            max_workers=worker_count,
+        )
+        候補_irs: dict[str, HDSIR] = {}
+        for (label, _, _), compiled in zip(choices, 選択肢_payloads):
+            if isinstance(compiled, Exception):
+                return _suspend(
+                    'HDS_選択肢_COMPILE_FAILED',
+                    候補_count=len(候補_irs),
+                    parallel=parallel_safe,
+                    workers=worker_count,
+                )
+            if any(残差.種別 == '意味_loss' for 残差 in compiled.残差):
+                return _suspend(
+                    'HDS_選択肢_意味_LOSS',
+                    候補_count=len(候補_irs) + 1,
+                    parallel=parallel_safe,
+                    workers=worker_count,
+                )
+            候補_irs[label] = compiled
+    else:
+        候補_irs = 正本候補
+        for label in labels:
+            compiled = 候補_irs[label]
+            if any(残差.種別 == '意味_loss' for 残差 in compiled.残差):
+                return _suspend(
+                    'HDS_選択肢_意味_LOSS',
+                    候補_count=len(候補_irs),
+                    parallel=parallel_safe,
+                    workers=worker_count,
+                )
 
     k_question_ir = HDSK質問射影(question_ir)
     if any(残差.種別 == '意味_loss' for 残差 in k_question_ir.残差):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TYPE_CHECKING
+from typing import Mapping, TYPE_CHECKING
 
 from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
 from .hds既存能力resolver import (
@@ -108,6 +108,7 @@ def HDS既存能力選択評価(
     コンパイル,
     模型核: MINIDORA模型核,
     基礎能力核: K3相当能力核 | None = None,
+    候補意味IR: Mapping[str, HDSIR] | None = None,
 ) -> HDS選択実行結果:
     """MINIDORA30正本を下限に、既存K3/graph/direct/能力v3を非退行で継承する。
 
@@ -121,6 +122,7 @@ def HDS既存能力選択評価(
         参照群,
         コンパイル=コンパイル,
         基礎能力核=None,
+        候補意味IR=候補意味IR,
         模型核=模型核,
         正式模型評価=True,
     )
@@ -132,6 +134,7 @@ def HDS既存能力選択評価(
         参照群,
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
+        候補意味IR=候補意味IR,
         模型核=None,
         正式模型評価=False,
         作業再作用=True,
@@ -142,6 +145,7 @@ def HDS既存能力選択評価(
         参照群,
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
+        候補意味IR=候補意味IR,
         模型核=模型核,
     )
 
@@ -210,6 +214,7 @@ def HDS既存能力直接反証評価(
     *,
     コンパイル,
     基礎能力核: K3相当能力核 | None,
+    候補意味IR: Mapping[str, HDSIR] | None = None,
     基準ラベル: str,
     最小独立証拠数: int = 2,
 ) -> HDS選択実行結果 | None:
@@ -227,6 +232,7 @@ def HDS既存能力直接反証評価(
         参照群,
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
+        候補意味IR=候補意味IR,
         模型核=None,
         正式模型評価=False,
         作業再作用=True,

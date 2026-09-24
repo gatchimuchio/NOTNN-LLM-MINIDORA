@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 import unicodedata
-from typing import Iterable, TYPE_CHECKING
+from typing import Iterable, Mapping, TYPE_CHECKING
 
 from .HDS選択実行系 import HDS選択実行結果
 from .HDS中間表現 import HDSIR
@@ -212,6 +212,7 @@ def HDS能力経路V2候補提案実行(
     *,
     コンパイル,
     基礎能力核: K3相当能力核 | None,
+    候補意味IR: Mapping[str, HDSIR] | None = None,
     最大コンパイル並列: int = 4,
     模型核: MINIDORA模型核 | None = None,
     最大局所Window数: int = 12,
@@ -223,6 +224,7 @@ def HDS能力経路V2候補提案実行(
         references,
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
+        候補意味IR=候補意味IR,
         最大コンパイル並列=最大コンパイル並列,
         模型核=HDS能力模型核V2(模型核),
     )
@@ -246,6 +248,7 @@ def HDS能力経路V2候補提案実行(
         local_references,
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
+        候補意味IR=候補意味IR,
         最大コンパイル並列=最大コンパイル並列,
         模型核=HDS能力模型核V2(模型核),
     )

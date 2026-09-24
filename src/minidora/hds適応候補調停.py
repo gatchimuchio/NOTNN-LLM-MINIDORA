@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Callable, TYPE_CHECKING
+from typing import Callable, Mapping, TYPE_CHECKING
 
 from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
 from .HDS中間表現 import HDSIR
@@ -90,6 +90,7 @@ def HDS適応候補提案実行(
     *,
     コンパイル,
     基礎能力核: K3相当能力核 | None = None,
+    候補意味IR: Mapping[str, HDSIR] | None = None,
     模型核: MINIDORA模型核 | None = None,
     統一session: HDS統一状態Session | None = None,
     統一政策: HDS統一状態政策 | None = None,
@@ -101,6 +102,7 @@ def HDS適応候補提案実行(
         references,
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
+        候補意味IR=候補意味IR,
         模型核=模型核,
         統一session=統一session,
         統一政策=統一政策,
@@ -111,6 +113,7 @@ def HDS適応候補提案実行(
         references,
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
+        候補意味IR=候補意味IR,
         模型核=模型核,
         作業再作用=False,
         局所再照合=False,

@@ -233,6 +233,28 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertTrue(成果[非退行判定成果名].基準固定)
         self.assertFalse(成果[非退行判定成果名].拡張採用)
 
+    def test_Kernel候補意味正本は再評価で再コンパイルしない(self):
+        kernel = self.構文化器.問題コンパイル束(self.問い, self.選択肢)
+        original = self.構文化器.コンパイル
+        候補表層 = set(self.選択肢)
+
+        def 候補再コンパイル禁止(入力, **kwargs):
+            if str(入力) in 候補表層:
+                raise AssertionError("Kernel形成済み候補を下流で再コンパイルした")
+            return original(入力, **kwargs)
+
+        self.構文化器.コンパイル = 候補再コンパイル禁止
+        try:
+            結果 = self.コア.選択実行(
+                self.問い,
+                self.選択肢,
+                初期参照=(証拠("Molecule A", 識別子="candidate-kernel"),),
+                カーネル正本=kernel,
+            )
+        finally:
+            self.構文化器.コンパイル = original
+        self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
+
     def test_外部で形成済みKernel正本は中核内で再コンパイルしない(self):
         kernel = self.構文化器.問題コンパイル束(self.問い, self.選択肢)
         original = self.構文化器.問題コンパイル束

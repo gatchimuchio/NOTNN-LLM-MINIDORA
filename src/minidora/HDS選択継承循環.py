@@ -78,6 +78,7 @@ class HDS選択継承供給:
                  入力残差非阻害対象: Sequence[str] = ()) -> None:
         if not isinstance(カーネル束, HDSカーネル束): raise TypeError("選択継承循環にはHDSカーネル束が必要")
         self.カーネル束 = カーネル束; self.質問IR = カーネル束.意味IR; self.参照観測要求 = tuple(カーネル束.参照観測要求)
+        self.候補意味IR = カーネル束.候補意味IR辞書 or None
         self.コンパイラ = コンパイラ; self.初期参照 = tuple(初期参照); self.初期参照署名 = _参照署名(self.初期参照)
         self.模型核 = 模型核 or 標準能力模型核()
         if 基礎能力核 is None and 既存能力継承:
@@ -100,8 +101,8 @@ class HDS選択継承供給:
         compile_fn = getattr(self.コンパイラ,"コンパイル",None)
         if not callable(compile_fn): raise TypeError("選択継承循環には外部資料をコンパイル可能なHDSコンパイラが必要")
         if not self.既存能力継承:
-            return HDS選択推論実行(self.質問IR,参照群,コンパイル=compile_fn,基礎能力核=None,模型核=self.模型核,正式模型評価=True)
-        return HDS既存能力選択評価(self.質問IR,参照群,コンパイル=compile_fn,模型核=self.模型核,基礎能力核=self.基礎能力核)
+            return HDS選択推論実行(self.質問IR,参照群,コンパイル=compile_fn,基礎能力核=None,候補意味IR=self.候補意味IR,模型核=self.模型核,正式模型評価=True)
+        return HDS既存能力選択評価(self.質問IR,参照群,コンパイル=compile_fn,模型核=self.模型核,基礎能力核=self.基礎能力核,候補意味IR=self.候補意味IR)
 
     def _評価作用(self, 状態: HDS実行状態):
         成果=self._成果(状態); 参照群=self._参照(状態); ref_sig=_参照署名(参照群)
@@ -130,6 +131,7 @@ class HDS選択継承供給:
                         refs,
                         コンパイル=getattr(self.コンパイラ, "コンパイル"),
                         基礎能力核=self.基礎能力核,
+                        候補意味IR=self.候補意味IR,
                         基準ラベル=str(基準.回答ラベル),
                         最小独立証拠数=2,
                     )

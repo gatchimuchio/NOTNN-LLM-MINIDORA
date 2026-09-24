@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TYPE_CHECKING
+from typing import Mapping, TYPE_CHECKING
 
 from .HDS中間表現 import HDSIR
 from .hds多時間尺度 import HDS多時間尺度政策, HDS阻害回復方針
@@ -24,6 +24,7 @@ def HDS能力経路V3候補提案実行(
     *,
     コンパイル,
     基礎能力核: K3相当能力核 | None,
+    候補意味IR: Mapping[str, HDSIR] | None = None,
     最大コンパイル並列: int = 4,
     模型核: MINIDORA模型核 | None = None,
     最大局所Window数: int = 12,
@@ -61,6 +62,7 @@ def HDS能力経路V3候補提案実行(
             tuple(実行系_references),
             コンパイル=コンパイル,
             基礎能力核=基礎能力核,
+            候補意味IR=候補意味IR,
             最大コンパイル並列=最大コンパイル並列,
             模型核=模型核,
             最大局所Window数=最大局所Window数,

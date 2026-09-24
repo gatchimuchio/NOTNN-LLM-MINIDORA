@@ -74,6 +74,7 @@ class HDSカーネル束:
     計算計画: 言語計画
     コア入力: HDSコア入力束
     参照観測要求: tuple[HDS参照観測要求, ...] = ()
+    候補意味IR: tuple[tuple[str, HDSIR], ...] = ()
     候補検証契約: tuple[HDS候補検証契約, ...] = ()
     失敗署名候補: tuple[HDS失敗署名候補, ...] = ()
     チェックリスト: tuple[HDSチェックリスト項目, ...] = ()
@@ -81,6 +82,10 @@ class HDSカーネル束:
     監査参照候補: tuple[HDS監査参照候補, ...] = ()
     作用差分構造: HDS作用差分構造 = HDS作用差分構造()
     版: str = HDSコンパイラパイプライン版
+
+    @property
+    def 候補意味IR辞書(self) -> dict[str, HDSIR]:
+        return {str(ラベル): ir for ラベル, ir in self.候補意味IR}
 
     @property
     def 正本(self) -> HDSコア入力束:
@@ -98,6 +103,7 @@ class HDSカーネル束:
         return 署名((
             self.コア入力.意味署名,
             tuple((x.ID, x.外部検索表層, x.段階, x.優先度) for x in self.参照観測要求),
+            self.候補意味IR,
             self.候補検証契約,
             self.計算計画,
             self.失敗署名候補,
