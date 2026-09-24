@@ -40,7 +40,7 @@ class HDS構文化器処理系列試験(unittest.TestCase):
         self.assertFalse(hasattr(bundle.正本, "計算計画"))
         self.assertIsInstance(bundle.参照観測要求, tuple)
 
-    def test_選択問題束は意味CoreRを同一成果で保持する(self) -> None:
+    def test_選択問題束は意味中核Rを同一成果で保持する(self) -> None:
         bundle = self.構文化器.問題コンパイル束(
             "Which molecule causes apoptosis under hypoxia?",
             ("Protein A", "Protein B", "Protein C", "Protein D"),
@@ -96,11 +96,11 @@ class HDS構文化器処理系列試験(unittest.TestCase):
         self.assertTrue(legacy.実行可能)
         self.assertIn("互換橋", legacy.実行核.境界)
         self.assertFalse(any(str(x.種別).startswith(("監査.", "保持.", "暫定性.", "帰還.")) for x in legacy.座標))
-        kernel_semantic = tuple(
+        カーネル意味座標 = tuple(
             x for x in 意味.座標
             if not str(x.種別).startswith(("監査.", "保持.", "暫定性.", "帰還."))
         )
-        self.assertEqual(kernel_semantic, legacy.座標)
+        self.assertEqual(カーネル意味座標, legacy.座標)
         self.assertTrue(set(legacy.関係).issubset(set(意味.関係)))
 
     def test_詳細コンパイルと選択問題IRは意味正本なのでPを持たない(self) -> None:
