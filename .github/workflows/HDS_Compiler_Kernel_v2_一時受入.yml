@@ -12,7 +12,7 @@ permissions:
 jobs:
   accept:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -21,18 +21,44 @@ jobs:
       - run: python -m pip install -e .
       - name: 構文
         run: python -m compileall -q src tests
-      - name: Kernel境界局所回帰
+      - name: Kernel全影響境界回帰
         run: |
-          python -m unittest -v             tests.test_HDS_構文化器_処理系列_v1_3             tests.test_HDSコア入力優先_v1             tests.test_HDS_参照観測要求             tests.test_HDS正本継承循環_v1             tests.test_実行系_HDS_v1             tests.test_実行系射影_v15             tests.test_実行系参照射影_v15             tests.test_HDS能力経路_v2             tests.test_HDS参照             tests.test_HDS_参照_代替経路             tests.test_言語_意味_橋渡し             tests.test_一般_関係_整理_v11
-      - name: 全単体試験
-        run: python -m unittest discover -s tests -p "test_*.py"
-
-# rerun after observation-plan repair
-
-# rerun 1970-01-01T00:00:00.000Z kernel-fix-2
-
-# rerun kernel-fix-3
-
-# rerun kernel-fix-4
-
-# final rerun after supervisor kernel integration
+          python -m unittest -v \
+            tests.test_HDS_構文化器_処理系列_v1_3 \
+            tests.test_HDSコア入力優先_v1 \
+            tests.test_HDS_参照観測要求 \
+            tests.test_HDS参照 \
+            tests.test_HDS_参照_代替経路 \
+            tests.test_HDS_参照_予算 \
+            tests.test_HDS_参照_並列 \
+            tests.test_HDS_参照_優先度 \
+            tests.test_HDS能力経路_v2 \
+            tests.test_HDS正本継承循環_v1 \
+            tests.test_HDS監督選択実行系 \
+            tests.test_実行系_HDS_v1 \
+            tests.test_実行系射影_v15 \
+            tests.test_実行系参照射影_v15 \
+            tests.test_HDS_構文化器 \
+            tests.test_HDS_未知_欄 \
+            tests.test_HDS_構文化器_構造_v1 \
+            tests.test_HDS_構文化器_構造_v1_1 \
+            tests.test_HDS構文化構造_v1 \
+            tests.test_HDS構文化構造_v1_2 \
+            tests.test_HDS_言語_関係 \
+            tests.test_HDS_言語_範囲 \
+            tests.test_言語_意味_橋渡し \
+            tests.test_一般_関係_整理_v11 \
+            tests.test_連言_協調_整理_v09 \
+            tests.test_極性保持_v17 \
+            tests.test_関係修飾_v18 \
+            tests.test_射影連鎖忠実度_v1 \
+            tests.test_英語質問表示境界 \
+            tests.test_局所解釈連続性 \
+            tests.test_要求解釈_HDS \
+            tests.test_会話意味統合 \
+            tests.test_目的会話 \
+            tests.test_命題会話 \
+            tests.test_集合会話 \
+            tests.test_HDS配線境界_v3 \
+            tests.test_HDS統合判断主体_v1 \
+            tests.test_HDS自律接続_v3
