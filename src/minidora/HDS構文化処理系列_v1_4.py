@@ -24,10 +24,17 @@ def _旧consumer互換意味射影(ir: HDSIR) -> HDSIR:
     意味決定をやり直さず、監査・保持・帰還sidebandだけを除く。
     関係・残差・意味作用も残存座標へ閉じるため、旧consumerへ未処理監査座標を漏らさない。
     """
-    座標 = tuple(
-        x for x in ir.座標
-        if not str(x.種別).startswith(_互換除外接頭辞)
-    )
+    def sideband(x) -> bool:
+        cid = str(x.座標ID)
+        origin = str(getattr(x, "由来", ""))
+        return (
+            str(x.種別).startswith(_互換除外接頭辞)
+            or cid.startswith(("archv1:", "archv11:", "archv13:"))
+            or origin.startswith("公開HDS 構文化器 構造 v1")
+            or origin.startswith("公開HDS 構文化器 v1.1")
+        )
+
+    座標 = tuple(x for x in ir.座標 if not sideband(x))
     ids = {x.座標ID for x in 座標}
     関係 = tuple(
         r for r in ir.関係
