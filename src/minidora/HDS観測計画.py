@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from .HDS中間表現 import HDSIR, HDS関係, 値状態
+from .意味字句 import 意味語
 
 _BLOCKING = {値状態.未確定, 値状態.未観測, 値状態.矛盾, 値状態.留保}
 _RELATION_META_KEYS = frozenset({
@@ -50,6 +51,13 @@ def _unique(parts: Iterable[str]) -> tuple[str, ...]:
         seen.add(key)
         out.append(value)
     return tuple(out)
+
+
+def _意味集合(values: Iterable[str]) -> frozenset[str]:
+    out: set[str] = set()
+    for value in values:
+        out.update(str(x).casefold() for x in 意味語(value) if str(x))
+    return frozenset(out)
 
 
 def _条件値(関係: HDS関係, key: str) -> str:
@@ -208,7 +216,7 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
     concrete = 0
     planned_relations = 0
     relation_signatures: set[tuple[object, ...]] = set()
-    canonical_relation_keys: set[tuple[object, ...]] = set()
+    canonical_relations: list[tuple[str, str, frozenset[str]]] = []
 
     for candidate_relation in ir.関係:
         candidate_position = _条件値(candidate_relation, "不足位置")
@@ -218,11 +226,9 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
         if not _条件値(candidate_relation, "英日意味射影"):
             continue
         candidate_known = _既知端点(ir, candidate_relation, candidate_position)
-        canonical_relation_keys.add((
-            candidate_position,
-            str(candidate_relation.種別),
-            tuple(str(x).casefold() for x in candidate_known),
-        ))
+        candidate_scope = _局所scope(candidate_relation)
+        terms = _意味集合((*candidate_known, *(value for _key, value in candidate_scope)))
+        canonical_relations.append((candidate_position, str(candidate_relation.種別), terms))
 
     for 関係 in ir.関係:
         position = _条件値(関係, "不足位置")
@@ -234,13 +240,18 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
         scope = _局所scope(関係)
         generic = str(関係.種別) in _GENERIC_RELATIONS or bool(_条件値(関係, "選択問題閉包"))
         relation_kind = str(関係.種別)
-        canonical_key = (
-            position,
-            relation_kind,
-            tuple(str(x).casefold() for x in known),
-        )
-        if not _条件値(関係, "英日意味射影") and canonical_key in canonical_relation_keys:
-            continue
+        if not _条件値(関係, "英日意味射影"):
+            local_terms = _意味集合((*known, *(value for _key, value in scope)))
+            dominated = any(
+                c_position == position
+                and c_kind == relation_kind
+                and local_terms
+                and c_terms
+                and (local_terms <= c_terms or c_terms <= local_terms)
+                for c_position, c_kind, c_terms in canonical_relations
+            )
+            if dominated:
+                continue
         predicate_key = (
             str(predicate).casefold()
             if relation_kind in {"開放述語", "問い適合"}
