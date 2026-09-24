@@ -129,8 +129,13 @@ def HDS英日意味射影(ir: HDSIR) -> HDSIR:
                 existing_question = relation
                 break
 
-        if existing_question is not None:
+        if existing_question is not None and question.未知位置 == "始点":
+            # 旧基礎Compilerの未知ノードだけを再利用し、既知端点は英日正本のclean surfaceへ置換する。
+            # これにより未知座標を二重化せず、条件句を端点へ抱き込んだ旧表層をKernel正本へ残さない。
             start_id = existing_question.始点[0]
+            end_id = add_coord("lang-sem:known:end", "対象.終点", known)
+        elif existing_question is not None:
+            start_id = add_coord("lang-sem:known:start", "対象.始点", known)
             end_id = existing_question.終点[0]
         elif question.未知位置 == "始点":
             start_id = add_coord('lang-sem:未知:start', "目的.未知始点", question.要求型 or "未特定", 値状態.未観測)
