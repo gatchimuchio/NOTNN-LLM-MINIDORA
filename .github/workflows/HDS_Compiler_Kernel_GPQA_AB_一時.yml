@@ -70,7 +70,7 @@ jobs:
       - name: Kernel刷新取得
         uses: actions/checkout@v4
         with:
-          ref: fd3049d52b07229def7763db0fcd1c25d666cfe5
+          ref: 4d605c2818c8ecdbc5f3762810472fd1c47c4744
           path: current
       - uses: actions/setup-python@v5
         with:
@@ -274,7 +274,7 @@ jobs:
               order=(("old","current") if idx%2==0 else ("current","old"))
               results={}
               for variant in order:
-                  commit="3d4d1052eb2034a8c23c070631e91d7c56d65bd3" if variant=="old" else "fd3049d52b07229def7763db0fcd1c25d666cfe5"
+                  commit="3d4d1052eb2034a8c23c070631e91d7c56d65bd3" if variant=="old" else "4d605c2818c8ecdbc5f3762810472fd1c47c4744"
                   cwd=root/variant; out=root/f"{variant}_{idx}.json"
                   env=os.environ.copy()
                   env.update({"CASE_FILE":str(casefile),"OUT":str(out),"VARIANT":variant,"COMMIT":commit,
@@ -288,7 +288,7 @@ jobs:
                     f"cov={results['old']['initial_candidate_coverage_count']}->{results['current']['initial_candidate_coverage_count']} "
                     f"k={results['current']['kernel_compile_count']}",flush=True)
           out={"protocol":{
-              "base_commit":"3d4d1052eb2034a8c23c070631e91d7c56d65bd3","current_commit":"fd3049d52b07229def7763db0fcd1c25d666cfe5","GPQA_CSV_SHA256":payload["csv_sha256"],
+              "base_commit":"3d4d1052eb2034a8c23c070631e91d7c56d65bd3","current_commit":"4d605c2818c8ecdbc5f3762810472fd1c47c4744","GPQA_CSV_SHA256":payload["csv_sha256"],
               "choice_shuffle_seed":0,"OpenAlex":False,"EuropePMC":True,"Crossref":True,"Wikipedia":["en"],
               "reference":"INDEPENDENT_LIVE_PAIRED_ALTERNATING_ORDER","core_entry":"HDS駆動コア.選択実行",
               "current_kernel":"問題コンパイル束を初期RとCoreで同一再利用","fixed_reference_data":False,
@@ -324,7 +324,7 @@ jobs:
           rows=[r for p in payloads for r in p["rows"]]; rows.sort(key=lambda x:x["index"])
           assert [r["index"] for r in rows]==list(range(198)),len(rows)
           assert {p["protocol"]["base_commit"] for p in payloads}=={"3d4d1052eb2034a8c23c070631e91d7c56d65bd3"}
-          assert {p["protocol"]["current_commit"] for p in payloads}=={"fd3049d52b07229def7763db0fcd1c25d666cfe5"}
+          assert {p["protocol"]["current_commit"] for p in payloads}=={"4d605c2818c8ecdbc5f3762810472fd1c47c4744"}
           assert {p["protocol"]["GPQA_CSV_SHA256"] for p in payloads}=={"41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305"}
           if not all(r["current"]["kernel_available"] and r["current"]["kernel_compile_count"]==1 for r in rows):
               raise SystemExit("current Kernel single-compile contract violated")
