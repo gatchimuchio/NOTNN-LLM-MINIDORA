@@ -155,6 +155,10 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             計算計画=plan,
             コア入力=コア入力,
             参照観測要求=観測要求,
+            失敗署名候補=detailed.失敗署名候補,
+            チェックリスト=detailed.チェックリスト,
+            認知世界差分=detailed.認知世界差分,
+            監査参照候補=detailed.監査参照候補,
             作用差分構造=detailed.作用差分構造,
         ), detailed
 
@@ -272,7 +276,12 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         ir = self._選択問題問い閉包(replace(detailed.IR, 手順=None, 初期状態={}), question)
         return HDS選択コンパイル束(
             意味IR=ir, 計算計画=plan, コア入力=HDSコア入力へ(ir),
-            参照観測要求=HDS参照観測要求群(ir), 作用差分構造=detailed.作用差分構造,
+            参照観測要求=HDS参照観測要求群(ir),
+            失敗署名候補=detailed.失敗署名候補,
+            チェックリスト=detailed.チェックリスト,
+            認知世界差分=detailed.認知世界差分,
+            監査参照候補=detailed.監査参照候補,
+            作用差分構造=detailed.作用差分構造,
         )
 
     def 問題IR(self, question: str, choices: Sequence[str]) -> HDSIR:
