@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from .HDS参照 import HDS参照予算選択, HDS参照検索
+from .HDS観測計画 import HDS参照観測要求群
 from .HDS実行主体 import HDS終端
 from .HDS選択実行系 import HDS選択実行結果, HDS選択問題
 from .HDS選択継承循環 import 回答成果名, 参照成果名, 現行結果成果名
@@ -43,6 +44,7 @@ class HDS駆動ミニドラ(_MINIDORAV05):
             上限=予算.取得上限,
             一問合せ上限=予算.一問合せ上限,
             最大問合せ並列=予算.最大問合せ並列,
+            観測要求=HDS参照観測要求群(中間表現),
         )
 
     def 実行(self, 要求_: 要求) -> 結果:
