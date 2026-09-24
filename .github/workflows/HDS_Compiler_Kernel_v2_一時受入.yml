@@ -64,3 +64,5 @@ jobs:
 # rerun after sideband and relation dedupe
 
 # rerun after kernel contract test migration
+
+# rerun after canonical relation and audit fallback fixes
