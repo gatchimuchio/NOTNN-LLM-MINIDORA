@@ -26,3 +26,5 @@ jobs:
           python -m unittest -v             tests.test_HDS_構文化器_処理系列_v1_3             tests.test_HDSコア入力優先_v1             tests.test_HDS_参照観測要求             tests.test_HDS正本継承循環_v1             tests.test_実行系_HDS_v1             tests.test_実行系射影_v15             tests.test_実行系参照射影_v15             tests.test_HDS能力経路_v2             tests.test_HDS参照             tests.test_HDS_参照_代替経路             tests.test_言語_意味_橋渡し             tests.test_一般_関係_整理_v11
       - name: 全単体試験
         run: python -m unittest discover -s tests -p "test_*.py"
+
+# rerun after observation-plan repair
