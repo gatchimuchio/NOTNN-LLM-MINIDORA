@@ -1,5 +1,9 @@
 name: MINIDORA 再構築CI
 
+concurrency:
+  group: minidora-rebuild-ci-main
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
