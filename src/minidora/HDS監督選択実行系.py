@@ -7,7 +7,6 @@ from typing import Callable
 
 from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
 from .HDS中間表現 import HDSIR
-from .HDS実行系射影 import HDSR質問射影
 from .hds介入制御 import (
     HDS介入制御,
     HDS介入記録,
@@ -120,7 +119,7 @@ class _Session:
         評価実行: Callable[[tuple[参照記録, ...]], HDS選択実行結果] | None = None,
     ) -> None:
         self.question_ir = question_ir
-        self.search_ir = HDSR質問射影(question_ir)
+        self.search_ir = question_ir
         self.references = tuple(references)
         self.コンパイル = コンパイル
         self.基礎能力核 = 基礎能力核
