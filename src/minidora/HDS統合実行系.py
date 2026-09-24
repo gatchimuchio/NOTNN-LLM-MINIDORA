@@ -6,7 +6,6 @@ from typing import Any, Callable, Protocol
 from .HDS選択実行系 import HDS選択実行結果
 from .HDS中間表現 import HDSIR
 from .HDS参照 import HDS参照予算選択
-from .HDS実行系射影 import HDSR質問射影
 from .hds能力経路_v2 import HDS参照検索V2
 from .hds統合判断主体 import HDS作用種別, MINIDORA認知世界, MINIDORAHDS判断主体
 from .hds適応候補調停 import HDS適応候補提案実行
@@ -45,7 +44,7 @@ def _既定参照実行(環境: HDS駆動実行環境, ir: HDSIR) -> tuple[参�
     予算 = HDS参照予算選択(ir)
     return HDS参照検索V2(
         環境.参照供給器,
-        HDSR質問射影(ir),
+        ir,
         上限=予算.取得上限,
         一問合せ上限=予算.一問合せ上限,
         最大問合せ並列=予算.最大問合せ並列,
