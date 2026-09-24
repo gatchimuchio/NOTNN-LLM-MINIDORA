@@ -127,7 +127,7 @@ class HDS計算コンパイル成果:
 
 
 def HDS意味IR化(base: HDSIR, plan: 言語計画) -> HDSIR:
-    """Legacy意味IRを計算У񋣂񥈆離する。Kernel正本は別束で形成する。"""
+    """Legacy意味IRを計算Pから分離する。Kernel正本は別束で形成する。"""
     return replace(
         base,
         実行核=HDS実行核(
