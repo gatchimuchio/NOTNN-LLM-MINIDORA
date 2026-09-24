@@ -60,3 +60,5 @@ jobs:
             tests.test_命題会話 \
             tests.test_集合会話 \
             tests.test_HDS自律接続_v3
+
+# rerun after sideband and relation dedupe
