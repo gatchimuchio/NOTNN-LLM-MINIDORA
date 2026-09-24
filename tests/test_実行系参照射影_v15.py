@@ -17,13 +17,11 @@ class _空R:
 
 
 class 実行系参照射影V15試験(unittest.TestCase):
-    def test_完全IRで予算を決めR射影IRでqueryを作る(self) -> None:
+    def test_完全IRで予算を決めCompiler観測要求をRへ渡す(self) -> None:
         構文化器 = 公開HDSコンパイラ()
         実行系 = ミニドラ(参照供給器_=_空R(), HDSコンパイラ_=構文化器)
         予算 = HDS参照予算("max", 16, 4, 4)
 
-        # v0.5の通常実行責任はnative 実行系が所有する。
-        # 旧実行系_v03ではなく現行責任moduleをpatchする。
         with (
             patch("minidora.実行系.HDS参照予算選択", return_value=予算) as choose_予算,
             patch("minidora.実行系.HDS参照検索", return_value=()) as search,
@@ -39,14 +37,17 @@ class 実行系参照射影V15試験(unittest.TestCase):
 
         self.assertEqual(search.call_count, 1)
         query_ir = search.call_args.args[1]
-        self.assertNotIn("least likely", str(query_ir.原文).casefold())
-        self.assertNotIn("which", str(query_ir.原文).casefold())
-        self.assertFalse(any(str(c.種別).startswith("制御.") for c in query_ir.座標))
+        self.assertEqual(query_ir, full_ir)
 
         kwargs = search.call_args.kwargs
         self.assertEqual(kwargs["上限"], 16)
         self.assertEqual(kwargs["一問合せ上限"], 4)
         self.assertEqual(kwargs["最大問合せ並列"], 4)
+        requests = tuple(kwargs["観測要求"])
+        self.assertTrue(requests)
+        surfaces = tuple(str(item.外部検索表層).casefold() for item in requests)
+        self.assertFalse(any("least likely" in surface for surface in surfaces))
+        self.assertFalse(any("which molecule" in surface for surface in surfaces))
 
 
 if __name__ == "__main__":
