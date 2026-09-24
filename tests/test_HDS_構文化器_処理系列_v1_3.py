@@ -11,9 +11,9 @@ class HDS構文化器処理系列試験(unittest.TestCase):
     def setUp(self) -> None:
         self.構文化器 = 公開HDSコンパイラ()
 
-    def test_意味監査構造_v1_3と処理系列_v1_7(self) -> None:
+    def test_意味監査構造_v1_3とKernel処理系列_v2_0(self) -> None:
         self.assertEqual(self.構文化器.構造版, "v1.3")
-        self.assertEqual(self.構文化器.処理系列版, "v1.7")
+        self.assertEqual(self.構文化器.処理系列版, "v2.0")
         self.assertEqual(self.構文化器.規定言語, "日本語")
         self.assertEqual(self.構文化器.基底言語, "日本語")
         self.assertEqual(self.構文化器.基底言語コード, "ja")
@@ -33,7 +33,9 @@ class HDS構文化器処理系列試験(unittest.TestCase):
         self.assertEqual(bundle.計算計画.種別, "算術")
         self.assertEqual(bundle.計算計画.初期状態, {"入力0": 2, "入力1": 3})
         self.assertEqual(bundle.作用差分構造.作用数, 0)
+        self.assertIs(bundle.カーネル正本, bundle)
         self.assertIs(bundle.正本, bundle.コア入力)
+        self.assertTrue(bundle.カーネル署名)
         self.assertEqual(bundle.正本.版, "HDS-コア入力-v1")
         self.assertFalse(hasattr(bundle.正本, "計算計画"))
         self.assertIsInstance(bundle.参照観測要求, tuple)
@@ -43,7 +45,9 @@ class HDS構文化器処理系列試験(unittest.TestCase):
             "Which molecule causes apoptosis under hypoxia?",
             ("Protein A", "Protein B", "Protein C", "Protein D"),
         )
+        self.assertIs(bundle.カーネル正本, bundle)
         self.assertIs(bundle.正本, bundle.コア入力)
+        self.assertTrue(bundle.カーネル署名)
         self.assertTrue(bundle.参照観測要求)
         labels = {item.候補ラベル for item in bundle.参照観測要求 if item.必須被覆}
         self.assertEqual(labels, {"A", "B", "C", "D"})
