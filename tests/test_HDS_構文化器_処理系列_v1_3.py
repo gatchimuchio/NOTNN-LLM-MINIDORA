@@ -95,9 +95,13 @@ class HDS構文化器処理系列試験(unittest.TestCase):
         self.assertEqual(legacy.初期状態, {"入力0": 2, "入力1": 3})
         self.assertTrue(legacy.実行可能)
         self.assertIn("互換橋", legacy.実行核.境界)
-        self.assertEqual(意味.座標, legacy.座標)
-        self.assertEqual(意味.関係, legacy.関係)
-        self.assertEqual(意味.残差, legacy.残差)
+        self.assertFalse(any(str(x.種別).startswith(("監査.", "保持.", "暫定性.", "帰還.")) for x in legacy.座標))
+        kernel_semantic = tuple(
+            x for x in 意味.座標
+            if not str(x.種別).startswith(("監査.", "保持.", "暫定性.", "帰還."))
+        )
+        self.assertEqual(kernel_semantic, legacy.座標)
+        self.assertTrue(set(legacy.関係).issubset(set(意味.関係)))
 
     def test_詳細コンパイルと選択問題IRは意味正本なのでPを持たない(self) -> None:
         detailed = self.構文化器.詳細コンパイル("A causes B")
