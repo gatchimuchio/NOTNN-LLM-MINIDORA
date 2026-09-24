@@ -218,9 +218,15 @@ def HDS参照観測要求群(ir: HDSIR) -> tuple[HDS参照観測要求, ...]:
         known = _既知端点(ir, 関係, position)
         scope = _局所scope(関係)
         generic = str(関係.種別) in _GENERIC_RELATIONS or bool(_条件値(関係, "選択問題閉包"))
+        relation_kind = str(関係.種別)
+        predicate_key = (
+            str(predicate).casefold()
+            if relation_kind in {"開放述語", "問い適合"}
+            else relation_kind
+        )
         signature = (
             position,
-            str(predicate).casefold(),
+            predicate_key,
             tuple(str(x).casefold() for x in known),
             tuple((str(k), str(v).casefold()) for k, v in scope),
             generic,
