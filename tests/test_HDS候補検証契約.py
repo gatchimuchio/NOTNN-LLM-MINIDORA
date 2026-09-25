@@ -134,6 +134,20 @@ class HDS候補検証契約試験(unittest.TestCase):
             コンパイル=lambda _text: _資料IR("Protein A"),
         ))
 
+    def test_監査query由来で候補タグが無くても意味一致すれば成立する(self) -> None:
+        ir = _検証IR()
+        契約群 = HDS候補検証契約群(ir, HDS参照観測要求群(ir))
+        ref = 参照記録(
+            "audit-a", "audit", "payload", "fixture", "fixture", 1.0,
+            条件=(("hds_query_kind", "audit_probe"), ("hds_observation_id", "監査表層:0")),
+        )
+        self.assertTrue(HDS候補検証成立(
+            契約群,
+            "A",
+            (ref,),
+            コンパイル=lambda _text: _資料IR("Protein A"),
+        ))
+
     def test_条件範囲が違う資料は意味検証から除外する(self) -> None:
         ir = _検証IR()
         契約 = HDS候補検証契約群(ir, HDS参照観測要求群(ir))[0]
