@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
+from minidora.HDS観測計画 import HDS追加観測要求群
 
 
 class HDS数量計算契約試験(unittest.TestCase):
@@ -37,8 +38,14 @@ class HDS数量計算契約試験(unittest.TestCase):
         self.assertEqual(len(法則), 1)
         self.assertEqual(法則[0].外部検索表層, 問い)
         self.assertEqual(法則[0].関係種別, "数量計算法則")
-        self.assertEqual(法則[0].段階, "primary")
+        self.assertEqual(法則[0].段階, "fallback")
         self.assertFalse(法則[0].必須被覆)
+        追加 = HDS追加観測要求群(
+            束.参照観測要求,
+            残差群=("HDS選択:数量法則不足",),
+            世代=1,
+        )
+        self.assertEqual([x.ID for x in 追加], ["数量法則:0"])
 
     def test_実行可能算術には法則観測を追加しない(self) -> None:
         束 = self.構文化器.コンパイル束("2+3")
