@@ -131,12 +131,24 @@ class HDS既存能力継承試験(unittest.TestCase):
         self.assertIn("HDS_EXISTING_CAPABILITY_CONFLICT_OR_UNCLOSED", out.理由)
 
     def test_formal再評価は参照差が明確に強くなった時だけ基準を更新可能(self):
-        基準 = _結果("APPROVE", "A", 模型=_模型結果("A", {"A": 2, "B": 0}))
-        強化 = _結果("APPROVE", "B", 模型=_模型結果("B", {"A": 0, "B": 4}))
-        弱い変更 = _結果("APPROVE", "B", 模型=_模型結果("B", {"A": 2, "B": 3}))
+        基準 = _結果(
+            "APPROVE", "A", 理由=("FORMAL_模型_模型核_WITH_HDS_J",),
+            模型=_模型結果("A", {"A": 2, "B": 0}),
+        )
+        強化 = _結果(
+            "APPROVE", "B", 理由=("FORMAL_模型_模型核_WITH_HDS_J",),
+            模型=_模型結果("B", {"A": 0, "B": 4}),
+        )
+        弱い変更 = _結果(
+            "APPROVE", "B", 理由=("FORMAL_模型_模型核_WITH_HDS_J",),
+            模型=_模型結果("B", {"A": 2, "B": 3}),
+        )
         self.assertTrue(HDS正式模型証拠優越(基準, 強化))
         self.assertFalse(HDS正式模型証拠優越(基準, 弱い変更))
         self.assertFalse(HDS正式模型証拠優越(基準, 基準))
+
+        他能力 = _結果("APPROVE", "B", 模型=_模型結果("B", {"A": 0, "B": 9}))
+        self.assertFalse(HDS正式模型証拠優越(基準, 他能力))
 
     def test_直接反証は2独立proof以上だけ返す(self):
         強反証 = _結果("APPROVE", "B", 理由=("DIRECTED_関係_VERIFIED",), K3根拠=2, K3独立=2)
