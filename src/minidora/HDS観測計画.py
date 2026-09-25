@@ -492,7 +492,7 @@ def HDS追加観測要求群(
     """形成済みKernel観測要求から、追加Rで次に見る観測だけを段階選択する。
 
     原文や意味IRを再解釈しない。初期primaryを世代ごとに反復せず、
-    局所検証 → 縮退 → 監査/反証 → その他 → primary最終再観測1回の順に観測面を変える。
+    残差に応じて数量法則・局所検証・縮退・監査/反証・その他を一層ずつ観測し、最後にprimaryを一回だけ再観測する。
     候補競合・候補識別不足では第2世代から監査/反証を優先する。
     """
 
@@ -502,19 +502,29 @@ def HDS追加観測要求群(
     if not 縮退要求群 and not 主観測要求群:
         return ()
 
+    数量法則 = tuple(x for x in 縮退要求群 if x.関係種別 == "数量計算法則")
     局所 = tuple(x for x in 縮退要求群 if "局所検証" in x.provenance)
     監査 = tuple(
         x for x in 縮退要求群
         if x.ID.startswith("監査表層:") or "監査.R_query" in x.provenance
     )
     縮退 = tuple(x for x in 縮退要求群 if "縮退" in x.provenance)
-    その他 = tuple(x for x in 縮退要求群 if x not in 局所 and x not in 監査 and x not in 縮退)
+    その他 = tuple(
+        x for x in 縮退要求群
+        if x not in 数量法則 and x not in 局所 and x not in 監査 and x not in 縮退
+    )
 
     generation = max(1, int(世代))
     residuals = tuple(str(x) for x in 残差群)
     conflict = any("候補競合" in x or "候補識別不足" in x for x in residuals)
+    数量法則不足 = any("数量法則不足" in x for x in residuals)
 
-    優先層 = [局所, 監査, 縮退, その他, 主観測要求群] if conflict else [局所, 縮退, 監査, その他, 主観測要求群]
+    if 数量法則不足:
+        優先層 = [数量法則, 局所, 縮退, 監査, その他, 主観測要求群]
+    elif conflict:
+        優先層 = [局所, 監査, 縮退, その他, 数量法則, 主観測要求群]
+    else:
+        優先層 = [局所, 縮退, 監査, その他, 数量法則, 主観測要求群]
     有効層 = [層 for 層 in 優先層 if 層]
     層番号 = generation - 1
     if 層番号 >= len(有効層):
