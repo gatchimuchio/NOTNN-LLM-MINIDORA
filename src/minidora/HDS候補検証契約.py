@@ -226,19 +226,20 @@ def HDS候補検証成立(
     if 対象 is None:
         return True
 
-    # まず観測経路の被覆を確認する。queryを投げただけでは意味成立とはみなさない。
+    # Compilerがある実行経路ではquery provenanceではなく資料意味を正とする。
+    # 監査queryは候補ラベルを持たないため、タグ被覆を前提にすると反証資料を誤って捨てる。
+    if 対象.関係 and コンパイル is not None:
+        意味資料 = HDS候補意味検証資料ID群(対象, 参照, コンパイル=コンパイル)
+        return len(意味資料) >= 最小独立資料数
+
+    # Compilerを持たない互換・監査入口だけ、従来の観測経路被覆へ縮退する。
     if 対象.観測ID群:
         被覆 = next(
             (x for x in HDS候補検証被覆を測定((対象,), 参照) if x.候補ラベル == str(候補ラベル)),
             None,
         )
-        if 被覆 is None or 被覆.被覆数 < 最小独立資料数:
-            return False
-
-    if not 対象.関係 or コンパイル is None:
-        return True
-    意味資料 = HDS候補意味検証資料ID群(対象, 参照, コンパイル=コンパイル)
-    return len(意味資料) >= 最小独立資料数
+        return bool(被覆 is not None and 被覆.被覆数 >= 最小独立資料数)
+    return True
 
 
 def HDS候補検証契約群(
