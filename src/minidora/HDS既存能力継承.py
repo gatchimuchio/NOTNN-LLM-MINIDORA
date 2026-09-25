@@ -119,19 +119,18 @@ def HDS既存能力選択評価(
     既存能力resolverで競合を監査する。HDS自身は候補の勝者を選ばない。
     """
 
+    旧候補IR = 候補互換IR if 候補互換IR is not None else 候補意味IR
     正本結果 = HDS選択推論実行(
         質問IR,
         参照群,
         コンパイル=コンパイル,
         基礎能力核=None,
-        候補意味IR=候補意味IR,
+        候補意味IR=旧候補IR,
         模型核=模型核,
         正式模型評価=True,
     )
     if _承認済み(正本結果) or 基礎能力核 is None:
         return 正本結果
-
-    旧候補IR = 候補互換IR if 候補互換IR is not None else 候補意味IR
     旧補助結果 = HDS選択推論実行(
         質問IR,
         参照群,
