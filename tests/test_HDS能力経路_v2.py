@@ -98,6 +98,21 @@ class HDS能力経路V2試験(unittest.TestCase):
         merged = HDS候補被覆優先統合(primary, extra, ("A", "B"), 2)
         self.assertEqual([x.識別子 for x in merged], ["new-a", "old-b"])
 
+    def test_追加参照統合は候補被覆だけで監査資料を追い出さない(self) -> None:
+        primary = (
+            参照記録("a", "A", "A evidence", "fixture://a", "fixture", 0.7, 条件=(("hds_query_選択肢", "A"),)),
+            参照記録("b", "B", "B evidence", "fixture://b", "fixture", 0.7, 条件=(("hds_query_選択肢", "B"),)),
+        )
+        extra = (
+            参照記録(
+                "audit", "audit", "counterexample evidence", "fixture://audit", "fixture", 0.9,
+                条件=(("hds_query_kind", "audit_probe"), ("hds_observation_id", "監査表層:0")),
+                意味確定=True,
+            ),
+        )
+        merged = HDS候補被覆優先統合(primary, extra, ("A", "B"), 3)
+        self.assertEqual({x.識別子 for x in merged}, {"a", "b", "audit"})
+
     def test_generic主検索だけでは候補被覆を閉じない(self) -> None:
         provider = _CoverageProvider()
         records = HDS参照検索V2(provider, _ir(), 上限=4, 一問合せ上限=1, 最大問合せ並列=1)

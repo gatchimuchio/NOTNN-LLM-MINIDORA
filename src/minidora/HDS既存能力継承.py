@@ -212,6 +212,43 @@ def HDS既存能力選択評価(
 
 
 
+
+def _正式模型証拠強度(結果: HDS選択実行結果) -> tuple[float, float] | None:
+    """formal模型が一意な参照由来正差を形成した時だけ、(margin, selected score)を返す。"""
+    if not _承認済み(結果) or not _模型根拠成立(結果):
+        return None
+    模型結果 = 結果.MINIDORA模型結果
+    if 模型結果 is None or 結果.回答ラベル is None:
+        return None
+    scores = {str(k): float(v) for k, v in dict(模型結果.参照候補辞書()).items()}
+    selected = float(scores.get(str(結果.回答ラベル), 0.0))
+    if selected <= 0:
+        return None
+    others = [value for label, value in scores.items() if label != str(結果.回答ラベル)]
+    second = max(others, default=0.0)
+    if any(value >= selected for value in others):
+        return None
+    return selected - second, selected
+
+
+def HDS正式模型証拠優越(
+    基準: HDS選択実行結果,
+    拡張: HDS選択実行結果,
+) -> bool:
+    """同じformal模型の再観測結果が、別候補へより強い参照差を形成した時だけ更新を許す。"""
+    if not _承認済み(基準) or not _承認済み(拡張):
+        return False
+    if 基準.回答ラベル == 拡張.回答ラベル:
+        return False
+    before = _正式模型証拠強度(基準)
+    after = _正式模型証拠強度(拡張)
+    if before is None or after is None:
+        return False
+    before_margin, before_score = before
+    after_margin, after_score = after
+    return bool(after_margin > before_margin and after_score >= before_score)
+
+
 def HDS既存能力直接反証証明済み(
     結果: HDS選択実行結果,
     *,
@@ -280,6 +317,7 @@ def HDS既存能力直接反証評価(
         str(結果.回答ラベル),
         参照群,
         最小独立資料数=1,
+        コンパイル=コンパイル,
     ):
         return None
     return 結果
@@ -288,6 +326,7 @@ def HDS既存能力直接反証評価(
 __all__ = [
     "HDS既存能力結果証明済み",
     "HDS既存能力選択評価",
+    "HDS正式模型証拠優越",
     "HDS既存能力直接反証証明済み",
     "HDS既存能力直接反証評価",
 ]

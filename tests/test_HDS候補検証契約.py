@@ -4,7 +4,8 @@ from dataclasses import replace
 import unittest
 
 from minidora.HDS候補検証契約 import (
-    HDS候補検証契約群, HDS候補検証被覆を測定, HDS候補検証成立,
+    HDS候補検証契約群, HDS候補検証被覆を測定,
+    HDS候補意味検証資料ID群, HDS候補検証成立,
 )
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
@@ -38,6 +39,30 @@ def _検証IR() -> HDSIR:
         実行核=HDS実行核(),
         参照必須=True,
         種別="knowledge_query",
+        入力言語="en",
+    )
+
+
+
+def _資料IR(主体: str, *, 条件: str = "under hypoxia") -> HDSIR:
+    return HDSIR(
+        原文=f"{主体} causes apoptosis {条件}",
+        正規化文=f"{主体} causes apoptosis {条件}",
+        認知世界ID="candidate-proof-doc",
+        座標=(
+            HDS座標("s", "対象.実体", 主体),
+            HDS座標("o", "対象.終点", "apoptosis"),
+        ),
+        関係=(
+            HDS関係(
+                "doc", ("s",), ("o",), "因果",
+                条件=(f"条件範囲={条件}",),
+                値状態=値状態.確定,
+            ),
+        ),
+        残差=(),
+        意味作用履歴=(),
+        実行核=HDS実行核(),
         入力言語="en",
     )
 
@@ -88,6 +113,37 @@ class HDS候補検証契約試験(unittest.TestCase):
         self.assertEqual(next(x for x in 被覆 if x.候補ラベル == "A").被覆数, 1)
         self.assertTrue(HDS候補検証成立(契約群, "A", 参照))
         self.assertFalse(HDS候補検証成立(契約群, "B", 参照))
+
+    def test_query被覆だけでは候補意味検証成立にしない(self) -> None:
+        ir = _検証IR()
+        契約群 = HDS候補検証契約群(ir, HDS参照観測要求群(ir))
+        ref = 参照記録(
+            "doc-a", "Protein A", "payload", "fixture", "fixture", 1.0,
+            条件=(("hds_query_選択肢", "A"), ("hds_observation_id", "関係:question:候補:A")),
+        )
+        self.assertFalse(HDS候補検証成立(
+            契約群,
+            "A",
+            (ref,),
+            コンパイル=lambda _text: _資料IR("Protein B"),
+        ))
+        self.assertTrue(HDS候補検証成立(
+            契約群,
+            "A",
+            (ref,),
+            コンパイル=lambda _text: _資料IR("Protein A"),
+        ))
+
+    def test_条件範囲が違う資料は意味検証から除外する(self) -> None:
+        ir = _検証IR()
+        契約 = HDS候補検証契約群(ir, HDS参照観測要求群(ir))[0]
+        ref = 参照記録("doc-a", "Protein A", "payload", "fixture", "fixture", 1.0)
+        self.assertEqual(
+            HDS候補意味検証資料ID群(
+                契約, (ref,), コンパイル=lambda _text: _資料IR("Protein A", 条件="under normoxia")
+            ),
+            (),
+        )
 
     def test_問題コンパイラは候補検証契約をKernel署名へ固定する(self) -> None:
         構文化器 = 公開HDSコンパイラ()

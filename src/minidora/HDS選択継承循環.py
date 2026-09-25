@@ -10,6 +10,7 @@ from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
 from .HDS非退行包絡 import HDS非退行包絡, HDS証拠優越包絡
 from .HDS既存能力継承 import (
     HDS既存能力結果証明済み, HDS既存能力選択評価,
+    HDS正式模型証拠優越,
     HDS既存能力直接反証評価, HDS既存能力直接反証証明済み,
 )
 from .HDS候補検証契約 import HDS候補検証成立
@@ -140,10 +141,49 @@ class HDS選択継承供給:
                     )
 
                 if not 初回 and 正式基準 and int(values.get(参照世代成果名, 0)) > 0:
+                    compile_fn = getattr(self.コンパイラ, "コンパイル")
+                    世代 = int(values.get(参照世代成果名, 0))
+
+                    # まずformal自身の再評価を認める。別候補へ変わっただけでは足りず、
+                    # 参照由来一意差の証拠優越と候補意味契約の双方を要求する。
+                    formal更新 = bool(
+                        _承認済み(結果)
+                        and 結果.回答ラベル != 基準.回答ラベル
+                        and HDS正式模型証拠優越(基準, 結果)
+                        and HDS候補検証成立(
+                            self.候補検証契約,
+                            str(結果.回答ラベル),
+                            refs,
+                            最小独立資料数=1,
+                            コンパイル=compile_fn,
+                        )
+                    )
+                    if formal更新:
+                        判定 = HDS証拠優越包絡(
+                            基準,
+                            結果,
+                            基準承認判定=_承認済み,
+                            拡張承認判定=_承認済み,
+                            証拠優越証明=HDS正式模型証拠優越,
+                        )
+                        成果群[0] = (現行結果成果名, 結果)
+                        成果群.extend(((非退行判定成果名, 判定), (影結果成果名, 結果), (回答成果名, 結果.回答ラベル)))
+                        if 承認時入力解消:
+                            成果群.append((入力残差影成果名, tuple(sorted(承認時入力解消))))
+                        return HDS作用結果(
+                            HDS作用状態.成立,
+                            追加状態=frozenset({選択閉包状態}),
+                            解消残差=frozenset((*選択解消, *承認時入力解消)),
+                            成果=tuple(成果群),
+                            主体状態差分=基準差分,
+                            理由=tuple(dict.fromkeys((*判定.理由, "HDS_FORMAL_SUPERIOR_EVIDENCE_REVERIFIED"))),
+                        )
+
+                    # formalで閉じない場合は、従来の強い直接反証も独立経路として残す。
                     反証 = HDS既存能力直接反証評価(
                         self.質問IR,
                         refs,
-                        コンパイル=getattr(self.コンパイラ, "コンパイル"),
+                        コンパイル=compile_fn,
                         基礎能力核=self.基礎能力核,
                         候補意味IR=self.候補意味IR,
                         候補互換IR=self.候補互換IR,
@@ -176,6 +216,27 @@ class HDS選択継承供給:
                     if 結果 is not 基準:
                         成果群.append((影結果成果名, 結果))
 
+                    # 監査/反証層が残っている間は暫定APPROVEを外向きCOMMITしない。
+                    次層 = (
+                        HDS追加観測要求群(
+                            self.参照観測要求,
+                            残差群=(残差_基準反証検証,),
+                            世代=世代 + 1,
+                        )
+                        if self.参照供給器 is not None and 世代 < self.設定.最大回復回数
+                        else ()
+                    )
+                    if 次層:
+                        継続解消 = frozenset(set(選択解消).difference({残差_基準反証検証}))
+                        return HDS作用結果(
+                            HDS作用状態.成立,
+                            解消残差=継続解消,
+                            追加残差=frozenset({残差_基準反証検証}),
+                            成果=tuple(成果群),
+                            主体状態差分=基準差分,
+                            理由=("HDS_BASELINE_AUDIT_CONTINUE", f"世代:{世代}"),
+                        )
+
                 成果群.append((回答成果名,基準.回答ラベル))
                 if 承認時入力解消: 成果群.append((入力残差影成果名,tuple(sorted(承認時入力解消))))
                 継承理由="HDS_MINIDORA_EXISTING_CAPABILITIES_INHERITED" if "HDS_EXISTING_CAPABILITY_INHERITED" in 基準.理由 else "HDS_MINIDORA_CANONICAL_INHERITED"
@@ -184,7 +245,11 @@ class HDS選択継承供給:
                 proof=bool(self.拡張採用証明(基準,結果)) if self.拡張採用証明 is not None else _標準追加採用証明(基準,結果,初期参照署名=self.初期参照署名,現在参照署名=current_sig)
                 if proof and 結果.回答ラベル is not None:
                     proof = HDS候補検証成立(
-                        self.候補検証契約, str(結果.回答ラベル), refs, 最小独立資料数=1
+                        self.候補検証契約,
+                        str(結果.回答ラベル),
+                        refs,
+                        最小独立資料数=1,
+                        コンパイル=getattr(self.コンパイラ, "コンパイル"),
                     )
                 判定=HDS非退行包絡(基準,基準承認判定=_承認済み,拡張実行=lambda:結果,拡張承認判定=_承認済み,拡張採用証明=lambda _前,_後:proof)
                 成果群.extend(((非退行判定成果名,判定),(影結果成果名,結果)))
@@ -240,16 +305,6 @@ class HDS選択継承供給:
             merged=HDS候補被覆優先統合(refs,observed,self.選択肢,統合上限)
             before=tuple((x.識別子,x.条件) for x in refs); after=tuple((x.識別子,x.条件) for x in merged); 解消=frozenset(set(s.残差).intersection(回復可能残差))
             if after==before:
-                if 残差_基準反証検証 in s.残差:
-                    基準=s.主体辞書().get(基準結果主体名)
-                    if _承認済み(基準):
-                        return HDS作用結果(
-                            HDS作用状態.成立,
-                            追加状態=frozenset({選択閉包状態}),
-                            解消残差=解消,
-                            成果=((参照世代成果名,level),(回答成果名,基準.回答ラベル)),
-                            理由=("HDS_BASELINE_REVERIFY_NO_NEW_EVIDENCE",),
-                        )
                 次層 = (
                     HDS追加観測要求群(self.参照観測要求, 残差群=s.残差, 世代=level+1)
                     if level < self.設定.最大回復回数 else ()
@@ -260,6 +315,16 @@ class HDS選択継承供給:
                         成果=((参照世代成果名,level),),
                         理由=("HDS_INHERITED_REFERENCE_LAYER_NO_PROGRESS_CONTINUE",f"世代:{level}"),
                     )
+                if 残差_基準反証検証 in s.残差:
+                    基準=s.主体辞書().get(基準結果主体名)
+                    if _承認済み(基準):
+                        return HDS作用結果(
+                            HDS作用状態.成立,
+                            追加状態=frozenset({選択閉包状態}),
+                            解消残差=解消,
+                            成果=((参照世代成果名,level),(回答成果名,基準.回答ラベル)),
+                            理由=("HDS_BASELINE_AUDIT_EXHAUSTED_NO_SUPERIOR_EVIDENCE",),
+                        )
                 return HDS作用結果(HDS作用状態.成立,解消残差=解消,追加残差=frozenset({残差_観測無進展}),成果=((参照世代成果名,level),),理由=("HDS_INHERITED_REFERENCE_NO_PROGRESS",))
             return HDS作用結果(HDS作用状態.成立,解消残差=解消,成果=((参照成果名,tuple(merged)),(参照世代成果名,level)),理由=("HDS_INHERITED_REFERENCE_EXPANDED",f"世代:{level}",f"件数:{len(merged)}"))
         return HDS関数作用("HDS継承/追加参照",実行,解消対象=tuple(sorted(回復可能残差)),資源負荷=4,優先度=6.0,読取成果=(参照成果名,参照世代成果名),入力署名=lambda s:_署名((_参照署名(self._参照(s)),int(self._成果(s).get(参照世代成果名,0)))),契約版=HDS選択継承循環版,作用定義ID="HDS継承/追加参照")

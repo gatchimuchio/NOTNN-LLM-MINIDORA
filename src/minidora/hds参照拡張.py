@@ -14,13 +14,18 @@ def _候補ラベル群(record: 参照記録) -> frozenset[str]:
 def _条件値群(record: 参照記録, key: str) -> tuple[str, ...]:
     return tuple(str(value) for cond_key, value in record.条件 if str(cond_key) == key and str(value))
 
+def _監査資料(record: 参照記録) -> bool:
+    kinds = set(_条件値群(record, "hds_query_kind"))
+    observations = _条件値群(record, "hds_observation_id")
+    return "audit_probe" in kinds or any(str(x).startswith("監査表層:") for x in observations)
+
+
 def _参照優先度(record: 参照記録, *, 追加: bool) -> tuple[int, int, int, float, int, int]:
-    required = int("true" in _条件値群(record, "hds_observation_required"))
-    候補拘束 = int(bool(_条件値群(record, "hds_query_選択肢")))
+    # 候補queryで取れたこと自体は品質にしない。意味確定・監査性・必須性・信頼を優先する。
     return (
-        required,
-        候補拘束,
         int(bool(record.意味確定)),
+        int(_監査資料(record)),
+        int("true" in _条件値群(record, "hds_observation_required")),
         float(record.信頼),
         int(bool(追加)),
         len(str(record.内容)),
@@ -45,7 +50,18 @@ def HDS候補被覆優先統合(primary: Iterable[参照記録], extra: Iterable
         if existing is not None: combined[existing]=_記録統合(combined[existing],record); continue
         index_by_id[rid]=len(combined); combined.append(record)
     selected=[]; selected_ids=set()
-    for label in sorted({str(x) for x in expected_labels if str(x)}):
+    labels=sorted({str(x) for x in expected_labels if str(x)})
+
+    # 候補被覆だけで監査資料を追い出さない。候補数より枠が多い場合は最強の監査資料を1件予約する。
+    監査群=[r for r in combined if _監査資料(r)]
+    if 監査群 and total_limit > len(labels):
+        audit=max(
+            監査群,
+            key=lambda r: _参照優先度(r,追加=str(r.識別子) in extra_ids),
+        )
+        selected.append(audit); selected_ids.add(str(audit.識別子))
+
+    for label in labels:
         候補群=[
             r for r in combined
             if str(r.識別子) not in selected_ids and label in _候補ラベル群(r)

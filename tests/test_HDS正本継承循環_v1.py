@@ -33,6 +33,17 @@ class 固定追加参照:
         return self.記録群[:上限]
 
 
+class 空振り追加参照:
+    名称 = "空振り試験追加参照"
+
+    def __init__(self):
+        self.呼出: list[str] = []
+
+    def 検索(self, 問合せ, 上限=8):
+        self.呼出.append(" ".join(str(問合せ).split()))
+        return ()
+
+
 class 第二層追加参照:
     名称 = "第二層試験追加参照"
 
@@ -148,6 +159,22 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertTrue(成果[入力残差影成果名])
         self.assertEqual([x.種別 for x in 成果["HDSコア入力"].残差], ["未解共参照"])
         self.assertFalse(any(x.startswith("HDS残差:未解共参照:") for x in 結果.状態.残差))
+
+    def test_正式模型基準は監査層空振りでも残り観測層を使い切ってから固定する(self):
+        provider = 空振り追加参照()
+        結果 = self.コア.選択実行(
+            self.問い,
+            self.選択肢,
+            初期参照=(証拠("Molecule A", 識別子="base-audit"),),
+            参照供給器=provider,
+        )
+        self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
+        self.assertEqual(結果.状態.成果辞書()[回答成果名], "A")
+        self.assertGreaterEqual(len(provider.呼出), 2)
+        self.assertGreaterEqual(
+            len([x for x in 結果.履歴 if x.作用ID == "HDS継承/追加参照"]),
+            2,
+        )
 
     def test_正式模型承認は一回再検証し弱い反証では基準を保持(self):
         provider = 固定追加参照((証拠("Molecule B", 識別子="late"),))
