@@ -4,6 +4,7 @@ from dataclasses import replace
 from typing import Mapping, TYPE_CHECKING
 
 from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
+from .HDS候補検証契約 import HDS候補検証契約, HDS候補検証成立
 from .hds既存能力resolver import (
     既存MINIDORA提案解決,
     既存能力提案,
@@ -109,6 +110,7 @@ def HDS既存能力選択評価(
     模型核: MINIDORA模型核,
     基礎能力核: K3相当能力核 | None = None,
     候補意味IR: Mapping[str, HDSIR] | None = None,
+    候補互換IR: Mapping[str, HDSIR] | None = None,
 ) -> HDS選択実行結果:
     """MINIDORA30正本を下限に、既存K3/graph/direct/能力v3を非退行で継承する。
 
@@ -129,12 +131,13 @@ def HDS既存能力選択評価(
     if _承認済み(正本結果) or 基礎能力核 is None:
         return 正本結果
 
+    旧候補IR = 候補互換IR if 候補互換IR is not None else 候補意味IR
     旧補助結果 = HDS選択推論実行(
         質問IR,
         参照群,
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
-        候補意味IR=候補意味IR,
+        候補意味IR=旧候補IR,
         模型核=None,
         正式模型評価=False,
         作業再作用=True,
@@ -146,6 +149,7 @@ def HDS既存能力選択評価(
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
         候補意味IR=候補意味IR,
+        候補互換IR=旧候補IR,
         模型核=模型核,
     )
 
@@ -208,6 +212,34 @@ def HDS既存能力選択評価(
     )
 
 
+
+def HDS既存能力直接反証証明済み(
+    結果: HDS選択実行結果,
+    *,
+    最小独立証拠数: int = 2,
+) -> bool:
+    """直接反証の「独立」を根拠事実数ではなく独立出典数で検証する。"""
+    if type(最小独立証拠数) is not int or 最小独立証拠数 < 2:
+        raise ValueError("直接反証の最小独立証拠数は2以上の整数である必要がある")
+    if not _承認済み(結果) or "DIRECTED_関係_VERIFIED" not in 結果.理由:
+        return False
+    K3結果 = 結果.K3結果
+    if K3結果 is None or int(getattr(K3結果, "根拠事実数", 0)) < 最小独立証拠数:
+        return False
+    診断 = next(
+        (
+            x for x in tuple(getattr(K3結果, "候補診断", ()))
+            if str(getattr(x, "候補", "")) == str(結果.回答ラベル)
+        ),
+        None,
+    )
+    return bool(
+        診断 is not None
+        and int(getattr(診断, "独立出典数", 0)) >= 最小独立証拠数
+        and int(getattr(診断, "識別一致出典数", 0)) >= 1
+    )
+
+
 def HDS既存能力直接反証評価(
     質問IR: HDSIR,
     参照群: tuple[参照記録, ...],
@@ -215,6 +247,8 @@ def HDS既存能力直接反証評価(
     コンパイル,
     基礎能力核: K3相当能力核 | None,
     候補意味IR: Mapping[str, HDSIR] | None = None,
+    候補互換IR: Mapping[str, HDSIR] | None = None,
+    候補検証契約: tuple[HDS候補検証契約, ...] = (),
     基準ラベル: str,
     最小独立証拠数: int = 2,
 ) -> HDS選択実行結果 | None:
@@ -232,7 +266,7 @@ def HDS既存能力直接反証評価(
         参照群,
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
-        候補意味IR=候補意味IR,
+        候補意味IR=(候補互換IR if 候補互換IR is not None else 候補意味IR),
         模型核=None,
         正式模型評価=False,
         作業再作用=True,
@@ -240,10 +274,14 @@ def HDS既存能力直接反証評価(
     )
     if not _承認済み(結果) or 結果.回答ラベル == str(基準ラベル):
         return None
-    if "DIRECTED_関係_VERIFIED" not in 結果.理由:
+    if not HDS既存能力直接反証証明済み(結果, 最小独立証拠数=最小独立証拠数):
         return None
-    K3結果 = 結果.K3結果
-    if K3結果 is None or int(getattr(K3結果, "根拠事実数", 0)) < 最小独立証拠数:
+    if not HDS候補検証成立(
+        候補検証契約,
+        str(結果.回答ラベル),
+        参照群,
+        最小独立資料数=1,
+    ):
         return None
     return 結果
 
@@ -251,5 +289,6 @@ def HDS既存能力直接反証評価(
 __all__ = [
     "HDS既存能力結果証明済み",
     "HDS既存能力選択評価",
+    "HDS既存能力直接反証証明済み",
     "HDS既存能力直接反証評価",
 ]

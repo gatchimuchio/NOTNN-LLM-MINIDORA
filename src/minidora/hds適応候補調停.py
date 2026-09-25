@@ -91,7 +91,8 @@ def HDS適応候補提案実行(
     コンパイル,
     基礎能力核: K3相当能力核 | None = None,
     候補意味IR: Mapping[str, HDSIR] | None = None,
-    模型核: MINIDORA模型核 | None = None,
+    候補互換IR: Mapping[str, HDSIR] | None = None,
+    模型核: MINIDORA模型核 | None = None:
     統一session: HDS統一状態Session | None = None,
     統一政策: HDS統一状態政策 | None = None,
     主体状態: object | None = None,
@@ -113,7 +114,7 @@ def HDS適応候補提案実行(
         references,
         コンパイル=コンパイル,
         基礎能力核=基礎能力核,
-        候補意味IR=候補意味IR,
+        候補意味IR=(候補互換IR if 候補互換IR is not None else 候補意味IR),
         模型核=模型核,
         作業再作用=False,
         局所再照合=False,

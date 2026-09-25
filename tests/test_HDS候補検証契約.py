@@ -3,10 +3,13 @@ from __future__ import annotations
 from dataclasses import replace
 import unittest
 
-from minidora.HDS候補検証契約 import HDS候補検証契約群
+from minidora.HDS候補検証契約 import (
+    HDS候補検証契約群, HDS候補検証被覆を測定, HDS候補検証成立,
+)
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標, HDS関係, 値状態
 from minidora.HDS観測計画 import HDS参照観測要求群
+from minidora.参照 import 参照記録
 
 
 def _検証IR() -> HDSIR:
@@ -71,6 +74,20 @@ class HDS候補検証契約試験(unittest.TestCase):
         観測要求[index] = replace(観測要求[index], 候補表層="Protein X")
         with self.assertRaises(ValueError):
             HDS候補検証契約群(ir, tuple(観測要求))
+
+    def test_実観測provenanceで候補検証契約被覆を測定する(self) -> None:
+        ir = _検証IR()
+        契約群 = HDS候補検証契約群(ir, HDS参照観測要求群(ir))
+        参照 = (
+            参照記録(
+                "doc-a", "Protein A", "evidence", "fixture", "fixture", 1.0,
+                条件=(("hds_query_選択肢", "A"), ("hds_observation_id", "関係:question:候補:A")),
+            ),
+        )
+        被覆 = HDS候補検証被覆を測定(契約群, 参照)
+        self.assertEqual(next(x for x in 被覆 if x.候補ラベル == "A").被覆数, 1)
+        self.assertTrue(HDS候補検証成立(契約群, "A", 参照))
+        self.assertFalse(HDS候補検証成立(契約群, "B", 参照))
 
     def test_問題コンパイラは候補検証契約をKernel署名へ固定する(self) -> None:
         構文化器 = 公開HDSコンパイラ()

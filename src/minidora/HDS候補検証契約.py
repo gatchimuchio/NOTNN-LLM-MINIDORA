@@ -5,6 +5,7 @@ from typing import Iterable
 
 from .HDS中間表現 import HDSIR
 from .HDS観測計画 import HDS参照観測要求
+from .参照 import 参照記録
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +50,68 @@ def _選択肢(ir: HDSIR) -> tuple[tuple[str, str], ...]:
         if ラベル and 表層:
             結果.append((ラベル, 表層))
     return tuple(sorted(結果))
+
+
+
+@dataclass(frozen=True, slots=True)
+class HDS候補検証被覆:
+    候補ラベル: str
+    観測ID群: tuple[str, ...] = ()
+    独立資料ID群: tuple[str, ...] = ()
+
+    @property
+    def 被覆数(self) -> int:
+        return len(self.独立資料ID群)
+
+
+def _参照条件値群(記録: 参照記録, 鍵: str) -> tuple[str, ...]:
+    return tuple(str(値) for 条件鍵, 値 in 記録.条件 if str(条件鍵) == 鍵 and str(値))
+
+
+def HDS候補検証被覆を測定(
+    契約群: Iterable[HDS候補検証契約],
+    参照群: Iterable[参照記録],
+) -> tuple[HDS候補検証被覆, ...]:
+    """Kernel候補契約と実観測provenanceを照合し、候補別の独立資料被覆を返す。"""
+    参照 = tuple(参照群)
+    結果: list[HDS候補検証被覆] = []
+    for 契約 in tuple(契約群):
+        観測ID群 = frozenset(契約.観測ID群)
+        資料ID群: list[str] = []
+        if 観測ID群:
+            for 記録 in 参照:
+                if 契約.候補ラベル not in _参照条件値群(記録, "hds_query_選択肢"):
+                    continue
+                if not 観測ID群.intersection(_参照条件値群(記録, "hds_observation_id")):
+                    continue
+                識別子 = str(記録.識別子)
+                if 識別子 not in 資料ID群:
+                    資料ID群.append(識別子)
+        結果.append(HDS候補検証被覆(
+            契約.候補ラベル,
+            tuple(sorted(観測ID群)),
+            tuple(資料ID群),
+        ))
+    return tuple(結果)
+
+
+def HDS候補検証成立(
+    契約群: Iterable[HDS候補検証契約],
+    候補ラベル: str,
+    参照群: Iterable[参照記録],
+    *,
+    最小独立資料数: int = 1,
+) -> bool:
+    if type(最小独立資料数) is not int or 最小独立資料数 < 0:
+        raise ValueError("最小独立資料数は0以上の整数")
+    対象 = next((x for x in tuple(契約群) if x.候補ラベル == str(候補ラベル)), None)
+    if 対象 is None or not 対象.観測ID群:
+        return True
+    被覆 = next(
+        (x for x in HDS候補検証被覆を測定((対象,), 参照群) if x.候補ラベル == str(候補ラベル)),
+        None,
+    )
+    return bool(被覆 is not None and 被覆.被覆数 >= 最小独立資料数)
 
 
 def HDS候補検証契約群(
@@ -122,5 +185,8 @@ __all__ = [
     "HDS候補検証関係",
     "HDS候補検証観測",
     "HDS候補検証契約",
+    "HDS候補検証被覆",
+    "HDS候補検証被覆を測定",
+    "HDS候補検証成立",
     "HDS候補検証契約群",
 ]

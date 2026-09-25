@@ -10,6 +10,22 @@ from .参照 import 参照供給器, 参照記録
 def _候補ラベル群(record: 参照記録) -> frozenset[str]:
     return frozenset(str(value) for key,value in record.条件 if str(key)=='hds_query_選択肢' and str(value))
 
+
+def _条件値群(record: 参照記録, key: str) -> tuple[str, ...]:
+    return tuple(str(value) for cond_key, value in record.条件 if str(cond_key) == key and str(value))
+
+def _参照優先度(record: 参照記録, *, 追加: bool) -> tuple[int, int, int, float, int, int]:
+    required = int("true" in _条件値群(record, "hds_observation_required"))
+    candidate_bound = int(bool(_条件値群(record, "hds_query_選択肢")))
+    return (
+        required,
+        candidate_bound,
+        int(bool(record.意味確定)),
+        float(record.信頼),
+        int(bool(追加)),
+        len(str(record.内容)),
+    )
+
 def HDS追加参照統合上限(既存件数: int, 追加件数: int, 最大件数: int = 32) -> int:
     """追加観測で得た少数資料も捨てず、全体件数だけを上限内へ閉じる。"""
     for 名, 値 in (("既存件数",既存件数),("追加件数",追加件数),("最大件数",最大件数)):
@@ -22,21 +38,32 @@ def HDS追加参照統合上限(既存件数: int, 追加件数: int, 最大件�
 def HDS候補被覆優先統合(primary: Iterable[参照記録], extra: Iterable[参照記録], expected_labels: Iterable[str], limit: int) -> tuple[参照記録,...]:
     total_limit=max(0,int(limit))
     if total_limit<=0: return ()
+    primary群=tuple(primary); extra群=tuple(extra); extra_ids={str(x.識別子) for x in extra群}
     combined=[]; index_by_id={}
-    for record in (*tuple(primary),*tuple(extra)):
+    for record in (*primary群,*extra群):
         rid=str(record.識別子); existing=index_by_id.get(rid)
         if existing is not None: combined[existing]=_記録統合(combined[existing],record); continue
         index_by_id[rid]=len(combined); combined.append(record)
     selected=[]; selected_ids=set()
     for label in sorted({str(x) for x in expected_labels if str(x)}):
-        候補=next((r for r in combined if str(r.識別子) not in selected_ids and label in _候補ラベル群(r)),None)
-        if 候補 is None: continue
+        候補群=[
+            r for r in combined
+            if str(r.識別子) not in selected_ids and label in _候補ラベル群(r)
+        ]
+        if not 候補群: continue
+        候補=max(
+            候補群,
+            key=lambda r: _参照優先度(r,追加=str(r.識別子) in extra_ids),
+        )
         selected.append(候補); selected_ids.add(str(候補.識別子))
         if len(selected)>=total_limit: return tuple(selected)
-    for record in combined:
-        rid=str(record.識別子)
-        if rid in selected_ids: continue
-        selected.append(record); selected_ids.add(rid)
+    残り=[r for r in combined if str(r.識別子) not in selected_ids]
+    残り.sort(
+        key=lambda r: _参照優先度(r,追加=str(r.識別子) in extra_ids),
+        reverse=True,
+    )
+    for record in 残り:
+        selected.append(record)
         if len(selected)>=total_limit: break
     return tuple(selected)
 

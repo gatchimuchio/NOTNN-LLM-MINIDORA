@@ -8,7 +8,11 @@ from .HDS構文化処理系列_v1_4 import HDSカーネル束
 from .HDS観測計画 import HDS追加観測要求群
 from .HDS選択実行系 import HDS選択実行結果, HDS選択推論実行
 from .HDS非退行包絡 import HDS非退行包絡, HDS証拠優越包絡
-from .HDS既存能力継承 import HDS既存能力結果証明済み, HDS既存能力選択評価, HDS既存能力直接反証評価
+from .HDS既存能力継承 import (
+    HDS既存能力結果証明済み, HDS既存能力選択評価,
+    HDS既存能力直接反証評価, HDS既存能力直接反証証明済み,
+)
+from .HDS候補検証契約 import HDS候補検証成立
 from .hds参照拡張 import HDS候補被覆優先統合, HDS追加参照統合上限, HDS追加参照検索
 from .参照 import 参照供給器, 参照記録
 from .模型 import MINIDORA模型核
@@ -25,11 +29,11 @@ HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v3"
 残差_候補意味損失 = "HDS選択:候補意味損失"; 残差_資料意味損失 = "HDS選択:資料意味損失"; 残差_候補競合 = "HDS選択:候補競合"
 残差_候補識別不足 = "HDS選択:候補識別不足"; 残差_状態差未消費 = "HDS選択:状態差未消費"; 残差_計算要求 = "HDS選択:計算要求"
 残差_未解 = "HDS選択:未解残差"; 残差_証明不足 = "HDS選択:拡張採用証明不足"; 残差_観測無進展 = "HDS選択:追加観測無進展"
-残差_基準反証検証 = "HDS選択:基準反証検証"
+残差_基準反証検証 = "HDS選択:基準反証検証"; 残差_数量法則不足 = "HDS選択:数量法則不足"
 
 選択残差集合 = frozenset({残差_未評価, 残差_観測不足, 残差_問題意味損失, 残差_候補意味損失, 残差_資料意味損失,
-    残差_候補競合, 残差_候補識別不足, 残差_状態差未消費, 残差_計算要求, 残差_未解, 残差_証明不足, 残差_観測無進展, 残差_基準反証検証})
-回復可能残差 = frozenset({残差_観測不足, 残差_資料意味損失, 残差_候補競合, 残差_候補識別不足, 残差_基準反証検証})
+    残差_候補競合, 残差_候補識別不足, 残差_状態差未消費, 残差_計算要求, 残差_未解, 残差_証明不足, 残差_観測無進展, 残差_基準反証検証, 残差_数量法則不足})
+回復可能残差 = frozenset({残差_観測不足, 残差_資料意味損失, 残差_候補競合, 残差_候補識別不足, 残差_基準反証検証, 残差_数量法則不足})
 
 def _署名(値: object) -> str: return _意味署名(値)
 def _参照署名(参照群: Sequence[参照記録]) -> str:
@@ -79,6 +83,9 @@ class HDS選択継承供給:
         if not isinstance(カーネル束, HDSカーネル束): raise TypeError("選択継承循環にはHDSカーネル束が必要")
         self.カーネル束 = カーネル束; self.質問IR = カーネル束.意味IR; self.参照観測要求 = tuple(カーネル束.参照観測要求)
         self.候補意味IR = カーネル束.候補意味IR辞書 or None
+        self.候補互換IR = カーネル束.候補互換IR辞書 or None
+        self.候補検証契約 = tuple(カーネル束.候補検証契約)
+        self.数量計算契約 = カーネル束.数量計算契約
         self.コンパイラ = コンパイラ; self.初期参照 = tuple(初期参照); self.初期参照署名 = _参照署名(self.初期参照)
         self.模型核 = 模型核 or 標準能力模型核()
         if 基礎能力核 is None and 既存能力継承:
@@ -102,7 +109,11 @@ class HDS選択継承供給:
         if not callable(compile_fn): raise TypeError("選択継承循環には外部資料をコンパイル可能なHDSコンパイラが必要")
         if not self.既存能力継承:
             return HDS選択推論実行(self.質問IR,参照群,コンパイル=compile_fn,基礎能力核=None,候補意味IR=self.候補意味IR,模型核=self.模型核,正式模型評価=True)
-        return HDS既存能力選択評価(self.質問IR,参照群,コンパイル=compile_fn,模型核=self.模型核,基礎能力核=self.基礎能力核,候補意味IR=self.候補意味IR)
+        return HDS既存能力選択評価(
+            self.質問IR,参照群,コンパイル=compile_fn,模型核=self.模型核,
+            基礎能力核=self.基礎能力核,候補意味IR=self.候補意味IR,
+            候補互換IR=self.候補互換IR,
+        )
 
     def _評価作用(self, 状態: HDS実行状態):
         成果=self._成果(状態); 参照群=self._参照(状態); ref_sig=_参照署名(参照群)
@@ -132,6 +143,8 @@ class HDS選択継承供給:
                         コンパイル=getattr(self.コンパイラ, "コンパイル"),
                         基礎能力核=self.基礎能力核,
                         候補意味IR=self.候補意味IR,
+                        候補互換IR=self.候補互換IR,
+                        候補検証契約=self.候補検証契約,
                         基準ラベル=str(基準.回答ラベル),
                         最小独立証拠数=2,
                     )
@@ -141,7 +154,9 @@ class HDS選択継承供給:
                             反証,
                             基準承認判定=_承認済み,
                             拡張承認判定=_承認済み,
-                            証拠優越証明=lambda _前, _後: True,
+                            証拠優越証明=lambda _前, 後: HDS既存能力直接反証証明済み(
+                                後, 最小独立証拠数=2
+                            ),
                         )
                         成果群[0] = (現行結果成果名, 反証)
                         成果群.extend(((非退行判定成果名, 判定), (影結果成果名, 反証), (回答成果名, 反証.回答ラベル)))
@@ -164,6 +179,10 @@ class HDS選択継承供給:
                 return HDS作用結果(HDS作用状態.成立,追加状態=frozenset({選択閉包状態}),解消残差=frozenset((*選択解消,*承認時入力解消)),成果=tuple(成果群),主体状態差分=基準差分,理由=("HDS_BASELINE_APPROVAL_REVERIFIED" if not 初回 and 正式基準 else "HDS_BASELINE_APPROVAL_LOCKED",継承理由))
             if not 初回 and _承認済み(結果):
                 proof=bool(self.拡張採用証明(基準,結果)) if self.拡張採用証明 is not None else _標準追加採用証明(基準,結果,初期参照署名=self.初期参照署名,現在参照署名=current_sig)
+                if proof and 結果.回答ラベル is not None:
+                    proof = HDS候補検証成立(
+                        self.候補検証契約, str(結果.回答ラベル), refs, 最小独立資料数=1
+                    )
                 判定=HDS非退行包絡(基準,基準承認判定=_承認済み,拡張実行=lambda:結果,拡張承認判定=_承認済み,拡張採用証明=lambda _前,_後:proof)
                 成果群.extend(((非退行判定成果名,判定),(影結果成果名,結果)))
                 if 判定.拡張採用:
@@ -172,6 +191,8 @@ class HDS選択継承供給:
                     return HDS作用結果(HDS作用状態.成立,追加状態=frozenset({選択閉包状態}),解消残差=frozenset((*選択解消,*承認時入力解消)),成果=tuple(成果群),主体状態差分=基準差分,理由=tuple(dict.fromkeys((*判定.理由,"HDS_MINIDORA_CANONICAL_INHERITED"))))
                 return HDS作用結果(HDS作用状態.成立,解消残差=選択解消,追加残差=frozenset({残差_証明不足}),成果=tuple(成果群),主体状態差分=基準差分,理由=tuple(dict.fromkeys((*判定.理由,"HDS_EXTENSION_SHADOW_ONLY"))))
             residuals=_選択残差(結果,refs)
+            if self.数量計算契約.状態 == "法則不足":
+                residuals=frozenset((*residuals,残差_数量法則不足))
             if self._計算計画() is not None and not bool(values.get(計算済み成果名,False)): residuals=frozenset((*residuals,残差_計算要求))
             return HDS作用結果(HDS作用状態.成立,解消残差=frozenset(set(選択解消).difference(residuals)),追加残差=frozenset(set(residuals).difference(s.残差)),成果=tuple(成果群),主体状態差分=基準差分,理由=tuple(dict.fromkeys(("HDS_SELECTION_NOT_CLOSED",*tuple(結果.理由)))))
         return HDS関数作用("HDS継承/模型再評価",実行,解消対象=tuple(sorted(選択残差集合|self.入力残差非阻害対象)),資源負荷=2,優先度=10.0,読取成果=(参照成果名,),入力署名=lambda s:_参照署名(self._参照(s)),契約版=HDS選択継承循環版,作用定義ID="HDS継承/模型再評価")

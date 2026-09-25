@@ -76,6 +76,7 @@ class HDSカーネル束:
     コア入力: HDSコア入力束
     参照観測要求: tuple[HDS参照観測要求, ...] = ()
     候補意味IR: tuple[tuple[str, HDSIR], ...] = ()
+    候補互換IR: tuple[tuple[str, HDSIR], ...] = ()
     候補検証契約: tuple[HDS候補検証契約, ...] = ()
     数量計算契約: HDS数量計算契約 = HDS数量計算契約()
     失敗署名候補: tuple[HDS失敗署名候補, ...] = ()
@@ -88,6 +89,15 @@ class HDSカーネル束:
     @property
     def 候補意味IR辞書(self) -> dict[str, HDSIR]:
         return {str(ラベル): ir for ラベル, ir in self.候補意味IR}
+
+    @property
+    def 候補互換IR辞書(self) -> dict[str, HDSIR]:
+        if self.候補互換IR:
+            return {str(ラベル): ir for ラベル, ir in self.候補互換IR}
+        return {
+            str(ラベル): _旧consumer互換意味射影(ir)
+            for ラベル, ir in self.候補意味IR
+        }
 
     @property
     def 正本(self) -> HDSコア入力束:
@@ -106,6 +116,7 @@ class HDSカーネル束:
             self.コア入力.意味署名,
             tuple((x.ID, x.外部検索表層, x.段階, x.優先度) for x in self.参照観測要求),
             self.候補意味IR,
+            self.候補互換IR,
             self.候補検証契約,
             self.数量計算契約,
             self.計算計画,

@@ -16,9 +16,18 @@ class HDS候補意味正本試験(unittest.TestCase):
         )
         self.assertEqual(tuple(束.候補意味IR辞書), tuple("ABCD"))
         self.assertTrue(all(isinstance(x, HDSIR) for x in 束.候補意味IR辞書.values()))
+        self.assertEqual(tuple(束.候補互換IR辞書), tuple("ABCD"))
         self.assertEqual(
             tuple(ir.原文 for ir in 束.候補意味IR辞書.values()),
             ("Molecule A", "Molecule B", "Molecule C", "Molecule D"),
+        )
+        self.assertEqual(
+            束.候補互換IR辞書["A"],
+            構文化器.コンパイル("Molecule A"),
+        )
+        self.assertNotEqual(
+            束.候補意味IR辞書["A"].閉包状態,
+            束.候補互換IR辞書["A"].閉包状態,
         )
 
     def test_候補意味正本は欠落や重複を補完しない(self) -> None:

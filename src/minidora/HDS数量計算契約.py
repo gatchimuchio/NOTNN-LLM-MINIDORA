@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Mapping
 
 from .HDS中間表現 import HDSIR, 値状態
@@ -12,6 +13,11 @@ _阻害状態 = frozenset({値状態.未確定, 値状態.未観測, 値状態.�
 _明示関係種別 = frozenset({
     "等価", "不同", "比較.大", "比較.小", "比較.以上", "比較.以下",
 })
+_数量候補表層 = re.compile(
+    r"^\\s*[-+]?(?:(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[eE][-+]?\\d+)?|"
+    r"(?:\\d+(?:\\.\\d+)?|\\.\\d+)\\s*(?:[x×*]\\s*)?10\\s*\\^\\s*\\{?\\s*[-+]?\\d+\\s*\\}?)"
+    r"(?:\\s*/\\s*\\d+(?:\\.\\d+)?)?\\s*(?:[%A-Za-zµμΩ°][A-Za-z0-9µμΩ°/%^+\\-]*)?\\s*$"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,6 +121,25 @@ def _明示関係群(ir: HDSIR) -> tuple[HDS明示数量関係, ...]:
     return tuple(out)
 
 
+
+def _候補が数量値主体(ir: HDSIR) -> bool:
+    表層 = " ".join(str(ir.原文 or ir.正規化文).split()).strip()
+    if 表層 and _数量候補表層.fullmatch(表層):
+        return True
+    数量あり = any(
+        str(x.種別) == "値.数量" and x.値状態 not in _阻害状態
+        for x in ir.座標
+    )
+    if not 数量あり:
+        return False
+    return not any(
+        str(x.種別).startswith(("対象.", "実体.", "状態.", "関係."))
+        and x.値状態 not in _阻害状態
+        and str(x.内容).strip()
+        for x in ir.座標
+    )
+
+
 def HDS数量法則観測要求群(
     問いIR: HDSIR,
     契約: HDS数量計算契約,
@@ -180,15 +205,20 @@ def HDS数量計算契約を形成(
         and tuple(getattr(getattr(計算計画, "手順", None), "命令列", ()))
     )
 
+    候補辞書 = dict(候補意味IR or {})
     数量あり = bool(問い数量 or 候補数量 or 明示関係 or 数量問い関係)
     if not 数量あり:
         return HDS数量計算契約()
+    数量回答対象 = bool(候補辞書) and all(_候補が数量値主体(ir) for ir in 候補辞書.values())
+    数量推論要求 = bool(数量問い関係 or (問い数量 and 数量回答対象))
     if 実行可能:
         状態, 不足 = "実行可能", ()
     elif 明示関係:
         状態, 不足 = "明示関係あり・計画未閉包", ("計算P未閉包",)
-    else:
+    elif 数量推論要求:
         状態, 不足 = "法則不足", ("計算法則未形成",)
+    else:
+        状態, 不足 = "数量含有", ()
 
     return HDS数量計算契約(
         問い数量=問い数量,

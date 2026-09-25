@@ -279,16 +279,19 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         base, plan = self._問題基礎(question, choices)
         detailed = self._完成(base)
         ir = self._選択問題問い閉包(replace(detailed.IR, 手順=None, 初期状態={}), question)
-        候補意味IR = tuple(
-            (chr(ord("A") + index), self._意味束(str(text))[0].意味IR)
+        候補束 = tuple(
+            (chr(ord("A") + index), self._意味束(str(text))[0])
             for index, text in enumerate(choices)
         )
+        候補意味IR = tuple((ラベル, 束.意味IR) for ラベル, 束 in 候補束)
+        候補互換IR = tuple((ラベル, 束.互換IR()) for ラベル, 束 in 候補束)
         数量契約 = HDS数量計算契約を形成(ir, dict(候補意味IR), plan)
         観測要求 = tuple((*HDS数量法則観測要求群(ir, 数量契約), *HDS参照観測要求群(ir)))
         return HDS選択コンパイル束(
             意味IR=ir, 計算計画=plan, コア入力=HDSコア入力へ(ir),
             参照観測要求=観測要求,
             候補意味IR=候補意味IR,
+            候補互換IR=候補互換IR,
             候補検証契約=HDS候補検証契約群(ir, 観測要求),
             数量計算契約=数量契約,
             失敗署名候補=detailed.失敗署名候補,
