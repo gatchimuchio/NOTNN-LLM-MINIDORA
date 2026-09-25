@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
@@ -166,7 +167,13 @@ class HDS正本継承循環試験(unittest.TestCase):
     def test_2独立proofの直接反証だけ承認基準を更新(self, 反証評価):
         反証評価.return_value = HDS選択実行結果(
             "APPROVE", "B", "Molecule B", ("DIRECTED_関係_VERIFIED",),
-            None, 0, 0, 0, 0, 2, 0,
+            SimpleNamespace(
+                根拠事実数=2,
+                候補診断=(
+                    SimpleNamespace(候補="B", 独立出典数=2, 識別一致出典数=2),
+                ),
+            ),
+            0, 0, 0, 0, 2, 0,
         )
         provider = 固定追加参照((証拠("Molecule B", 識別子="late"),))
         結果 = self.コア.選択実行(
