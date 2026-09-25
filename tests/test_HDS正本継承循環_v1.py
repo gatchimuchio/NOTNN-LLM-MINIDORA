@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import unittest
-from types import SimpleNamespace
 from unittest.mock import patch
 
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 from minidora.HDS駆動コア import HDS駆動コア, HDS駆動コア版, HDS継承基準版
 from minidora.HDS実行主体 import HDS終端, HDS作用供給器, HDS関数作用, HDS作用結果, HDS作用状態
 from minidora.HDS選択実行系 import HDS選択実行結果
+from minidora.K3_HDSネイティブ import HDSK3結果, HDS候補診断
+from minidora.K3機能 import JudgeDecision
 from minidora.HDS選択継承循環 import (
     回答成果名,
     基準結果主体名,
@@ -167,10 +168,18 @@ class HDS正本継承循環試験(unittest.TestCase):
     def test_2独立proofの直接反証だけ承認基準を更新(self, 反証評価):
         反証評価.return_value = HDS選択実行結果(
             "APPROVE", "B", "Molecule B", ("DIRECTED_関係_VERIFIED",),
-            SimpleNamespace(
-                根拠事実数=2,
+            HDSK3結果(
+                "APPROVE",
+                "B",
+                JudgeDecision("APPROVE", None, ("DIRECTED_関係_VERIFIED",)),
+                (),
+                2,
+                ("DIRECTED_関係_VERIFIED",),
                 候補診断=(
-                    SimpleNamespace(候補="B", 独立出典数=2, 識別一致出典数=2),
+                    HDS候補診断(
+                        "B", 2.0, 2.0, 0.0, 0.0,
+                        2, 2, None, 2, 識別語数=1, 識別一致出典数=2,
+                    ),
                 ),
             ),
             0, 0, 0, 0, 2, 0,
