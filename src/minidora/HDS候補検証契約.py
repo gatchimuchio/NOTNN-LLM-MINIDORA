@@ -128,13 +128,13 @@ def _関係条件辞書(関係) -> dict[str, tuple[str, ...]]:
 def _条件範囲一致(期待: tuple[tuple[str, str], ...], 関係) -> bool:
     if not 期待:
         return True
-    actual = _関係条件辞書(関係)
+    実条件 = _関係条件辞書(関係)
     for key, value in 期待:
-        values = actual.get(str(key), ())
-        expected_terms = _意味集合((str(value),))
-        if not values:
+        値群 = 実条件.get(str(key), ())
+        期待語 = _意味集合((str(value),))
+        if not 値群:
             return False
-        if not any(_被覆率(expected_terms, _意味集合((candidate,))) >= 0.5 for candidate in values):
+        if not any(_被覆率(期待語, _意味集合((候補値,))) >= 0.5 for 候補値 in 値群):
             return False
     return True
 
@@ -159,27 +159,27 @@ def _関係意味一致(契約: HDS候補検証契約, 関係契約: HDS候補�
         全意味 = _IR全意味(ir)
         return _被覆率(候補語, 全意味) >= 0.5 and _被覆率(既知語, 全意味) >= 0.5
 
-    coords = ir.座標辞書()
+    座標辞書 = ir.座標辞書()
     for 関係 in ir.関係:
         if 関係契約.関係種別 and str(関係.種別) != str(関係契約.関係種別):
             continue
         if not _条件範囲一致(関係契約.条件範囲, 関係):
             continue
-        starts = _意味集合(
-            str(coords[cid].内容) for cid in 関係.始点 if cid in coords
+        始点語 = _意味集合(
+            str(座標辞書[cid].内容) for cid in 関係.始点 if cid in 座標辞書
         )
-        ends = _意味集合(
-            str(coords[cid].内容) for cid in 関係.終点 if cid in coords
+        終点語 = _意味集合(
+            str(座標辞書[cid].内容) for cid in 関係.終点 if cid in 座標辞書
         )
         if 関係契約.未知位置 == "始点":
-            candidate_side, known_side = starts, ends
+            候補側, 既知側 = 始点語, 終点語
         elif 関係契約.未知位置 == "終点":
-            candidate_side, known_side = ends, starts
+            候補側, 既知側 = 終点語, 始点語
         else:
-            candidate_side, known_side = starts.union(ends), starts.union(ends)
-        if _被覆率(候補語, candidate_side) < 0.5:
+            候補側, 既知側 = 始点語.union(終点語), 始点語.union(終点語)
+        if _被覆率(候補語, 候補側) < 0.5:
             continue
-        if _被覆率(既知語, known_side) < 0.5:
+        if _被覆率(既知語, 既知側) < 0.5:
             continue
         return True
     return False
@@ -197,17 +197,17 @@ def HDS候補意味検証資料ID群(
     if not 契約.関係:
         return ()
     out: list[str] = []
-    for record in tuple(参照群):
+    for 記録 in tuple(参照群):
         try:
-            ir = コンパイル(HDS入力資料本文(record))
+            ir = コンパイル(HDS入力資料本文(記録))
         except (TypeError, ValueError):
             continue
         if not isinstance(ir, HDSIR):
             continue
-        if any(_関係意味一致(契約, relation, ir) for relation in 契約.関係):
-            rid = str(record.識別子)
-            if rid and rid not in out:
-                out.append(rid)
+        if any(_関係意味一致(契約, 関係項目, ir) for 関係項目 in 契約.関係):
+            資料ID = str(記録.識別子)
+            if 資料ID and 資料ID not in out:
+                out.append(資料ID)
     return tuple(out)
 
 
