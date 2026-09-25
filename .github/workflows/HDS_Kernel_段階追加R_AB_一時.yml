@@ -65,12 +65,12 @@ jobs:
       - name: 旧資産取得
         uses: actions/checkout@v4
         with:
-          ref: 023ae6774d97da04cb2a361c4b3fe84b1d1308dc
+          ref: 8843695c2d4e498009340cadd68814d6cebee819
           path: old
       - name: Kernel刷新取得
         uses: actions/checkout@v4
         with:
-          ref: b65543cc9ec43040d41c84638b0c5c06d028cfd2
+          ref: 6c193a0e1f2613cfcd8acf59516694d1ab1d9d1d
           path: current
       - uses: actions/setup-python@v5
         with:
@@ -274,7 +274,7 @@ jobs:
               order=(("old","current") if idx%2==0 else ("current","old"))
               results={}
               for variant in order:
-                  commit="023ae6774d97da04cb2a361c4b3fe84b1d1308dc" if variant=="old" else "b65543cc9ec43040d41c84638b0c5c06d028cfd2"
+                  commit="8843695c2d4e498009340cadd68814d6cebee819" if variant=="old" else "6c193a0e1f2613cfcd8acf59516694d1ab1d9d1d"
                   cwd=root/variant; out=root/f"{variant}_{idx}.json"
                   env=os.environ.copy()
                   env.update({"CASE_FILE":str(casefile),"OUT":str(out),"VARIANT":variant,"COMMIT":commit,
@@ -288,7 +288,7 @@ jobs:
                     f"cov={results['old']['initial_candidate_coverage_count']}->{results['current']['initial_candidate_coverage_count']} "
                     f"k={results['current']['kernel_compile_count']}",flush=True)
           out={"protocol":{
-              "base_commit":"023ae6774d97da04cb2a361c4b3fe84b1d1308dc","current_commit":"b65543cc9ec43040d41c84638b0c5c06d028cfd2","GPQA_CSV_SHA256":payload["csv_sha256"],
+              "base_commit":"8843695c2d4e498009340cadd68814d6cebee819","current_commit":"6c193a0e1f2613cfcd8acf59516694d1ab1d9d1d","GPQA_CSV_SHA256":payload["csv_sha256"],
               "choice_shuffle_seed":0,"OpenAlex":False,"EuropePMC":True,"Crossref":True,"Wikipedia":["en"],
               "reference":"INDEPENDENT_LIVE_PAIRED_ALTERNATING_ORDER","core_entry":"HDS駆動コア.選択実行",
               "current_kernel":"問題コンパイル束を初期RとCoreで同一再利用","fixed_reference_data":False,
@@ -323,8 +323,8 @@ jobs:
           payloads=[json.loads(p.read_text(encoding="utf-8")) for p in sorted(Path("shards").glob("ab_*.json"))]
           rows=[r for p in payloads for r in p["rows"]]; rows.sort(key=lambda x:x["index"])
           assert [r["index"] for r in rows]==list(range(198)),len(rows)
-          assert {p["protocol"]["base_commit"] for p in payloads}=={"023ae6774d97da04cb2a361c4b3fe84b1d1308dc"}
-          assert {p["protocol"]["current_commit"] for p in payloads}=={"b65543cc9ec43040d41c84638b0c5c06d028cfd2"}
+          assert {p["protocol"]["base_commit"] for p in payloads}=={"8843695c2d4e498009340cadd68814d6cebee819"}
+          assert {p["protocol"]["current_commit"] for p in payloads}=={"6c193a0e1f2613cfcd8acf59516694d1ab1d9d1d"}
           assert {p["protocol"]["GPQA_CSV_SHA256"] for p in payloads}=={"41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305"}
           if not all(r["current"]["kernel_available"] and r["current"]["kernel_compile_count"]==1 for r in rows):
               raise SystemExit("current Kernel single-compile contract violated")
