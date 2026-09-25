@@ -322,15 +322,18 @@ def HDS参照検索(
     縮退仕様群 = _縮退仕様(ir, 観測要求=requests)
     if not 縮退仕様群:
         return primary_records
-    filtered_specs = tuple(
-        spec
-        for spec in 縮退仕様群
-        if not spec.必須被覆 or spec.観測ID in missing
-    )
-    if not filtered_specs:
+    if required:
+        選択仕様群 = tuple(
+            spec
+            for spec in 縮退仕様群
+            if spec.必須被覆 and spec.観測ID in missing
+        )
+    else:
+        選択仕様群 = 縮退仕様群
+    if not 選択仕様群:
         return primary_records
     縮退記録群 = _round_robin(
-        _query_pools(provider, filtered_specs, per_query, max_parallel=parallel),
+        _query_pools(provider, 選択仕様群, per_query, max_parallel=parallel),
         total_limit,
     )
     return _記録群統合(primary_records, 縮退記録群, total_limit)
