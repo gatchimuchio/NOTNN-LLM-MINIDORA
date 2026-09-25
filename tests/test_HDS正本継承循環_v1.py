@@ -255,7 +255,7 @@ class HDS正本継承循環試験(unittest.TestCase):
             self.構文化器.コンパイル = original
         self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
 
-    def test_Kernel監査成果はCore状態へ接続する(self):
+    def test_Kernel監査成果は中核状態へ接続する(self):
         kernel = self.構文化器.問題コンパイル束(self.問い, self.選択肢)
         結果 = self.コア.選択実行(
             self.問い,
