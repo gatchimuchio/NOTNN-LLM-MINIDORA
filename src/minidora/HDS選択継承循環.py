@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable, Sequence
 
 from .HDS実行主体 import HDS実行状態, HDS作用結果, HDS作用状態, HDS関数作用
