@@ -217,6 +217,9 @@ def _正式模型証拠強度(結果: HDS選択実行結果) -> tuple[float, flo
     """formal模型が一意な参照由来正差を形成した時だけ、(margin, selected score)を返す。"""
     if not _承認済み(結果) or not _模型根拠成立(結果):
         return None
+    理由 = {str(x) for x in 結果.理由}
+    if not ({"FORMAL_模型_模型核_WITH_HDS_J", "FORMAL_MODEL_CORE_WITH_HDS_J"} & 理由):
+        return None
     模型結果 = 結果.MINIDORA模型結果
     if 模型結果 is None or 結果.回答ラベル is None:
         return None
@@ -316,7 +319,7 @@ def HDS既存能力直接反証評価(
         候補検証契約,
         str(結果.回答ラベル),
         参照群,
-        最小独立資料数=1,
+        最小独立資料数=最小独立証拠数,
         コンパイル=コンパイル,
     ):
         return None
