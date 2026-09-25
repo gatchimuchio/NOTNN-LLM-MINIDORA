@@ -191,6 +191,49 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertGreaterEqual(provider.呼出回数, 1)
         self.assertIn("HDS継承/追加参照", [x.作用ID for x in 結果.履歴])
 
+    @patch("minidora.HDS選択継承循環.HDS既存能力直接反証評価", return_value=None)
+    @patch("minidora.HDS選択継承循環.HDS候補検証成立", return_value=True)
+    @patch(
+        "minidora.HDS選択継承循環.HDS正式模型証拠優越",
+        side_effect=lambda 前, 後: 前.回答ラベル != 後.回答ラベル,
+    )
+    @patch("minidora.HDS選択継承循環.HDS既存能力選択評価")
+    def test_formal更新候補も残り監査を通過後に確定する(
+        self, 評価, _優越, _意味成立, _直接反証,
+    ):
+        def formal(label):
+            return HDS選択実行結果(
+                "APPROVE", label, f"Molecule {label}",
+                ("FORMAL_模型_模型核_WITH_HDS_J",),
+                None, 0, 0, 0, 0, 0, 0,
+            )
+
+        評価.side_effect = lambda _質問, refs, **_kwargs: (
+            formal("B") if any(x.識別子 == "new-b" for x in refs) else formal("A")
+        )
+        provider = 固定追加参照((証拠("Molecule B", 識別子="new-b"),))
+        結果 = self.コア.選択実行(
+            self.問い,
+            self.選択肢,
+            初期参照=(証拠("Molecule A", 識別子="base-a"),),
+            参照供給器=provider,
+        )
+        self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
+        self.assertEqual(結果.状態.成果辞書()[回答成果名], "B")
+        self.assertEqual(結果.状態.主体辞書()[基準結果主体名].回答ラベル, "B")
+        self.assertTrue(any(
+            "HDS_FORMAL_SUPERIOR_EVIDENCE_PROVISIONAL" in x.理由
+            for x in 結果.履歴
+        ))
+        provisional_index = next(
+            i for i, x in enumerate(結果.履歴)
+            if "HDS_FORMAL_SUPERIOR_EVIDENCE_PROVISIONAL" in x.理由
+        )
+        self.assertTrue(any(
+            x.作用ID == "HDS継承/追加参照"
+            for x in 結果.履歴[provisional_index + 1:]
+        ))
+
     @patch("minidora.HDS選択継承循環.HDS既存能力直接反証評価")
     def test_2独立proofの直接反証だけ承認基準を更新(self, 反証評価):
         反証評価.return_value = HDS選択実行結果(
@@ -223,6 +266,10 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual(結果.状態.主体辞書()[基準結果主体名].回答ラベル, "A")
         self.assertEqual(成果[回答成果名], "B")
         self.assertTrue(成果[非退行判定成果名].拡張採用)
+        self.assertTrue(any(
+            "HDS_DIRECT_COUNTEREVIDENCE_PROVISIONAL" in x.理由
+            for x in 結果.履歴
+        ))
 
     def test_第一観測層が0件でも第二層へ進んで回復する(self):
         provider = 第二層追加参照()
