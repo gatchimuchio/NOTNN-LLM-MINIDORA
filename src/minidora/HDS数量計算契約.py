@@ -172,7 +172,7 @@ def HDS数量法則観測要求群(
         外部検索表層=surface,
         必須被覆=False,
         外部文脈アンカー=(surface,),
-        段階="primary",
+        段階="fallback",
         優先度=5,
         provenance=("数量計算契約", "計算法則不足"),
     ),)
