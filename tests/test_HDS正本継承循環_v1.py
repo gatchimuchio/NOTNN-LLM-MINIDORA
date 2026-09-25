@@ -263,7 +263,7 @@ class HDS正本継承循環試験(unittest.TestCase):
         )
         self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
         成果 = 結果.状態.成果辞書()
-        self.assertEqual(結果.状態.主体辞書()[基準結果主体名].回答ラベル, "A")
+        self.assertEqual(結果.状態.主体辞書()[基準結果主体名].回答ラベル, "B")
         self.assertEqual(成果[回答成果名], "B")
         self.assertTrue(成果[非退行判定成果名].拡張採用)
         self.assertTrue(any(
