@@ -75,6 +75,20 @@ class HDS既存能力継承試験(unittest.TestCase):
         self.assertEqual(選択.call_count, 1)
         能力.assert_not_called()
 
+    def test_既存formal評価はKernel候補互換射影を受け取る(self):
+        正本 = _結果("APPROVE", "A", 模型=_模型結果("A", {"A": 2, "B": 0}))
+        正本候補 = {"A": object(), "B": object()}
+        互換候補 = {"A": object(), "B": object()}
+        with patch(
+            "minidora.HDS既存能力継承.HDS選択推論実行",
+            return_value=正本,
+        ) as 選択:
+            HDS既存能力選択評価(
+                object(), (), コンパイル=lambda x: x, 模型核=object(),
+                基礎能力核=object(), 候補意味IR=正本候補, 候補互換IR=互換候補,
+            )
+        self.assertIs(選択.call_args.kwargs["候補意味IR"], 互換候補)
+
     def test_formal未閉包ならK3既存能力を継承(self):
         正本 = _結果("SUSPEND", 理由=("NO_GUESS",))
         旧補助 = _結果("APPROVE", "A", K3根拠=2)
