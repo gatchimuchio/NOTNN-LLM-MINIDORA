@@ -108,7 +108,10 @@ class HDS選択継承供給:
         compile_fn = getattr(self.コンパイラ,"コンパイル",None)
         if not callable(compile_fn): raise TypeError("選択継承循環には外部資料をコンパイル可能なHDSコンパイラが必要")
         if not self.既存能力継承:
-            return HDS選択推論実行(self.質問IR,参照群,コンパイル=compile_fn,基礎能力核=None,候補意味IR=self.候補意味IR,模型核=self.模型核,正式模型評価=True)
+            return HDS選択推論実行(
+                self.質問IR,参照群,コンパイル=compile_fn,基礎能力核=None,
+                候補意味IR=self.候補互換IR,模型核=self.模型核,正式模型評価=True,
+            )
         return HDS既存能力選択評価(
             self.質問IR,参照群,コンパイル=compile_fn,模型核=self.模型核,
             基礎能力核=self.基礎能力核,候補意味IR=self.候補意味IR,
