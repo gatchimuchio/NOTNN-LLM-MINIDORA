@@ -127,8 +127,8 @@ class HDS再生収録試験(unittest.TestCase):
                 "doc:1",
                 'query_選択肢:A',
                 'query_kind:選択肢',
-                "query_kind:代替経路",
-                "query_kind:代替経路_選択肢",
+                "query_kind:structured",
+                "query_kind:focus",
                 'query_選択肢:B',
             ],
         )

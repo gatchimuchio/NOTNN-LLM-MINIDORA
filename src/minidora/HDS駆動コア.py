@@ -93,15 +93,8 @@ class HDS駆動コア:
             if "HDSカーネル束" in 成果初期値 or "HDSカーネル署名" in 主体初期値:
                 raise ValueError("HDSカーネルの予約初期キーは呼出側から上書きできない")
             成果初期値["HDSカーネル束"] = kernel
-            成果初期値["HDSカーネル候補検証契約"] = tuple(kernel.候補検証契約)
-            成果初期値["HDSカーネル数量計算契約"] = kernel.数量計算契約
-            成果初期値["HDSカーネル失敗署名候補"] = tuple(kernel.失敗署名候補)
-            成果初期値["HDSカーネルチェックリスト"] = tuple(kernel.チェックリスト)
-            成果初期値["HDSカーネル認知世界差分"] = kernel.認知世界差分
-            成果初期値["HDSカーネル監査参照候補"] = tuple(kernel.監査参照候補)
             主体初期値["HDSカーネル署名"] = kernel.カーネル署名
             成立初期値.add("HDSカーネル形成済み")
-            成立初期値.add("HDSカーネル監査成果接続済み")
 
         if コア入力 is not None:
             if "HDSコア入力" in 成果初期値 or "HDSコア入力署名" in 主体初期値:

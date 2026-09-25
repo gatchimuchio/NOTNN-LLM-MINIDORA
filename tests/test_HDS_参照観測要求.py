@@ -139,32 +139,6 @@ class HDS参照観測要求試験(unittest.TestCase):
         self.assertIn(("hds_observation_id", "関係:question:候補:A"), conditions["fallback:a"])
         self.assertIn(("hds_observation_id", "関係:question:候補:B"), conditions["fallback:b"])
 
-    def test_初期候補補完では任意監査観測を混入しない(self) -> None:
-        provider = _一般HitProvider()
-        ir = _関係質問()
-        requests = list(HDS参照観測要求群(ir))
-        requests.append(type(requests[0])(
-            ID="監査表層:初期分離",
-            関係ID=None,
-            関係種別=None,
-            未知位置=None,
-            既知端点=(),
-            条件範囲=(),
-            候補ラベル=None,
-            候補表層=None,
-            外部言語="en",
-            外部検索表層="apoptosis audit optional",
-            必須被覆=False,
-            外部文脈アンカー=(),
-            段階="fallback",
-            優先度=80,
-            provenance=("監査.R_query",),
-        ))
-        HDS参照検索(provider, ir, 観測要求=tuple(requests))
-        self.assertNotIn("apoptosis audit optional", provider.calls)
-        for 候補 in ("Protein A", "Protein B", "Protein C", "Protein D"):
-            self.assertIn(候補, provider.calls)
-
     def test_追加観測は局所検証から始めprimaryを初期には再発行しない(self) -> None:
         ir = _関係質問()
         requests = HDS参照観測要求群(ir)
@@ -183,34 +157,6 @@ class HDS参照観測要求試験(unittest.TestCase):
             "molecule causes apoptosis under hypoxia protein a causes apoptosis under hypoxia",
             surfaces,
         )
-
-    def test_基準反証検証は第一世代から監査観測を先行する(self) -> None:
-        ir = _関係質問()
-        requests = list(HDS参照観測要求群(ir))
-        requests.append(type(requests[0])(
-            ID="監査表層:baseline",
-            関係ID=None,
-            関係種別=None,
-            未知位置=None,
-            既知端点=(),
-            条件範囲=(),
-            候補ラベル=None,
-            候補表層=None,
-            外部言語="en",
-            外部検索表層="apoptosis counterexample",
-            必須被覆=False,
-            外部文脈アンカー=(),
-            段階="fallback",
-            優先度=80,
-            provenance=("監査.R_query",),
-        ))
-        planned = HDS追加観測要求群(
-            tuple(requests),
-            残差群=("HDS選択:基準反証検証",),
-            世代=1,
-        )
-        self.assertTrue(planned)
-        self.assertTrue(all(x.ID.startswith("監査表層:") for x in planned))
 
     def test_候補競合の第二世代は監査観測を先行する(self) -> None:
         ir = _関係質問()

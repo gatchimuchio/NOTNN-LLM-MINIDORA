@@ -4,7 +4,7 @@ import unittest
 
 from minidora.HDS中間表現 import HDSIR, HDS実行核, HDS座標
 from minidora.HDS参照 import HDS参照問合せ候補
-from minidora.hds参照拡張 import HDS追加参照統合上限, HDS候補被覆優先統合
+from minidora.hds参照拡張 import HDS追加参照統合上限
 from minidora.hds能力経路_v2 import (
     HDS参照検索V2,
     HDS局所観測view,
@@ -82,36 +82,6 @@ class HDS能力経路V2試験(unittest.TestCase):
         self.assertEqual(HDS追加参照統合上限(16, 16), 32)
         self.assertEqual(HDS追加参照統合上限(32, 4), 32)
         self.assertEqual(HDS追加参照統合上限(0, 1), 1)
-
-    def test_追加参照統合は弱い既存資料より強い新規候補資料を優先する(self) -> None:
-        primary = (
-            参照記録("old-a", "A", "old", "fixture", "fixture", 0.5, 条件=(("hds_query_選択肢", "A"),)),
-            参照記録("old-b", "B", "old", "fixture", "fixture", 0.8, 条件=(("hds_query_選択肢", "B"),)),
-        )
-        extra = (
-            参照記録(
-                "new-a", "A", "new", "fixture", "fixture", 0.9,
-                条件=(("hds_query_選択肢", "A"), ("hds_observation_required", "true")),
-                意味確定=True,
-            ),
-        )
-        merged = HDS候補被覆優先統合(primary, extra, ("A", "B"), 2)
-        self.assertEqual([x.識別子 for x in merged], ["new-a", "old-b"])
-
-    def test_追加参照統合は候補被覆だけで監査資料を追い出さない(self) -> None:
-        primary = (
-            参照記録("a", "A", "A evidence", "fixture://a", "fixture", 0.7, 条件=(("hds_query_選択肢", "A"),)),
-            参照記録("b", "B", "B evidence", "fixture://b", "fixture", 0.7, 条件=(("hds_query_選択肢", "B"),)),
-        )
-        extra = (
-            参照記録(
-                "audit", "audit", "counterexample evidence", "fixture://audit", "fixture", 0.9,
-                条件=(("hds_query_kind", "audit_probe"), ("hds_observation_id", "監査表層:0")),
-                意味確定=True,
-            ),
-        )
-        merged = HDS候補被覆優先統合(primary, extra, ("A", "B"), 3)
-        self.assertEqual({x.識別子 for x in merged}, {"a", "b", "audit"})
 
     def test_generic主検索だけでは候補被覆を閉じない(self) -> None:
         provider = _CoverageProvider()

@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Iterable
+from typing import Iterable
 
 from .HDS中間表現 import HDSIR
 from .HDS観測計画 import HDS参照観測要求
-from .hds入力参照境界 import HDS入力資料本文
-from .意味字句 import 意味語
-from .参照 import 参照記録
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,194 +49,6 @@ def _選択肢(ir: HDSIR) -> tuple[tuple[str, str], ...]:
         if ラベル and 表層:
             結果.append((ラベル, 表層))
     return tuple(sorted(結果))
-
-
-
-@dataclass(frozen=True, slots=True)
-class HDS候補検証被覆:
-    候補ラベル: str
-    観測ID群: tuple[str, ...] = ()
-    独立資料ID群: tuple[str, ...] = ()
-
-    @property
-    def 被覆数(self) -> int:
-        return len(self.独立資料ID群)
-
-
-def _参照条件値群(記録: 参照記録, 鍵: str) -> tuple[str, ...]:
-    return tuple(str(値) for 条件鍵, 値 in 記録.条件 if str(条件鍵) == 鍵 and str(値))
-
-
-def HDS候補検証被覆を測定(
-    契約群: Iterable[HDS候補検証契約],
-    参照群: Iterable[参照記録],
-) -> tuple[HDS候補検証被覆, ...]:
-    """Kernel候補契約と実観測provenanceを照合し、候補別の独立資料被覆を返す。"""
-    参照 = tuple(参照群)
-    結果: list[HDS候補検証被覆] = []
-    for 契約 in tuple(契約群):
-        観測ID群 = frozenset(契約.観測ID群)
-        資料ID群: list[str] = []
-        if 観測ID群:
-            for 記録 in 参照:
-                if 契約.候補ラベル not in _参照条件値群(記録, "hds_query_選択肢"):
-                    continue
-                if not 観測ID群.intersection(_参照条件値群(記録, "hds_observation_id")):
-                    continue
-                識別子 = str(記録.識別子)
-                if 識別子 not in 資料ID群:
-                    資料ID群.append(識別子)
-        結果.append(HDS候補検証被覆(
-            契約.候補ラベル,
-            tuple(sorted(観測ID群)),
-            tuple(資料ID群),
-        ))
-    return tuple(結果)
-
-
-
-_汎用検証関係 = frozenset({"問い適合", "命題適合", "説明適合", "未解決関係"})
-
-
-def _意味集合(values: Iterable[str]) -> frozenset[str]:
-    out: set[str] = set()
-    for value in values:
-        out.update(str(x).casefold() for x in 意味語(value) if str(x))
-    return frozenset(out)
-
-
-def _被覆率(期待: frozenset[str], 観測: frozenset[str]) -> float:
-    if not 期待:
-        return 1.0
-    return len(期待.intersection(観測)) / len(期待)
-
-
-def _関係条件辞書(関係) -> dict[str, tuple[str, ...]]:
-    out: dict[str, list[str]] = {}
-    for raw in tuple(getattr(関係, "条件", ())):
-        key, sep, value = str(raw).partition("=")
-        key, value = key.strip(), value.strip()
-        if not sep or not key or not value:
-            continue
-        out.setdefault(key, []).append(value)
-    return {key: tuple(values) for key, values in out.items()}
-
-
-def _条件範囲一致(期待: tuple[tuple[str, str], ...], 関係) -> bool:
-    if not 期待:
-        return True
-    実条件 = _関係条件辞書(関係)
-    for key, value in 期待:
-        値群 = 実条件.get(str(key), ())
-        期待語 = _意味集合((str(value),))
-        if not 値群:
-            return False
-        if not any(_被覆率(期待語, _意味集合((候補値,))) >= 1.0 for 候補値 in 値群):
-            return False
-    return True
-
-
-def _IR全意味(ir: HDSIR) -> frozenset[str]:
-    values = [
-        str(coord.内容)
-        for coord in ir.座標
-        if str(coord.内容).strip()
-        and not str(coord.種別).startswith(("監査.", "保持.", "暫定性.", "帰還."))
-    ]
-    return _意味集合(values)
-
-
-def _関係意味一致(契約: HDS候補検証契約, 関係契約: HDS候補検証関係, ir: HDSIR) -> bool:
-    候補語 = _意味集合((契約.候補表層,))
-    既知語 = _意味集合(関係契約.既知端点)
-    if not 候補語:
-        return False
-
-    if str(関係契約.関係種別 or "") in _汎用検証関係:
-        全意味 = _IR全意味(ir)
-        return _被覆率(候補語, 全意味) >= 1.0 and _被覆率(既知語, 全意味) >= 1.0
-
-    座標辞書 = ir.座標辞書()
-    for 関係 in ir.関係:
-        if 関係契約.関係種別 and str(関係.種別) != str(関係契約.関係種別):
-            continue
-        if not _条件範囲一致(関係契約.条件範囲, 関係):
-            continue
-        始点語 = _意味集合(
-            str(座標辞書[cid].内容) for cid in 関係.始点 if cid in 座標辞書
-        )
-        終点語 = _意味集合(
-            str(座標辞書[cid].内容) for cid in 関係.終点 if cid in 座標辞書
-        )
-        if 関係契約.未知位置 == "始点":
-            候補側, 既知側 = 始点語, 終点語
-        elif 関係契約.未知位置 == "終点":
-            候補側, 既知側 = 終点語, 始点語
-        else:
-            候補側, 既知側 = 始点語.union(終点語), 始点語.union(終点語)
-        if _被覆率(候補語, 候補側) < 1.0:
-            continue
-        if _被覆率(既知語, 既知側) < 1.0:
-            continue
-        return True
-    return False
-
-
-def HDS候補意味検証資料ID群(
-    契約: HDS候補検証契約,
-    参照群: Iterable[参照記録],
-    *,
-    コンパイル: Callable[[str], HDSIR],
-) -> tuple[str, ...]:
-    """query provenanceではなく、資料をHDS-IRへ戻した意味内容で候補契約を検証する。"""
-    if not callable(コンパイル):
-        raise TypeError("候補意味検証にはコンパイル可能なHDS構文化器が必要")
-    if not 契約.関係:
-        return ()
-    out: list[str] = []
-    for 記録 in tuple(参照群):
-        try:
-            ir = コンパイル(HDS入力資料本文(記録))
-        except (TypeError, ValueError):
-            continue
-        if not isinstance(ir, HDSIR):
-            continue
-        if any(_関係意味一致(契約, 関係項目, ir) for 関係項目 in 契約.関係):
-            資料ID = str(記録.識別子)
-            if 資料ID and 資料ID not in out:
-                out.append(資料ID)
-    return tuple(out)
-
-
-def HDS候補検証成立(
-    契約群: Iterable[HDS候補検証契約],
-    候補ラベル: str,
-    参照群: Iterable[参照記録],
-    *,
-    最小独立資料数: int = 1,
-    コンパイル: Callable[[str], HDSIR] | None = None,
-) -> bool:
-    if type(最小独立資料数) is not int or 最小独立資料数 < 0:
-        raise ValueError("最小独立資料数は0以上の整数")
-    参照 = tuple(参照群)
-    対象 = next((x for x in tuple(契約群) if x.候補ラベル == str(候補ラベル)), None)
-    if 対象 is None:
-        return True
-
-    # Compilerがある実行経路ではquery provenanceではなく資料意味を正とする。
-    # 監査queryは候補ラベルを持たないため、タグ被覆を前提にすると反証資料を誤って捨てる。
-    if 対象.関係 and コンパイル is not None:
-        意味資料 = HDS候補意味検証資料ID群(対象, 参照, コンパイル=コンパイル)
-        return len(意味資料) >= 最小独立資料数
-
-    # Compilerを持たない互換・監査入口だけ、従来の観測経路被覆へ縮退する。
-    if 対象.観測ID群:
-        被覆 = next(
-            (x for x in HDS候補検証被覆を測定((対象,), 参照) if x.候補ラベル == str(候補ラベル)),
-            None,
-        )
-        return bool(被覆 is not None and 被覆.被覆数 >= 最小独立資料数)
-    return True
 
 
 def HDS候補検証契約群(
@@ -313,9 +122,5 @@ __all__ = [
     "HDS候補検証関係",
     "HDS候補検証観測",
     "HDS候補検証契約",
-    "HDS候補検証被覆",
-    "HDS候補検証被覆を測定",
-    "HDS候補意味検証資料ID群",
-    "HDS候補検証成立",
     "HDS候補検証契約群",
 ]

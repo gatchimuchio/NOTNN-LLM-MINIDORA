@@ -108,12 +108,8 @@ class 実行系HDSV1試験(unittest.TestCase):
         self.assertEqual(実行記録["コア版"], HDS駆動コア版)
         self.assertEqual(実行記録["継承基準"], HDS継承基準版)
         self.assertEqual(
-            実行記録["作用履歴"][:3],
+            実行記録["作用履歴"],
             ("HDS継承/模型再評価", "HDS継承/追加参照", "HDS継承/模型再評価"),
-        )
-        self.assertGreaterEqual(
-            実行記録["作用履歴"].count("HDS継承/追加参照"),
-            2,
         )
         self.assertIn("HDS_FIRST_CORE_COMMIT", 実行結果.採否.理由)
         self.assertEqual(実行結果.履歴[-1]["op"], "HDS_FIRST_CORE_INHERITANCE_RUN")
