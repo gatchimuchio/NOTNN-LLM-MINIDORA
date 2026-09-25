@@ -134,7 +134,7 @@ def _条件範囲一致(期待: tuple[tuple[str, str], ...], 関係) -> bool:
         期待語 = _意味集合((str(value),))
         if not 値群:
             return False
-        if not any(_被覆率(期待語, _意味集合((候補値,))) >= 0.5 for 候補値 in 値群):
+        if not any(_被覆率(期待語, _意味集合((候補値,))) >= 1.0 for 候補値 in 値群):
             return False
     return True
 
@@ -157,7 +157,7 @@ def _関係意味一致(契約: HDS候補検証契約, 関係契約: HDS候補�
 
     if str(関係契約.関係種別 or "") in _汎用検証関係:
         全意味 = _IR全意味(ir)
-        return _被覆率(候補語, 全意味) >= 0.5 and _被覆率(既知語, 全意味) >= 0.5
+        return _被覆率(候補語, 全意味) >= 1.0 and _被覆率(既知語, 全意味) >= 1.0
 
     座標辞書 = ir.座標辞書()
     for 関係 in ir.関係:
@@ -177,9 +177,9 @@ def _関係意味一致(契約: HDS候補検証契約, 関係契約: HDS候補�
             候補側, 既知側 = 終点語, 始点語
         else:
             候補側, 既知側 = 始点語.union(終点語), 始点語.union(終点語)
-        if _被覆率(候補語, 候補側) < 0.5:
+        if _被覆率(候補語, 候補側) < 1.0:
             continue
-        if _被覆率(既知語, 既知側) < 0.5:
+        if _被覆率(既知語, 既知側) < 1.0:
             continue
         return True
     return False
