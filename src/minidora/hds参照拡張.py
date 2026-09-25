@@ -16,10 +16,10 @@ def _条件値群(record: 参照記録, key: str) -> tuple[str, ...]:
 
 def _参照優先度(record: 参照記録, *, 追加: bool) -> tuple[int, int, int, float, int, int]:
     required = int("true" in _条件値群(record, "hds_observation_required"))
-    candidate_bound = int(bool(_条件値群(record, "hds_query_選択肢")))
+    候補拘束 = int(bool(_条件値群(record, "hds_query_選択肢")))
     return (
         required,
-        candidate_bound,
+        候補拘束,
         int(bool(record.意味確定)),
         float(record.信頼),
         int(bool(追加)),
