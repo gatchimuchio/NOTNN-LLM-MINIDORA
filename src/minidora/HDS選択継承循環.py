@@ -130,6 +130,8 @@ class HDS選択継承供給:
             成果群=[(現行結果成果名,結果),(評価参照署名成果名,current_sig)]
             if _承認済み(基準):
                 正式基準 = _正式模型承認(基準)
+                暫定監査基準 = "HDS_AUDIT_PROVISIONAL_BASELINE" in {str(x) for x in 基準.理由}
+                監査基準 = bool(正式基準 or 暫定監査基準)
                 if 初回 and 正式基準 and self.参照供給器 is not None and self.設定.最大回復回数 > 0:
                     return HDS作用結果(
                         HDS作用状態.成立,
@@ -140,14 +142,24 @@ class HDS選択継承供給:
                         理由=("HDS_BASELINE_APPROVAL_REVERIFY_PENDING",),
                     )
 
-                if not 初回 and 正式基準 and int(values.get(参照世代成果名, 0)) > 0:
+                if not 初回 and 監査基準 and int(values.get(参照世代成果名, 0)) > 0:
                     compile_fn = getattr(self.コンパイラ, "コンパイル")
                     世代 = int(values.get(参照世代成果名, 0))
+                    次層 = (
+                        HDS追加観測要求群(
+                            self.参照観測要求,
+                            残差群=(残差_基準反証検証,),
+                            世代=世代 + 1,
+                        )
+                        if self.参照供給器 is not None and 世代 < self.設定.最大回復回数
+                        else ()
+                    )
 
                     # まずformal自身の再評価を認める。別候補へ変わっただけでは足りず、
                     # 参照由来一意差の証拠優越と候補意味契約の双方を要求する。
                     formal更新 = bool(
-                        _承認済み(結果)
+                        正式基準
+                        and _承認済み(結果)
                         and 結果.回答ラベル != 基準.回答ラベル
                         and HDS正式模型証拠優越(基準, 結果)
                         and HDS候補検証成立(
@@ -166,8 +178,22 @@ class HDS選択継承供給:
                             拡張承認判定=_承認済み,
                             証拠優越証明=HDS正式模型証拠優越,
                         )
-                        成果群[0] = (現行結果成果名, 結果)
-                        成果群.extend(((非退行判定成果名, 判定), (影結果成果名, 結果), (回答成果名, 結果.回答ラベル)))
+                        暫定結果 = replace(
+                            結果,
+                            理由=tuple(dict.fromkeys((*結果.理由, "HDS_AUDIT_PROVISIONAL_BASELINE"))),
+                        )
+                        成果群[0] = (現行結果成果名, 暫定結果)
+                        成果群.extend(((非退行判定成果名, 判定), (影結果成果名, 結果)))
+                        if 次層:
+                            return HDS作用結果(
+                                HDS作用状態.成立,
+                                解消残差=frozenset(set(選択解消).difference({残差_基準反証検証})),
+                                追加残差=frozenset({残差_基準反証検証}),
+                                成果=tuple(成果群),
+                                主体状態差分=((基準結果主体名, 暫定結果),),
+                                理由=tuple(dict.fromkeys((*判定.理由, "HDS_FORMAL_SUPERIOR_EVIDENCE_PROVISIONAL"))),
+                            )
+                        成果群.append((回答成果名, 結果.回答ラベル))
                         if 承認時入力解消:
                             成果群.append((入力残差影成果名, tuple(sorted(承認時入力解消))))
                         return HDS作用結果(
@@ -175,7 +201,7 @@ class HDS選択継承供給:
                             追加状態=frozenset({選択閉包状態}),
                             解消残差=frozenset((*選択解消, *承認時入力解消)),
                             成果=tuple(成果群),
-                            主体状態差分=基準差分,
+                            主体状態差分=((基準結果主体名, 暫定結果),),
                             理由=tuple(dict.fromkeys((*判定.理由, "HDS_FORMAL_SUPERIOR_EVIDENCE_REVERIFIED"))),
                         )
 
@@ -201,8 +227,22 @@ class HDS選択継承供給:
                                 後, 最小独立証拠数=2
                             ),
                         )
-                        成果群[0] = (現行結果成果名, 反証)
-                        成果群.extend(((非退行判定成果名, 判定), (影結果成果名, 反証), (回答成果名, 反証.回答ラベル)))
+                        暫定反証 = replace(
+                            反証,
+                            理由=tuple(dict.fromkeys((*反証.理由, "HDS_AUDIT_PROVISIONAL_BASELINE"))),
+                        )
+                        成果群[0] = (現行結果成果名, 暫定反証)
+                        成果群.extend(((非退行判定成果名, 判定), (影結果成果名, 反証)))
+                        if 次層:
+                            return HDS作用結果(
+                                HDS作用状態.成立,
+                                解消残差=frozenset(set(選択解消).difference({残差_基準反証検証})),
+                                追加残差=frozenset({残差_基準反証検証}),
+                                成果=tuple(成果群),
+                                主体状態差分=((基準結果主体名, 暫定反証),),
+                                理由=tuple(dict.fromkeys((*判定.理由, "HDS_DIRECT_COUNTEREVIDENCE_PROVISIONAL"))),
+                            )
+                        成果群.append((回答成果名, 反証.回答ラベル))
                         if 承認時入力解消:
                             成果群.append((入力残差影成果名, tuple(sorted(承認時入力解消))))
                         return HDS作用結果(
@@ -210,22 +250,13 @@ class HDS選択継承供給:
                             追加状態=frozenset({選択閉包状態}),
                             解消残差=frozenset((*選択解消, *承認時入力解消)),
                             成果=tuple(成果群),
-                            主体状態差分=基準差分,
+                            主体状態差分=((基準結果主体名, 暫定反証),),
                             理由=tuple(dict.fromkeys((*判定.理由, "HDS_DIRECT_COUNTEREVIDENCE_REVERIFIED"))),
                         )
                     if 結果 is not 基準:
                         成果群.append((影結果成果名, 結果))
 
                     # 監査/反証層が残っている間は暫定APPROVEを外向きCOMMITしない。
-                    次層 = (
-                        HDS追加観測要求群(
-                            self.参照観測要求,
-                            残差群=(残差_基準反証検証,),
-                            世代=世代 + 1,
-                        )
-                        if self.参照供給器 is not None and 世代 < self.設定.最大回復回数
-                        else ()
-                    )
                     if 次層:
                         継続解消 = frozenset(set(選択解消).difference({残差_基準反証検証}))
                         return HDS作用結果(
