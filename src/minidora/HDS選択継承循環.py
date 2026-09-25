@@ -23,7 +23,7 @@ from .コア.値 import 署名 as _意味署名
 
 HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v4"
 参照成果名 = "HDS選択:参照"; 参照世代成果名 = "HDS選択:参照世代"; 計算済み成果名 = "HDS選択:計算済み"
-基準結果主体名 = "HDS選択:基準結果"; 現行結果成果名 = "HDS選択:現行結果"; 評価参照署名成果名 = "HDS選択:評価参照署名"
+基準結果主体名 = "HDS選択:基準結果"; 暫定非退行判定主体名 = "HDS選択:暫定非退行判定"; 現行結果成果名 = "HDS選択:現行結果"; 評価参照署名成果名 = "HDS選択:評価参照署名"
 非退行判定成果名 = "HDS選択:非退行判定"; 影結果成果名 = "HDS選択:影結果"; 回答成果名 = "HDS選択:回答ラベル"
 入力残差影成果名 = "HDS選択:入力残差影"; 選択閉包状態 = "HDS選択:閉包"
 残差_未評価 = "HDS選択:未評価"; 残差_観測不足 = "HDS選択:観測不足"; 残差_問題意味損失 = "HDS選択:問題意味損失"
@@ -190,7 +190,7 @@ class HDS選択継承供給:
                                 解消残差=frozenset(set(選択解消).difference({残差_基準反証検証})),
                                 追加残差=frozenset({残差_基準反証検証}),
                                 成果=tuple(成果群),
-                                主体状態差分=((基準結果主体名, 暫定結果),),
+                                主体状態差分=((基準結果主体名, 暫定結果),(暫定非退行判定主体名, 判定)),
                                 理由=tuple(dict.fromkeys((*判定.理由, "HDS_FORMAL_SUPERIOR_EVIDENCE_PROVISIONAL"))),
                             )
                         成果群.append((回答成果名, 結果.回答ラベル))
@@ -201,7 +201,7 @@ class HDS選択継承供給:
                             追加状態=frozenset({選択閉包状態}),
                             解消残差=frozenset((*選択解消, *承認時入力解消)),
                             成果=tuple(成果群),
-                            主体状態差分=((基準結果主体名, 暫定結果),),
+                            主体状態差分=((基準結果主体名, 暫定結果),(暫定非退行判定主体名, 判定)),
                             理由=tuple(dict.fromkeys((*判定.理由, "HDS_FORMAL_SUPERIOR_EVIDENCE_REVERIFIED"))),
                         )
 
@@ -239,7 +239,7 @@ class HDS選択継承供給:
                                 解消残差=frozenset(set(選択解消).difference({残差_基準反証検証})),
                                 追加残差=frozenset({残差_基準反証検証}),
                                 成果=tuple(成果群),
-                                主体状態差分=((基準結果主体名, 暫定反証),),
+                                主体状態差分=((基準結果主体名, 暫定反証),(暫定非退行判定主体名, 判定)),
                                 理由=tuple(dict.fromkeys((*判定.理由, "HDS_DIRECT_COUNTEREVIDENCE_PROVISIONAL"))),
                             )
                         成果群.append((回答成果名, 反証.回答ラベル))
@@ -250,7 +250,7 @@ class HDS選択継承供給:
                             追加状態=frozenset({選択閉包状態}),
                             解消残差=frozenset((*選択解消, *承認時入力解消)),
                             成果=tuple(成果群),
-                            主体状態差分=((基準結果主体名, 暫定反証),),
+                            主体状態差分=((基準結果主体名, 暫定反証),(暫定非退行判定主体名, 判定)),
                             理由=tuple(dict.fromkeys((*判定.理由, "HDS_DIRECT_COUNTEREVIDENCE_REVERIFIED"))),
                         )
                     if 結果 is not 基準:
@@ -268,6 +268,9 @@ class HDS選択継承供給:
                             理由=("HDS_BASELINE_AUDIT_CONTINUE", f"世代:{世代}"),
                         )
 
+                暫定判定 = 主体値.get(暫定非退行判定主体名)
+                if 暫定判定 is not None and not any(key == 非退行判定成果名 for key, _ in 成果群):
+                    成果群.append((非退行判定成果名, 暫定判定))
                 成果群.append((回答成果名,基準.回答ラベル))
                 if 承認時入力解消: 成果群.append((入力残差影成果名,tuple(sorted(承認時入力解消))))
                 継承理由="HDS_MINIDORA_EXISTING_CAPABILITIES_INHERITED" if "HDS_EXISTING_CAPABILITY_INHERITED" in 基準.理由 else "HDS_MINIDORA_CANONICAL_INHERITED"
@@ -349,11 +352,15 @@ class HDS選択継承供給:
                 if 残差_基準反証検証 in s.残差:
                     基準=s.主体辞書().get(基準結果主体名)
                     if _承認済み(基準):
+                        確定成果=[(参照世代成果名,level),(回答成果名,基準.回答ラベル)]
+                        暫定判定=s.主体辞書().get(暫定非退行判定主体名)
+                        if 暫定判定 is not None:
+                            確定成果.append((非退行判定成果名,暫定判定))
                         return HDS作用結果(
                             HDS作用状態.成立,
                             追加状態=frozenset({選択閉包状態}),
                             解消残差=解消,
-                            成果=((参照世代成果名,level),(回答成果名,基準.回答ラベル)),
+                            成果=tuple(確定成果),
                             理由=("HDS_BASELINE_AUDIT_EXHAUSTED_NO_SUPERIOR_EVIDENCE",),
                         )
                 return HDS作用結果(HDS作用状態.成立,解消残差=解消,追加残差=frozenset({残差_観測無進展}),成果=((参照世代成果名,level),),理由=("HDS_INHERITED_REFERENCE_NO_PROGRESS",))
@@ -366,4 +373,4 @@ class HDS選択継承供給:
         計算=self._計算作用(状態); 参照=self._参照作用(状態)
         return tuple(x for x in (計算,参照) if x is not None)
 
-__all__=["HDS選択継承循環版","HDS選択継承設定","HDS選択継承供給","参照成果名","参照世代成果名","計算済み成果名","基準結果主体名","現行結果成果名","評価参照署名成果名","非退行判定成果名","影結果成果名","回答成果名","入力残差影成果名","選択閉包状態","残差_未評価","残差_基準反証検証"]
+__all__=["HDS選択継承循環版","HDS選択継承設定","HDS選択継承供給","参照成果名","参照世代成果名","計算済み成果名","基準結果主体名","暫定非退行判定主体名","現行結果成果名","評価参照署名成果名","非退行判定成果名","影結果成果名","回答成果名","入力残差影成果名","選択閉包状態","残差_未評価","残差_基準反証検証"]
