@@ -1,0 +1,89 @@
+{
+  "契約形式": "minidora.gpqa.current-kernel-canonical.v3",
+  "正本名": "現行MINIDORA中核",
+  "日付JST": "2026-09-27",
+  "外部評価識別子": "gpqa-diamond-e2e-live-v3",
+  "評価種別": "CURRENT_INTEGRATED_KERNEL_CANONICAL",
+  "課題": "GPQA Diamond",
+  "正本": true,
+  "評価条件": {
+    "全問題数": 198,
+    "選択番号群": "0..197",
+    "資料集合CSV_SHA256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305",
+    "選択肢シャッフル種": 0,
+    "OpenAlex有効": false,
+    "EuropePMC有効": true,
+    "Crossref有効": true,
+    "Wikipedia言語群": ["en"],
+    "参照方式": "LIVE_ONLY",
+    "固定参照資料許可": false,
+    "中核入口": "HDS駆動コア.選択実行",
+    "既存能力継承": true,
+    "学習循環": true,
+    "外付け能力モジュール": false,
+    "科学専門モジュール": false,
+    "旧HDS監督": false,
+    "gold境界": "中核実行後の採点のみ"
+  },
+  "結果": {
+    "正答": 40,
+    "全数": 198,
+    "正答率": 20.2020202020202,
+    "回答": 144,
+    "回答率": 72.72727272727273,
+    "COMMIT": 144,
+    "SUSPEND": 54,
+    "FAIL": 0
+  },
+  "実行内状態遷移": {
+    "初期継承正答": 36,
+    "初期継承回答": 126,
+    "改善": 4,
+    "退行": 0,
+    "新規回答": 19,
+    "基準回答変更": 0,
+    "追加参照実行": 177,
+    "拡張採用": 19
+  },
+  "候補被覆": {
+    "初期全候補被覆問題数": 196,
+    "最終全候補被覆問題数": 198
+  },
+  "Kernel単一正本": {
+    "問題コンパイル束形成総数": 198,
+    "全問題数": 198,
+    "一問一形成": true,
+    "初期Rと中核で同一束再利用": true
+  },
+  "paired比較": {
+    "基準実装commit": "0721924f158697d5fbb0b6d35c2721ef418deb80",
+    "現行実装commit": "4e505c3ec2c78e26b4174c71284bd22fa1b7faf9",
+    "基準正答": 39,
+    "現行正答": 40,
+    "正答差": 1,
+    "基準回答": 147,
+    "現行回答": 144,
+    "基準不正答から現行正答": 8,
+    "基準正答から現行不正答": 7,
+    "比較境界": "独立LIVE paired交互順。コード変更だけの純粋因果差とは扱わない"
+  },
+  "由来": {
+    "workflow_run_id": 36250119488,
+    "workflow_name": "HDS Kernel 段階追加R A/B 一時実行",
+    "benchmark_head_commit": "a9fa1525ae70fef2e26f24838fe8ca052a6343e9",
+    "kernel_implementation_restore_commit": "4e505c3ec2c78e26b4174c71284bd22fa1b7faf9",
+    "aggregate_artifact_id": 10909137346,
+    "aggregate_zip_sha256": "06e87e26bb547e3c0fdc64700d0d55ce5bd02aa2cf2f3c0c3dce81ff4c9d4ea3",
+    "aggregate_json_sha256": "83e50d717d0558f3f9340c4869c18d81deac95e1386bb3e16d2966781f509d29",
+    "workflow_conclusion": "success"
+  },
+  "採用": {
+    "現行正本性能": "40/198",
+    "現行正本正答率": 20.2020202020202,
+    "旧39正本はGit履歴から復元": true,
+    "旧MINIDORA30は履歴セーブポイント": true,
+    "旧MINIDORA80は履歴セーブポイント": true,
+    "別run間コード因果差主張許可": false,
+    "実行内状態遷移記録許可": true
+  }
+}
