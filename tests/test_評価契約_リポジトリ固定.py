@@ -77,7 +77,8 @@ class 外部評価契約固定試験(unittest.TestCase):
         self.assertIn("正本GPQA入口", text)
         self.assertIn("評価契約 v3", text)
         self.assertIn("LIVE_ONLY", text)
-        self.assertIn("固定参照資料を正本性能評価へ使用しない", text)
+        self.assertIn("固定参照資料 = 禁止", text)
+        self.assertIn("正本性能評価へ使用しない", text)
         self.assertIn("python tools/正本評価.py gpqa-e2e", text)
 
     def test_旧39正本個票は履歴へ退避する(self) -> None:
