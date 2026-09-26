@@ -112,15 +112,7 @@ class 日本語基底境界試験(unittest.TestCase):
         道具 = 道具を読む("正本評価")
         with tempfile.TemporaryDirectory() as 一時:
             出力先 = Path(一時) / "評価.json"
-            出力先.write_text('{"protocol": {}}', encoding="utf-8")
-            引数 = 道具.引数解析器().parse_args(["gpqa-e2e", "--out", str(出力先)])
-            with patch.object(道具, "_実行") as 実行, self.assertRaises(SystemExit):
-                道具.GPQA正本を実行(引数)
-            命令列 = 実行.call_args.args[0]
-            self.assertEqual(Path(命令列[1]).name, "形式評価.py")
-            self.assertEqual(命令列[2:], ["gpqa-diamond", "--controlled-ab", "--no-openalex", "--out", str(出力先)])
-            self.assertNotIn("評価契約", json.loads(出力先.read_text(encoding="utf-8")))
-            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            出力先.write_text('{"評価条件": {}}', encoding="utf-8")\n            引数 = 道具.引数解析器().parse_args(["gpqa-e2e", "--out", str(出力先)])\n            with patch.object(\n                道具,\n                "GPQA中核正本を実行",\n                return_value={"評価条件": {}},\n            ) as 実行, self.assertRaises(SystemExit):\n                道具.GPQA正本を実行(引数)\n            実行.assert_called_once_with(出力先)\n            self.assertNotIn("評価契約", json.loads(出力先.read_text(encoding="utf-8")))\n            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 道具.引数解析器().parse_args(["gpqa-e2e", "--out", str(出力先), "--limit", "1"])
 
     def test_重み目録の外部ページングと循環拒否を保持する(self):
