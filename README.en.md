@@ -8,32 +8,25 @@ The Japanese documents are the normative source of meaning. The public repositor
 
 ## Current status
 
-| Evaluation line | Canon | GPQA Diamond |
+Current and historical evaluation lines are kept separate.
+
+| Evaluation line | Status | GPQA Diamond |
 |---|---|---:|
-| Model core | **MINIDORA30** | **30 / 198 (15.15%)** |
-| Core + scientific capability modules | **MINIDORA80** | **80 / 198 (40.40%)** |
-| Integrated execution system | separate line | separate acceptance evidence |
+| Current MINIDORA integrated core | **Current canon** | **40 / 198 (20.20%)** |
+| MINIDORA30 | Historical save point | 30 / 198 (15.15%) |
+| MINIDORA80 | Historical save point | 80 / 198 (40.40%) |
 
-Since 2026-09-09, canonical GPQA runs use newly retrieved `LIVE_ONLY` references and forbid frozen reference bundles.
+The current 2026-09-27 canonical run evaluates all 198 GPQA Diamond questions with newly retrieved `LIVE_ONLY` references through `HDS駆動コア.選択実行`. It measured **40 / 198**, with 36 initial inherited correct answers, 40 final correct answers, zero within-run regressions, full final candidate coverage on 198/198 cases, and exactly one problem bundle formation per case.
 
-MINIDORA80 same-run controlled A/B:
+Frozen reference data, saved search results, and per-problem replay bundles are not used for current canonical performance evaluation. Score differences across separate runs, including paired runs with independent LIVE retrieval, are not treated as code-only causal effects.
 
-```text
-modules OFF = 29 / 198 (14.65%)
-modules ON  = 80 / 198 (40.40%)
-net correct gain = +51
-module activations = 55
-correct activations = 55 / 55
-regressions = 0
-```
-
-On the limited GPQA-score axis, this is in the same roughly-40% band as the 39% GPT-4 baseline reported by the original GPQA paper. The evaluation conditions are not identical, so this is not a claim of overall GPT-4 capability equivalence.
+MINIDORA80 remains a historical demonstration of the capability-module extension path. Its same-run controlled A/B measured 29 / 198 with modules OFF and 80 / 198 with modules ON, for a +51 correct delta and zero regressions. It is a separate historical line, not the current integrated-core score.
 
 Canonical references:
 - [Current canon](CURRENT_CANONICAL.md)
-- [MINIDORA30](評価/GPQA_Diamond_MINIDORA30_E2E_正本_2026-09-09.md)
-- [MINIDORA80](評価/GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.md)
-- [Evaluation contract](評価/評価契約_v2.md)
+- [Current MINIDORA integrated core 40/198](評価/GPQA_Diamond_MINIDORA_中核_正本_2026-09-27.md)
+- [Evaluation contract v3](評価/評価契約_v3.md)
+- [Development canon history](開発正本履歴.md)
 
 ## Architecture boundary
 
