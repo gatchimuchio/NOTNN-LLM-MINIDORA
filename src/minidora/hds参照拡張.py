@@ -71,12 +71,21 @@ def HDS参照検索強化(provider: 参照供給器, ir: HDSIR, *, 上限: int |
 def HDS追加参照検索(provider: 参照供給器, ir: HDSIR, *, 段階: int=1, 最大取得上限: int=32,
              観測要求: Iterable[HDS参照観測要求] | None=None,
              残差群: Iterable[str]=()) -> tuple[参照記録,...]:
-    """追加Rでは同じprimaryを反復せず、Kernel形成済み観測層を世代別に一度ずつ観測する。"""
+    """追加Rは段階観測し、最終primary層だけ全観測面を用いた回復へ閉じる。"""
     予算=HDS参照予算選択(ir); factor=max(2,1+int(段階))
     total_limit=min(max(1,int(最大取得上限)),max(予算.取得上限,予算.取得上限*factor))
     per_query=min(total_limit,max(予算.一問合せ上限,予算.一問合せ上限*factor))
     requests=_要求群(ir,観測要求)
     planned=HDS追加観測要求群(requests,残差群=残差群,世代=max(1,int(段階)))
+    if planned and all(request.段階 == "primary" for request in planned):
+        return HDS参照検索強化(
+            provider, ir,
+            上限=total_limit,
+            一問合せ上限=per_query,
+            最大問合せ並列=予算.最大問合せ並列,
+            最大候補補完回数=1,
+            観測要求=requests,
+        )
     specs=tuple(spec for request in planned if (spec := _仕様化(request)) is not None)
     if not specs:
         return ()
