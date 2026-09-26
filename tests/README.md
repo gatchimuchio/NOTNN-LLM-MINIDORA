@@ -29,4 +29,4 @@ python -m unittest discover -s tests -v
 python tools/規模測定.py
 ```
 
-CIではリポジトリ整合性監査、日本語基底監査、構文確認、単体試験、規模測定、モジュールCLI、コンソール入口をLinux / Windows × Python 3.11–3.14で確認する。
+CIではリポジトリ整合性監査、日本語基底監査、構文確認、単体試験、規模測定、モジュールCLI、コンソール入口をUbuntu / Windows / macOS × Python 3.11–3.14の12構成で確認する。
