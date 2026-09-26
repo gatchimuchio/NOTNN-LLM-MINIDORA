@@ -1,37 +1,37 @@
 # tools
 
-`tools/` は、取得物の同一性確認、公開物目録、リポジトリ整合性監査、外部ベンチ実測など、**開発・監査用の補助ツール**を置く。
+`tools/` は、取得物の同一性確認、公開物目録、リポジトリ整合性監査、外部ベンチ実測など、開発・監査用の補助ツールを置く。
+実行系本体は `src/minidora/` であり、補助ツールをMINIDORAの推論実行系依存として扱わない。
 
-実行系本体は `src/minidora/` であり、`tools/` のスクリプトをMINIDORAの推論実行系依存として扱わない。
+## 現在の主要ツール
 
-## 現在のツール
-
-| Tool | 役割 | 追加依存 |
+| ツール | 役割 | 追加依存 |
 |---|---|---|
-| `正本評価.py` | **正本GPQA入口**。198/198全数・LIVE_ONLY・固定参照資料禁止を機械固定する | なし |
-| `評価契約.py` | Benchmark Contract v2。正本GPQA条件・fingerprint・主張可能範囲を生成する | なし |
-| `benchmark.py` | 低水準GPQA runner。部分実行・診断用。単独出力を正本性能値として引用しない | なし |
-| `benchmark_formal.py` | HDS監督介入を含む低水準GPQA runner。正本入口から呼ばれる | なし |
-| `gpqa_measure_current.py` | GPQA現行測定の低水準実装 | なし |
-| `repository_consistency_check.py` | v0.4模型核、上流LLM成立規定、version、Legacy境界、主要文書リンクの整合性監査 | なし |
-| `k3_hf_identity_目録.py` | K3 Hugging Face固定revisionのファイル同一性目録 | `huggingface_hub` |
-| `k3_public_artifact_目録.py` | K3固定revisionの公開artifact 目録 | `huggingface_hub` |
+| `正本評価.py` | 現行中核GPQA正本の入口 | なし |
+| `中核正本評価.py` | 198問全数を `HDS駆動コア.選択実行` へ通す実測器 | なし |
+| `評価契約.py` | 評価契約v3の条件・指紋・主張可能範囲を生成 | なし |
+| `評価.py` | 低水準GPQA実行器。部分実行・診断用 | なし |
+| `リポジトリ整合性監査.py` | 現行正本・日本語基底・主要配置の監査 | なし |
 
-## Benchmark Contract v2
+## 評価契約 v3
 
-評価の正本は [`../評価/評価契約_v2.md`](../評価/評価契約_v2.md) とする。
-
-2026-09-09以後、GPQA Diamondの正本性能評価は次だけを認める。
+評価の正本は [`../評価/評価契約_v3.md`](../評価/評価契約_v3.md) とする。
 
 ```text
-GPQA-E2E-LIVE
-= 問題 + 選択肢 + 実行時に新規取得する参照資料
-= 汎用E2E性能スナップショット
+GPQA Diamond 198 / 198
+選択肢シャッフル種 = 0
+OpenAlex = 無効
+Europe PMC = 有効
+Crossref = 有効
+Wikipedia = en
+参照方式 = LIVE_ONLY
+固定参照資料 = 禁止
+中核入口 = HDS駆動コア.選択実行
+問題束 = 一問一形成
 ```
 
-GPQAでは、C2、保存済み検索結果、固定Reference/Data bundle、Replay fixture等の**固定参照資料を正本性能評価へ使用しない**。
-
-過去の固定Replay資産はdefault treeへ重複保存せず、必要な場合は開発正本履歴のcommitから復元する。現行性能・将来正本・GPQA性能比較の入力へ再利用しない。
+GPQAでは、保存済み検索結果、固定参照資料束、再生用固定資料を正本性能評価へ使用しない。
+固定するのは問題集合と評価構成であり、検索結果そのものではない。
 
 ## 正本GPQA入口
 
@@ -39,117 +39,24 @@ GPQAでは、C2、保存済み検索結果、固定Reference/Data bundle、Repla
 python tools/正本評価.py gpqa-e2e --out gpqa_e2e.json
 ```
 
-正本入口は内部で次を固定する。
+正本入口は現行中核を直接実行し、実測後に評価契約v3を付与する。
+部分実行値を現行正本性能として採用しない。
 
-```text
-GPQA Diamond 198/198
-CSV SHA256 = 41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305
-choice seed = 0
-OpenAlex = disabled
-Wikipedia = en
-reference = LIVE_ONLY
-controlled A/B = required
-fixed reference Data = forbidden
-```
-
-部分実行用の `--start-index` / `--limit` は低水準runner側にのみ残し、`正本評価.py` の正本GPQA入口では受け付けない。
-
-結果JSONの `評価契約` には最低限次が入る。
-
-- `benchmark_id`
-- `evaluation_class`
-- `input_boundary`
-- `retrieval_mode`
-- `fixed_reference_data_allowed`
-- `condition_fingerprint_sha256`
-- `canonical_full_run`
-- `canonical_score_field`
-- `cross_run_code_delta_direct`
-- `snapshot_score_chronology_allowed`
-- `claim_範囲`
-- `forbidden_claims`
-
-`fixed_reference_data_allowed` は必ず `false`。
-
-## 開発正本履歴
-
-過去の採用正本コードは [`../開発正本履歴.md`](../開発正本履歴.md) の固定commitから復元する。
-旧セーブポイント文書・旧評価個票をdefault treeへ重複保存しない。
-
-## E2E run間の比較
+## E2E実行間の比較
 
 同じ正本運用規則で得た別runの得点は、時系列のE2E性能セーブポイントとして並べてよい。
-
-ただし参照資料は毎run新規取得されるため、別runの得点差をコード変更だけの純粋因果差とは扱わない。
+ただし参照資料は毎run新規取得されるため、得点差をコード変更だけの純粋因果差とは扱わない。
+独立LIVE参照を使うpaired比較も同様である。
 
 ```bash
 python tools/正本評価.py compare before.json after.json
 ```
 
-`compare` は得点差を表示するが、`correct_delta_is_code_only_causal=false` を明示する。
+## 低水準GPQA実行
 
-コード単位の因果監査はGPQA固定Replayへ戻さず、局所A/B・機能受入・退行試験で行う。
+部分実行・診断では `評価.py` を使う。これを直接実行した結果を、正本入口を通った全数値と混同しない。
 
-## 低水準GPQA runner
+## 開発正本履歴
 
-`benchmark.py` / `benchmark_formal.py` は部分実行・診断・内部実装用として残す。
-
-これらを直接実行して得たJSONは、Benchmark Contract v2の正本条件を満たす入口から生成されていない限り**正本性能値として採用しない**。
-
-GPQA Diamond 198問の低水準実測:
-
-```bash
-python tools/benchmark.py gpqa-diamond --out gpqa_current_measurement.json
-```
-
-まず10問だけ確認:
-
-```bash
-python tools/benchmark.py gpqa-diamond --limit 10 --out gpqa_smoke.json
-```
-
-途中で停止した同一範囲を再開:
-
-```bash
-python tools/benchmark.py gpqa-diamond --limit 10 --out gpqa_smoke.json --resume
-```
-
-任意位置から分割実行:
-
-```bash
-python tools/benchmark.py gpqa-diamond --start-index 50 --limit 25 --out gpqa_050_074.json
-```
-
-ベンチdatasetは既定で `.cache/minidora-bench/` に保存する。これは公式GPQA問題集合の同一性確認用cacheであり、外部参照結果の固定Replayではない。
-
-部分実行値は198問正本値と直接混同しない。198/198完走時だけ現行性能候補とする。
-
-## リポジトリ整合性監査
-
-```bash
-python tools/リポジトリ整合性監査.py
-```
-
-CIでも同じ監査をLinux / Windows × Python 3.11–3.14で実行する。
-
-v0.4では、旧Layer0の5責任を期待値にするのではなく、
-
-- `LLM-Constitutive-Specification` の参照版・commit
-- `src/minidora/模型.py` の独立性
-- `Layer0`旧名が計算実行器へ限定されること
-- HDS-IRが模型中核と分離されること
-- v0.3履歴が保持されること
-
-を監査する。
-
-## K3 目録
-
-K3 目録は外部サービスへアクセスする開発用処理のため、実行系依存から分離する。必要な場合だけ追加依存を導入する。
-
-```bash
-python -m pip install huggingface_hub
-python tools/k3_hf_identity_目録.py --out /tmp/k3-hf-identities.json
-python tools/k3_public_artifact_目録.py --out /tmp/k3-public-artifacts.json
-```
-
-両ツールは指定した出力先へJSONを書くだけで、ブランチ作成・commit・pushを自動実行しない。
+過去の採用正本コードは [`../開発正本履歴.md`](../開発正本履歴.md) の固定commitから復元する。
+旧評価個票をdefault treeへ重複保存しない。
