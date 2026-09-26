@@ -109,7 +109,7 @@ class 公開入口試験(unittest.TestCase):
 
     def test_正本のv3接続先が存在(self):
         self.assertTrue((ROOT/'設計/60_MINIDORA_HDS自律接続_v3.md').is_file())
-        for name in ('AGENTS.md','src/README.md','設計/58_MINIDORA_HDS実行主体_v1.md'):
+        for name in ('HDS_MINIDORA_現行正本.md','src/README.md','設計/58_MINIDORA_HDS実行主体_v1.md'):
             self.assertIn('60_MINIDORA_HDS自律接続_v3.md',(ROOT/name).read_text(encoding="utf-8"))
 
 
