@@ -70,6 +70,6 @@ class 運用構文化器:
         構文化器 = 公開HDSコンパイラ()
         束 = 構文化器.コンパイル束(text)
         self.コア入力 = 束.正本
-        self.原IR = 束.互換IR()
+        self.原IR = 束.意味IR
         local, self.責任対応 = 局所接続を構成(self.原IR)
         return local
