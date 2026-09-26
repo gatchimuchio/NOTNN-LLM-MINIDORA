@@ -46,12 +46,12 @@ def _要求(
         外部検索表層=表層,
         必須被覆=必須,
         段階=段階,
-        provenance=("Compiler Kernel",),
+        provenance=("構文化器Kernel",),
     )
 
 
 class HDS参照役割降下試験(unittest.TestCase):
-    def test_RはCompiler観測要求の検索表層だけを降下する(self) -> None:
+    def test_Rは構文化器観測要求の検索表層だけを降下する(self) -> None:
         requests = (
             _要求("obs:A", "ProteinX activates apoptosis under hypoxia", 必須=True, 候補="A"),
             _要求("obs:B", "ProteinY activates apoptosis under hypoxia", 必須=True, 候補="B"),
@@ -69,7 +69,7 @@ class HDS参照役割降下試験(unittest.TestCase):
         self.assertEqual(len(queries), 4)
         self.assertNotIn("optional surface", queries)
 
-    def test_primaryとfallbackを別入口へ降下する(self) -> None:
+    def test_主観測と縮退観測を別入口へ降下する(self) -> None:
         requests = (
             _要求("primary:A", "primary A", 必須=True, 候補="A"),
             _要求("fallback:A", "fallback A", 段階="fallback", 候補="A"),
