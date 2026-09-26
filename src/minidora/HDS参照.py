@@ -319,7 +319,14 @@ def HDS参照検索(
     if primary_records and not missing:
         return primary_records
 
-    縮退仕様群 = _縮退仕様(ir, 観測要求=requests)
+    # 局所検証は回復Rの観測層であり、初期候補補完では先食いしない。
+    # 初期Rは従来どおり縮退・監査候補だけで不足必須観測を補う。
+    初期縮退要求 = tuple(
+        request
+        for request in requests
+        if not (request.段階 == "fallback" and "局所検証" in request.provenance)
+    )
+    縮退仕様群 = _縮退仕様(ir, 観測要求=初期縮退要求)
     if not 縮退仕様群:
         return primary_records
     filtered_specs = tuple(
