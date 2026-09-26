@@ -12,6 +12,7 @@ from .統合駆動_v2.記憶 import HDS記憶
 from .統合駆動_v2.検証 import HDS検証器, HDS草案
 from .統合駆動_v2.形成 import HDS形成関係
 from .統合駆動_v2.入力境界 import HDS異種表象, HDS異種入力作用
+from .統合駆動_v2.学習 import HDS経験学習器
 from .HDSコア入力 import HDSコア入力束
 from .HDS構文化処理系列_v1_4 import HDSカーネル束, HDS意味専用計画器
 from .HDS非退行包絡 import HDS非退行判定, HDS非退行包絡
@@ -25,7 +26,8 @@ class HDS駆動コア:
     def __init__(self, *, HDSコンパイラ=None, 最大作用回数: int = 32, 政策: HDS運用政策 | None = None,
                  観測器: Sequence[HDS観測器] = (), 仮説雛型: Sequence[HDS仮説雛型] = (),
                  検証器: Sequence[HDS検証器] = (), 最終検証器: Sequence[HDS検証器] = (),
-                 関係規則=(), 未来制約=(), 作用供給器=(), 停止要求=None) -> None:
+                 関係規則=(), 未来制約=(), 作用供給器=(), 停止要求=None,
+                 学習器: HDS経験学習器 | None = None) -> None:
         self.HDSコンパイラ = HDSコンパイラ
         if type(最大作用回数) is not int or not 1 <= 最大作用回数 <= 4096:
             raise ValueError("最大作用回数は1..4096の整数が必要")
@@ -35,6 +37,12 @@ class HDS駆動コア:
         self.検証器 = tuple(検証器); self.最終検証器 = tuple(最終検証器)
         self.関係規則 = tuple(関係規則); self.未来制約 = tuple(未来制約)
         self.作用供給器 = tuple(作用供給器); self.停止要求 = 停止要求
+        if 学習器 is not None and not isinstance(学習器, HDS経験学習器):
+            raise TypeError("HDS経験学習器型が必要")
+        self.学習器 = 学習器 if 学習器 is not None else HDS経験学習器()
+
+    def 学習を初期化(self) -> None:
+        self.学習器.初期化()
 
     def 実行(self, 問合せ: str, *, 目的: Sequence[str] = (), 要求状態: Sequence[str] = (),
            追加作用: Sequence[HDS作用器] = (), 追加作用供給器: Sequence[HDS作用供給器] = (),
@@ -123,6 +131,7 @@ class HDS駆動コア:
             仮説雛型=self.仮説雛型, 検証器=self.検証器, 最終検証器=self.最終検証器,
             関係規則=self.関係規則, 未来制約=self.未来制約,
             作用供給器=(*self.作用供給器, *tuple(追加作用供給器)), 停止要求=self.停止要求,
+            学習器=self.学習器,
         ).実行(初期)
 
     def 非退行継承実行(self, 問合せ: str, *, 基準実行: Callable[[], object], 基準承認判定: Callable[[object], bool],

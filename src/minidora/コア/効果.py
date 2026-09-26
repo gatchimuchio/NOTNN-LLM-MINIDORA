@@ -1,4 +1,4 @@
-"""契約効果とは別に保持する実行内の期待効果。"""
+"""契約効果とは別に保持する、実行内または検証済み経験由来の期待効果。"""
 from __future__ import annotations
 from dataclasses import dataclass
 

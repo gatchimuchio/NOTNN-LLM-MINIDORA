@@ -21,6 +21,7 @@ from .統合駆動_v2.計画 import HDS作用仕様
 from .統合駆動_v2.意味構成 import HDS関係規則
 from .統合駆動_v2.未来 import HDS未来制約, HDS未来状態
 from .統合駆動_v2.診断 import HDS失敗診断
+from .統合駆動_v2.学習 import HDS経験学習器
 from .コア.効果 import 期待効果
 
 HDS実行主体版 = "HDS実行主体-v3"
@@ -559,6 +560,29 @@ class HDS作用供給器:
             raise TypeError("作用供給器には構成関数が必要")
 
 
+class _学習期待作用:
+    """回復実行だけで経験由来の期待を付加する透過作用。"""
+
+    def __init__(self, 元作用, 学習器: HDS経験学習器):
+        self._元作用 = 元作用
+        self._学習器 = 学習器
+        self.作用ID = 元作用.作用ID
+        self.計画仕様 = 学習器.計画仕様を補正(元作用)
+        self.作用定義ID = getattr(元作用, "作用定義ID", 元作用.作用ID)
+
+    def __getattr__(self, 名前):
+        return getattr(self._元作用, 名前)
+
+    def 機会(self, 状態):
+        機会 = self._元作用.機会(状態)
+        if 機会 is None:
+            return None
+        return self._学習器.機会を補正(self._元作用, 機会)
+
+    def 実行(self, 状態):
+        return self._元作用.実行(状態)
+
+
 class HDS実行主体:
     """観測・再評価・修復・採否を同じ通常循環で所有する。外付け監督は呼ばない。"""
 
@@ -573,7 +597,8 @@ class HDS実行主体:
                  関係規則: Sequence[HDS関係規則] = (),
                  未来制約: Sequence[HDS未来制約] = (),
                  作用供給器: Sequence[HDS作用供給器] = (),
-                 停止要求: Callable[[], bool] | None = None) -> None:
+                 停止要求: Callable[[], bool] | None = None,
+                 学習器: HDS経験学習器 | None = None) -> None:
         if type(最大作用回数) is not int or not 1 <= 最大作用回数 <= 4096:
             raise ValueError("HDS最大作用回数は1..4096の整数である必要がある")
         self.作用群 = tuple(作用群)
@@ -582,6 +607,9 @@ class HDS実行主体:
         if 停止要求 is not None and not callable(停止要求):
             raise TypeError("停止要求は呼出可能である必要がある")
         self.停止要求 = 停止要求
+        if 学習器 is not None and not isinstance(学習器, HDS経験学習器):
+            raise TypeError("HDS経験学習器型が必要")
+        self.学習器 = 学習器
         文字列組(tuple(x.作用ID for x in self.作用群), "作用ID")
         if any(x.作用ID.startswith("内的/") for x in self.作用群):
             raise ValueError("内的/はコア内部作用の予約名前空間")
@@ -606,9 +634,37 @@ class HDS実行主体:
         from .コア.状態操作 import 状態差を受理
         return 状態差を受理(前, 作用結果)
 
+    def _学習回復可能(self, 結果: HDS実行結果) -> bool:
+        if self.学習器 is None or 結果.終端 != HDS終端.保留:
+            return False
+        if 結果.停止種別 not in (停止理由.作用不足, 停止理由.予算枯渇, 停止理由.無進展, 停止理由.依存未閉包):
+            return False
+        if self.作用供給器 or self.観測器 or self.停止要求 is not None:
+            return False
+        if not self.作用群 or any(getattr(getattr(a, "計画仕様", None), "純粋", False) is not True for a in self.作用群):
+            return False
+        return self.学習器.利用可能(self.作用群)
+
     def 実行(self, 初期状態: HDS実行状態) -> HDS実行結果:
+        from copy import copy
         from .統合駆動_v2.循環 import 通常循環
-        return 通常循環(self, 初期状態)
+        基準 = 通常循環(self, 初期状態)
+        if self.学習器 is None:
+            return 基準
+        self.学習器.結果列を受け取る(self.作用群, 基準)
+        if not self._学習回復可能(基準):
+            return 基準
+        回復主体 = copy(self)
+        回復主体.作用群 = tuple(_学習期待作用(a, self.学習器) for a in self.作用群)
+        回復 = 通常循環(回復主体, 初期状態)
+        self.学習器.結果列を受け取る(self.作用群, 回復)
+        if 回復.終端 == HDS終端.採用:
+            return replace(回復, 理由=tuple(dict.fromkeys((*回復.理由, "HDS_EXPERIENCE_LEARNING_RECOVERY_COMMIT"))))
+        return 基準
+
+    def 学習を初期化(self) -> None:
+        if self.学習器 is not None:
+            self.学習器.初期化()
 
     def 再開(self, 前回: HDS実行結果, 追加入力: HDS作用結果 | None = None) -> HDS実行結果:
         from .統合駆動_v2.循環 import 通常循環
@@ -624,7 +680,10 @@ class HDS実行主体:
             前回 = replace(前回, 入力履歴=前回.入力履歴 + (入力記録,),
                            計装=replace(前回.計装, 外部入力数=前回.計装.外部入力数 + 1,
                                         依存失効数=前回.計装.依存失効数 + len(差.失効対象)))
-        return 通常循環(self, 状態, 前回)
+        結果 = 通常循環(self, 状態, 前回)
+        if self.学習器 is not None:
+            self.学習器.結果列を受け取る(self.作用群, 結果)
+        return 結果
 
 
 __all__ = [
