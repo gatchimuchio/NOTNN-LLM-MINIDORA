@@ -25,7 +25,7 @@ from .能力状態差循環 import 標準能力模型核
 from .計算実行器 import 計算実行器
 from .コア.値 import 署名 as _意味署名
 
-HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v4"
+HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v5"
 参照成果名 = "HDS選択:参照"; 参照世代成果名 = "HDS選択:参照世代"; 計算済み成果名 = "HDS選択:計算済み"
 基準結果主体名 = "HDS選択:基準結果"; 現行結果成果名 = "HDS選択:現行結果"; 評価参照署名成果名 = "HDS選択:評価参照署名"
 非退行判定成果名 = "HDS選択:非退行判定"; 影結果成果名 = "HDS選択:影結果"; 回答成果名 = "HDS選択:回答ラベル"
@@ -356,7 +356,10 @@ class HDS選択継承供給:
                     )
                 return HDS作用結果(HDS作用状態.成立,解消残差=解消,追加残差=frozenset({残差_観測無進展}),成果=((参照世代成果名,level),(参照記憶成果名,memory)),理由=("HDS_INHERITED_REFERENCE_NO_PROGRESS",))
             return HDS作用結果(HDS作用状態.成立,解消残差=解消,成果=((参照成果名,tuple(merged)),(参照世代成果名,level),(参照記憶成果名,memory)),理由=("HDS_INHERITED_REFERENCE_EXPANDED",f"世代:{level}",f"件数:{len(merged)}"))
-        return HDS関数作用("HDS継承/追加参照",実行,解消対象=tuple(sorted(回復可能残差)),資源負荷=4,優先度=6.0,読取成果=(参照成果名,参照世代成果名,学習導出成果名,学習観測消費成果名,学習観測世代成果名),入力署名=lambda s:_署名((_参照署名(self._参照(s)),int(self._成果(s).get(参照世代成果名,0)),int(self._成果(s).get(学習観測世代成果名,0)),tuple(self._成果(s).get(学習観測消費成果名,())))),契約版=HDS選択継承循環版,作用定義ID="HDS継承/追加参照")
+        # 学習導出は旧参照から形成される制御状態であり、新参照の因果親へ直接結ぶと
+        # 参照→学習導出→参照の時間循環になる。学習制御状態は入力署名と参照記録の
+        # hds_observation_id/provenanceで追跡し、状態依存辺は現在参照・参照世代だけに閉じる。
+        return HDS関数作用("HDS継承/追加参照",実行,解消対象=tuple(sorted(回復可能残差)),資源負荷=4,優先度=6.0,読取成果=(参照成果名,参照世代成果名),入力署名=lambda s:_署名((_参照署名(self._参照(s)),int(self._成果(s).get(参照世代成果名,0)),int(self._成果(s).get(学習観測世代成果名,0)),tuple(self._成果(s).get(学習観測消費成果名,())))),契約版=HDS選択継承循環版,作用定義ID="HDS継承/追加参照")
 
     def 構成(self, 状態: HDS実行状態):
         評価=self._評価作用(状態)

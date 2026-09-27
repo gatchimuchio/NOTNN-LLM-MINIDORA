@@ -111,6 +111,8 @@ class HDS実行内学習循環V1試験(unittest.TestCase):
         memory = 成果[参照記憶成果名]
         learned = next(x for x in memory if x.識別子 == "learned-a")
         self.assertTrue(any(k == "hds_observation_id" and str(v).startswith("学習:") for k, v in learned.条件))
+        self.assertIn("HDS選択:参照", 成果)
+        self.assertFalse(any(x == "成果:HDS選択:参照" for x in 結果.状態.再評価待ち))
 
     def test_学習観測空振りから別観測方法へ適応する(self):
         provider = 段階学習参照供給器()
