@@ -45,6 +45,31 @@ class 学習参照供給器:
         return ()
 
 
+class 段階学習参照供給器:
+    名称 = "段階学習試験参照"
+    並列安全 = False
+
+    def __init__(self):
+        self.問合せ: list[str] = []
+
+    def 検索(self, 問合せ, 上限=8):
+        query = " ".join(str(問合せ).split())
+        self.問合せ.append(query)
+        low = query.casefold()
+        if "molecule a" in low and "enzyme x" in low and "inhibit" not in low:
+            return (
+                参照記録(
+                    識別子="learned-a-fallback",
+                    対象="Molecule A",
+                    内容="Molecule A inhibits Enzyme X.",
+                    由来="試験",
+                    供給器=self.名称,
+                    信頼=1.0,
+                ),
+            )
+        return ()
+
+
 class HDS実行内学習循環V1試験(unittest.TestCase):
     def setUp(self):
         self.構文化器 = 公開HDSコンパイラ()
@@ -61,6 +86,8 @@ class HDS実行内学習循環V1試験(unittest.TestCase):
         self.assertEqual(len(経験), 1)
         self.assertIsInstance(導出, HDS選択学習導出)
         self.assertTrue(導出.観測要求)
+        self.assertEqual(導出.根拠経験ID群, (経験[0].ID,))
+        self.assertTrue(導出.導出理由)
         self.assertTrue(all("実行内学習" in x.provenance for x in 導出.観測要求))
 
     def test_同一回答内で記憶推論適応して再評価する(self):
@@ -84,6 +111,21 @@ class HDS実行内学習循環V1試験(unittest.TestCase):
         memory = 成果[参照記憶成果名]
         learned = next(x for x in memory if x.識別子 == "learned-a")
         self.assertTrue(any(k == "hds_observation_id" and str(v).startswith("学習:") for k, v in learned.条件))
+
+    def test_学習観測空振りから別観測方法へ適応する(self):
+        provider = 段階学習参照供給器()
+        結果 = self.コア.選択実行(
+            self.問い,
+            self.選択肢,
+            初期参照=(),
+            参照供給器=provider,
+        )
+        self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
+        成果 = 結果.状態.成果辞書()
+        self.assertEqual(成果[回答成果名], "A")
+        self.assertGreaterEqual(int(成果[学習観測世代成果名]), 3)
+        self.assertTrue(any("inhibit" in q.casefold() for q in provider.問合せ))
+        self.assertTrue(any("molecule a" in q.casefold() and "enzyme x" in q.casefold() and "inhibit" not in q.casefold() for q in provider.問合せ))
 
     def test_既存能力承認でも未観測学習があれば回答前に観測する(self):
         provider = 学習参照供給器()

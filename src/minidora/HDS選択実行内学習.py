@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Iterable, Mapping
 
 
-HDS選択実行内学習版 = "HDS-SELECTION-RUNTIME-LEARNING-v1"
+HDS選択実行内学習版 = "HDS-SELECTION-RUNTIME-LEARNING-v2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +25,8 @@ class HDS選択学習導出:
     未観測関係数: int
     矛盾関係数: int
     署名: str
+    根拠経験ID群: tuple[str, ...] = ()
+    導出理由: tuple[str, ...] = ()
 
 
 def _候補差(結果: object) -> tuple[tuple[str, float], ...]:
@@ -147,17 +149,29 @@ def _端点表層(ir: object, ids: Iterable[str]) -> tuple[str, ...]:
     return tuple(out)
 
 
-def _観測表層(ir: object, 関係: object) -> str:
+def _観測表層群(ir: object, 関係: object) -> tuple[str, ...]:
     left = _端点表層(ir, getattr(関係, "始点", ()))
     right = _端点表層(ir, getattr(関係, "終点", ()))
     predicate = _条件値(関係, "検索述語") or str(getattr(関係, "種別", ""))
     範囲値群 = tuple(v for _k, v in _条件範囲(関係))
-    parts: list[str] = []
-    for raw in (*left, predicate, *right, *範囲値群):
-        value = " ".join(str(raw).split()).strip()
-        if value and value.casefold() not in {x.casefold() for x in parts}:
-            parts.append(value)
-    return " ".join(parts)
+    候補群 = (
+        (*left, predicate, *right, *範囲値群),
+        (predicate, *left, *right, *範囲値群),
+        (*left, *right, *範囲値群),
+    )
+    out: list[str] = []
+    seen: set[str] = set()
+    for 候補 in 候補群:
+        parts: list[str] = []
+        for raw in 候補:
+            value = " ".join(str(raw).split()).strip()
+            if value and value.casefold() not in {x.casefold() for x in parts}:
+                parts.append(value)
+        surface = " ".join(parts)
+        if surface and surface.casefold() not in seen:
+            seen.add(surface.casefold())
+            out.append(surface)
+    return tuple(out)
 
 
 def _内部言語体系(ir: object) -> str:
@@ -201,6 +215,15 @@ def HDS選択学習観測を導出(
 
     hypotheses = HDS候補代入仮説群(question_ir, 候補意味IR)
     証拠群 = _証拠関係(結果)
+    経験文脈 = "\n".join((*経験.残差, *経験.理由))
+    if any(x in 経験文脈 for x in ("候補競合", "AMBIGUOUS", "CONFLICT", "矛盾")):
+        学習焦点 = "競合分別"
+    elif any(x in 経験文脈 for x in ("観測不足", "NO_GUESS", "NO_KNOWLEDGE", "証拠_INSUFFICIENT", "EVIDENCE_INSUFFICIENT")):
+        学習焦点 = "観測不足"
+    elif 経験.結果状態 == "APPROVE":
+        学習焦点 = "承認監査"
+    else:
+        学習焦点 = "未閉包"
     requests: list[object] = []
     seen: set[tuple[str, str]] = set()
     missing_count = 0
@@ -223,34 +246,49 @@ def HDS選択学習観測を導出(
                 continue
             missing_count += int(getattr(照合状態, "未観測", 0))
             conflict_count += int(getattr(照合状態, "矛盾", 0))
-            surface = _観測表層(ir, 関係)
-            if not surface:
-                continue
-            key = (str(label), surface.casefold())
-            if key in seen:
-                continue
-            seen.add(key)
             reason = "矛盾関係" if int(getattr(照合状態, "矛盾", 0)) > 0 else "未観測関係"
-            requests.append(HDS参照観測要求(
-                ID=f"学習:{経験.ID}:{label}:{getattr(関係, '関係ID', '')}",
-                関係ID=str(getattr(関係, "関係ID", "")) or None,
-                関係種別=str(getattr(関係, "種別", "")) or None,
-                未知位置=None,
-                既知端点=(*_端点表層(ir, getattr(関係, "始点", ())), *_端点表層(ir, getattr(関係, "終点", ()))),
-                条件範囲=_条件範囲(関係),
-                候補ラベル=str(label),
-                候補表層=" ".join(str(getattr(候補意味IR[label], "正規化文", "") or getattr(候補意味IR[label], "原文", "")).split()).strip() or None,
-                外部言語=str(getattr(question_ir, "入力言語", "ja") or "ja"),
-                外部検索表層=surface,
-                必須被覆=True,
-                外部文脈アンカー=(),
-                段階="primary",
-                優先度=5 if reason == "矛盾関係" else 10,
-                provenance=("実行内学習", 経験.ID, reason),
-            ))
+            観測表層群 = _観測表層群(ir, 関係)
+            for 方法番号, surface in enumerate(観測表層群, start=1):
+                key = (str(label), surface.casefold())
+                if key in seen:
+                    continue
+                seen.add(key)
+                基礎優先度 = 0 if reason == "矛盾関係" and 学習焦点 == "競合分別" else 5 if 学習焦点 == "観測不足" else 10
+                requests.append(HDS参照観測要求(
+                    ID=f"学習:{経験.ID}:{label}:{getattr(関係, '関係ID', '')}:方法:{方法番号}",
+                    関係ID=str(getattr(関係, "関係ID", "")) or None,
+                    関係種別=str(getattr(関係, "種別", "")) or None,
+                    未知位置=None,
+                    既知端点=(*_端点表層(ir, getattr(関係, "始点", ())), *_端点表層(ir, getattr(関係, "終点", ()))),
+                    条件範囲=_条件範囲(関係),
+                    候補ラベル=str(label),
+                    候補表層=" ".join(str(getattr(候補意味IR[label], "正規化文", "") or getattr(候補意味IR[label], "原文", "")).split()).strip() or None,
+                    外部言語=str(getattr(question_ir, "入力言語", "ja") or "ja"),
+                    外部検索表層=surface,
+                    必須被覆=True,
+                    外部文脈アンカー=(),
+                    段階="primary",
+                    優先度=基礎優先度 + (方法番号 - 1) * 20,
+                    provenance=("実行内学習", 経験.ID, 学習焦点, reason, f"観測方法:{方法番号}"),
+                ))
 
-    signature = 署名((経験.ID, tuple((x.ID, x.外部検索表層) for x in requests)))
-    return HDS選択学習導出(経験.ID, tuple(requests), missing_count, conflict_count, signature)
+    導出理由 = (
+        f"経験状態:{経験.結果状態}",
+        f"学習焦点:{学習焦点}",
+        f"経験残差数:{len(経験.残差)}",
+        f"経験理由数:{len(経験.理由)}",
+        f"経験候補差数:{len(経験.候補差)}",
+    )
+    signature = 署名((経験.ID, 導出理由, tuple((x.ID, x.外部検索表層, x.優先度) for x in requests)))
+    return HDS選択学習導出(
+        経験.ID,
+        tuple(requests),
+        missing_count,
+        conflict_count,
+        signature,
+        (経験.ID,),
+        導出理由,
+    )
 
 
 def _候補対象関係群(question_ir: object, 候補意味IR: Mapping[str, object], label: str) -> tuple[object, ...]:
