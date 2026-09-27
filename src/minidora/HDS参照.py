@@ -7,7 +7,7 @@ from dataclasses import dataclass, replace
 from .HDS探索方針 import HDS努力水準
 from .HDS中間表現 import HDSIR
 from .HDS観測計画 import HDS参照観測要求, HDS参照観測要求群
-from .参照 import 参照供給器, 参照記録
+from .参照 import 参照供給器, 参照記録, 参照取得診断, 参照検索を診断
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,18 +188,20 @@ def _query_pools(
     per_query_limit: int,
     *,
     max_parallel: int,
+    診断収集: list[参照取得診断] | None = None,
 ) -> list[tuple[参照記録, ...]]:
-    def run(spec: _HDS問合せ仕様) -> tuple[参照記録, ...]:
-        return tuple(_条件追加(record, spec) for record in provider.検索(spec.問合せ, per_query_limit))
+    def run(spec: _HDS問合せ仕様) -> tuple[tuple[参照記録, ...], 参照取得診断]:
+        記録群, 診断 = 参照検索を診断(provider, spec.問合せ, per_query_limit)
+        return tuple(_条件追加(record, spec) for record in 記録群), 診断
 
     parallel_safe = bool(getattr(provider, "並列安全", False))
     if not parallel_safe or len(specs) <= 1 or max_parallel <= 1:
         pools: list[tuple[参照記録, ...]] = []
         for spec in specs:
-            try:
-                pools.append(run(spec))
-            except Exception:
-                pools.append(())
+            記録群, 診断 = run(spec)
+            pools.append(記録群)
+            if 診断収集 is not None:
+                診断収集.append(診断)
         return pools
 
     workers = min(max(1, int(max_parallel)), len(specs))
@@ -208,9 +210,16 @@ def _query_pools(
         pools = []
         for future in futures:
             try:
-                pools.append(tuple(future.result()))
-            except Exception:
-                pools.append(())
+                記録群, 診断 = future.result()
+            except Exception as exc:
+                記録群 = ()
+                診断 = 参照取得診断(
+                    "", str(getattr(provider, "名称", type(provider).__name__)), "失敗", 0, 1,
+                    f"{type(exc).__name__}: {exc}",
+                )
+            pools.append(tuple(記録群))
+            if 診断収集 is not None:
+                診断収集.append(診断)
         return pools
 
 
@@ -297,6 +306,7 @@ def HDS参照検索(
     一問合せ上限: int | None = None,
     最大問合せ並列: int | None = None,
     観測要求: Iterable[HDS参照観測要求] | None = None,
+    診断収集: list[参照取得診断] | None = None,
 ) -> tuple[参照記録, ...]:
     予算 = HDS参照予算選択(ir)
     total_limit = 予算.取得上限 if 上限 is None else max(0, int(上限))
@@ -308,7 +318,7 @@ def HDS参照検索(
     requests = _要求群(ir, 観測要求)
     primary_specs = _問合せ仕様(ir, 観測要求=requests)
     primary_records = (
-        _round_robin(_query_pools(provider, primary_specs, per_query, max_parallel=parallel), total_limit)
+        _round_robin(_query_pools(provider, primary_specs, per_query, max_parallel=parallel, 診断収集=診断収集), total_limit)
         if primary_specs
         else ()
     )
@@ -319,14 +329,9 @@ def HDS参照検索(
     if primary_records and not missing:
         return primary_records
 
-    # 局所検証は回復Rの観測層であり、初期候補補完では先食いしない。
-    # 初期Rは従来どおり縮退・監査候補だけで不足必須観測を補う。
-    初期縮退要求 = tuple(
-        request
-        for request in requests
-        if not (request.段階 == "fallback" and "局所検証" in request.provenance)
-    )
-    縮退仕様群 = _縮退仕様(ir, 観測要求=初期縮退要求)
+    # primaryで必須観測が欠けたら、同じ実行内ですぐ局所検証・縮退へ降下する。
+    # 外部取得揺れを未観測のまま次段へ送らず、候補局所queryで先に回収する。
+    縮退仕様群 = _縮退仕様(ir, 観測要求=requests)
     if not 縮退仕様群:
         return primary_records
     filtered_specs = tuple(
@@ -337,7 +342,7 @@ def HDS参照検索(
     if not filtered_specs:
         return primary_records
     縮退記録群 = _round_robin(
-        _query_pools(provider, filtered_specs, per_query, max_parallel=parallel),
+        _query_pools(provider, filtered_specs, per_query, max_parallel=parallel, 診断収集=診断収集),
         total_limit,
     )
     return _記録群統合(primary_records, 縮退記録群, total_limit)

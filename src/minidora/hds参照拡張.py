@@ -5,7 +5,7 @@ from typing import Iterable
 from .HDS中間表現 import HDSIR
 from .HDS観測計画 import HDS参照観測要求, HDS参照観測要求群, HDS追加観測要求群
 from .HDS参照 import HDS参照予算選択, HDS参照検索, _候補被覆, _query_pools, _round_robin, _縮退仕様, _仕様化, _記録統合
-from .参照 import 参照供給器, 参照記録
+from .参照 import 参照供給器, 参照記録, 参照取得診断
 
 def _候補ラベル群(record: 参照記録) -> frozenset[str]:
     return frozenset(str(value) for key,value in record.条件 if str(key)=='hds_query_選択肢' and str(value))
@@ -45,14 +45,15 @@ def _要求群(ir: HDSIR, 観測要求: Iterable[HDS参照観測要求] | None) 
 
 def HDS参照検索強化(provider: 参照供給器, ir: HDSIR, *, 上限: int | None=None, 一問合せ上限: int | None=None,
              最大問合せ並列: int | None=None, 最大候補補完回数: int=1,
-             観測要求: Iterable[HDS参照観測要求] | None=None) -> tuple[参照記録,...]:
+             観測要求: Iterable[HDS参照観測要求] | None=None,
+             診断収集: list[参照取得診断] | None=None) -> tuple[参照記録,...]:
     予算=HDS参照予算選択(ir)
     total_limit=予算.取得上限 if 上限 is None else max(0,int(上限))
     per_query=予算.一問合せ上限 if 一問合せ上限 is None else max(1,int(一問合せ上限))
     parallel=予算.最大問合せ並列 if 最大問合せ並列 is None else max(1,int(最大問合せ並列))
     if total_limit<=0: return ()
     requests=_要求群(ir,観測要求)
-    references=HDS参照検索(provider,ir,上限=total_limit,一問合せ上限=per_query,最大問合せ並列=parallel,観測要求=requests)
+    references=HDS参照検索(provider,ir,上限=total_limit,一問合せ上限=per_query,最大問合せ並列=parallel,観測要求=requests,診断収集=診断収集)
     expected={r.候補ラベル for r in requests if r.必須被覆 and r.候補ラベル is not None}
     if not expected: return references
     for _ in range(max(0,int(最大候補補完回数))):
@@ -60,7 +61,7 @@ def HDS参照検索強化(provider: 参照供給器, ir: HDSIR, *, 上限: int |
         if not missing: break
         specs=tuple(spec for spec in _縮退仕様(ir,観測要求=requests) if spec.候補 is not None and spec.候補 in missing)
         if not specs: break
-        extra=_round_robin(_query_pools(provider,specs,per_query,max_parallel=parallel),total_limit)
+        extra=_round_robin(_query_pools(provider,specs,per_query,max_parallel=parallel,診断収集=診断収集),total_limit)
         if not extra: break
         merged=HDS候補被覆優先統合(references,extra,expected,total_limit)
         before=tuple((r.識別子,r.条件) for r in references); after=tuple((r.識別子,r.条件) for r in merged)
@@ -70,7 +71,7 @@ def HDS参照検索強化(provider: 参照供給器, ir: HDSIR, *, 上限: int |
 
 def HDS追加参照検索(provider: 参照供給器, ir: HDSIR, *, 段階: int=1, 最大取得上限: int=32,
              観測要求: Iterable[HDS参照観測要求] | None=None,
-             残差群: Iterable[str]=()) -> tuple[参照記録,...]:
+             残差群: Iterable[str]=(), 診断収集: list[参照取得診断] | None=None) -> tuple[参照記録,...]:
     """追加Rは段階観測し、最終primary層だけ全観測面を用いた回復へ閉じる。"""
     予算=HDS参照予算選択(ir); factor=max(2,1+int(段階))
     total_limit=min(max(1,int(最大取得上限)),max(予算.取得上限,予算.取得上限*factor))
@@ -85,12 +86,13 @@ def HDS追加参照検索(provider: 参照供給器, ir: HDSIR, *, 段階: int=1
             最大問合せ並列=予算.最大問合せ並列,
             最大候補補完回数=1,
             観測要求=requests,
+            診断収集=診断収集,
         )
     specs=tuple(spec for request in planned if (spec := _仕様化(request)) is not None)
     if not specs:
         return ()
     return _round_robin(
-        _query_pools(provider,specs,per_query,max_parallel=予算.最大問合せ並列),
+        _query_pools(provider,specs,per_query,max_parallel=予算.最大問合せ並列,診断収集=診断収集),
         total_limit,
     )
 
