@@ -73,6 +73,37 @@ class 複合参照並列試験(unittest.TestCase):
         self.assertEqual(provider.最後のエラー[0][0], "fail")
         self.assertIn("provider down", provider.最後のエラー[0][1])
 
+    def test_失敗と正常0件を診断で分別する(self) -> None:
+        from minidora.参照 import 参照検索を診断
+
+        empty = type("EmptyProvider", (), {"名称": "empty", "検索": lambda self, q, limit=8: ()})()
+        _, empty_diag = 参照検索を診断(empty, "query", 4)
+        self.assertEqual(empty_diag.状態, "空")
+
+        _, fail_diag = 参照検索を診断(_FailProvider(), "query", 4, 最大試行=2, 再試行待機秒=0)
+        self.assertEqual(fail_diag.状態, "失敗")
+        self.assertEqual(fail_diag.試行回数, 2)
+        self.assertIn("provider down", fail_diag.エラー or "")
+
+    def test_一時障害は有限再試行して回復する(self) -> None:
+        from minidora.参照 import 参照検索を診断
+
+        class 一時障害:
+            名称 = "flaky"
+            def __init__(self):
+                self.回数 = 0
+            def 検索(self, q, limit=8):
+                self.回数 += 1
+                if self.回数 == 1:
+                    raise OSError("transient")
+                return (参照記録("ok", "ok", "content", "fixture://ok", self.名称),)
+
+        provider = 一時障害()
+        records, diag = 参照検索を診断(provider, "query", 4, 最大試行=3, 再試行待機秒=0)
+        self.assertEqual([x.識別子 for x in records], ["ok"])
+        self.assertEqual(diag.状態, "取得")
+        self.assertEqual(diag.試行回数, 2)
+
     def test_同一識別資料は独立情報源へ増やさず高品質記録へ統合する(self) -> None:
         low = type(
             "LowProvider",

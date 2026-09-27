@@ -15,10 +15,10 @@ class _FakeEuropePMC:
         parsed = urlparse(url)
         self.assertions(parsed)
         return {
-            '結果List': {
-                '結果': [
+            'resultList': {
+                'result': [
                     {
-                        '情報源': "MED",
+                        'source': "MED",
                         "id": "12345678",
                         "pmid": "12345678",
                         "doi": "10.1000/example",
@@ -29,14 +29,14 @@ class _FakeEuropePMC:
                         "pubTypeList": {"pubType": ["Journal Article"]},
                     },
                     {
-                        '情報源': "MED",
+                        'source': "MED",
                         "id": "87654321",
                         "title": "Title only observation",
                         "abstractText": "",
                         "pubYear": "2023",
                     },
                     {
-                        '情報源': "MED",
+                        'source': "MED",
                         "id": "99999999",
                         "title": "Retracted observation",
                         "abstractText": "This should not be used.",
@@ -51,7 +51,7 @@ class _FakeEuropePMC:
         if not parsed.path.endswith("/webservices/rest/search"):
             raise AssertionError(parsed.path)
         params = parse_qs(parsed.query)
-        if params.get('結果Type') != ['模型核']:
+        if params.get("resultType") != ["core"]:
             raise AssertionError("resultType=core missing")
         if params.get("format") != ["json"]:
             raise AssertionError("format=json missing")
@@ -91,6 +91,13 @@ class EuropePMC参照供給器試験(unittest.TestCase):
         provider = EuropePMC参照供給器(JSON取得=_FakeEuropePMC())
         records = provider.検索("ProteinX catalysis", 8)
         self.assertFalse(any(record.識別子.endswith("99999999") for record in records))
+
+    def test_公式API契約の英字フィールドを使う(self) -> None:
+        fake = _FakeEuropePMC()
+        EuropePMC参照供給器(JSON取得=fake).検索("ProteinX catalysis", 2)
+        parsed = urlparse(fake.urls[0])
+        params = parse_qs(parsed.query)
+        self.assertEqual(params.get("resultType"), ["core"])
 
     def test_API障害は空集合へ閉じる(self) -> None:
         def failing(url, headers, timeout):
