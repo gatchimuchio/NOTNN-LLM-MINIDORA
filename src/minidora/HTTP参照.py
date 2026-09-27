@@ -10,7 +10,7 @@ from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 from .意味字句 import 意味語
-from .参照 import 参照記録
+from .参照 import 参照記録, 参照取得診断
 
 
 JSON取得器 = Callable[[str, Mapping[str, str], float], Mapping[str, Any]]
@@ -246,22 +246,26 @@ class Wikipedia参照供給器:
                     self._page_cache[key] = value
             return value
 
-    def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]:
+    def 検索診断(self, 問合せ: str, 上限: int = 8) -> tuple[tuple[参照記録, ...], 参照取得診断]:
         query = " ".join(str(問合せ).split()).strip()
         if not query or 上限 <= 0:
-            return ()
+            return (), 参照取得診断(query, self.名称, "空", 0)
         url = self.base + "/search/page?" + urlencode({"q": query, "limit": str(min(max(1, int(上限)), 100))})
         try:
             payload = self._get_json(url, {"User-Agent": self.user_agent, "Accept": "application/json"}, self.timeout)
             self._error(None)
         except Exception as exc:
-            self._error(f"{type(exc).__name__}: {exc}")
-            return ()
+            error = f"{type(exc).__name__}: {exc}"
+            self._error(error)
+            return (), 参照取得診断(query, self.名称, "失敗", 0, 1, error)
         pages = payload.get("pages")
         if not isinstance(pages, list):
-            self._error("ProtocolError: pages missing")
-            return ()
+            error = "ProtocolError: pages missing"
+            self._error(error)
+            return (), 参照取得診断(query, self.名称, "失敗", 0, 1, error)
+
         records: list[参照記録] = []
+        detail_errors: list[str] = []
         for row in pages:
             if not isinstance(row, Mapping):
                 continue
@@ -270,7 +274,11 @@ class Wikipedia参照供給器:
             page_id = str(row.get("id") or key).strip()
             description = str(row.get("description") or "").strip()
             excerpt = _html_text(row.get("excerpt"))
+            self._error(None)
             detail = self._page(key) if key else None
+            detail_error = self.最後のエラー
+            if detail is None and detail_error:
+                detail_errors.append(f"{key}:{detail_error}")
             full_text = _html_text(detail.get("html")) if isinstance(detail, Mapping) else ""
             content = _Wikipedia本文選択(
                 query=query,
@@ -283,10 +291,29 @@ class Wikipedia参照供給器:
             if not content:
                 continue
             情報源_url = f"https://{self.言語}.wikipedia.org/wiki/{quote(key.replace(' ', '_'), safe='')}"
-            records.append(参照記録(f"wikipedia:{self.言語}:{page_id}", title or key, content, 情報源_url, self.名称, 1.0))
+            条件 = (("wikipedia_detail", "degraded"),) if detail is None and detail_error else ()
+            records.append(参照記録(
+                f"wikipedia:{self.言語}:{page_id}",
+                title or key,
+                content,
+                情報源_url,
+                self.名称,
+                1.0 if not 条件 else 0.8,
+                条件=条件,
+            ))
             if len(records) >= 上限:
                 break
-        return tuple(records)
+
+        if detail_errors:
+            error = "; ".join(detail_errors)
+            self._error(error)
+            return tuple(records), 参照取得診断(query, self.名称, "縮退", len(records), 1, error)
+        self._error(None)
+        state = "取得" if records else "空"
+        return tuple(records), 参照取得診断(query, self.名称, state, len(records))
+
+    def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]:
+        return self.検索診断(問合せ, 上限)[0]
 
 
 __all__ = ["OpenAlex参照供給器", "Wikipedia参照供給器"]

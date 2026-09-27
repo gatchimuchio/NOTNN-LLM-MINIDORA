@@ -127,6 +127,22 @@ class HTTP参照供給器試験(unittest.TestCase):
         self.assertEqual(provider.本文cache件数, 1)
         self.assertIsNone(provider.最後のエラー)
 
+    def test_Wikipedia本文取得だけ失敗なら一覧資料を縮退保持する(self) -> None:
+        class _部分失敗HTTP(_FakeHTTP):
+            def __call__(self, url: str, headers, timeout: float):
+                if "/page/ProteinX/with_html" in url:
+                    raise OSError("detail down")
+                return super().__call__(url, headers, timeout)
+
+        provider = Wikipedia参照供給器(言語="en", JSON取得=_部分失敗HTTP())
+        records, diagnosis = provider.検索診断("ProteinX catalysis", 2)
+
+        self.assertEqual(diagnosis.状態, "縮退")
+        self.assertTrue(records)
+        self.assertIn("ProteinX", records[0].内容)
+        self.assertIn(("wikipedia_detail", "degraded"), records[0].条件)
+        self.assertLess(records[0].信頼, 1.0)
+
     def test_一Provider障害でも複合Rは他Providerを返す(self) -> None:
         def failing(url, headers, timeout):
             raise OSError("network down")
