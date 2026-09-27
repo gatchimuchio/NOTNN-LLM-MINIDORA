@@ -1,4 +1,4 @@
-name: MINIDORA R品質 一時受入 v5
+name: MINIDORA R品質 一時受入 v6
 
 on:
   push:
@@ -28,6 +28,7 @@ jobs:
             tests.test_HTTP参照 \
             tests.test_参照_並列 \
             tests.test_HDS能力経路_v2 \
+            tests.test_HDS_参照観測要求 \
             tests.test_HDS正本継承循環_v1 \
             tests.test_HDS実行内学習循環_v1 \
             tests.test_実行系_HDS_v1
