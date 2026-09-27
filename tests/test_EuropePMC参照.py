@@ -5,6 +5,12 @@ from urllib.parse import parse_qs, urlparse
 
 from minidora.EuropePMC参照 import EuropePMC参照供給器
 
+外部鍵_結果種別 = "resultType"
+外部鍵_結果一覧 = "resultList"
+外部鍵_結果 = "result"
+外部鍵_情報源 = "source"
+
+
 
 class _FakeEuropePMC:
     def __init__(self) -> None:
@@ -15,10 +21,10 @@ class _FakeEuropePMC:
         parsed = urlparse(url)
         self.assertions(parsed)
         return {
-            'resultList': {
-                'result': [
+            外部鍵_結果一覧: {
+                外部鍵_結果: [
                     {
-                        'source': "MED",
+                        外部鍵_情報源: "MED",
                         "id": "12345678",
                         "pmid": "12345678",
                         "doi": "10.1000/example",
@@ -29,14 +35,14 @@ class _FakeEuropePMC:
                         "pubTypeList": {"pubType": ["Journal Article"]},
                     },
                     {
-                        'source': "MED",
+                        外部鍵_情報源: "MED",
                         "id": "87654321",
                         "title": "Title only observation",
                         "abstractText": "",
                         "pubYear": "2023",
                     },
                     {
-                        'source': "MED",
+                        外部鍵_情報源: "MED",
                         "id": "99999999",
                         "title": "Retracted observation",
                         "abstractText": "This should not be used.",
@@ -51,7 +57,7 @@ class _FakeEuropePMC:
         if not parsed.path.endswith("/webservices/rest/search"):
             raise AssertionError(parsed.path)
         params = parse_qs(parsed.query)
-        if params.get("resultType") != ["core"]:
+        if params.get(外部鍵_結果種別) != ["core"]:
             raise AssertionError("resultType=core missing")
         if params.get("format") != ["json"]:
             raise AssertionError("format=json missing")
@@ -97,7 +103,7 @@ class EuropePMC参照供給器試験(unittest.TestCase):
         EuropePMC参照供給器(JSON取得=fake).検索("ProteinX catalysis", 2)
         parsed = urlparse(fake.urls[0])
         params = parse_qs(parsed.query)
-        self.assertEqual(params.get("resultType"), ["core"])
+        self.assertEqual(params.get(外部鍵_結果種別), ["core"])
 
     def test_API障害は空集合へ閉じる(self) -> None:
         def failing(url, headers, timeout):

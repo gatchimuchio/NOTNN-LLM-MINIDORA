@@ -12,6 +12,11 @@ from .参照 import 参照記録
 
 JSON取得器 = Callable[[str, Mapping[str, str], float], Mapping[str, Any]]
 
+_外部鍵_結果種別 = "resultType"
+_外部鍵_結果一覧 = "resultList"
+_外部鍵_結果 = "result"
+_外部鍵_情報源 = "source"
+
 
 def _JSON取得(url: str, headers: Mapping[str, str], timeout: float) -> Mapping[str, Any]:
     request = Request(url, headers=dict(headers), method="GET")
@@ -79,7 +84,7 @@ class EuropePMC参照供給器:
 
         params = {
             "query": query,
-            "resultType": "core",
+            _外部鍵_結果種別: "core",
             "pageSize": str(min(max(1, int(上限)), 1000)),
             "format": "json",
             "synonym": "true" if self.同義語展開 else "false",
@@ -96,11 +101,11 @@ class EuropePMC参照供給器:
             self._error(f"{type(exc).__name__}: {exc}")
             return ()
 
-        結果_list = payload.get("resultList")
+        結果_list = payload.get(_外部鍵_結果一覧)
         if not isinstance(結果_list, Mapping):
             self._error("ProtocolError: resultList missing")
             return ()
-        rows = 結果_list.get("result")
+        rows = 結果_list.get(_外部鍵_結果)
         if not isinstance(rows, list):
             self._error("ProtocolError: resultList.result missing")
             return ()
@@ -113,7 +118,7 @@ class EuropePMC参照供給器:
             if _truthy(row.get("isRetracted")) or _truthy(row.get("retracted")):
                 continue
 
-            情報源 = _text(row.get("source")) or "未知"
+            情報源 = _text(row.get(_外部鍵_情報源)) or "未知"
             article_id = _text(row.get("id") or row.get("pmid") or row.get("pmcid") or row.get("doi"))
             if not article_id:
                 continue
