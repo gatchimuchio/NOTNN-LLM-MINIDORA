@@ -8,6 +8,7 @@ from minidora.HDS駆動コア import HDS駆動コア, HDS駆動コア版, HDS継
 from minidora.HDS実行主体 import HDS終端, HDS作用供給器, HDS関数作用, HDS作用結果, HDS作用状態
 from minidora.HDS選択実行系 import HDS選択実行結果
 from minidora.HDS選択継承循環 import (
+    HDS選択継承供給,
     回答成果名,
     基準結果主体名,
     現行結果成果名,
