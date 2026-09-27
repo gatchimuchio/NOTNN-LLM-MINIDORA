@@ -25,7 +25,7 @@ from .能力状態差循環 import 標準能力模型核
 from .計算実行器 import 計算実行器
 from .コア.値 import 署名 as _意味署名
 
-HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v5"
+HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v6"
 参照成果名 = "HDS選択:参照"; 参照世代成果名 = "HDS選択:参照世代"; 計算済み成果名 = "HDS選択:計算済み"
 基準結果主体名 = "HDS選択:基準結果"; 現行結果成果名 = "HDS選択:現行結果"; 評価参照署名成果名 = "HDS選択:評価参照署名"
 非退行判定成果名 = "HDS選択:非退行判定"; 影結果成果名 = "HDS選択:影結果"; 回答成果名 = "HDS選択:回答ラベル"
@@ -254,7 +254,10 @@ class HDS選択継承供給:
             if self._計算計画() is not None and not bool(values.get(計算済み成果名,False)): residuals=frozenset((*residuals,残差_計算要求))
             成果群.extend(self._学習成果(s, 結果, refs, residuals))
             return HDS作用結果(HDS作用状態.成立,解消残差=frozenset(set(選択解消).difference(residuals)),追加残差=frozenset(set(residuals).difference(s.残差)),成果=tuple(成果群),主体状態差分=基準差分,理由=tuple(dict.fromkeys(("HDS_SELECTION_NOT_CLOSED","HDS_RUNTIME_LEARNING_CONNECTED",*tuple(結果.理由)))))
-        return HDS関数作用("HDS継承/模型再評価",実行,解消対象=tuple(sorted(選択残差集合|self.入力残差非阻害対象)),資源負荷=2,優先度=10.0,読取成果=(参照成果名,),入力署名=lambda s:_参照署名(self._参照(s)),契約版=HDS選択継承循環版,作用定義ID="HDS継承/模型再評価")
+        # 再評価は現在参照を実行条件として使うが、評価履歴・学習経験の因果親にはしない。
+        # 参照更新時は評価参照署名の不一致で必ず再評価し、結果を明示上書きする。
+        # これにより過去経験を保持したまま、更新後参照で次の推論へ進める。
+        return HDS関数作用("HDS継承/模型再評価",実行,解消対象=tuple(sorted(選択残差集合|self.入力残差非阻害対象)),資源負荷=2,優先度=10.0,読取成果=(),入力署名=lambda s:_参照署名(self._参照(s)),契約版=HDS選択継承循環版,作用定義ID="HDS継承/模型再評価")
 
     def _計算計画(self):
         if self.計算実行器 is None: return None
@@ -320,8 +323,8 @@ class HDS選択継承供給:
                 merged=HDS候補被覆優先統合(observed,refs,self.選択肢,limit)
                 before=tuple((x.識別子,x.条件) for x in refs); after=tuple((x.識別子,x.条件) for x in merged)
                 if after==before:
-                    return HDS作用結果(HDS作用状態.成立,成果=((学習観測世代成果名,learning_level),(参照記憶成果名,memory),(学習観測消費成果名,new_consumed)),理由=("HDS_RUNTIME_LEARNING_OBSERVATION_NO_PROGRESS",f"学習世代:{learning_level}",f"観測方法優先度:{最優先度}"))
-                return HDS作用結果(HDS作用状態.成立,解消残差=frozenset(set(s.残差).intersection(回復可能残差)),成果=((参照成果名,tuple(merged)),(学習観測世代成果名,learning_level),(参照記憶成果名,memory),(学習観測消費成果名,new_consumed)),理由=("HDS_RUNTIME_LEARNING_OBSERVATION_ADAPTED",f"学習世代:{learning_level}",f"観測方法優先度:{最優先度}",f"件数:{len(merged)}"))
+                    return HDS作用結果(HDS作用状態.成立,成果=((参照世代成果名,level),(学習観測世代成果名,learning_level),(参照記憶成果名,memory),(学習観測消費成果名,new_consumed)),理由=("HDS_RUNTIME_LEARNING_OBSERVATION_NO_PROGRESS",f"学習世代:{learning_level}",f"観測方法優先度:{最優先度}"))
+                return HDS作用結果(HDS作用状態.成立,解消残差=frozenset(set(s.残差).intersection(回復可能残差)),成果=((参照成果名,tuple(merged)),(参照世代成果名,level),(学習観測世代成果名,learning_level),(参照記憶成果名,memory),(学習観測消費成果名,new_consumed)),理由=("HDS_RUNTIME_LEARNING_OBSERVATION_ADAPTED",f"学習世代:{learning_level}",f"観測方法優先度:{最優先度}",f"件数:{len(merged)}"))
 
             observed=HDS追加参照検索(
                 self.参照供給器,self.質問IR,段階=level,
