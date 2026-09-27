@@ -285,15 +285,20 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
         self.assertEqual(結果.状態.主体辞書()["HDSカーネル署名"], kernel.カーネル署名)
 
-    def test_LIVE参照で候補証拠未閉包ならCOMMITしない(self):
-        provider = 固定追加参照((証拠("Molecule A", 識別子="only-a"),))
-        結果 = self.コア.選択実行(
-            self.問い,
-            self.選択肢,
-            初期参照=(),
-            参照供給器=provider,
-            最大回復回数=2,
+    def test_LIVE参照で根拠なしAPPROVEはCOMMITしない(self):
+        provider = 固定追加参照(())
+        根拠なし = HDS選択実行結果(
+            "APPROVE", "A", "Molecule A", ("UNPROVEN_TEST_APPROVAL",),
+            None, 2, 0, 0, 0, 0, 0,
         )
+        with patch.object(HDS選択継承供給, "_評価", return_value=根拠なし):
+            結果 = self.コア.選択実行(
+                self.問い,
+                self.選択肢,
+                初期参照=(),
+                参照供給器=provider,
+                最大回復回数=2,
+            )
         self.assertEqual(結果.終端, HDS終端.保留)
         self.assertNotIn(回答成果名, 結果.状態.成果辞書())
         self.assertIn("HDS選択:候補証拠未閉包", 結果.状態.残差)

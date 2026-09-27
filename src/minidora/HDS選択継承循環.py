@@ -139,18 +139,19 @@ class HDS選択継承供給:
         参照記憶 = HDS選択参照記憶を統合(参照記憶, 参照群)
         return ((参照記憶成果名,参照記憶),(学習経験成果名,経験履歴),(学習導出成果名,導出))
 
-    def _学習品質残差(self, 学習成果) -> frozenset[str]:
+    def _学習品質残差(self, 結果: HDS選択実行結果, 学習成果) -> frozenset[str]:
+        """LIVE参照下では、採用候補自身の根拠閉包だけをCOMMIT品質条件にする。
+
+        未採用候補の未観測は追加観測の探索軸として保持するが、全候補の逐一反証を
+        COMMIT条件にはしない。採用結果の根拠成立判定は既存能力の正本判定を再利用する。
+        """
         if self.参照供給器 is None or not bool(getattr(self.質問IR, "参照必須", False)):
             return frozenset()
-        導出 = dict(学習成果).get(学習導出成果名)
-        if not isinstance(導出, HDS選択学習導出):
+        if not _承認済み(結果):
             return frozenset()
-        out: set[str] = set()
-        if int(導出.未観測関係数) > 0:
-            out.add(残差_候補証拠未閉包)
-        if int(導出.矛盾関係数) > 0:
-            out.add(残差_候補証拠矛盾)
-        return frozenset(out)
+        if HDS既存能力結果証明済み(結果):
+            return frozenset()
+        return frozenset({残差_候補証拠未閉包})
 
     @staticmethod
     def _取得障害(診断群: Sequence[参照取得診断]) -> bool:
@@ -163,8 +164,8 @@ class HDS選択継承供給:
             existing = ()
         return (参照取得診断成果名, tuple((*existing, *tuple(診断群))))
 
-    def _品質保留(self, s: HDS実行状態, 成果群, 基準差分, 解消候補: frozenset[str], 学習成果, 理由: str):
-        品質残差 = self._学習品質残差(学習成果)
+    def _品質保留(self, s: HDS実行状態, 成果群, 基準差分, 解消候補: frozenset[str], 結果: HDS選択実行結果, 学習成果, 理由: str):
+        品質残差 = self._学習品質残差(結果, 学習成果)
         if not 品質残差:
             return None
         return HDS作用結果(
@@ -191,7 +192,7 @@ class HDS選択継承供給:
                     学習成果 = self._学習成果(s, 結果, refs, frozenset({残差_基準反証検証}))
                     成果群.extend(学習成果)
                     初回導出 = dict(学習成果).get(学習導出成果名)
-                    初回品質残差 = self._学習品質残差(学習成果)
+                    初回品質残差 = self._学習品質残差(結果, 学習成果)
                     if 正式基準 or 初回品質残差 or (
                         isinstance(初回導出, HDS選択学習導出)
                         and self._未消費学習要求(s, 初回導出)
@@ -230,7 +231,7 @@ class HDS選択継承供給:
                         成果群.extend(反証学習成果)
                         品質保留 = self._品質保留(
                             s, 成果群, 基準差分, frozenset((*選択解消, *承認時入力解消)),
-                            反証学習成果, "HDS_DIRECT_COUNTEREVIDENCE_QUALITY_PENDING",
+                            反証, 反証学習成果, "HDS_DIRECT_COUNTEREVIDENCE_QUALITY_PENDING",
                         )
                         if 品質保留 is not None:
                             return 品質保留
@@ -265,7 +266,7 @@ class HDS選択継承供給:
                         成果群.extend(優越学習成果)
                         品質保留 = self._品質保留(
                             s, 成果群, 基準差分, frozenset((*選択解消, *承認時入力解消)),
-                            優越学習成果, "HDS_RUNTIME_LEARNING_SUPERIOR_QUALITY_PENDING",
+                            結果, 優越学習成果, "HDS_RUNTIME_LEARNING_SUPERIOR_QUALITY_PENDING",
                         )
                         if 品質保留 is not None:
                             return 品質保留
@@ -289,7 +290,7 @@ class HDS選択継承供給:
                         理由=("HDS_RUNTIME_LEARNING_CONTINUE_BEFORE_COMMIT",),
                     )
                 品質保留 = self._品質保留(
-                    s, 成果群, 基準差分, 選択解消, 学習成果, "HDS_BASELINE_REFERENCE_QUALITY_PENDING"
+                    s, 成果群, 基準差分, 選択解消, 結果, 学習成果, "HDS_BASELINE_REFERENCE_QUALITY_PENDING"
                 )
                 if 品質保留 is not None:
                     return 品質保留
@@ -306,7 +307,7 @@ class HDS選択継承供給:
                     成果群.extend(拡張学習成果)
                     品質保留 = self._品質保留(
                         s, 成果群, 基準差分, frozenset((*選択解消, *承認時入力解消)),
-                        拡張学習成果, "HDS_EXTENSION_REFERENCE_QUALITY_PENDING",
+                        結果, 拡張学習成果, "HDS_EXTENSION_REFERENCE_QUALITY_PENDING",
                     )
                     if 品質保留 is not None:
                         return 品質保留

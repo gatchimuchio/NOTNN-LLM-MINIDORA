@@ -133,7 +133,7 @@ class HDS実行内学習循環V1試験(unittest.TestCase):
         provider = 学習参照供給器()
         基準 = HDS選択実行結果(
             "APPROVE", "A", "Molecule A", ("LEGACY_TEST_APPROVAL",),
-            None, 2, 0, 0, 0, 0, 0,
+            None, 2, 0, 0, 0, 1, 0,
         )
         学習要求 = HDS参照観測要求(
             ID="学習:test:A:r",
