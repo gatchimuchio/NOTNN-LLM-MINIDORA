@@ -30,7 +30,7 @@ GPQA正本資料集合CSV_SHA256 = "41d1213cd7a4998605a26c2798500652572007161b3a
 
 
 class _記録参照供給器:
-    並列安全 = True
+    並列安全 = False
     名称 = "MINIDORA_GPQA正本記録"
 
     def __init__(self, base) -> None:
