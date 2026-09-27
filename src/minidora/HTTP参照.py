@@ -238,12 +238,12 @@ class Wikipedia参照供給器:
             url = f"{self.base}/page/{quote(key, safe='')}/with_html"
             try:
                 value = self._get_json(url, {"User-Agent": self.user_agent, "Accept": "application/json"}, self.timeout)
-                self._error(None)
             except Exception as exc:
                 self._error(f"{type(exc).__name__}: {exc}")
                 value = None
-            with self._cache_lock:
-                self._page_cache[key] = value
+            if isinstance(value, Mapping):
+                with self._cache_lock:
+                    self._page_cache[key] = value
             return value
 
     def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]:

@@ -103,6 +103,30 @@ class HTTP参照供給器試験(unittest.TestCase):
         self.assertEqual(len(search_calls), 2)
         self.assertEqual(provider.本文cache件数, 1)
 
+    def test_Wikipedia本文取得失敗はcacheせず次回再取得する(self) -> None:
+        class _FlakyWikipedia(_FakeHTTP):
+            def __init__(self):
+                super().__init__()
+                self.detail_attempts = 0
+
+            def __call__(self, url: str, headers, timeout: float):
+                if "/page/ProteinX/with_html" in url:
+                    self.detail_attempts += 1
+                    if self.detail_attempts == 1:
+                        raise OSError("temporary detail failure")
+                return super().__call__(url, headers, timeout)
+
+        fake = _FlakyWikipedia()
+        provider = Wikipedia参照供給器(言語="en", JSON取得=fake)
+        first = provider.検索("ProteinX catalysis", 2)
+        self.assertTrue(first)
+        self.assertIsNotNone(provider.最後のエラー)
+        second = provider.検索("ProteinX catalysis", 2)
+        self.assertTrue(second)
+        self.assertEqual(fake.detail_attempts, 2)
+        self.assertEqual(provider.本文cache件数, 1)
+        self.assertIsNone(provider.最後のエラー)
+
     def test_一Provider障害でも複合Rは他Providerを返す(self) -> None:
         def failing(url, headers, timeout):
             raise OSError("network down")

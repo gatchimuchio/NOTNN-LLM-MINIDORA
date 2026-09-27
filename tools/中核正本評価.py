@@ -10,6 +10,7 @@ from threading import Lock
 
 from GPQA現行測定 import _download_dataset, _load_cases
 from minidora.HDS参照 import HDS参照検索
+from minidora.参照 import 参照取得診断
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 from minidora.HDS実行主体 import HDS終端
 from minidora.HDS選択実行系 import HDS選択実行結果
@@ -98,7 +99,10 @@ def _一問を実行(index: int, question: str, choices: tuple[str, ...], gold: 
     kernel = 構文化器.問題コンパイル束(question, choices)
     question_ir = kernel.意味IR
     requests = tuple(kernel.参照観測要求)
-    initial_refs = tuple(HDS参照検索(provider, question_ir, 観測要求=requests))
+    initial_diagnostics: list[参照取得診断] = []
+    initial_refs = tuple(HDS参照検索(
+        provider, question_ir, 観測要求=requests, 診断収集=initial_diagnostics,
+    ))
     initial_query_count = len(provider.calls)
 
     中核 = HDS駆動コア(HDSコンパイラ=構文化器, 最大作用回数=40)
@@ -106,6 +110,7 @@ def _一問を実行(index: int, question: str, choices: tuple[str, ...], gold: 
         question,
         choices,
         初期参照=initial_refs,
+        初期参照診断=tuple(initial_diagnostics),
         参照供給器=provider,
         計算実行器_=計算実行器(),
         既存能力継承=True,
@@ -156,6 +161,7 @@ def _一問を実行(index: int, question: str, choices: tuple[str, ...], gold: 
         "初期全候補被覆": len(initial_labels) == len(choices),
         "最終全候補被覆": len(final_labels) == len(choices),
         "初期参照問合せ数": initial_query_count,
+        "初期参照取得障害数": sum(x.状態 in {"失敗", "縮退"} for x in initial_diagnostics),
         "全参照問合せ数": len(provider.calls),
         "参照拡張": len(final_refs) > len(initial_refs),
         "拡張採用": bool(getattr(judge, "拡張採用", False)),
@@ -195,6 +201,7 @@ def _集計(rows: list[dict[str, object]]) -> tuple[dict[str, object], dict[str,
         "初期全候補被覆問題数": sum(bool(x["初期全候補被覆"]) for x in rows),
         "最終全候補被覆問題数": sum(bool(x["最終全候補被覆"]) for x in rows),
         "初期参照問合せ数": sum(int(x["初期参照問合せ数"]) for x in rows),
+        "初期参照取得障害数": sum(int(x["初期参照取得障害数"]) for x in rows),
         "全参照問合せ数": sum(int(x["全参照問合せ数"]) for x in rows),
         "参照拡張問題数": sum(bool(x["参照拡張"]) for x in rows),
         "拡張採用問題数": sum(bool(x["拡張採用"]) for x in rows),

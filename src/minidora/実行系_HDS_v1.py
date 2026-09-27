@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from .HDS参照 import HDS参照予算選択, HDS参照検索
+from .参照 import 参照取得診断
 from .HDS観測計画 import HDS参照観測要求群
 from .HDS実行主体 import HDS終端
 from .HDS選択実行系 import HDS選択実行結果, HDS選択問題
@@ -34,18 +35,21 @@ class HDS駆動ミニドラ(_MINIDORAV05):
 
     版 = "v2-hds-first-core-inheritance"
 
-    def _初期参照(self, 中間表現):
+    def _初期参照(self, 中間表現) -> tuple[tuple[object, ...], tuple[参照取得診断, ...]]:
         if self.参照供給器 is None:
-            return ()
+            return (), ()
         予算 = HDS参照予算選択(中間表現)
-        return HDS参照検索(
+        診断群: list[参照取得診断] = []
+        記録群 = HDS参照検索(
             self.参照供給器,
             中間表現,
             上限=予算.取得上限,
             一問合せ上限=予算.一問合せ上限,
             最大問合せ並列=予算.最大問合せ並列,
             観測要求=HDS参照観測要求群(中間表現),
+            診断収集=診断群,
         )
+        return tuple(記録群), tuple(診断群)
 
     def 実行(self, 要求_: 要求) -> 結果:
         if 要求_.手順 is not None or self.HDSコンパイラ is None:
@@ -61,7 +65,7 @@ class HDS駆動ミニドラ(_MINIDORAV05):
         if len(選択肢) < 2:
             return super().実行(要求_)
 
-        初期参照 = self._初期参照(中間表現)
+        初期参照, 初期参照診断 = self._初期参照(中間表現)
         コア = HDS駆動コア(
             HDSコンパイラ=self.HDSコンパイラ,
             最大作用回数=32,
@@ -70,6 +74,7 @@ class HDS駆動ミニドラ(_MINIDORAV05):
             要求_.問合せ,
             選択肢,
             初期参照=初期参照,
+            初期参照診断=初期参照診断,
             参照供給器=self.参照供給器,
             計算実行器_=self.計算実行器,
             模型核=self.能力模型核,
@@ -116,6 +121,7 @@ class HDS駆動ミニドラ(_MINIDORAV05):
             "継承基準": HDS継承基準版,
             "状態版": 駆動結果.状態.版,
             "参照数": len(最終参照),
+            "初期参照診断": tuple((x.供給器, x.状態, x.取得件数, x.試行回数) for x in 初期参照診断),
             "成立状態": tuple(sorted(駆動結果.状態.成立状態)),
             "残差": tuple(sorted(駆動結果.状態.残差)),
             "作用履歴": _作用履歴(駆動結果),
