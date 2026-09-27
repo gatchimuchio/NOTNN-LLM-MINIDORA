@@ -165,9 +165,12 @@ class HDS選択継承供給:
         return (参照取得診断成果名, tuple((*existing, *tuple(診断群))))
 
     def _品質保留(self, s: HDS実行状態, 成果群, 基準差分, 解消候補: frozenset[str], 結果: HDS選択実行結果, 学習成果, 理由: str):
-        品質残差 = self._学習品質残差(結果, 学習成果)
+        品質残差 = set(self._学習品質残差(結果, 学習成果))
+        if 残差_参照取得障害 in s.残差:
+            品質残差.add(残差_参照取得障害)
         if not 品質残差:
             return None
+        品質残差 = frozenset(品質残差)
         return HDS作用結果(
             HDS作用状態.成立,
             解消残差=frozenset(set(解消候補).difference(品質残差)),
@@ -402,6 +405,16 @@ class HDS選択継承供給:
                     )
                 if after==before:
                     return HDS作用結果(HDS作用状態.成立,成果=((参照世代成果名,level),(学習観測世代成果名,learning_level),(参照記憶成果名,memory),(学習観測消費成果名,new_consumed),診断成果),理由=("HDS_RUNTIME_LEARNING_OBSERVATION_NO_PROGRESS",f"学習世代:{learning_level}",f"観測方法優先度:{最優先度}"))
+                if self._取得障害(診断群):
+                    障害解消 = frozenset(set(s.残差).intersection(回復可能残差).difference({残差_参照取得障害}))
+                    障害追加 = frozenset() if 残差_参照取得障害 in s.残差 else frozenset({残差_参照取得障害})
+                    return HDS作用結果(
+                        HDS作用状態.成立,
+                        解消残差=障害解消,
+                        追加残差=障害追加,
+                        成果=((参照成果名,tuple(merged)),(参照世代成果名,level),(学習観測世代成果名,learning_level),(参照記憶成果名,memory),診断成果),
+                        理由=("HDS_RUNTIME_LEARNING_OBSERVATION_ADAPTED_WITH_TRANSPORT_DEGRADED",f"学習世代:{learning_level}",f"観測方法優先度:{最優先度}",f"件数:{len(merged)}"),
+                    )
                 return HDS作用結果(HDS作用状態.成立,解消残差=frozenset(set(s.残差).intersection(回復可能残差)),成果=((参照成果名,tuple(merged)),(参照世代成果名,level),(学習観測世代成果名,learning_level),(参照記憶成果名,memory),(学習観測消費成果名,new_consumed),診断成果),理由=("HDS_RUNTIME_LEARNING_OBSERVATION_ADAPTED",f"学習世代:{learning_level}",f"観測方法優先度:{最優先度}",f"件数:{len(merged)}"))
 
             observed=HDS追加参照検索(
@@ -449,6 +462,16 @@ class HDS選択継承供給:
                 最終解消=frozenset(set(解消).difference({残差_観測無進展}))
                 最終追加=frozenset() if 残差_観測無進展 in s.残差 else frozenset({残差_観測無進展})
                 return HDS作用結果(HDS作用状態.成立,解消残差=最終解消,追加残差=最終追加,成果=((参照世代成果名,level),(参照記憶成果名,memory),診断成果),理由=("HDS_INHERITED_REFERENCE_NO_PROGRESS",))
+            if self._取得障害(診断群):
+                障害解消=frozenset(set(解消).difference({残差_参照取得障害}))
+                障害追加=frozenset() if 残差_参照取得障害 in s.残差 else frozenset({残差_参照取得障害})
+                return HDS作用結果(
+                    HDS作用状態.成立,
+                    解消残差=障害解消,
+                    追加残差=障害追加,
+                    成果=((参照成果名,tuple(merged)),(参照世代成果名,level),(参照記憶成果名,memory),診断成果),
+                    理由=("HDS_INHERITED_REFERENCE_EXPANDED_WITH_TRANSPORT_DEGRADED",f"世代:{level}",f"件数:{len(merged)}"),
+                )
             return HDS作用結果(HDS作用状態.成立,解消残差=解消,成果=((参照成果名,tuple(merged)),(参照世代成果名,level),(参照記憶成果名,memory),診断成果),理由=("HDS_INHERITED_REFERENCE_EXPANDED",f"世代:{level}",f"件数:{len(merged)}"))
         # 外部観測は旧参照・学習導出・世代を「実行条件」として読むが、
         # 観測で得た新事実や観測履歴の因果親にはしない。状態依存辺へ接続すると

@@ -10,7 +10,7 @@ from threading import Lock
 
 from GPQA現行測定 import _download_dataset, _load_cases
 from minidora.HDS参照 import HDS参照検索
-from minidora.参照 import 参照取得診断
+from minidora.参照 import 参照取得診断, 参照検索を診断
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 from minidora.HDS実行主体 import HDS終端
 from minidora.HDS選択実行系 import HDS選択実行結果
@@ -38,11 +38,21 @@ class _記録参照供給器:
         self.calls: list[str] = []
         self.lock = Lock()
 
-    def 検索(self, query: str, limit: int = 8):
+    def _記録(self, query: str) -> str:
         normalized = " ".join(str(query).split())
         with self.lock:
             self.calls.append(normalized)
-        return self.base.検索(query, limit)
+        return normalized
+
+    def 検索診断(self, query: str, limit: int = 8):
+        self._記録(query)
+        direct = getattr(self.base, "検索診断", None)
+        if callable(direct):
+            return direct(query, limit)
+        return 参照検索を診断(self.base, query, limit)
+
+    def 検索(self, query: str, limit: int = 8):
+        return self.検索診断(query, limit)[0]
 
 
 def _候補ラベル群(records) -> tuple[str, ...]:
