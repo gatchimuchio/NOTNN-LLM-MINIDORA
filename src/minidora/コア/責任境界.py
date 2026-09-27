@@ -57,7 +57,7 @@ class コア責任契約:
         ("語彙選択・文法・文体・翻訳対", "領域固有の説明文生成方式")),
 )
 
-_責任索引 = {x.ID: x for x in コア責任 if x.能力入口対応}
+_責任索引 = {x.ID: x for x in コア責任}
 if tuple(_責任索引) != tuple(f"C{i}" for i in range(1, 9)):
     raise RuntimeError("コア責任IDはC1..C8を一度ずつ定義する")
 
