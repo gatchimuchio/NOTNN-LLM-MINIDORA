@@ -136,7 +136,7 @@ def _Wikipedia本文選択(
 class OpenAlex参照供給器:
     名称 = "OpenAlex"
     BASE_URL = "https://api.openalex.org/works"
-    並列安全 = True
+    並列安全 = False
 
     def __init__(self, api_key: str, *, timeout: float = 12.0, user_agent: str = "MINIDORA/0.4 (OpenAlex reference provider)", JSON取得: JSON取得器 | None = None, 最大本文文字数: int = 12000) -> None:
         if not str(api_key).strip():
@@ -165,8 +165,9 @@ class OpenAlex参照供給器:
         except Exception as exc:
             self._error(f"{type(exc).__name__}: {exc}")
             return ()
-        rows = payload.get("results", ())
+        rows = payload.get("results")
         if not isinstance(rows, list):
+            self._error("ProtocolError: results missing")
             return ()
         records: list[参照記録] = []
         for row in rows:
@@ -187,7 +188,7 @@ class OpenAlex参照供給器:
 
 
 class Wikipedia参照供給器:
-    並列安全 = True
+    並列安全 = False
 
     def __init__(self, *, 言語: str = "en", timeout: float = 12.0, user_agent: str = "MINIDORA/0.4 (Wikipedia reference provider)", JSON取得: JSON取得器 | None = None, 最大本文文字数: int = 12000) -> None:
         言語 = str(言語).strip().casefold()
@@ -256,8 +257,9 @@ class Wikipedia参照供給器:
         except Exception as exc:
             self._error(f"{type(exc).__name__}: {exc}")
             return ()
-        pages = payload.get("pages", ())
+        pages = payload.get("pages")
         if not isinstance(pages, list):
+            self._error("ProtocolError: pages missing")
             return ()
         records: list[参照記録] = []
         for row in pages:

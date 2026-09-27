@@ -85,7 +85,7 @@ class Crossref参照供給器:
 
     名称 = "Crossref"
     BASE_URL = "https://api.crossref.org/works"
-    並列安全 = True
+    並列安全 = False
     ABSTRACT信頼 = 0.72
     TITLE_ONLY信頼 = 0.46
 
@@ -139,9 +139,13 @@ class Crossref参照供給器:
                 self.最後のエラー = f"{type(exc).__name__}: {exc}"
                 return ()
 
-            message = payload.get("message", {})
-            items = message.get("items", ()) if isinstance(message, Mapping) else ()
+            message = payload.get("message")
+            if not isinstance(message, Mapping):
+                self.最後のエラー = "ProtocolError: message missing"
+                return ()
+            items = message.get("items")
             if not isinstance(items, list):
+                self.最後のエラー = "ProtocolError: message.items missing"
                 return ()
 
             records: list[参照記録] = []

@@ -47,7 +47,7 @@ class EuropePMC参照供給器:
 
     名称 = "EuropePMC"
     BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
-    並列安全 = True
+    並列安全 = False
     ABSTRACT信頼 = 0.82
     TITLE_ONLY信頼 = 0.55
 
@@ -79,7 +79,7 @@ class EuropePMC参照供給器:
 
         params = {
             "query": query,
-            '結果Type': '模型核',
+            "resultType": "core",
             "pageSize": str(min(max(1, int(上限)), 1000)),
             "format": "json",
             "synonym": "true" if self.同義語展開 else "false",
@@ -96,11 +96,13 @@ class EuropePMC参照供給器:
             self._error(f"{type(exc).__name__}: {exc}")
             return ()
 
-        結果_list = payload.get('結果List', {})
+        結果_list = payload.get("resultList")
         if not isinstance(結果_list, Mapping):
+            self._error("ProtocolError: resultList missing")
             return ()
-        rows = 結果_list.get('結果', ())
+        rows = 結果_list.get("result")
         if not isinstance(rows, list):
+            self._error("ProtocolError: resultList.result missing")
             return ()
 
         records: list[参照記録] = []
@@ -111,7 +113,7 @@ class EuropePMC参照供給器:
             if _truthy(row.get("isRetracted")) or _truthy(row.get("retracted")):
                 continue
 
-            情報源 = _text(row.get('情報源')) or '未知'
+            情報源 = _text(row.get("source")) or "未知"
             article_id = _text(row.get("id") or row.get("pmid") or row.get("pmcid") or row.get("doi"))
             if not article_id:
                 continue

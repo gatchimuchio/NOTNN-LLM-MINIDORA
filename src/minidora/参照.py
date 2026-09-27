@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 import re
+import time
 import unicodedata
 from dataclasses import dataclass, replace
 from typing import Any, Iterable, Protocol
@@ -31,6 +32,63 @@ class 参照供給器(Protocol):
     名称: str
 
     def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class 参照取得診断:
+    問合せ: str
+    供給器: str
+    状態: str
+    取得件数: int
+    試行回数: int = 1
+    エラー: str | None = None
+    子診断: tuple["参照取得診断", ...] = ()
+
+
+def 参照検索を診断(
+    供給器: 参照供給器,
+    問合せ: str,
+    上限: int = 8,
+    *,
+    最大試行: int = 3,
+    再試行待機秒: float = 0.05,
+) -> tuple[tuple[参照記録, ...], 参照取得診断]:
+    """正常0件と取得失敗を分別し、一時障害だけ有限再試行する。"""
+    if type(最大試行) is not int or 最大試行 < 1:
+        raise ValueError("最大試行は1以上の整数である必要がある")
+    直接診断 = getattr(供給器, "検索診断", None)
+    if callable(直接診断):
+        記録群, 診断 = 直接診断(問合せ, 上限)
+        if not isinstance(診断, 参照取得診断):
+            raise TypeError("検索診断は参照取得診断を返す必要がある")
+        return tuple(記録群), 診断
+
+    最後のエラー: str | None = None
+    for 試行 in range(1, 最大試行 + 1):
+        try:
+            記録群 = tuple(供給器.検索(問合せ, 上限))
+            供給器エラー = getattr(供給器, "最後のエラー", None)
+            if 供給器エラー:
+                raise RuntimeError(str(供給器エラー))
+            return 記録群, 参照取得診断(
+                str(問合せ),
+                str(getattr(供給器, "名称", type(供給器).__name__)),
+                "取得" if 記録群 else "空",
+                len(記録群),
+                試行,
+            )
+        except Exception as exc:
+            最後のエラー = f"{type(exc).__name__}: {exc}"
+            if 試行 < 最大試行 and 再試行待機秒 > 0:
+                time.sleep(float(再試行待機秒) * 試行)
+    return (), 参照取得診断(
+        str(問合せ),
+        str(getattr(供給器, "名称", type(供給器).__name__)),
+        "失敗",
+        0,
+        最大試行,
+        最後のエラー,
+    )
 
 
 def _検索語(問合せ: str) -> set[str]:
@@ -116,9 +174,13 @@ def _同一情報源統合(old: 参照記録, new: 参照記録) -> 参照記録
 
 
 class 複合参照供給器:
-    '複数Providerを並列取得し、Provider順を保ったround-robinで統合する。\n\n    同一識別子は独立資料として二重計上せず、信頼度・本文量の高い記録へ品質統合する。\n    '
+    """複数Providerを並列取得し、Provider順を保ったround-robinで統合する。
 
-    並列安全 = True
+    同一識別子は独立資料として二重計上せず、信頼度・本文量の高い記録へ品質統合する。
+    外側のquery並列は無効化し、Provider内部並列だけを許可して診断の対応関係を固定する。
+    """
+
+    並列安全 = False
 
     def __init__(
         self,
@@ -126,40 +188,54 @@ class 複合参照供給器:
         名称: str = "複合参照",
         並列: bool = True,
         最大並列: int = 4,
+        最大再試行: int = 3,
+        再試行待機秒: float = 0.05,
     ) -> None:
         self.名称 = 名称
         self._供給器群 = tuple(供給器群)
         self.並列 = bool(並列)
         self.最大並列 = max(1, int(最大並列))
+        self.最大再試行 = max(1, int(最大再試行))
+        self.再試行待機秒 = max(0.0, float(再試行待機秒))
         self.最後のエラー: tuple[tuple[str, str], ...] = ()
 
-    def _取得(self, provider: 参照供給器, 問合せ: str, 上限: int) -> tuple[参照記録, ...]:
-        return tuple(provider.検索(問合せ, 上限))
+    def _取得(self, 供給器: 参照供給器, 問合せ: str, 上限: int) -> tuple[tuple[参照記録, ...], 参照取得診断]:
+        return 参照検索を診断(
+            供給器,
+            問合せ,
+            上限,
+            最大試行=self.最大再試行,
+            再試行待機秒=self.再試行待機秒,
+        )
 
-    def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]:
+    def 検索診断(self, 問合せ: str, 上限: int = 8) -> tuple[tuple[参照記録, ...], 参照取得診断]:
         if 上限 <= 0 or not self._供給器群:
-            return ()
+            return (), 参照取得診断(str(問合せ), self.名称, "空", 0)
 
         pools: list[tuple[参照記録, ...]] = []
-        errors: list[tuple[str, str]] = []
+        診断群: list[参照取得診断] = []
         if self.並列 and len(self._供給器群) > 1:
             workers = min(self.最大並列, len(self._供給器群))
             with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="minidora-r") as executor:
-                futures = [executor.submit(self._取得, provider, 問合せ, 上限) for provider in self._供給器群]
-                for provider, future in zip(self._供給器群, futures):
+                futures = [executor.submit(self._取得, 供給器, 問合せ, 上限) for 供給器 in self._供給器群]
+                for future in futures:
                     try:
-                        pools.append(future.result())
+                        記録群, 診断 = future.result()
                     except Exception as exc:
-                        pools.append(())
-                        errors.append((str(getattr(provider, "名称", type(provider).__name__)), f"{type(exc).__name__}: {exc}"))
+                        記録群 = ()
+                        診断 = 参照取得診断(
+                            str(問合せ), "複合子供給器", "失敗", 0, 1, f"{type(exc).__name__}: {exc}"
+                        )
+                    pools.append(tuple(記録群))
+                    診断群.append(診断)
         else:
-            for provider in self._供給器群:
-                try:
-                    pools.append(self._取得(provider, 問合せ, 上限))
-                except Exception as exc:
-                    pools.append(())
-                    errors.append((str(getattr(provider, "名称", type(provider).__name__)), f"{type(exc).__name__}: {exc}"))
-        self.最後のエラー = tuple(errors)
+            for 供給器 in self._供給器群:
+                記録群, 診断 = self._取得(供給器, 問合せ, 上限)
+                pools.append(tuple(記録群))
+                診断群.append(診断)
+
+        失敗診断 = tuple(x for x in 診断群 if x.状態 == "失敗")
+        self.最後のエラー = tuple((x.供給器, x.エラー or "") for x in 失敗診断)
 
         結果: list[参照記録] = []
         index_by_id: dict[str, int] = {}
@@ -182,4 +258,23 @@ class 複合参照供給器:
             if not progressed:
                 break
             depth += 1
-        return tuple(結果)
+
+        if 診断群 and len(失敗診断) == len(診断群):
+            状態 = "失敗"
+        elif 失敗診断:
+            状態 = "縮退"
+        else:
+            状態 = "取得" if 結果 else "空"
+        診断 = 参照取得診断(
+            str(問合せ),
+            self.名称,
+            状態,
+            len(結果),
+            max((x.試行回数 for x in 診断群), default=1),
+            None if not 失敗診断 else "; ".join(x.エラー or "" for x in 失敗診断),
+            tuple(診断群),
+        )
+        return tuple(結果), 診断
+
+    def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]:
+        return self.検索診断(問合せ, 上限)[0]
