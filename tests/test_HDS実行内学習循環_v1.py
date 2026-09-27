@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
 from minidora.HDS駆動コア import HDS駆動コア
 from minidora.HDS実行主体 import HDS終端
+from minidora.HDS観測計画 import HDS参照観測要求
+from minidora.HDS選択実行系 import HDS選択実行結果
 from minidora.HDS選択継承循環 import (
+    HDS選択継承供給,
     回答成果名,
     参照記憶成果名,
     学習経験成果名,
@@ -80,6 +84,46 @@ class HDS実行内学習循環V1試験(unittest.TestCase):
         memory = 成果[参照記憶成果名]
         learned = next(x for x in memory if x.識別子 == "learned-a")
         self.assertTrue(any(k == "hds_observation_id" and str(v).startswith("学習:") for k, v in learned.条件))
+
+    def test_既存能力承認でも未観測学習があれば回答前に観測する(self):
+        provider = 学習参照供給器()
+        基準 = HDS選択実行結果(
+            "APPROVE", "A", "Molecule A", ("LEGACY_TEST_APPROVAL",),
+            None, 2, 0, 0, 0, 0, 0,
+        )
+        学習要求 = HDS参照観測要求(
+            ID="学習:test:A:r",
+            関係ID="r",
+            関係種別="阻害",
+            未知位置=None,
+            既知端点=("Molecule A", "Enzyme X"),
+            条件範囲=(),
+            候補ラベル="A",
+            候補表層="Molecule A",
+            外部言語="en",
+            外部検索表層="Molecule A inhibits Enzyme X",
+            必須被覆=True,
+            provenance=("実行内学習", "経験:test", "未観測関係"),
+        )
+        導出 = HDS選択学習導出("経験:test", (学習要求,), 1, 0, "derived:test")
+        with patch.object(HDS選択継承供給, "_評価", return_value=基準), patch(
+            "minidora.HDS選択継承循環.HDS選択学習観測を導出",
+            return_value=導出,
+        ):
+            結果 = self.コア.選択実行(
+                self.問い,
+                self.選択肢,
+                初期参照=(),
+                参照供給器=provider,
+            )
+        self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
+        self.assertEqual(結果.状態.成果辞書()[回答成果名], "A")
+        self.assertGreaterEqual(int(結果.状態.成果辞書()[学習観測世代成果名]), 1)
+        self.assertTrue(any("molecule a" in q.casefold() and "enzyme x" in q.casefold() for q in provider.問合せ))
+        self.assertEqual(
+            [x.作用ID for x in 結果.履歴[:3]],
+            ["HDS継承/模型再評価", "HDS継承/追加参照", "HDS継承/模型再評価"],
+        )
 
     def test_外部参照なしでは従来どおり推測せず保留する(self):
         結果 = self.コア.選択実行(self.問い, self.選択肢, 初期参照=())

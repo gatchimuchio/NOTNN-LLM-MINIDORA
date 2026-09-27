@@ -150,19 +150,24 @@ class HDS選択継承供給:
             成果群=[(現行結果成果名,結果),(評価参照署名成果名,current_sig)]
             if _承認済み(基準):
                 正式基準 = _正式模型承認(基準)
-                if 初回 and 正式基準 and self.参照供給器 is not None and self.設定.最大回復回数 > 0:
+                if 初回 and self.参照供給器 is not None and self.設定.最大回復回数 > 0:
                     学習成果 = self._学習成果(s, 結果, refs, frozenset({残差_基準反証検証}))
                     成果群.extend(学習成果)
-                    return HDS作用結果(
-                        HDS作用状態.成立,
-                        解消残差=選択解消,
-                        追加残差=frozenset({残差_基準反証検証}),
-                        成果=tuple(成果群),
-                        主体状態差分=基準差分,
-                        理由=("HDS_BASELINE_APPROVAL_REVERIFY_PENDING","HDS_RUNTIME_LEARNING_CONNECTED"),
-                    )
+                    初回導出 = dict(学習成果).get(学習導出成果名)
+                    if 正式基準 or (
+                        isinstance(初回導出, HDS選択学習導出)
+                        and self._未消費学習要求(s, 初回導出)
+                    ):
+                        return HDS作用結果(
+                            HDS作用状態.成立,
+                            解消残差=選択解消,
+                            追加残差=frozenset({残差_基準反証検証}),
+                            成果=tuple(成果群),
+                            主体状態差分=基準差分,
+                            理由=("HDS_BASELINE_APPROVAL_REVERIFY_PENDING","HDS_RUNTIME_LEARNING_CONNECTED"),
+                        )
 
-                if not 初回 and 正式基準 and max(int(values.get(参照世代成果名, 0)), int(values.get(学習観測世代成果名, 0))) > 0:
+                if not 初回 and max(int(values.get(参照世代成果名, 0)), int(values.get(学習観測世代成果名, 0))) > 0:
                     反証 = HDS既存能力直接反証評価(
                         self.質問IR,
                         refs,
@@ -215,10 +220,10 @@ class HDS選択継承供給:
                     if 結果 is not 基準:
                         成果群.append((影結果成果名, 結果))
 
-                学習成果 = self._学習成果(s, 結果, refs, frozenset({残差_基準反証検証}) if 正式基準 and self.参照供給器 is not None else frozenset())
+                学習成果 = self._学習成果(s, 結果, refs, frozenset({残差_基準反証検証}) if self.参照供給器 is not None else frozenset())
                 成果群.extend(学習成果)
                 導出 = dict(学習成果).get(学習導出成果名)
-                if (正式基準 and self.参照供給器 is not None and int(values.get(学習観測世代成果名, 0)) < self.設定.最大回復回数
+                if (self.参照供給器 is not None and int(values.get(学習観測世代成果名, 0)) < self.設定.最大回復回数
                         and isinstance(導出, HDS選択学習導出) and self._未消費学習要求(s, 導出)):
                     return HDS作用結果(
                         HDS作用状態.成立,
@@ -231,7 +236,7 @@ class HDS選択継承供給:
                 成果群.append((回答成果名,基準.回答ラベル))
                 if 承認時入力解消: 成果群.append((入力残差影成果名,tuple(sorted(承認時入力解消))))
                 継承理由="HDS_MINIDORA_EXISTING_CAPABILITIES_INHERITED" if "HDS_EXISTING_CAPABILITY_INHERITED" in 基準.理由 else "HDS_MINIDORA_CANONICAL_INHERITED"
-                return HDS作用結果(HDS作用状態.成立,追加状態=frozenset({選択閉包状態}),解消残差=frozenset((*選択解消,*承認時入力解消)),成果=tuple(成果群),主体状態差分=基準差分,理由=("HDS_BASELINE_APPROVAL_REVERIFIED" if not 初回 and 正式基準 else "HDS_BASELINE_APPROVAL_LOCKED",継承理由,"HDS_RUNTIME_LEARNING_CONNECTED"))
+                return HDS作用結果(HDS作用状態.成立,追加状態=frozenset({選択閉包状態}),解消残差=frozenset((*選択解消,*承認時入力解消)),成果=tuple(成果群),主体状態差分=基準差分,理由=("HDS_BASELINE_APPROVAL_REVERIFIED" if not 初回 and max(int(values.get(参照世代成果名, 0)), int(values.get(学習観測世代成果名, 0))) > 0 else "HDS_BASELINE_APPROVAL_LOCKED",継承理由,"HDS_RUNTIME_LEARNING_CONNECTED"))
             if not 初回 and _承認済み(結果):
                 proof=bool(self.拡張採用証明(基準,結果)) if self.拡張採用証明 is not None else _標準追加採用証明(基準,結果,初期参照署名=self.初期参照署名,現在参照署名=current_sig)
                 判定=HDS非退行包絡(基準,基準承認判定=_承認済み,拡張実行=lambda:結果,拡張承認判定=_承認済み,拡張採用証明=lambda _前,_後:proof)
@@ -294,18 +299,18 @@ class HDS選択継承供給:
             current_consumed = tuple(str(x) for x in values.get(学習観測消費成果名, ()) if str(x)) if isinstance(values.get(学習観測消費成果名, ()), tuple) else ()
             current_set = set(current_consumed)
             current_derivation = values.get(学習導出成果名)
-            runtime_requests = ()
+            実行時学習要求 = ()
             if isinstance(current_derivation, HDS選択学習導出):
-                runtime_requests = tuple(x for x in current_derivation.観測要求 if _学習観測鍵(x) not in current_set)
-            if runtime_requests and learning_level <= self.設定.最大回復回数:
+                実行時学習要求 = tuple(x for x in current_derivation.観測要求 if _学習観測鍵(x) not in current_set)
+            if 実行時学習要求 and learning_level <= self.設定.最大回復回数:
                 observed=HDS参照検索強化(
                     self.参照供給器,
                     self.質問IR,
-                    上限=min(32,max(8,len(runtime_requests)*4)),
+                    上限=min(32,max(8,len(実行時学習要求)*4)),
                     一問合せ上限=4,
-                    観測要求=runtime_requests,
+                    観測要求=実行時学習要求,
                 )
-                new_consumed=tuple(dict.fromkeys((*current_consumed,*(_学習観測鍵(x) for x in runtime_requests))))
+                new_consumed=tuple(dict.fromkeys((*current_consumed,*(_学習観測鍵(x) for x in 実行時学習要求))))
                 old_memory=values.get(参照記憶成果名,refs)
                 if not isinstance(old_memory,tuple): old_memory=refs
                 memory=HDS選択参照記憶を統合(old_memory,observed)

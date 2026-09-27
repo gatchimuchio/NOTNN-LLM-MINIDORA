@@ -151,9 +151,9 @@ def _観測表層(ir: object, 関係: object) -> str:
     left = _端点表層(ir, getattr(関係, "始点", ()))
     right = _端点表層(ir, getattr(関係, "終点", ()))
     predicate = _条件値(関係, "検索述語") or str(getattr(関係, "種別", ""))
-    scope = tuple(v for _k, v in _条件範囲(関係))
+    範囲値群 = tuple(v for _k, v in _条件範囲(関係))
     parts: list[str] = []
-    for raw in (*left, predicate, *right, *scope):
+    for raw in (*left, predicate, *right, *範囲値群):
         value = " ".join(str(raw).split()).strip()
         if value and value.casefold() not in {x.casefold() for x in parts}:
             parts.append(value)
@@ -200,44 +200,44 @@ def HDS選択学習観測を導出(
         return HDS選択学習導出(経験.ID, (), 0, 0, 署名((経験.ID, ())))
 
     hypotheses = HDS候補代入仮説群(question_ir, 候補意味IR)
-    evidence = _証拠関係(結果)
+    証拠群 = _証拠関係(結果)
     requests: list[object] = []
     seen: set[tuple[str, str]] = set()
     missing_count = 0
     conflict_count = 0
 
     for label, ir in sorted(hypotheses.items()):
-        for relation in tuple(getattr(ir, "関係", ())):
-            if str(getattr(relation, "由来", "")) != "HDS候補代入仮説":
+        for 関係 in tuple(getattr(ir, "関係", ())):
+            if str(getattr(関係, "由来", "")) != "HDS候補代入仮説":
                 continue
             projected = HDS内部言語状態(
-                replace(ir, 関係=(relation,)),
-                識別子=f"学習候補:{label}:{getattr(relation, '関係ID', '')}",
+                replace(ir, 関係=(関係,)),
+                識別子=f"学習候補:{label}:{getattr(関係, '関係ID', '')}",
                 言語体系=_内部言語体系(question_ir),
             )
             targets = tuple(getattr(projected, "関係構造", ()))
             if not targets:
                 continue
-            state = 証拠状態照合(targets, evidence)
-            if int(getattr(state, "未観測", 0)) <= 0 and int(getattr(state, "矛盾", 0)) <= 0:
+            照合状態 = 証拠状態照合(targets, 証拠群)
+            if int(getattr(照合状態, "未観測", 0)) <= 0 and int(getattr(照合状態, "矛盾", 0)) <= 0:
                 continue
-            missing_count += int(getattr(state, "未観測", 0))
-            conflict_count += int(getattr(state, "矛盾", 0))
-            surface = _観測表層(ir, relation)
+            missing_count += int(getattr(照合状態, "未観測", 0))
+            conflict_count += int(getattr(照合状態, "矛盾", 0))
+            surface = _観測表層(ir, 関係)
             if not surface:
                 continue
             key = (str(label), surface.casefold())
             if key in seen:
                 continue
             seen.add(key)
-            reason = "矛盾関係" if int(getattr(state, "矛盾", 0)) > 0 else "未観測関係"
+            reason = "矛盾関係" if int(getattr(照合状態, "矛盾", 0)) > 0 else "未観測関係"
             requests.append(HDS参照観測要求(
-                ID=f"学習:{経験.ID}:{label}:{getattr(relation, '関係ID', '')}",
-                関係ID=str(getattr(relation, "関係ID", "")) or None,
-                関係種別=str(getattr(relation, "種別", "")) or None,
+                ID=f"学習:{経験.ID}:{label}:{getattr(関係, '関係ID', '')}",
+                関係ID=str(getattr(関係, "関係ID", "")) or None,
+                関係種別=str(getattr(関係, "種別", "")) or None,
                 未知位置=None,
-                既知端点=(*_端点表層(ir, getattr(relation, "始点", ())), *_端点表層(ir, getattr(relation, "終点", ()))),
-                条件範囲=_条件範囲(relation),
+                既知端点=(*_端点表層(ir, getattr(関係, "始点", ())), *_端点表層(ir, getattr(関係, "終点", ()))),
+                条件範囲=_条件範囲(関係),
                 候補ラベル=str(label),
                 候補表層=" ".join(str(getattr(候補意味IR[label], "正規化文", "") or getattr(候補意味IR[label], "原文", "")).split()).strip() or None,
                 外部言語=str(getattr(question_ir, "入力言語", "ja") or "ja"),
@@ -262,12 +262,12 @@ def _候補対象関係群(question_ir: object, 候補意味IR: Mapping[str, obj
     if ir is None:
         return ()
     out: list[object] = []
-    for relation in tuple(getattr(ir, "関係", ())):
-        if str(getattr(relation, "由来", "")) != "HDS候補代入仮説":
+    for 関係 in tuple(getattr(ir, "関係", ())):
+        if str(getattr(関係, "由来", "")) != "HDS候補代入仮説":
             continue
         projected = HDS内部言語状態(
-            replace(ir, 関係=(relation,)),
-            識別子=f"学習証拠:{label}:{getattr(relation, '関係ID', '')}",
+            replace(ir, 関係=(関係,)),
+            識別子=f"学習証拠:{label}:{getattr(関係, '関係ID', '')}",
             言語体系=_内部言語体系(question_ir),
         )
         out.extend(tuple(getattr(projected, "関係構造", ())))
@@ -305,14 +305,14 @@ def HDS選択学習証拠優越(
     for ref in tuple(getattr(文脈, "参照状態", ())):
         if not bool(getattr(ref, "証拠利用可", False)):
             continue
-        relations = tuple(getattr(ref, "関係構造", ()))
-        new_state = 証拠状態照合(新対象, relations)
-        old_state = 証拠状態照合(旧対象, relations)
-        if int(getattr(new_state, "支持", 0)) > 0 and not int(getattr(new_state, "反証", 0)) and not int(getattr(new_state, "矛盾", 0)):
+        関係群 = tuple(getattr(ref, "関係構造", ()))
+        新照合状態 = 証拠状態照合(新対象, 関係群)
+        旧照合状態 = 証拠状態照合(旧対象, 関係群)
+        if int(getattr(新照合状態, "支持", 0)) > 0 and not int(getattr(新照合状態, "反証", 0)) and not int(getattr(新照合状態, "矛盾", 0)):
             新支持 += 1
-        if int(getattr(new_state, "反証", 0)) > 0 or int(getattr(new_state, "矛盾", 0)) > 0:
+        if int(getattr(新照合状態, "反証", 0)) > 0 or int(getattr(新照合状態, "矛盾", 0)) > 0:
             新反証 += 1
-        if int(getattr(old_state, "反証", 0)) > 0 or int(getattr(old_state, "矛盾", 0)) > 0:
+        if int(getattr(旧照合状態, "反証", 0)) > 0 or int(getattr(旧照合状態, "矛盾", 0)) > 0:
             旧反証 += 1
     return 新支持 >= 最小独立支持数 and 新反証 == 0 and 旧反証 >= 1
 
