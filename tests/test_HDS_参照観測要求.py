@@ -139,7 +139,7 @@ class HDS参照観測要求試験(unittest.TestCase):
         self.assertIn(("hds_observation_id", "関係:question:候補:A"), conditions["fallback:a"])
         self.assertIn(("hds_observation_id", "関係:question:候補:B"), conditions["fallback:b"])
 
-    def test_初期候補補完では局所検証を先食いしない(self) -> None:
+    def test_primary必須観測未被覆なら同一実行で局所検証へ降下する(self) -> None:
         provider = _一般HitProvider()
         ir = _関係質問()
         requests = HDS参照観測要求群(ir)
@@ -150,7 +150,7 @@ class HDS参照観測要求試験(unittest.TestCase):
             if x.段階 == "fallback" and "局所検証" in x.provenance
         }
         self.assertTrue(局所表層)
-        self.assertFalse(局所表層.intersection(provider.calls))
+        self.assertTrue(局所表層.intersection(provider.calls))
 
     def test_追加観測は局所検証から始めprimaryを初期には再発行しない(self) -> None:
         ir = _関係質問()
