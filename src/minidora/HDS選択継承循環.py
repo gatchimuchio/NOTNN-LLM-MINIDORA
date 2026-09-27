@@ -25,7 +25,7 @@ from .能力状態差循環 import 標準能力模型核
 from .計算実行器 import 計算実行器
 from .コア.値 import 署名 as _意味署名
 
-HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v6"
+HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v7"
 参照成果名 = "HDS選択:参照"; 参照世代成果名 = "HDS選択:参照世代"; 計算済み成果名 = "HDS選択:計算済み"
 基準結果主体名 = "HDS選択:基準結果"; 現行結果成果名 = "HDS選択:現行結果"; 評価参照署名成果名 = "HDS選択:評価参照署名"
 非退行判定成果名 = "HDS選択:非退行判定"; 影結果成果名 = "HDS選択:影結果"; 回答成果名 = "HDS選択:回答ラベル"
@@ -357,7 +357,9 @@ class HDS選択継承供給:
                         成果=((参照世代成果名,level),(参照記憶成果名,memory)),
                         理由=("HDS_INHERITED_REFERENCE_LAYER_NO_PROGRESS_CONTINUE",f"世代:{level}"),
                     )
-                return HDS作用結果(HDS作用状態.成立,解消残差=解消,追加残差=frozenset({残差_観測無進展}),成果=((参照世代成果名,level),(参照記憶成果名,memory)),理由=("HDS_INHERITED_REFERENCE_NO_PROGRESS",))
+                最終解消=frozenset(set(解消).difference({残差_観測無進展}))
+                最終追加=frozenset() if 残差_観測無進展 in s.残差 else frozenset({残差_観測無進展})
+                return HDS作用結果(HDS作用状態.成立,解消残差=最終解消,追加残差=最終追加,成果=((参照世代成果名,level),(参照記憶成果名,memory)),理由=("HDS_INHERITED_REFERENCE_NO_PROGRESS",))
             return HDS作用結果(HDS作用状態.成立,解消残差=解消,成果=((参照成果名,tuple(merged)),(参照世代成果名,level),(参照記憶成果名,memory)),理由=("HDS_INHERITED_REFERENCE_EXPANDED",f"世代:{level}",f"件数:{len(merged)}"))
         # 外部観測は旧参照・学習導出・世代を「実行条件」として読むが、
         # 観測で得た新事実や観測履歴の因果親にはしない。状態依存辺へ接続すると
