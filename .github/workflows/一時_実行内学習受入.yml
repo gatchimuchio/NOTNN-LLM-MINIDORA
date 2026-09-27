@@ -19,32 +19,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install -e .
-      - name: 証明なし拡張の終端診断
+      - name: 実行内学習と選択継承の局所受入
         run: |
-          python - <<'PY'
-          from tests.test_HDS正本継承循環_v1 import 固定追加参照, 証拠
-          from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
-          from minidora.HDS駆動コア import HDS駆動コア
-
-          構文化器 = 公開HDSコンパイラ()
-          コア = HDS駆動コア(HDSコンパイラ=構文化器, 最大作用回数=24)
-          問い = "Which molecule inhibits Enzyme X?"
-          選択肢 = ("Molecule A", "Molecule B")
-          provider = 固定追加参照((証拠("Molecule A", 識別子="extra"),))
-          結果 = コア.選択実行(
-              問い,
-              選択肢,
-              初期参照=(),
-              参照供給器=provider,
-              拡張採用証明=lambda _前, _後: False,
-          )
-          print("終端=", 結果.終端)
-          print("停止種別=", 結果.停止種別)
-          print("理由=", 結果.理由)
-          print("残差=", sorted(結果.状態.残差))
-          print("再評価待ち=", sorted(結果.状態.再評価待ち))
-          print("成果鍵=", sorted(結果.状態.成果辞書().keys()))
-          print("阻害=", [(x.種別.value, x.対象, x.詳細, x.修復可能) for x in 結果.阻害履歴])
-          for h in 結果.履歴:
-              print("履歴", h.番号, h.作用ID, h.作用状態, h.理由, "差=", h.状態差.変化有無, "失効=", h.状態差.失効対象)
-          PY
+          python -m unittest -v \
+            tests.test_HDS実行内学習循環_v1 \
+            tests.test_HDS正本継承循環_v1 \
+            tests.test_実行系_HDS_v1
