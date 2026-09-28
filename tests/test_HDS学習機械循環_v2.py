@@ -268,6 +268,10 @@ class HDS学習機械循環V2試験(unittest.TestCase):
         )
         self.assertGreater(中核.継続参照件数, 0)
         中核.継続状態を初期化()
+        self.assertEqual(中核.継続記憶資料件数, 0)
+        self.assertEqual(中核.継続認識件数, 0)
+        self.assertEqual(中核.継続形成関係件数, 0)
+        self.assertEqual(中核.適応経験数, 0)
         self.assertEqual(中核.継続参照件数, 0)
 
 

@@ -57,8 +57,20 @@ class HDS駆動コア:
         ))
 
     @property
+    def 継続記憶資料件数(self) -> int:
+        return len(self._継続記憶.正本)
+
+    @property
+    def 継続形成関係件数(self) -> int:
+        return len(self._継続形成関係)
+
+    @property
     def 継続認識件数(self) -> int:
         return len(self._継続認識)
+
+    @property
+    def 適応経験数(self) -> int:
+        return self._適応記憶.経験数
 
     @property
     def 継続参照件数(self) -> int:
