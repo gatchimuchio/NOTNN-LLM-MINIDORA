@@ -4,7 +4,7 @@ from typing import Callable, Mapping, Sequence
 
 from .HDS実行主体 import HDS実行主体, HDS実行状態, HDS作用器, HDS実行結果, HDS作用供給器, HDS終端
 from .統合駆動_v2.政策 import HDS運用政策
-from .統合駆動_v2.認識 import HDS認識項目
+from .統合駆動_v2.認識 import HDS認識項目, 認識区分
 from .統合駆動_v2.観測 import HDS観測器, HDS観測要求
 from .統合駆動_v2.仮説 import HDS仮説, HDS仮説雛型, HDS作業枝
 from .統合駆動_v2.依存 import HDS依存辺
@@ -12,6 +12,7 @@ from .統合駆動_v2.記憶 import HDS記憶
 from .統合駆動_v2.検証 import HDS検証器, HDS草案
 from .統合駆動_v2.形成 import HDS形成関係
 from .統合駆動_v2.一時適応 import HDS適応記憶
+from .統合駆動_v2.状態更新 import 有効認識
 from .統合駆動_v2.入力境界 import HDS異種表象, HDS異種入力作用
 from .HDSコア入力 import HDSコア入力束
 from .HDS構文化処理系列_v1_4 import HDSカーネル束, HDS意味専用計画器
@@ -40,6 +41,7 @@ class HDS駆動コア:
         # Core寿命を学習対象期間とする。結果ではなく通常循環が更新した状態だけを継承する。
         self._継続記憶 = HDS記憶()
         self._継続形成関係: tuple[HDS形成関係, ...] = ()
+        self._継続認識: tuple[HDS認識項目, ...] = ()
         self._継続参照記憶: tuple[参照記録, ...] = ()
         self._適応記憶 = HDS適応記憶(4096)
 
@@ -49,9 +51,14 @@ class HDS駆動コア:
         return 署名((
             self._継続記憶,
             self._継続形成関係,
+            tuple((x.ID, x.意味署名, x.改訂) for x in self._継続認識),
             tuple((x.識別子, x.供給器, x.由来, x.内容, x.条件, float(x.信頼)) for x in self._継続参照記憶),
             self._適応記憶.状態署名,
         ))
+
+    @property
+    def 継続認識件数(self) -> int:
+        return len(self._継続認識)
 
     @property
     def 継続参照件数(self) -> int:
@@ -64,6 +71,7 @@ class HDS駆動コア:
     def 継続状態を初期化(self) -> None:
         self._継続記憶 = HDS記憶()
         self._継続形成関係 = ()
+        self._継続認識 = ()
         self._継続参照記憶 = ()
         self._適応記憶.初期化()
 
@@ -85,6 +93,14 @@ class HDS駆動コア:
         明示要求認識 = frozenset(要求認識)
         if not 明示要求状態 and not 明示残差 and not 明示要求認識:
             raise ValueError("HDS駆動コアには要求状態・初期残差・要求認識のいずれかによる明示的な完了条件が必要")
+
+        継続認識辞書 = {x.ID: x for x in self._継続認識}
+        for 項目 in tuple(初期認識):
+            前 = 継続認識辞書.get(項目.ID)
+            if 前 is not None and 前.意味署名 != 項目.意味署名 and 項目.改訂 <= 前.改訂:
+                raise ValueError("継続認識を同一改訂以下で無言上書きできない")
+            継続認識辞書[項目.ID] = 項目
+        初期認識群 = tuple(継続認識辞書[k] for k in sorted(継続認識辞書))
 
         作用群: list[HDS作用器] = []
         残差群 = set(明示残差)
@@ -145,7 +161,7 @@ class HDS駆動コア:
             tuple(dict.fromkeys(目的初期値)), frozenset(明示要求状態), frozenset(成立初期値),
             frozenset(残差群), tuple(sorted(成果初期値.items(), key=lambda 行: 行[0])),
             tuple(sorted(主体初期値.items(), key=lambda 行: 行[0])), 0,
-            認識=tuple(初期認識), 要求認識=明示要求認識, 依存=tuple(初期依存), 観測要求=tuple(観測要求),
+            認識=初期認識群, 要求認識=明示要求認識, 依存=tuple(初期依存), 観測要求=tuple(観測要求),
             記憶=初期記憶 if 初期記憶 is not None else self._継続記憶, 仮説=tuple(初期仮説),
             枝=tuple(初期枝), 草案=tuple(初期草案),
             形成関係=self._継続形成関係 if 形成関係 is None else tuple(形成関係),
@@ -160,6 +176,10 @@ class HDS駆動コア:
         # SUSPEND/FAILを含め、通常循環で実際に保持・形成された状態は次回処理の前提へ継承する。
         self._継続記憶 = 結果.状態.記憶
         self._継続形成関係 = 結果.状態.形成関係
+        self._継続認識 = tuple(
+            x for x in 結果.状態.認識
+            if x.区分 == 認識区分.確定 and 有効認識(結果.状態, x.ID)
+        )
         return 結果
 
     def 非退行継承実行(self, 問合せ: str, *, 基準実行: Callable[[], object], 基準承認判定: Callable[[object], bool],
