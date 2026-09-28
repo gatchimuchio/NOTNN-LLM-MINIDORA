@@ -57,11 +57,28 @@ def 参照検索を診断(
     if type(最大試行) is not int or 最大試行 < 1:
         raise ValueError("最大試行は1以上の整数である必要がある")
     直接診断 = getattr(供給器, "検索診断", None)
-    if callable(直接診断):
+    if callable(直接診断) and bool(getattr(供給器, "診断内再試行", False)):
         記録群, 診断 = 直接診断(問合せ, 上限)
         if not isinstance(診断, 参照取得診断):
             raise TypeError("検索診断は参照取得診断を返す必要がある")
         return tuple(記録群), 診断
+
+    if callable(直接診断):
+        最終記録群: tuple[参照記録, ...] = ()
+        最終診断: 参照取得診断 | None = None
+        for 試行 in range(1, 最大試行 + 1):
+            記録群, 診断 = 直接診断(問合せ, 上限)
+            if not isinstance(診断, 参照取得診断):
+                raise TypeError("検索診断は参照取得診断を返す必要がある")
+            最終記録群 = tuple(記録群)
+            最終診断 = replace(診断, 試行回数=max(int(診断.試行回数), 試行))
+            if 診断.状態 in {"取得", "空"}:
+                return 最終記録群, 最終診断
+            if 試行 < 最大試行 and 再試行待機秒 > 0:
+                time.sleep(float(再試行待機秒) * 試行)
+        if 最終診断 is None:
+            raise RuntimeError("検索診断が実行されなかった")
+        return 最終記録群, 最終診断
 
     最後のエラー: str | None = None
     for 試行 in range(1, 最大試行 + 1):
@@ -181,6 +198,7 @@ class 複合参照供給器:
     """
 
     並列安全 = False
+    診断内再試行 = True
 
     def __init__(
         self,

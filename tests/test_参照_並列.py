@@ -104,6 +104,30 @@ class 複合参照並列試験(unittest.TestCase):
         self.assertEqual(diag.状態, "取得")
         self.assertEqual(diag.試行回数, 2)
 
+    def test_直接診断Providerも一時縮退から有限retryで回復する(self) -> None:
+        from minidora.参照 import 参照取得診断, 参照検索を診断
+
+        class _診断Provider:
+            名称 = "diagnostic-flaky"
+            def __init__(self):
+                self.回数 = 0
+            def 検索診断(self, q, limit=8):
+                self.回数 += 1
+                if self.回数 == 1:
+                    return (), 参照取得診断(str(q), self.名称, "縮退", 0, 1, "temporary")
+                records = (参照記録("ok-d", "ok", "content", "fixture://ok-d", self.名称),)
+                return records, 参照取得診断(str(q), self.名称, "取得", 1)
+            def 検索(self, q, limit=8):
+                return self.検索診断(q, limit)[0]
+
+        provider = _診断Provider()
+        records, diagnosis = 参照検索を診断(provider, "query", 4, 最大試行=3, 再試行待機秒=0)
+
+        self.assertEqual([x.識別子 for x in records], ["ok-d"])
+        self.assertEqual(diagnosis.状態, "取得")
+        self.assertEqual(diagnosis.試行回数, 2)
+        self.assertEqual(provider.回数, 2)
+
     def test_子Provider縮退は複合診断へ保持する(self) -> None:
         from minidora.参照 import 参照取得診断
 
