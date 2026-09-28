@@ -17,6 +17,7 @@ from minidora.HDS選択実行系 import HDS選択実行結果
 from minidora.HDS選択継承循環 import (
     回答成果名,
     参照成果名,
+    初回評価参照成果名,
     基準結果主体名,
     現行結果成果名,
     非退行判定成果名,
@@ -83,7 +84,15 @@ def _リポジトリ版() -> str:
     return completed.stdout.strip() if completed.returncode == 0 else "未知"
 
 
-def _一問を実行(index: int, question: str, choices: tuple[str, ...], gold: str) -> dict[str, object]:
+def _一問を実行(
+    index: int,
+    question: str,
+    choices: tuple[str, ...],
+    gold: str,
+    *,
+    構文化器: 公開HDSコンパイラ,
+    中核: HDS駆動コア,
+) -> dict[str, object]:
     provider_base = 一般知識参照供給器(
         OpenAlex_API_key=None,
         EuropePMC有効=True,
@@ -96,7 +105,6 @@ def _一問を実行(index: int, question: str, choices: tuple[str, ...], gold: 
         最大並列=4,
     )
     provider = _記録参照供給器(provider_base)
-    構文化器 = 公開HDSコンパイラ()
 
     kernel_count = 0
     original_kernel = 構文化器.問題コンパイル束
@@ -107,7 +115,10 @@ def _一問を実行(index: int, question: str, choices: tuple[str, ...], gold: 
         return original_kernel(*args, **kwargs)
 
     構文化器.問題コンパイル束 = counted_kernel
-    kernel = 構文化器.問題コンパイル束(question, choices)
+    try:
+        kernel = 構文化器.問題コンパイル束(question, choices)
+    finally:
+        構文化器.問題コンパイル束 = original_kernel
     question_ir = kernel.意味IR
     requests = tuple(kernel.参照観測要求)
     initial_diagnostics: list[参照取得診断] = []
@@ -116,7 +127,8 @@ def _一問を実行(index: int, question: str, choices: tuple[str, ...], gold: 
     ))
     initial_query_count = len(provider.calls)
 
-    中核 = HDS駆動コア(HDSコンパイラ=構文化器, 最大作用回数=40)
+    前状態署名 = 中核.継続状態署名
+    前継続参照件数 = 中核.継続参照件数
     run = 中核.選択実行(
         question,
         choices,
@@ -131,11 +143,14 @@ def _一問を実行(index: int, question: str, choices: tuple[str, ...], gold: 
     if kernel_count != 1:
         raise RuntimeError(f"問題束の形成回数が1ではない: index={index} count={kernel_count}")
 
+    後状態署名 = 中核.継続状態署名
+    後継続参照件数 = 中核.継続参照件数
     products = run.状態.成果辞書()
     subjects = run.状態.主体辞書()
     current = products.get(現行結果成果名)
     baseline = subjects.get(基準結果主体名)
     final_refs = products.get(参照成果名, initial_refs)
+    初回評価参照 = products.get(初回評価参照成果名, ())
     answer = products.get(回答成果名)
     judge = products.get(非退行判定成果名)
     if not isinstance(current, HDS選択実行結果):
@@ -144,6 +159,8 @@ def _一問を実行(index: int, question: str, choices: tuple[str, ...], gold: 
         raise RuntimeError(f"基準結果欠落: index={index}")
     if not isinstance(final_refs, tuple):
         raise RuntimeError(f"最終参照形式不正: index={index}")
+    if not isinstance(初回評価参照, tuple):
+        raise RuntimeError(f"初回評価参照形式不正: index={index}")
 
     committed = run.終端 == HDS終端.採用
     predicted = answer if committed and answer in {"A", "B", "C", "D"} else None
@@ -178,6 +195,11 @@ def _一問を実行(index: int, question: str, choices: tuple[str, ...], gold: 
         "拡張採用": bool(getattr(judge, "拡張採用", False)),
         "問題束形成回数": kernel_count,
         "問題束署名": str(getattr(kernel, "カーネル署名", "")),
+        "処理前継続状態署名": 前状態署名,
+        "処理後継続状態署名": 後状態署名,
+        "処理前継続参照件数": 前継続参照件数,
+        "処理後継続参照件数": 後継続参照件数,
+        "初回評価参照件数": len(初回評価参照),
         "中核理由": list(run.理由),
     }
 
@@ -239,8 +261,17 @@ def GPQA中核正本を実行(出力: Path) -> dict[str, object]:
         raise RuntimeError(f"GPQA正本資料不一致: n={len(cases)} sha={csv_hash}")
 
     rows: list[dict[str, object]] = []
+    構文化器 = 公開HDSコンパイラ()
+    中核 = HDS駆動コア(HDSコンパイラ=構文化器, 最大作用回数=40)
     for index, (question, choices, gold) in enumerate(cases):
-        row = _一問を実行(index, question, tuple(choices), gold)
+        row = _一問を実行(
+            index,
+            question,
+            tuple(choices),
+            gold,
+            構文化器=構文化器,
+            中核=中核,
+        )
         rows.append(row)
         print(
             f"CASE {index + 1:03d}/198 terminal={row['終端']} pred={row['予測ラベル']} "
@@ -273,6 +304,10 @@ def GPQA中核正本を実行(出力: Path) -> dict[str, object]:
             "科学専門モジュール": False,
             "旧HDS監督": False,
             "問題束一問一形成": True,
+            "学習対象期間": "同一HDS駆動コアでGPQA198問を連続処理",
+            "問題間継続状態": True,
+            "継続対象": ["HDS記憶", "形成関係", "作用適応記憶", "実観測参照"],
+            "採点結果の学習利用": False,
             "正解利用境界": "中核実行後の採点のみ",
             "リポジトリ版": _リポジトリ版(),
         },
