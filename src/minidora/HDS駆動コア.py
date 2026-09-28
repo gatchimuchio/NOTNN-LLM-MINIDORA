@@ -11,6 +11,7 @@ from .統合駆動_v2.依存 import HDS依存辺
 from .統合駆動_v2.記憶 import HDS記憶
 from .統合駆動_v2.検証 import HDS検証器, HDS草案
 from .統合駆動_v2.形成 import HDS形成関係
+from .統合駆動_v2.一時適応 import HDS適応記憶
 from .統合駆動_v2.入力境界 import HDS異種表象, HDS異種入力作用
 from .HDSコア入力 import HDSコア入力束
 from .HDS構文化処理系列_v1_4 import HDSカーネル束, HDS意味専用計画器
@@ -36,6 +37,24 @@ class HDS駆動コア:
         self.検証器 = tuple(検証器); self.最終検証器 = tuple(最終検証器)
         self.関係規則 = tuple(関係規則); self.未来制約 = tuple(未来制約)
         self.作用供給器 = tuple(作用供給器); self.停止要求 = 停止要求
+        # Core寿命を学習対象期間とする。結果ではなく通常循環が更新した状態だけを継承する。
+        self._継続記憶 = HDS記憶()
+        self._継続形成関係: tuple[HDS形成関係, ...] = ()
+        self._適応記憶 = HDS適応記憶(4096)
+
+    @property
+    def 継続状態署名(self) -> str:
+        from .コア.値 import 署名
+        return 署名((
+            self._継続記憶,
+            self._継続形成関係,
+            self._適応記憶.状態署名,
+        ))
+
+    def 継続状態を初期化(self) -> None:
+        self._継続記憶 = HDS記憶()
+        self._継続形成関係 = ()
+        self._適応記憶.初期化()
 
     def 実行(self, 問合せ: str, *, 目的: Sequence[str] = (), 要求状態: Sequence[str] = (),
            追加作用: Sequence[HDS作用器] = (), 追加作用供給器: Sequence[HDS作用供給器] = (),
@@ -47,7 +66,7 @@ class HDS駆動コア:
            初期依存: Sequence[HDS依存辺] = (), 観測要求: Sequence[HDS観測要求] = (),
            初期記憶: HDS記憶 | None = None, 初期仮説: Sequence[HDS仮説] = (),
            初期枝: Sequence[HDS作業枝] = (), 初期草案: Sequence[HDS草案] = (),
-           形成関係: Sequence[HDS形成関係] = (), 異種表象: Sequence[HDS異種表象] = ()) -> HDS実行結果:
+           形成関係: Sequence[HDS形成関係] | None = None, 異種表象: Sequence[HDS異種表象] = ()) -> HDS実行結果:
         if not isinstance(問合せ, str) or not 問合せ.strip():
             raise ValueError("HDS駆動コアの問合せは空でない文字列である必要がある")
         明示要求状態 = tuple(str(x) for x in 要求状態)
@@ -116,15 +135,21 @@ class HDS駆動コア:
             frozenset(残差群), tuple(sorted(成果初期値.items(), key=lambda 行: 行[0])),
             tuple(sorted(主体初期値.items(), key=lambda 行: 行[0])), 0,
             認識=tuple(初期認識), 要求認識=明示要求認識, 依存=tuple(初期依存), 観測要求=tuple(観測要求),
-            記憶=初期記憶 if 初期記憶 is not None else HDS記憶(), 仮説=tuple(初期仮説),
-            枝=tuple(初期枝), 草案=tuple(初期草案), 形成関係=tuple(形成関係),
+            記憶=初期記憶 if 初期記憶 is not None else self._継続記憶, 仮説=tuple(初期仮説),
+            枝=tuple(初期枝), 草案=tuple(初期草案),
+            形成関係=self._継続形成関係 if 形成関係 is None else tuple(形成関係),
         )
-        return HDS実行主体(
+        結果 = HDS実行主体(
             tuple(作用群), 最大作用回数=self.最大作用回数, 政策=self.政策, 観測器=self.観測器,
             仮説雛型=self.仮説雛型, 検証器=self.検証器, 最終検証器=self.最終検証器,
             関係規則=self.関係規則, 未来制約=self.未来制約,
             作用供給器=(*self.作用供給器, *tuple(追加作用供給器)), 停止要求=self.停止要求,
+            適応記憶=self._適応記憶,
         ).実行(初期)
+        # SUSPEND/FAILを含め、通常循環で実際に保持・形成された状態は次回処理の前提へ継承する。
+        self._継続記憶 = 結果.状態.記憶
+        self._継続形成関係 = 結果.状態.形成関係
+        return 結果
 
     def 非退行継承実行(self, 問合せ: str, *, 基準実行: Callable[[], object], 基準承認判定: Callable[[object], bool],
                    拡張採用証明: Callable[[object, object], bool], 拡張実行: Callable[[], object] | None = None,

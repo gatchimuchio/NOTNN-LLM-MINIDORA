@@ -21,6 +21,7 @@ from .統合駆動_v2.計画 import HDS作用仕様
 from .統合駆動_v2.意味構成 import HDS関係規則
 from .統合駆動_v2.未来 import HDS未来制約, HDS未来状態
 from .統合駆動_v2.診断 import HDS失敗診断
+from .統合駆動_v2.一時適応 import HDS適応記憶
 from .コア.効果 import 期待効果
 
 HDS実行主体版 = "HDS実行主体-v3"
@@ -573,7 +574,8 @@ class HDS実行主体:
                  関係規則: Sequence[HDS関係規則] = (),
                  未来制約: Sequence[HDS未来制約] = (),
                  作用供給器: Sequence[HDS作用供給器] = (),
-                 停止要求: Callable[[], bool] | None = None) -> None:
+                 停止要求: Callable[[], bool] | None = None,
+                 適応記憶: HDS適応記憶 | None = None) -> None:
         if type(最大作用回数) is not int or not 1 <= 最大作用回数 <= 4096:
             raise ValueError("HDS最大作用回数は1..4096の整数である必要がある")
         self.作用群 = tuple(作用群)
@@ -582,6 +584,9 @@ class HDS実行主体:
         if 停止要求 is not None and not callable(停止要求):
             raise TypeError("停止要求は呼出可能である必要がある")
         self.停止要求 = 停止要求
+        self.適応記憶 = 適応記憶 if 適応記憶 is not None else HDS適応記憶()
+        if not isinstance(self.適応記憶, HDS適応記憶):
+            raise TypeError("適応記憶はHDS適応記憶である必要がある")
         文字列組(tuple(x.作用ID for x in self.作用群), "作用ID")
         if any(x.作用ID.startswith("内的/") for x in self.作用群):
             raise ValueError("内的/はコア内部作用の予約名前空間")

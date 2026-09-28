@@ -62,8 +62,12 @@ def _既に満たす(機会, 前状態) -> bool:
     return 出力済み and 解消済み
 
 
-class HDS一時適応キャッシュ:
-    """一回の実行内だけ、同一定義・同一意味入力で観測した効果を共有する。"""
+class HDS適応記憶:
+    """同一定義・同一意味入力で観測した効果を、Core寿命内の後続処理へ継続利用する。
+
+    最終回答や採点結果ではなく、各作用の実測状態差だけを保持する。
+    最新の反証以後に再確認された安定効果だけを後続計画へ反映する。
+    """
 
     __slots__ = ("_経験列",)
 
@@ -71,6 +75,18 @@ class HDS一時適応キャッシュ:
         if type(最大経験数) is not int or not 1 <= 最大経験数 <= 4096:
             raise ValueError("最大経験数は1..4096の整数が必要")
         self._経験列 = deque(maxlen=最大経験数)
+
+    @property
+    def 経験数(self) -> int:
+        return len(self._経験列)
+
+    @property
+    def 状態署名(self) -> str:
+        from ..コア.値 import 署名
+        return 署名(tuple(self._経験列))
+
+    def 初期化(self) -> None:
+        self._経験列.clear()
 
     def 結果を受け取る(self, 機会, 結果, 状態差, 前状態=None) -> None:
         if str(機会.作用ID).startswith("内的/"):
@@ -124,3 +140,9 @@ class HDS一時適応キャッシュ:
             return 機会
         # 契約効果は変更せず、経験由来の期待だけ別欄へ保持する。
         return replace(機会, 期待=効果)
+
+
+# 旧公開名は互換入口としてだけ残す。active pathはHDS適応記憶を用いる。
+HDS一時適応キャッシュ = HDS適応記憶
+
+__all__ = ["HDS適応記憶", "HDS一時適応キャッシュ"]
