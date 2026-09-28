@@ -190,6 +190,29 @@ def _同一情報源統合(old: 参照記録, new: 参照記録) -> 参照記録
     return replace(best, 条件=tuple(conditions), 信頼=max(float(old.信頼), float(new.信頼)))
 
 
+def 参照記録群を統合(
+    既存: Iterable[参照記録],
+    追加: Iterable[参照記録],
+    *,
+    最大件数: int = 8192,
+) -> tuple[参照記録, ...]:
+    """観測済み参照を識別子単位で保持し、後続処理から再利用可能な記憶へ統合する。"""
+    if type(最大件数) is not int or 最大件数 < 1:
+        raise ValueError("参照記憶の最大件数は1以上の整数である必要がある")
+    結果: list[参照記録] = []
+    位置: dict[str, int] = {}
+    for record in (*tuple(既存), *tuple(追加)):
+        key = str(record.識別子).strip() or f"anonymous:{record.供給器}:{record.由来}:{len(結果)}"
+        if key in 位置:
+            結果[位置[key]] = _同一情報源統合(結果[位置[key]], record)
+            continue
+        if len(結果) >= 最大件数:
+            break
+        位置[key] = len(結果)
+        結果.append(record)
+    return tuple(結果)
+
+
 class 複合参照供給器:
     """複数Providerを並列取得し、Provider順を保ったround-robinで統合する。
 
