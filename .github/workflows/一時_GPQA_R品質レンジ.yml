@@ -1,4 +1,4 @@
-name: MINIDORA GPQA R品質レンジ 一時実測 v2
+name: MINIDORA GPQA R品質レンジ 一時実測 v3
 
 on:
   push:
@@ -8,6 +8,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: minidora-gpqa-r-quality-range-main
+  cancel-in-progress: true
 
 jobs:
   shard:
