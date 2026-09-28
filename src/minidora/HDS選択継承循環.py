@@ -734,7 +734,10 @@ class HDS選択継承供給:
                         成果=((参照世代成果名, level), (参照記憶成果名, memory), diag_out),
                         理由=("HDS_INHERITED_REFERENCE_LAYER_NO_PROGRESS_CONTINUE", f"世代:{level}"),
                     )
-                final_clear = frozenset(set(recover).difference({残差_観測無進展}))
+                # 観測方法を尽くしても、意味上の未閉包・矛盾は「無進展」に潰さない。
+                # 無進展は観測経路の状態、候補証拠未閉包/矛盾は意味状態として併存させる。
+                保持残差 = {残差_観測無進展, 残差_候補証拠未閉包, 残差_候補証拠矛盾}
+                final_clear = frozenset(set(recover).difference(保持残差))
                 final_add = frozenset() if 残差_観測無進展 in s.残差 else frozenset({残差_観測無進展})
                 return HDS作用結果(
                     HDS作用状態.成立,
