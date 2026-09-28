@@ -587,18 +587,18 @@ def _候補関係観測表層群(ir: object, 関係: object) -> tuple[str, ...]:
     left = _関係端点表層(ir, getattr(関係, "始点", ()))
     right = _関係端点表層(ir, getattr(関係, "終点", ()))
     predicate = _条件値(関係, "検索述語") or str(getattr(関係, "種別", ""))
-    scope = tuple(v for _k, v in _関係条件範囲(関係))
-    candidates = (
-        (*left, predicate, *right, *scope),
-        (predicate, *left, *right, *scope),
-        (*left, *right, *scope),
+    条件範囲 = tuple(v for _k, v in _関係条件範囲(関係))
+    候補列 = (
+        (*left, predicate, *right, *条件範囲),
+        (predicate, *left, *right, *条件範囲),
+        (*left, *right, *条件範囲),
     )
     out: list[str] = []
     seen: set[str] = set()
-    for candidate in candidates:
+    for 候補 in 候補列:
         parts: list[str] = []
         local_seen: set[str] = set()
-        for raw in candidate:
+        for raw in 候補:
             value = " ".join(str(raw).split()).strip()
             key = value.casefold()
             if value and key not in local_seen:
@@ -630,17 +630,17 @@ def HDS候補関係観測計画を構成(
     from .HDS選択仮説 import HDS候補代入仮説群
     from .能力作用則 import 証拠状態照合
 
-    target_language = "自然言語:ja" if str(getattr(question_ir, "入力言語", "ja") or "ja").casefold().startswith("ja") else "自然言語:en"
-    evidence_relations: list[object] = []
-    for index, material_ir in enumerate(tuple(資料IR群)):
+    対象言語体系 = "自然言語:ja" if str(getattr(question_ir, "入力言語", "ja") or "ja").casefold().startswith("ja") else "自然言語:en"
+    証拠関係群: list[object] = []
+    for index, 資料IR in enumerate(tuple(資料IR群)):
         internal = HDS内部言語状態(
-            material_ir,
+            資料IR,
             識別子=f"保持資料:{index}",
-            言語体系=target_language,
+            言語体系=対象言語体系,
             証拠境界=True,
         )
         if internal.証拠利用可:
-            evidence_relations.extend(tuple(internal.関係構造))
+            証拠関係群.extend(tuple(internal.関係構造))
 
     hypotheses = HDS候補代入仮説群(question_ir, 候補意味IR)
     requests: list[HDS参照観測要求] = []
@@ -648,19 +648,19 @@ def HDS候補関係観測計画を構成(
     missing_count = 0
     conflict_count = 0
 
-    for label, candidate_ir in sorted(hypotheses.items()):
-        for relation in tuple(getattr(candidate_ir, "関係", ())):
-            if str(getattr(relation, "由来", "")) != "HDS候補代入仮説":
+    for label, 候補IR in sorted(hypotheses.items()):
+        for 関係 in tuple(getattr(候補IR, "関係", ())):
+            if str(getattr(関係, "由来", "")) != "HDS候補代入仮説":
                 continue
             projected = HDS内部言語状態(
-                replace(candidate_ir, 関係=(relation,)),
-                識別子=f"候補関係:{label}:{getattr(relation, '関係ID', '')}",
-                言語体系=target_language,
+                replace(候補IR, 関係=(関係,)),
+                識別子=f"候補関係:{label}:{getattr(関係, '関係ID', '')}",
+                言語体系=対象言語体系,
             )
             targets = tuple(projected.関係構造)
             if not targets:
                 continue
-            status = 証拠状態照合(targets, tuple(evidence_relations))
+            status = 証拠状態照合(targets, tuple(証拠関係群))
             missing = int(getattr(status, "未観測", 0))
             conflict = int(getattr(status, "矛盾", 0))
             if missing <= 0 and conflict <= 0:
@@ -668,22 +668,22 @@ def HDS候補関係観測計画を構成(
             missing_count += missing
             conflict_count += conflict
             reason = "矛盾関係" if conflict > 0 else "未観測関係"
-            for method, surface in enumerate(_候補関係観測表層群(candidate_ir, relation), start=1):
+            for method, surface in enumerate(_候補関係観測表層群(候補IR, 関係), start=1):
                 key = (str(label), surface.casefold())
                 if key in seen:
                     continue
                 seen.add(key)
-                base_priority = 0 if conflict > 0 else 5
+                基礎優先度 = 0 if conflict > 0 else 5
                 requests.append(HDS参照観測要求(
-                    ID=f"候補関係:{label}:{getattr(relation, '関係ID', '')}:方法:{method}",
-                    関係ID=str(getattr(relation, "関係ID", "")) or None,
-                    関係種別=str(getattr(relation, "種別", "")) or None,
+                    ID=f"候補関係:{label}:{getattr(関係, '関係ID', '')}:方法:{method}",
+                    関係ID=str(getattr(関係, "関係ID", "")) or None,
+                    関係種別=str(getattr(関係, "種別", "")) or None,
                     未知位置=None,
                     既知端点=(
-                        *_関係端点表層(candidate_ir, getattr(relation, "始点", ())),
-                        *_関係端点表層(candidate_ir, getattr(relation, "終点", ())),
+                        *_関係端点表層(候補IR, getattr(関係, "始点", ())),
+                        *_関係端点表層(候補IR, getattr(関係, "終点", ())),
                     ),
-                    条件範囲=_関係条件範囲(relation),
+                    条件範囲=_関係条件範囲(関係),
                     候補ラベル=str(label),
                     候補表層=" ".join(str(getattr(候補意味IR[label], "正規化文", "") or getattr(候補意味IR[label], "原文", "")).split()).strip() or None,
                     外部言語=str(getattr(question_ir, "入力言語", "ja") or "ja"),
@@ -691,7 +691,7 @@ def HDS候補関係観測計画を構成(
                     必須被覆=True,
                     外部文脈アンカー=(),
                     段階="primary",
-                    優先度=base_priority + (method - 1) * 20,
+                    優先度=基礎優先度 + (method - 1) * 20,
                     provenance=("候補関係観測", reason, f"観測方法:{method}"),
                 ))
 
