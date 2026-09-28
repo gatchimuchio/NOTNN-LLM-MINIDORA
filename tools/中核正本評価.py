@@ -8,7 +8,10 @@ import subprocess
 import tempfile
 from threading import Lock
 
-from GPQA現行測定 import _download_dataset, _load_cases
+try:
+    from .GPQA現行測定 import _download_dataset, _load_cases
+except ImportError:
+    from GPQA現行測定 import _download_dataset, _load_cases
 from minidora.HDS参照 import HDS参照検索
 from minidora.参照 import 参照取得診断, 参照検索を診断
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ

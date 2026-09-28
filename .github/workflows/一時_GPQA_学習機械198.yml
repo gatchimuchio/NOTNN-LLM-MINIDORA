@@ -1,4 +1,4 @@
-name: MINIDORA GPQA 学習機械198 一時実測
+name: MINIDORA GPQA 学習機械198 一時実測 v2
 
 concurrency:
   group: minidora-gpqa-learning-machine-198
