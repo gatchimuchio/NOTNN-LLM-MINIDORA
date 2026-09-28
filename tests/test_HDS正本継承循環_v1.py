@@ -46,6 +46,37 @@ class 第二層追加参照:
         return ()
 
 
+class 第二層反証参照:
+    名称 = "第二層反証試験参照"
+
+    def __init__(self):
+        self.呼出: list[str] = []
+
+    def 検索(self, 問合せ, 上限=8):
+        query = " ".join(str(問合せ).split())
+        self.呼出.append(query)
+        if query.casefold() in {"enzyme x molecule b", "molecule b"}:
+            return (証拠("Molecule B", 否定=True, 識別子="second-layer-b"),)
+        return ()
+
+
+class 第二層完全参照:
+    名称 = "第二層完全試験参照"
+
+    def __init__(self):
+        self.呼出: list[str] = []
+
+    def 検索(self, 問合せ, 上限=8):
+        query = " ".join(str(問合せ).split())
+        self.呼出.append(query)
+        if query.casefold() in {"enzyme x molecule a", "molecule a", "enzyme x molecule b", "molecule b"}:
+            return (
+                証拠("Molecule A", 識別子="second-layer-a"),
+                証拠("Molecule B", 否定=True, 識別子="second-layer-b"),
+            )[:上限]
+        return ()
+
+
 def 証拠(主体: str, *, 否定: bool = False, 識別子: str = "r1"):
     本文 = f"{主体} {'does not inhibit' if 否定 else 'inhibits'} Enzyme X."
     return 参照記録(
@@ -148,7 +179,7 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual([x.種別 for x in 成果["HDSコア入力"].残差], ["未解共参照"])
         self.assertFalse(any(x.startswith("HDS残差:未解共参照:") for x in 結果.状態.残差))
 
-    def test_正式模型承認は一回再検証し弱い反証では基準を保持(self):
+    def test_正式模型承認は評価前の候補関係観測を経て基準を保持(self):
         provider = 固定追加参照((
             証拠("Molecule A", 識別子="late-a"),
             証拠("Molecule B", 否定=True, 識別子="late-b"),
@@ -164,18 +195,18 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual(成果[回答成果名], "A")
         self.assertEqual(結果.状態.主体辞書()[基準結果主体名].回答ラベル, "A")
         self.assertGreaterEqual(provider.呼出回数, 1)
-        self.assertIn("HDS継承/追加参照", [x.作用ID for x in 結果.履歴])
+        履歴 = [x.作用ID for x in 結果.履歴]
+        self.assertIn("HDS継承/候補関係観測", 履歴)
+        self.assertIn("HDS継承/模型再評価", 履歴)
+        self.assertLess(履歴.index("HDS継承/候補関係観測"), 履歴.index("HDS継承/模型再評価"))
 
     @patch("minidora.HDS選択継承循環.HDS既存能力直接反証評価")
-    def test_2独立proofの直接反証だけ承認基準を更新(self, 反証評価):
+    def test_後続観測の2独立proofだけ承認基準を更新(self, 反証評価):
         反証評価.return_value = HDS選択実行結果(
             "APPROVE", "B", "Molecule B", ("DIRECTED_関係_VERIFIED",),
             None, 0, 0, 0, 0, 2, 0,
         )
-        provider = 固定追加参照((
-            証拠("Molecule A", 識別子="late-a"),
-            証拠("Molecule B", 否定=True, 識別子="late-b"),
-        ))
+        provider = 第二層反証参照()
         結果 = self.コア.選択実行(
             self.問い,
             self.選択肢,
@@ -187,8 +218,9 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual(結果.状態.主体辞書()[基準結果主体名].回答ラベル, "A")
         self.assertEqual(成果[回答成果名], "B")
         self.assertTrue(成果[非退行判定成果名].拡張採用)
+        self.assertTrue(any(q.casefold() in {"enzyme x molecule b", "molecule b"} for q in provider.呼出))
 
-    def test_第一観測層が0件でも第二層へ進んで回復する(self):
+    def test_第一観測層が0件でも第二層へ進み証拠を回収する(self):
         provider = 第二層追加参照()
         結果 = self.コア.選択実行(
             self.問い,
@@ -196,10 +228,12 @@ class HDS正本継承循環試験(unittest.TestCase):
             初期参照=(),
             参照供給器=provider,
         )
-        self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
-        self.assertEqual(結果.状態.成果辞書()[回答成果名], "A")
+        self.assertEqual(結果.終端, HDS終端.保留, 結果.理由)
         self.assertTrue(any("inhibit" in q.casefold() for q in provider.呼出))
         self.assertTrue(any(q.casefold() in {"enzyme x molecule a", "molecule a"} for q in provider.呼出))
+        self.assertEqual(結果.状態.成果辞書()[現行結果成果名].回答ラベル, "A")
+        self.assertNotIn(回答成果名, 結果.状態.成果辞書())
+        self.assertIn("HDS選択:候補証拠未閉包", 結果.状態.残差)
         参照作用 = [x.作用ID for x in 結果.履歴 if x.作用ID == "HDS継承/追加参照"]
         self.assertGreaterEqual(len(参照作用), 2)
 
@@ -224,8 +258,8 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertIn("HDS継承/模型再評価", 履歴)
         self.assertLess(履歴.index("HDS継承/候補関係観測"), 履歴.index("HDS継承/模型再評価"))
 
-    def test_証明なし拡張は影結果に留まり採用しない(self):
-        provider = 固定追加参照((証拠("Molecule A", 識別子="extra"),))
+    def test_後続観測で閉包しても証明なし拡張は影結果に留める(self):
+        provider = 第二層完全参照()
         結果 = self.コア.選択実行(
             self.問い,
             self.選択肢,
