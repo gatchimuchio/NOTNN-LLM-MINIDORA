@@ -213,6 +213,29 @@ def 参照記録群を統合(
     return tuple(結果)
 
 
+def 参照記録を経験記憶化(record: 参照記録) -> 参照記録:
+    """問固有の検索経路印を落とし、観測内容と意味条件だけを後続経験へ残す。"""
+    条件 = tuple(
+        (str(key), str(value))
+        for key, value in record.条件
+        if not str(key).startswith(("hds_query_", "hds_observation_"))
+    )
+    return replace(record, 条件=条件)
+
+
+def 参照経験記憶を統合(
+    既存: Iterable[参照記録],
+    追加: Iterable[参照記録],
+    *,
+    最大件数: int = 8192,
+) -> tuple[参照記録, ...]:
+    return 参照記録群を統合(
+        tuple(参照記録を経験記憶化(x) for x in 既存),
+        tuple(参照記録を経験記憶化(x) for x in 追加),
+        最大件数=最大件数,
+    )
+
+
 class 複合参照供給器:
     """複数Providerを並列取得し、Provider順を保ったround-robinで統合する。
 

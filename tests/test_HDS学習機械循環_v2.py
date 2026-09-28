@@ -148,6 +148,27 @@ class HDS学習機械循環V2試験(unittest.TestCase):
         self.assertEqual(次回.終端, HDS終端.採用)
         self.assertGreater(次回.計装.形成再利用数, 0)
 
+    def test_問固有の検索経路印は次経験へ持ち越さない(self) -> None:
+        中核 = HDS駆動コア(HDSコンパイラ=公開HDSコンパイラ(), 最大作用回数=40)
+        観測 = 参照記録(
+            "r-route",
+            "Molecule A",
+            "Molecule A inhibits Enzyme X.",
+            "試験",
+            "試験",
+            1.0,
+            条件=(("hds_query_選択肢", "A"), ("hds_observation_id", "old"), ("領域条件", "保持")),
+        )
+        中核.選択実行(
+            "Which molecule inhibits Enzyme X?",
+            ("Molecule A", "Molecule B"),
+            初期参照=(観測,),
+        )
+        記憶 = next(x for x in 中核.継続参照記憶 if x.識別子 == "r-route")
+        self.assertNotIn(("hds_query_選択肢", "A"), 記憶.条件)
+        self.assertNotIn(("hds_observation_id", "old"), 記憶.条件)
+        self.assertIn(("領域条件", "保持"), 記憶.条件)
+
     def test_継続状態を明示初期化できる(self) -> None:
         中核 = HDS駆動コア(HDSコンパイラ=公開HDSコンパイラ(), 最大作用回数=40)
         観測 = 参照記録("r", "Molecule A", "Molecule A inhibits Enzyme X.", "試験", "試験", 1.0)

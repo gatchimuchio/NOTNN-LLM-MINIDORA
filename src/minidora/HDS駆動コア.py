@@ -16,7 +16,7 @@ from .統合駆動_v2.入力境界 import HDS異種表象, HDS異種入力作用
 from .HDSコア入力 import HDSコア入力束
 from .HDS構文化処理系列_v1_4 import HDSカーネル束, HDS意味専用計画器
 from .HDS非退行包絡 import HDS非退行判定, HDS非退行包絡
-from .参照 import 参照取得診断, 参照記録, 参照記録群を統合, 固定参照供給器
+from .参照 import 参照取得診断, 参照記録, 参照記録群を統合, 参照経験記憶を統合, 固定参照供給器
 
 HDS駆動コア版 = "MINIDORA-HDS-FIRST-v6"
 HDS継承基準版 = "HDS-MINIDORA-63d5d7e7"
@@ -56,6 +56,10 @@ class HDS駆動コア:
     @property
     def 継続参照件数(self) -> int:
         return len(self._継続参照記憶)
+
+    @property
+    def 継続参照記憶(self) -> tuple[参照記録, ...]:
+        return tuple(self._継続参照記憶)
 
     def 継続状態を初期化(self) -> None:
         self._継続記憶 = HDS記憶()
@@ -258,7 +262,7 @@ class HDS駆動コア:
         )
         最終参照 = 結果.状態.成果辞書().get(参照成果名, 初期参照群)
         if isinstance(最終参照, tuple) and all(isinstance(x, 参照記録) for x in 最終参照):
-            self._継続参照記憶 = 参照記録群を統合(self._継続参照記憶, 最終参照)
+            self._継続参照記憶 = 参照経験記憶を統合(self._継続参照記憶, 最終参照)
         return 結果
 
 __all__ = ["HDS駆動コア版", "HDS継承基準版", "HDS駆動コア"]
