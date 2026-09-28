@@ -1,4 +1,4 @@
-name: MINIDORA GPQA R品質レンジ 一時実測 v3
+name: MINIDORA GPQA R品質レンジ 一時実測 v4
 
 on:
   push:
@@ -14,161 +14,102 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  shard:
+  measure:
     strategy:
       fail-fast: false
-      max-parallel: 12
+      max-parallel: 3
       matrix:
         run: [0, 1, 2]
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
     runs-on: ubuntu-latest
-    timeout-minutes: 180
-    env:
-      R系列: ${{ matrix.run }}
-      R分割: ${{ matrix.shard }}
-      R分割数: "8"
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: python -m pip install -e .
-      - name: LIVE shard実測
+      - name: LIVE 198問 実測
         shell: bash
         run: |
-          mkdir -p out
-          python - <<'PY'
+          python tools/正本評価.py gpqa-e2e --out "gpqa_range_${{ matrix.run }}.json"
+      - name: 系列要約
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "gpqa_range_${{ matrix.run }}.json" ]; then
+            python - <<'PY'
           import json
           import os
-          import sys
-          import tempfile
           from pathlib import Path
-
-          sys.path.insert(0, str(Path.cwd() / "tools"))
-          from GPQA現行測定 import _download_dataset, _load_cases
-          from 中核正本評価 import GPQA正本資料集合CSV_SHA256, _一問を実行
-
-          系列 = int(os.environ["R系列"])
-          分割 = int(os.environ["R分割"])
-          分割数 = int(os.environ["R分割数"])
-
-          with tempfile.TemporaryDirectory(prefix="minidora-gpqa-range-") as td:
-              csv_path, zip_hash, csv_hash = _download_dataset(Path(td))
-              cases = _load_cases(csv_path)
-          if len(cases) != 198 or csv_hash != GPQA正本資料集合CSV_SHA256:
-              raise RuntimeError(f"GPQA資料不一致 n={len(cases)} sha={csv_hash}")
-
-          対象 = [i for i in range(len(cases)) if i % 分割数 == 分割]
-          行群 = []
-          for 位置, index in enumerate(対象, start=1):
-              question, choices, gold = cases[index]
-              row = _一問を実行(index, question, tuple(choices), gold)
-              行群.append(row)
-              print(
-                  f"RANGE run={系列} shard={分割} {位置}/{len(対象)} "
-                  f"index={index} terminal={row['終端']} correct={row['正答']} "
-                  f"faults={row['初期参照取得障害数']}",
-                  flush=True,
-              )
-
-          out = Path("out") / f"range-{系列}-{分割}.json"
-          out.write_text(json.dumps({
-              "系列": 系列,
-              "分割": 分割,
-              "分割数": 分割数,
-              "head": os.getenv("GITHUB_SHA", ""),
-              "dataset_zip_sha256": zip_hash,
-              "dataset_csv_sha256": csv_hash,
-              "rows": 行群,
-          }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          run=os.environ["R系列"]
+          d=json.loads(Path(f"gpqa_range_{run}.json").read_text(encoding="utf-8"))
+          print("GPQA_R_RUN="+json.dumps({
+              "系列":int(run),
+              "指標":d.get("指標"),
+              "実行内状態遷移":d.get("実行内状態遷移"),
+              "評価条件":d.get("評価条件"),
+          },ensure_ascii=False,sort_keys=True))
           PY
+          fi
+        env:
+          R系列: ${{ matrix.run }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: gpqa-range-${{ matrix.run }}-${{ matrix.shard }}
-          path: out/range-${{ matrix.run }}-${{ matrix.shard }}.json
+          name: gpqa-range-${{ matrix.run }}
+          path: gpqa_range_${{ matrix.run }}.json
           if-no-files-found: error
 
   aggregate:
-    needs: shard
+    needs: measure
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: python -m pip install -e .
       - uses: actions/download-artifact@v4
         with:
           pattern: gpqa-range-*
-          path: range-shards
+          path: range-runs
           merge-multiple: true
       - name: 3系列集計
         shell: bash
         run: |
           python - <<'PY'
           import json
-          import sys
           from pathlib import Path
 
-          sys.path.insert(0, str(Path.cwd() / "tools"))
-          from 中核正本評価 import _集計
-
-          files = sorted(Path("range-shards").glob("range-*.json"))
-          if len(files) != 24:
-              raise RuntimeError(f"shard不足: {len(files)}/24")
-
-          系列群 = {}
-          heads = set()
-          for path in files:
-              data = json.loads(path.read_text(encoding="utf-8"))
-              系列 = int(data["系列"])
-              系列群.setdefault(系列, []).extend(data["rows"])
-              heads.add(str(data["head"]))
-          if len(heads) != 1:
+          paths=sorted(Path("range-runs").glob("gpqa_range_*.json"))
+          if len(paths)!=3:
+              raise RuntimeError(f"系列不足: {len(paths)}/3")
+          runs=[]
+          heads=set()
+          for p in paths:
+              d=json.loads(p.read_text(encoding="utf-8"))
+              metrics=d["指標"]
+              trans=d["実行内状態遷移"]
+              heads.add(str(d["評価条件"]["リポジトリ版"]))
+              runs.append({"ファイル":p.name,"指標":metrics,"実行内状態遷移":trans})
+          if len(heads)!=1:
               raise RuntimeError(f"HEAD不一致: {sorted(heads)}")
 
-          実測群 = []
-          for 系列 in sorted(系列群):
-              rows = sorted(系列群[系列], key=lambda x: int(x["番号"]))
-              indices = [int(x["番号"]) for x in rows]
-              if indices != list(range(198)):
-                  raise RuntimeError(f"系列{系列}の問題集合不正")
-              metrics, transition = _集計(rows)
-              実測群.append({
-                  "系列": 系列,
-                  "指標": metrics,
-                  "実行内状態遷移": transition,
-              })
+          def vals(key):
+              return [int(x["指標"][key]) for x in runs]
 
-          def 値群(key):
-              return [int(x["指標"][key]) for x in 実測群]
-
-          正答 = 値群("正答")
-          回答 = 値群("回答")
-          初期被覆 = 値群("初期全候補被覆問題数")
-          最終被覆 = 値群("最終全候補被覆問題数")
-          取得障害 = 値群("初期参照取得障害数")
-          summary = {
-              "head": next(iter(heads)),
-              "系列数": len(実測群),
-              "実測": 実測群,
-              "レンジ": {
-                  "正答": {"値": 正答, "最小": min(正答), "最大": max(正答), "幅": max(正答)-min(正答)},
-                  "回答": {"値": 回答, "最小": min(回答), "最大": max(回答), "幅": max(回答)-min(回答)},
-                  "初期全候補被覆": {"値": 初期被覆, "最小": min(初期被覆), "最大": max(初期被覆), "幅": max(初期被覆)-min(初期被覆)},
-                  "最終全候補被覆": {"値": 最終被覆, "最小": min(最終被覆), "最大": max(最終被覆), "幅": max(最終被覆)-min(最終被覆)},
-                  "初期参照取得障害": {"値": 取得障害, "最小": min(取得障害), "最大": max(取得障害), "幅": max(取得障害)-min(取得障害)},
-              },
+          fields={
+              "正答":"正答",
+              "回答":"回答",
+              "初期全候補被覆":"初期全候補被覆問題数",
+              "最終全候補被覆":"最終全候補被覆問題数",
+              "初期参照取得障害":"初期参照取得障害数",
           }
+          ranges={}
+          for label,key in fields.items():
+              v=vals(key)
+              ranges[label]={"値":v,"最小":min(v),"最大":max(v),"幅":max(v)-min(v)}
+          summary={"head":next(iter(heads)),"系列数":3,"実測":runs,"レンジ":ranges}
           Path("gpqa_r_quality_range.json").write_text(
-              json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
-              encoding="utf-8",
+              json.dumps(summary,ensure_ascii=False,indent=2)+"\n",encoding="utf-8"
           )
-          print("GPQA_R_QUALITY_RANGE=" + json.dumps(summary["レンジ"], ensure_ascii=False, sort_keys=True))
-          for row in 実測群:
-              print("GPQA_R_RUN=" + json.dumps(row, ensure_ascii=False, sort_keys=True))
+          print("GPQA_R_QUALITY_RANGE="+json.dumps(ranges,ensure_ascii=False,sort_keys=True))
           PY
       - uses: actions/upload-artifact@v4
         with:
