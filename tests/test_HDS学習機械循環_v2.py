@@ -49,7 +49,7 @@ class HDS学習機械循環V2試験(unittest.TestCase):
         self.assertTrue(評価時問合せ数)
         self.assertGreater(評価時問合せ数[0], 0)
 
-    def test_実観測参照は同一Coreの次処理へ継承される(self) -> None:
+    def test_実観測参照は同一中核の次処理へ継承される(self) -> None:
         構文化器 = 公開HDSコンパイラ()
         中核 = HDS駆動コア(HDSコンパイラ=構文化器, 最大作用回数=40)
         問い = "Which molecule inhibits Enzyme X?"
@@ -70,7 +70,7 @@ class HDS学習機械循環V2試験(unittest.TestCase):
         初回参照 = 次.状態.成果辞書().get(初回評価参照成果名, ())
         self.assertTrue(any(x.識別子 == "memory-a" for x in 初回参照))
 
-    def test_継続状態は別Coreへ漏れない(self) -> None:
+    def test_継続状態は別中核へ漏れない(self) -> None:
         構文化器 = 公開HDSコンパイラ()
         問い = "Which molecule inhibits Enzyme X?"
         選択肢 = ("Molecule A", "Molecule B")
@@ -122,7 +122,7 @@ class HDS学習機械循環V2試験(unittest.TestCase):
         )
         self.assertEqual(次回.終端, HDS終端.採用)
 
-    def test_実行経験から形成した適応が同一Coreの次実行へ継承される(self) -> None:
+    def test_実行経験から形成した適応が同一中核の次実行へ継承される(self) -> None:
         中核 = HDS駆動コア(最大作用回数=24)
         作用群 = (
             HDS関数作用(
