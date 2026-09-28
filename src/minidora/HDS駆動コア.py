@@ -11,7 +11,7 @@ from .統合駆動_v2.依存 import HDS依存辺
 from .統合駆動_v2.記憶 import HDS記憶
 from .統合駆動_v2.検証 import HDS検証器, HDS草案
 from .統合駆動_v2.形成 import HDS形成関係
-from .統合駆動_v2.一時適応 import HDS適応記憶
+from .統合駆動_v2.適応記憶 import HDS適応記憶
 from .統合駆動_v2.状態更新 import 有効認識
 from .統合駆動_v2.入力境界 import HDS異種表象, HDS異種入力作用
 from .HDSコア入力 import HDSコア入力束

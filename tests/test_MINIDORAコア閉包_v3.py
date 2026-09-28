@@ -112,9 +112,11 @@ class MINIDORAコア閉包試験(unittest.TestCase):
         root = Path(__file__).parents[1] / "src" / "minidora"
         cycle = (root / "統合駆動_v2" / "循環.py").read_text(encoding="utf-8")
         self.assertIn("検証器群を実行(現在, 主体.最終検証器, None)", cycle)
-        self.assertIn("HDS一時適応キャッシュ", cycle)
-        self.assertIn("一時適応.結果を受け取る", cycle)
-        self.assertIn("一時適応.機会を補正", cycle)
+        actor = (root / "HDS実行主体.py").read_text(encoding="utf-8")
+        self.assertIn("HDS適応記憶", actor)
+        self.assertIn("適応記憶 = 主体.適応記憶", cycle)
+        self.assertIn("適応記憶.結果を受け取る", cycle)
+        self.assertIn("適応記憶.機会を補正", cycle)
         self.assertIn("_期待を計画仕様へ反映", cycle)
 
 

@@ -21,7 +21,7 @@ from .統合駆動_v2.計画 import HDS作用仕様
 from .統合駆動_v2.意味構成 import HDS関係規則
 from .統合駆動_v2.未来 import HDS未来制約, HDS未来状態
 from .統合駆動_v2.診断 import HDS失敗診断
-from .統合駆動_v2.一時適応 import HDS適応記憶
+from .統合駆動_v2.適応記憶 import HDS適応記憶
 from .コア.効果 import 期待効果
 
 HDS実行主体版 = "HDS実行主体-v3"

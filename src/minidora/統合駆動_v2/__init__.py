@@ -19,4 +19,5 @@ from .診断 import HDS失敗診断
 
 __all__ = [k for k in globals() if not k.startswith("_") and k not in ("annotations",)]
 
-from .一時適応 import HDS適応記憶, HDS一時適応キャッシュ
+from .適応記憶 import HDS適応記憶
+from .一時適応 import HDS一時適応キャッシュ

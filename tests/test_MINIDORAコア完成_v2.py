@@ -31,7 +31,7 @@ from minidora.HDS実行主体 import (
     HDS作用機会,
     標準HDS作用選択器,
 )
-from minidora.統合駆動_v2.一時適応 import HDS一時適応キャッシュ
+from minidora.統合駆動_v2.適応記憶 import HDS適応記憶
 from minidora.統合駆動_v2.計画 import HDS作用仕様
 from minidora.統合駆動_v2.循環 import _期待を計画仕様へ反映
 from minidora.コア.効果 import 期待効果
@@ -154,7 +154,7 @@ class MINIDORAコア完成試験(unittest.TestCase):
     def test_17_期待効果は契約効果を書換えない(self):
         機会 = HDS作用機会("call", "i1", 出力状態=frozenset({"契約"}), 解消対象=frozenset({"契約残差"}),
                          作用定義ID="def", 意味入力署名="m1")
-        適応庫 = HDS一時適応キャッシュ()
+        適応庫 = HDS適応記憶()
         前状態 = HDS実行状態(残差=frozenset({"観測残差"}))
         作用結果 = HDS作用結果(HDS作用状態.成立, 追加状態=frozenset({"観測"}), 解消残差=frozenset({"観測残差"}))
         後状態, 状態差 = 状態差を受理(前状態, 作用結果)
@@ -167,7 +167,7 @@ class MINIDORAコア完成試験(unittest.TestCase):
 
     def test_18_同一意味入力の失敗で旧期待を撤回する(self):
         機会 = HDS作用機会("call", "i1", 作用定義ID="def", 意味入力署名="m1")
-        適応庫 = HDS一時適応キャッシュ()
+        適応庫 = HDS適応記憶()
         前状態 = HDS実行状態()
         成功結果 = HDS作用結果(HDS作用状態.成立, 追加状態=frozenset({"X"}))
         後状態, 状態差 = 状態差を受理(前状態, 成功結果)
@@ -196,15 +196,15 @@ class MINIDORAコア完成試験(unittest.TestCase):
         self.assertEqual(選択結果.作用ID, "A")
         self.assertNotIn("目的", 状態.成立状態)
 
-    def test_21_新しい実行内キャッシュへ期待を継承しない(self):
+    def test_21_別適応記憶インスタンスへ期待を共有しない(self):
         機会 = HDS作用機会("call", "i1", 作用定義ID="def", 意味入力署名="m1")
-        旧適応庫 = HDS一時適応キャッシュ()
+        旧適応庫 = HDS適応記憶()
         前状態 = HDS実行状態()
         作用結果 = HDS作用結果(HDS作用状態.成立, 追加状態=frozenset({"X"}))
         _, 状態差 = 状態差を受理(前状態, 作用結果)
         旧適応庫.結果を受け取る(機会, 作用結果, 状態差, 前状態)
         self.assertFalse(旧適応庫.機会を補正(機会).期待.空)
-        新適応庫 = HDS一時適応キャッシュ()
+        新適応庫 = HDS適応記憶()
         self.assertTrue(新適応庫.機会を補正(機会).期待.空)
 
     def test_22_全67入口に三者責任記述がある(self):
@@ -262,7 +262,7 @@ class MINIDORAコア完成試験(unittest.TestCase):
     def test_27_別呼出住所でも同一定義同一意味入力なら期待を共有(self):
         第一機会 = HDS作用機会("運用能力/p1/s1/X", "i1", 作用定義ID="運用能力/X", 意味入力署名="同状態")
         第二機会 = HDS作用機会("運用能力/p2/s9/X", "i2", 作用定義ID="運用能力/X", 意味入力署名="同状態")
-        適応庫 = HDS一時適応キャッシュ()
+        適応庫 = HDS適応記憶()
         前状態 = HDS実行状態()
         作用結果 = HDS作用結果(HDS作用状態.成立, 追加状態=frozenset({"観測効果"}))
         _, 状態差 = 状態差を受理(前状態, 作用結果)
@@ -271,7 +271,7 @@ class MINIDORAコア完成試験(unittest.TestCase):
 
     def test_28_既に契約効果成立済みの無変化は反証にしない(self):
         機会 = HDS作用機会("call", "i1", 出力状態=frozenset({"X"}), 作用定義ID="def", 意味入力署名="同状態")
-        適応庫 = HDS一時適応キャッシュ()
+        適応庫 = HDS適応記憶()
         空状態 = HDS実行状態()
         成功結果 = HDS作用結果(HDS作用状態.成立, 追加状態=frozenset({"X"}))
         状態X, 状態差 = 状態差を受理(空状態, 成功結果)
