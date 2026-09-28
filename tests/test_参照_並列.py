@@ -104,6 +104,34 @@ class 複合参照並列試験(unittest.TestCase):
         self.assertEqual(diag.状態, "取得")
         self.assertEqual(diag.試行回数, 2)
 
+    def test_子Provider縮退は複合診断へ保持する(self) -> None:
+        from minidora.参照 import 参照取得診断
+
+        class _縮退Provider:
+            名称 = "degraded"
+            def 検索診断(self, q, limit=8):
+                records = (参照記録("d1", "d1", "partial", "fixture://d1", self.名称, 信頼=0.8),)
+                return records, 参照取得診断(str(q), self.名称, "縮退", 1, 1, "detail down")
+            def 検索(self, q, limit=8):
+                return self.検索診断(q, limit)[0]
+
+        good = type(
+            "GoodProvider",
+            (),
+            {
+                "名称": "good",
+                "検索": lambda self, q, limit=8: (
+                    参照記録("ok", "ok", "content", "fixture://ok", "good"),
+                ),
+            },
+        )()
+        provider = 複合参照供給器(_縮退Provider(), good, 並列=False, 最大再試行=1)
+        records, diagnosis = provider.検索診断("query", 4)
+
+        self.assertEqual({record.識別子 for record in records}, {"d1", "ok"})
+        self.assertEqual(diagnosis.状態, "縮退")
+        self.assertIn("detail down", diagnosis.エラー or "")
+
     def test_同一識別資料は独立情報源へ増やさず高品質記録へ統合する(self) -> None:
         low = type(
             "LowProvider",

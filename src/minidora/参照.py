@@ -234,8 +234,9 @@ class 複合参照供給器:
                 pools.append(tuple(記録群))
                 診断群.append(診断)
 
-        失敗診断 = tuple(x for x in 診断群 if x.状態 == "失敗")
-        self.最後のエラー = tuple((x.供給器, x.エラー or "") for x in 失敗診断)
+        完全失敗診断 = tuple(x for x in 診断群 if x.状態 == "失敗")
+        縮退診断 = tuple(x for x in 診断群 if x.状態 in {"失敗", "縮退"})
+        self.最後のエラー = tuple((x.供給器, x.エラー or x.状態) for x in 縮退診断)
 
         結果: list[参照記録] = []
         index_by_id: dict[str, int] = {}
@@ -259,9 +260,9 @@ class 複合参照供給器:
                 break
             depth += 1
 
-        if 診断群 and len(失敗診断) == len(診断群):
+        if 診断群 and len(完全失敗診断) == len(診断群):
             状態 = "失敗"
-        elif 失敗診断:
+        elif 縮退診断:
             状態 = "縮退"
         else:
             状態 = "取得" if 結果 else "空"
@@ -271,7 +272,7 @@ class 複合参照供給器:
             状態,
             len(結果),
             max((x.試行回数 for x in 診断群), default=1),
-            None if not 失敗診断 else "; ".join(x.エラー or "" for x in 失敗診断),
+            None if not 縮退診断 else "; ".join(x.エラー or x.状態 for x in 縮退診断),
             tuple(診断群),
         )
         return tuple(結果), 診断
