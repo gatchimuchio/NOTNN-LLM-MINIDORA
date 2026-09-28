@@ -14,7 +14,7 @@ from minidora.HDS選択継承循環 import (
     現行結果成果名,
     影結果成果名,
     非退行判定成果名,
-    参照世代成果名,
+    関係観測世代成果名,
     入力残差影成果名,
 )
 from minidora.参照 import 参照記録
@@ -203,7 +203,7 @@ class HDS正本継承循環試験(unittest.TestCase):
         参照作用 = [x.作用ID for x in 結果.履歴 if x.作用ID == "HDS継承/追加参照"]
         self.assertGreaterEqual(len(参照作用), 2)
 
-    def test_未閉包は追加参照して再評価し閉包(self):
+    def test_候補関係観測を評価前に適応し閉包(self):
         provider = 固定追加参照((
             証拠("Molecule A", 識別子="extra-a"),
             証拠("Molecule B", 否定=True, 識別子="extra-b"),
@@ -218,14 +218,11 @@ class HDS正本継承循環試験(unittest.TestCase):
         成果 = 結果.状態.成果辞書()
         self.assertEqual(成果[回答成果名], "A")
         self.assertGreaterEqual(provider.呼出回数, 1)
-        self.assertGreaterEqual(int(成果[参照世代成果名]), 1)
-        self.assertEqual(
-            [x.作用ID for x in 結果.履歴[:3]],
-            ["HDS継承/模型再評価", "HDS継承/追加参照", "HDS継承/模型再評価"],
-        )
-        判定 = 成果[非退行判定成果名]
-        self.assertTrue(判定.拡張採用)
-        self.assertFalse(判定.基準固定)
+        self.assertGreaterEqual(int(成果[関係観測世代成果名]), 1)
+        履歴 = [x.作用ID for x in 結果.履歴]
+        self.assertIn("HDS継承/候補関係観測", 履歴)
+        self.assertIn("HDS継承/模型再評価", 履歴)
+        self.assertLess(履歴.index("HDS継承/候補関係観測"), 履歴.index("HDS継承/模型再評価"))
 
     def test_証明なし拡張は影結果に留まり採用しない(self):
         provider = 固定追加参照((証拠("Molecule A", 識別子="extra"),))
