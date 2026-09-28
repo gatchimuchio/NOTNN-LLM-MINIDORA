@@ -309,8 +309,8 @@ class Wikipedia参照供給器:
             self._error(error)
             return tuple(records), 参照取得診断(query, self.名称, "縮退", len(records), 1, error)
         self._error(None)
-        state = "取得" if records else "空"
-        return tuple(records), 参照取得診断(query, self.名称, state, len(records))
+        状態 = "取得" if records else "空"
+        return tuple(records), 参照取得診断(query, self.名称, 状態, len(records))
 
     def 検索(self, 問合せ: str, 上限: int = 8) -> tuple[参照記録, ...]:
         return self.検索診断(問合せ, 上限)[0]
