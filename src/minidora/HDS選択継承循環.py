@@ -32,6 +32,7 @@ HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v9"
 基準結果主体名 = "HDS選択:基準結果"
 現行結果成果名 = "HDS選択:現行結果"
 評価参照署名成果名 = "HDS選択:評価参照署名"
+初回評価参照成果名 = "HDS選択:初回評価参照"
 非退行判定成果名 = "HDS選択:非退行判定"
 影結果成果名 = "HDS選択:影結果"
 回答成果名 = "HDS選択:回答ラベル"
@@ -451,6 +452,8 @@ class HDS選択継承供給:
                 (現行結果成果名, result),
                 (評価参照署名成果名, current_sig),
             ]
+            if initial:
+                outputs.append((初回評価参照成果名, refs_now))
 
             quality = self._品質残差(s, refs_now) if _承認済み(result) else frozenset()
             if quality:
@@ -796,6 +799,7 @@ __all__ = [
     "基準結果主体名",
     "現行結果成果名",
     "評価参照署名成果名",
+    "初回評価参照成果名",
     "非退行判定成果名",
     "影結果成果名",
     "回答成果名",
