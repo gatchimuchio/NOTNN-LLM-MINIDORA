@@ -13,12 +13,11 @@ class HDS目的観測:
     閉包済み: bool
 
     @property
-    def 直接尺度(self) -> tuple[int, int, int, int]:
+    def 直接尺度(self) -> tuple[int, int, int]:
         return (
             0 if self.閉包済み else 1,
             len(self.未達状態) + len(self.未達認識),
             len(self.残差),
-            0,
         )
 
     @property
@@ -63,7 +62,7 @@ def 目的進展を判定(
     *,
     前観測: HDS目的観測,
     後観測: HDS目的観測,
-    最良直接尺度: tuple[int, int, int, int],
+    最良直接尺度: tuple[int, int, int],
     計画長: int = 0,
     計画仕様=None,
     状態差=None,
