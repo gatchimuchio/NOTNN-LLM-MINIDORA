@@ -55,6 +55,29 @@ class HDS目的保持試験(unittest.TestCase):
         self.assertEqual(結果.計装.目的進展数, 4)
         self.assertTrue(all(x.目的進展 for x in 結果.履歴))
 
+    def test_目的と無関係な再評価解消は進展にしない(self):
+        from minidora.統合駆動_v2.目的保持 import 目的を観測, 目的進展を判定
+        from minidora.統合駆動_v2.状態更新 import 有効認識
+
+        前 = HDS実行状態(
+            目的=("問いへ回答する",),
+            要求状態=frozenset({"回答完了"}),
+            再評価待ち=frozenset({"成果:雑音"}),
+        )
+        後 = HDS実行状態(
+            目的=("問いへ回答する",),
+            要求状態=frozenset({"回答完了"}),
+        )
+        前観測 = 目的を観測(前, 有効認識)
+        後観測 = 目的を観測(後, 有効認識, 契約署名=前観測.契約署名)
+        進展, _ = 目的進展を判定(
+            前観測=前観測,
+            後観測=後観測,
+            最良直接尺度=前観測.直接尺度,
+            計画最良残数={},
+        )
+        self.assertFalse(進展)
+
     def test_目的正本を書き換える作用は契約違反になる(self):
         作用 = HDS関数作用(
             "目的改変",

@@ -10,7 +10,6 @@ class HDS目的観測:
     未達状態: frozenset[str]
     未達認識: frozenset[str]
     残差: frozenset[str]
-    再評価待ち: frozenset[str]
     閉包済み: bool
 
     @property
@@ -19,12 +18,12 @@ class HDS目的観測:
             0 if self.閉包済み else 1,
             len(self.未達状態) + len(self.未達認識),
             len(self.残差),
-            len(self.再評価待ち),
+            0,
         )
 
     @property
     def 未充足署名(self) -> str:
-        return 署名((self.未達状態, self.未達認識, self.残差, self.再評価待ち))
+        return 署名((self.未達状態, self.未達認識, self.残差))
 
 
 def 目的契約署名(状態) -> str:
@@ -47,7 +46,6 @@ def 目的を観測(状態, 認識有効判定, *, 契約署名: str | None = No
         frozenset(状態.要求状態 - 状態.成立状態),
         未達認識,
         frozenset(状態.残差),
-        frozenset(状態.再評価待ち),
         bool(状態.閉包済み),
     )
 
