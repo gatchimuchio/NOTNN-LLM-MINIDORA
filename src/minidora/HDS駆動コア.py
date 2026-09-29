@@ -10,7 +10,7 @@ from .統合駆動_v2.仮説 import HDS仮説, HDS仮説雛型, HDS作業枝
 from .統合駆動_v2.依存 import HDS依存辺
 from .統合駆動_v2.記憶 import HDS記憶
 from .統合駆動_v2.検証 import HDS検証器, HDS草案
-from .統合駆動_v2.形成 import HDS形成関係
+from .統合駆動_v2.形成 import HDS形成関係, 形成隔離を審査
 from .統合駆動_v2.適応記憶 import HDS適応記憶
 from .統合駆動_v2.状態更新 import 有効認識
 from .統合駆動_v2.入力境界 import HDS異種表象, HDS異種入力作用
@@ -86,6 +86,26 @@ class HDS駆動コア:
         self._継続認識 = ()
         self._継続参照記憶 = ()
         self._適応記憶.初期化()
+
+    def 形成関係を審査(
+        self,
+        形成ID: str,
+        処置: str,
+        理由: str,
+        承認主体: str,
+        反例参照: Sequence[str] = (),
+    ) -> HDS形成関係:
+        """同一Core内の隔離形成だけを、明示審査で復帰または棄却する。"""
+        if not isinstance(形成ID, str) or not 形成ID.strip():
+            raise ValueError("形成IDは空でない文字列が必要")
+        形成辞書 = {x.ID: x for x in self._継続形成関係}
+        対象 = 形成辞書.get(形成ID)
+        if 対象 is None:
+            raise KeyError("審査対象の形成関係が存在しない: " + 形成ID)
+        更新 = 形成隔離を審査(対象, 処置, 理由, 承認主体, tuple(反例参照))
+        形成辞書[形成ID] = 更新
+        self._継続形成関係 = tuple(形成辞書[k] for k in sorted(形成辞書))
+        return 更新
 
     def 実行(self, 問合せ: str, *, 目的: Sequence[str] = (), 要求状態: Sequence[str] = (),
            追加作用: Sequence[HDS作用器] = (), 追加作用供給器: Sequence[HDS作用供給器] = (),

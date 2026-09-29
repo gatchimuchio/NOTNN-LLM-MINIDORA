@@ -7,7 +7,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import replace
 from .値 import 署名
-from .形成 import HDS経験, 経験から形成, 再実行で検証
+from .形成 import HDS経験, HDS形成採用状態, 経験から形成, 再実行で検証
 from .状態更新 import 状態更新, 閉包可能, 有効認識
 from .政策 import HDS阻害, 停止理由
 
@@ -47,7 +47,10 @@ class 自動経験形成作用:
         if e is None:
             return None
         formed = 経験から形成(e)
-        if any(x.ID == formed.ID and e.根拠署名 in x.由来 for x in 状態.形成関係):
+        existing = next((x for x in 状態.形成関係 if x.ID == formed.ID), None)
+        if existing is not None and existing.採用状態 == HDS形成採用状態.棄却 and existing.作用契約 == formed.作用契約:
+            return None
+        if existing is not None and e.根拠署名 in existing.由来:
             return None
         pure = all(self.作用[k].計画仕様.純粋 for k in e.作用列)
         cost = 1 + (sum(self.作用[k].計画仕様.資源負荷 for k in e.作用列) + len(self.検証) if pure else 0)
@@ -61,8 +64,23 @@ class 自動経験形成作用:
         形成関係 = 経験から形成(e)
         old = next((x for x in 状態.形成関係 if x.ID == 形成関係.ID), None)
         if old:
-            形成関係 = replace(形成関係, 由来=tuple(sorted(set(old.由来) | set(形成関係.由来))),
-                               反例=old.反例, 版=old.版 + 1)
+            由来 = tuple(sorted(set(old.由来) | set(形成関係.由来)))
+            if old.作用契約 == 形成関係.作用契約:
+                形成関係 = replace(
+                    形成関係,
+                    由来=由来,
+                    反例=old.反例,
+                    検証契約=old.検証契約,
+                    版=old.版 + 1,
+                    未解決反例=old.未解決反例,
+                    除外反例=old.除外反例,
+                    採用状態=old.採用状態,
+                    復帰検証契約=old.復帰検証契約,
+                    審査履歴=old.審査履歴,
+                )
+            else:
+                # 作用契約版が変わった場合は同一手順名でも新しい形成系譜として再検証する。
+                形成関係 = replace(形成関係, 由来=由来, 版=old.版 + 1)
         pure = all(self.作用[k].計画仕様.純粋 for k in e.作用列)
         notes = ["実履歴から条件付き手順を形成"]
         if pure:

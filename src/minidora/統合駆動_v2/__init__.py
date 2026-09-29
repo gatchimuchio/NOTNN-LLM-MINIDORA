@@ -6,7 +6,7 @@ from .観測 import HDS観測要求, HDS観測値, HDS観測器, 必要観測を
 from .仮説 import HDS予測, HDS仮説, HDS仮説雛型, HDS作業枝, 枝を合流, 識別対数
 from .計画 import HDS作用仕様, HDS構成計画, 作用列を構成
 from .検証 import HDS草案, HDS検証器, HDS検証票, HDS先行検証結果, 先行草案を検証
-from .形成 import HDS経験, HDS形成関係, 経験から形成, 再実行で検証, 実行結果から経験, 形成手順を再利用
+from .形成 import HDS経験, HDS形成関係, HDS形成採用状態, 経験から形成, 再実行で検証, 形成隔離を審査, 実行結果から経験, 形成手順を再利用
 from .政策 import HDS運用政策, 停止理由, HDS阻害, HDS作用失敗, HDS計装
 from .入力境界 import HDS異種表象, HDS異種入力作用
 

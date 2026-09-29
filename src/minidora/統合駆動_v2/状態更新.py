@@ -127,9 +127,9 @@ def 状態更新(前, 結果):
     直接差=認識差分(前.認識,新.認識); 変更資料=_変更鍵(前.記憶.正本辞書(),新.記憶.正本辞書()); 変更成果=_変更鍵(dict(前.成果),dict(新.成果))
     起点={"認識:"+x.ID for x in 直接差}|{"資料:"+k for k in 変更資料}|{"成果:"+k for k in 変更成果}|{"状態:"+k for k in 前.成立状態^新.成立状態}
     起点|={"主体:"+k for k in _変更鍵(dict(前.主体状態),dict(新.主体状態))}|{"枝:"+k for k in _変更鍵({x.ID:x for x in 前.枝},{x.ID:x for x in 新.枝})}
-    起点|={"草案:"+k for k in _変更鍵({x.ID:x.内容署名 for x in 前.草案},{x.ID:x.内容署名 for x in 新.草案})}|{"仮説:"+k for k in _変更鍵({x.ID:x for x in 前.仮説},{x.ID:x for x in 新.仮説})}
+    起点|={"草案:"+k for k in _変更鍵({x.ID:x.内容署名 for x in 前.草案},{x.ID:x.内容署名 for x in 新.草案})}|{"仮説:"+k for k in _変更鍵({x.ID:x for x in 前.仮説},{x.ID:x for x in 新.仮説})}|{"形成:"+k for k in _変更鍵({x.ID:x for x in 前.形成関係},{x.ID:x for x in 新.形成関係})}
     前辺,後辺=set(全依存(前)),set(全依存(新)); 変更辺=前辺^後辺; 辺=tuple(sorted(前辺|後辺)); 影響=set(下流集合(起点,辺))|{e.後続 for e in 変更辺}
-    再検証候補=({"認識:"+x.ID for x in 結果.認識更新}|{"成果:"+k for k,_ in 結果.成果}|{"状態:"+k for k in 結果.追加状態}|{"仮説:"+x.ID for x in 結果.仮説更新}|{"草案:"+x.ID for x in 結果.草案更新}|{"枝:"+x.ID for x in 結果.枝更新})
+    再検証候補=({"認識:"+x.ID for x in 結果.認識更新}|{"成果:"+k for k,_ in 結果.成果}|{"状態:"+k for k in 結果.追加状態}|{"仮説:"+x.ID for x in 結果.仮説更新}|{"草案:"+x.ID for x in 結果.草案更新}|{"枝:"+x.ID for x in 結果.枝更新}|{"形成:"+x.ID for x in 結果.形成更新})
     再評価=set(前.再評価待ち); 失効=set(); 親={}
     for e in 後辺: 親.setdefault(e.後続,set()).add(e.前提)
     認識=新.認識辞書(); 仮説={x.ID:x for x in 新.仮説}; 草案={x.ID:x for x in 新.草案}; 形成={x.ID:x for x in 新.形成関係}; 枝={x.ID:x for x in 新.枝}; 成立=set(新.成立状態); 成果=dict(新.成果); 新直接認識={x.ID:x for x in 結果.認識更新}
@@ -155,7 +155,7 @@ def 状態更新(前, 結果):
         elif 種=="状態" and ID in 成立: 存在=True; 成立.discard(ID)
         elif 種=="草案" and ID in 草案: 存在=True; 草案[ID]=replace(草案[ID],区分="失効")
         elif 種=="枝" and ID in 枝: 存在=True; 枝[ID]=replace(枝[ID],認識=tuple(x.失効させる() if x.区分!=認識区分.失効 else x for x in 枝[ID].認識))
-        elif 種=="形成" and ID in 形成: 存在=True; 形成[ID]=replace(形成[ID],検証契約="",版=形成[ID].版+1)
+        elif 種=="形成" and ID in 形成: 存在=True; 形成[ID]=形成[ID].再評価へ戻す()
         if 存在 or n in 再評価:
             再評価.add(n)
             if n not in 前.再評価待ち: 失効.add(n)

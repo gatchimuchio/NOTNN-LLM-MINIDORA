@@ -348,6 +348,7 @@ def 通常循環(主体, 初期状態, 前回=None):
             return 終了(HDS終端.保留, 停止理由.予算枯渇, ("HDS_INTERNAL_CONSTRUCTION_BUDGET_EXHAUSTED",))
 
         計画 = None
+        形成由来 = None
         可用ID = {o.作用ID for o in 選択可能}
         残探索 = 政策.最大探索状態 - 統計["探索状態数"]
         if 関連仕様 and 残探索 > 0:
@@ -370,9 +371,11 @@ def 通常循環(主体, 初期状態, 前回=None):
                 if 計画 is not None and any(x.制約違反 for x in 未来列を構成(現在.成立状態, 現在.残差, 計画.作用列, tuple(計画用), 主体.未来制約)):
                     計画 = None
                 if 計画 is not None:
+                    形成由来 = 関係
                     統計["形成再利用数"] += 1
                     break
             if 計画 is None:
+                形成由来 = None
                 計画 = 作用列を構成(現在.成立状態, 現在.残差, 現在.要求状態 | 修復状態,
                                   tuple(計画用), 最大深さ=政策.探索深さ, 最大状態数=残探索,
                                   最大資源=政策.最大資源 - 統計["消費資源"], 制約群=主体.未来制約)
@@ -437,6 +440,15 @@ def 通常循環(主体, 初期状態, 前回=None):
                                阻害=阻害, 診断=診断)
         try:
             planned = 計画.作用列 if 計画 is not None and 計画.成立 and 選択.作用ID == 計画.作用列[0] else ()
+            if 形成由来 is not None and planned and 結果.状態 != HDS作用状態.成立:
+                反例署名 = 署名((
+                    "形成手順実行反例-v1", 形成由来.ID, 形成由来.版,
+                    選択.作用ID, 選択.意味入力署名, 選択.契約版,
+                    結果.状態, 結果.理由, 結果.阻害,
+                ))
+                隔離形成 = 形成由来.反例追加(反例署名)
+                形成更新 = tuple(x for x in 結果.形成更新 if x.ID != 隔離形成.ID) + (隔離形成,)
+                結果 = replace(結果, 形成更新=形成更新)
             specs = tuple(getattr(a, "計画仕様") for a in 利用作用群 if isinstance(getattr(a, "計画仕様", None), HDS作用仕様))
             未来 = 未来列を構成(現在.成立状態, 現在.残差, planned, specs, 主体.未来制約) if planned else ()
             記録する(選択, 結果, planned, 未来)
