@@ -105,7 +105,7 @@ class HDS形成隔離復帰試験(unittest.TestCase):
         self.assertFalse(更新.使用可能)
         self.assertTrue(更新.未解決反例)
 
-    def test_Core明示審査APIは継続形成だけを更新する(self):
+    def test_中核明示審査APIは継続形成だけを更新する(self):
         e = self.経験()
         r = 再実行で検証(経験から形成(e), replace(e, ID="e2", 根拠署名="支持2"), "再現/v1")
         r = r.反例追加("反例1")
