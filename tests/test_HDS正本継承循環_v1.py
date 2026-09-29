@@ -96,8 +96,8 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.問い = "Which molecule inhibits Enzyme X?"
         self.選択肢 = ("Molecule A", "Molecule B")
 
-    def test_版はv6(self):
-        self.assertEqual(HDS駆動コア版, "MINIDORA-HDS-FIRST-v6")
+    def test_版はv7(self):
+        self.assertEqual(HDS駆動コア版, "MINIDORA-HDS-FIRST-v7")
         self.assertEqual(HDS継承基準版, "HDS-MINIDORA-63d5d7e7")
 
     def test_一般非退行入口は基準承認済みなら拡張を起動しない(self):

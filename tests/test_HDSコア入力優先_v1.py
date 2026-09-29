@@ -192,6 +192,8 @@ class HDSコア入力優先試験(unittest.TestCase):
         self.assertEqual(結果.終端, HDS終端.採用)
         self.assertIn("HDS目的:目的:任意:比較", 結果.状態.目的)
         self.assertFalse(any("文字列化しない" in x for x in 結果.状態.目的))
+        self.assertEqual(結果.状態.主体辞書()["HDS目的正本"], tuple(結果.状態.成果辞書()["HDSコア入力"].目的))
+        self.assertEqual(結果.状態.主体辞書()["HDS目的正本"][0].内容, ("文字列化しない", 1))
 
     def test_コア入力からC7用の経験効果を捏造しない(self):
         入力束 = self.構文化器.コア入力コンパイル("A causes B")

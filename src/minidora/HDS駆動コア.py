@@ -19,7 +19,7 @@ from .HDS構文化処理系列_v1_4 import HDSカーネル束, HDS意味専用�
 from .HDS非退行包絡 import HDS非退行判定, HDS非退行包絡
 from .参照 import 参照取得診断, 参照記録, 参照記録群を統合, 参照経験記憶を統合, 固定参照供給器
 
-HDS駆動コア版 = "MINIDORA-HDS-FIRST-v6"
+HDS駆動コア版 = "MINIDORA-HDS-FIRST-v7"
 HDS継承基準版 = "HDS-MINIDORA-63d5d7e7"
 
 class HDS駆動コア:
@@ -176,10 +176,12 @@ class HDS駆動コア:
             成立初期値.add("HDSカーネル形成済み")
 
         if コア入力 is not None:
-            if "HDSコア入力" in 成果初期値 or "HDSコア入力署名" in 主体初期値:
-                raise ValueError("HDSコア入力の予約初期キーは呼出側から上書きできない")
+            if "HDSコア入力" in 成果初期値 or "HDSコア入力署名" in 主体初期値 or "HDS目的正本" in 主体初期値:
+                raise ValueError("HDSコア入力・目的正本の予約初期キーは呼出側から上書きできない")
             成果初期値["HDSコア入力"] = コア入力
             主体初期値["HDSコア入力署名"] = コア入力.意味署名
+            # Compilerが抽出した目的の内容・対象参照をID文字列へ縮退させず、Core寿命中の目的正本として保持する。
+            主体初期値["HDS目的正本"] = tuple(コア入力.目的)
             成立初期値.add("HDSコア入力済み")
             残差群.update(f"HDS残差:{項目.種別}:{項目.理由}" for 項目 in コア入力.残差)
             目的初期値.extend(f"HDS目的:{項目.ID}:{項目.種別}" for 項目 in コア入力.目的)

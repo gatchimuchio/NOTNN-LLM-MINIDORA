@@ -17,6 +17,7 @@ from .自動記憶 import 原資料を圧縮
 from .未来 import HDS未来制約, HDS未来状態, 未来列を構成
 from .診断 import HDS失敗診断
 from .適応記憶 import HDS適応記憶
+from .目的保持 import HDS目的観測, 目的契約署名, 目的を観測, 計画効果を実測, 目的進展を判定
 from .一時適応 import HDS一時適応キャッシュ
 
 __all__ = [k for k in globals() if not k.startswith("_") and k not in ("annotations",)]

@@ -24,7 +24,7 @@ from .統合駆動_v2.診断 import HDS失敗診断
 from .統合駆動_v2.適応記憶 import HDS適応記憶
 from .コア.効果 import 期待効果
 
-HDS実行主体版 = "HDS実行主体-v3"
+HDS実行主体版 = "HDS実行主体-v4"
 
 
 # 旧Adapterの非公開importとの互換名。意味署名の方式はv2へ一括移行する。
@@ -345,6 +345,7 @@ class HDS作用記録:
 
     未来状態: tuple[HDS未来状態, ...] = ()
     診断: HDS失敗診断 | None = None
+    目的進展: bool = False
 
 
 @dataclass(frozen=True, slots=True)

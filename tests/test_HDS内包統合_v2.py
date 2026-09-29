@@ -365,6 +365,8 @@ class 記憶政策試験(unittest.TestCase):
         r=HDS実行主体(acts,最大作用回数=4,政策=HDS運用政策(初期作用予算=1,予算増分=1)).実行(HDS実行状態(要求状態=F({"3"})))
         self.assertEqual(r.終端,HDS終端.採用)
         self.assertEqual(r.計装.予算拡張数,3)
+        self.assertEqual(r.計装.目的進展数,4)
+        self.assertTrue(all(x.目的進展 for x in r.履歴))
 
 
 class 計画回復検証試験(unittest.TestCase):
