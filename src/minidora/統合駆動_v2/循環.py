@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import replace, asdict
 from copy import deepcopy
 from .値 import 署名
+from ..駆動系.取得 import 作用供給を取得, 作用機会を取得
+from ..駆動系.変換 import 作用を変換
+from ..駆動系.射影 import 作用結果を射影
 from .政策 import HDS計装, HDS阻害, HDS作用失敗, 停止理由
 from .認識 import 認識区分
 from .観測 import 必要観測を構成
@@ -101,24 +104,7 @@ def 通常循環(主体, 初期状態, 前回=None):
         目的進展 = False
         try:
             前目的 = 目的を観測(前, 有効認識, 契約署名=目的契約)
-            証明 = dict(結果.検証依存)
-            for k in 読取:
-                現署名 = 前.ノード署名(k)
-                if k in 証明 and 証明[k] != 現署名:
-                    raise ValueError("作用結果の読取証明が現在入力と不一致")
-                証明[k] = 現署名
-            辺 = set(結果.依存追加)
-            if 結果.状態 == HDS作用状態.成立:
-                # 同一作用内でread-modify-writeしたノードは、旧版の読取値を
-                # 同時産出物の親へ自動依存として残さない。残すと作用自身の
-                # 更新直後に出力状態が旧入力依存として失効し、後続再評価より
-                # 同じ作用の再実行が先行する。読取証明は前状態署名として保持し、
-                # 後続作用は更新後ノード署名から依存を形成する。
-                原子的更新ノード = 読取 & 産出
-                自動依存元 = 読取 - 原子的更新ノード
-                辺 |= {HDS依存辺(a, b) for a in 自動依存元 for b in 産出 if a != b}
-            結果 = replace(結果, 依存追加=tuple(sorted(辺)), 検証依存=tuple(sorted(証明.items())))
-            現在, 差 = 状態差を受理(前, 結果)
+            現在, 差, 結果 = 作用結果を射影(前, 結果, 読取, 産出)
             後目的 = 目的を観測(現在, 有効認識, 契約署名=目的契約)
             目的進展, 最良直接尺度 = 目的進展を判定(
                 前観測=前目的, 後観測=後目的, 最良直接尺度=最良直接尺度,
@@ -178,27 +164,9 @@ def 通常循環(主体, 初期状態, 前回=None):
                     raise TypeError("停止要求はboolを返す必要がある")
                 if 停止:
                     return 終了(HDS終端.保留, 停止理由.明示停止, ("HDS_USER_CANCELLED",))
-            供給 = []
-            for 供給器 in 主体.作用供給器:
-                写し = deepcopy(現在)
-                前署名 = 写し.状態署名
-                候補 = 供給器.構成(写し)
-                if 写し.状態署名 != 前署名:
-                    raise ValueError("作用供給器が状態を変更した")
-                if type(候補) is not tuple:
-                    raise TypeError("作用供給器の返却はtupleが必要")
-                if len(供給) + len(候補) > 政策.最大内部生成:
-                    return 終了(HDS終端.保留, 停止理由.予算枯渇, ("HDS_SUPPLY_CAPACITY_EXHAUSTED",))
-                for a in 候補:
-                    if (not isinstance(getattr(a, "作用ID", None), str) or not a.作用ID.strip()
-                            or a.作用ID.startswith("内的/")
-                            or not callable(getattr(a, "機会", None))
-                            or not callable(getattr(a, "実行", None))):
-                        raise ValueError("供給作用の契約不正")
-                供給.extend(候補)
-            利用作用群 = (*主体.作用群, *供給)
-            if len({a.作用ID for a in 利用作用群}) != len(利用作用群):
-                raise ValueError("供給作用IDの重複")
+            利用作用群 = 作用供給を取得(主体, 現在, 政策)
+            if 利用作用群 is None:
+                return 終了(HDS終端.保留, 停止理由.予算枯渇, ("HDS_SUPPLY_CAPACITY_EXHAUSTED",))
         except Exception as exc:
             return 契約失敗("作用供給・停止境界", exc)
         if any(c.違反(現在.成立状態) for c in 主体.未来制約):
@@ -294,15 +262,9 @@ def 通常循環(主体, 初期状態, 前回=None):
                 if a.作用ID in ID別:
                     raise ValueError("動的生成作用IDの重複: " + a.作用ID)
                 ID別[a.作用ID] = a
-                写し = deepcopy(現在)
-                写し署名 = 写し.状態署名
-                o = a.機会(写し)
-                if 写し.状態署名 != 写し署名:
-                    raise ValueError("機会観測が主体状態を書換えた")
+                o = 作用機会を取得(a, 現在)
                 if o is None:
                     continue
-                if not isinstance(o, HDS作用機会) or o.作用ID != a.作用ID:
-                    raise ValueError("作用機会の型/ID契約違反")
                 spec = getattr(a, "計画仕様", None)
                 権限 = tuple(sorted(set(o.必要権限) | (set(spec.必要権限) if isinstance(spec, HDS作用仕様) else set())))
                 過去阻害 = 失敗入力.get(a.作用ID)
@@ -439,23 +401,7 @@ def 通常循環(主体, 初期状態, 前回=None):
 
         if 失敗入力 and (選択.作用ID not in 失敗入力 or 選択.入力状態 or 選択.読取認識):
             統計["修復選択数"] += 1
-        前 = deepcopy(現在)
-        前署名 = 前.状態署名
-        try:
-            結果 = ID別[選択.作用ID].実行(前)
-            if 前.状態署名 != 前署名:
-                raise ValueError("作用器が受け取った主体状態を直接変更した")
-            if not isinstance(結果, HDS作用結果):
-                raise TypeError("作用結果契約違反")
-        except HDS作用失敗 as exc:
-            結果 = HDS作用結果(HDS作用状態.保留 if exc.阻害.修復可能 else HDS作用状態.失敗,
-                               理由=(exc.阻害.詳細,), 阻害=exc.阻害,
-                               停止要求=not exc.阻害.修復可能)
-        except Exception as exc:
-            診断, 阻害 = 例外を診断(exc, ID別[選択.作用ID], 選択, 現在)
-            結果 = HDS作用結果(HDS作用状態.保留 if 阻害.修復可能 else HDS作用状態.失敗,
-                               理由=(診断.観測記述,), 停止要求=not 阻害.修復可能,
-                               阻害=阻害, 診断=診断)
+        結果 = 作用を変換(ID別[選択.作用ID], 選択, 現在)
         try:
             planned = 計画.作用列 if 計画 is not None and 計画.成立 and 選択.作用ID == 計画.作用列[0] else ()
             if 形成由来 is not None and planned and 結果.状態 != HDS作用状態.成立:

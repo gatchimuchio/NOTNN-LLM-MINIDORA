@@ -60,18 +60,6 @@ def 内容計画を検査(計画: 内容計画, *, 許可根拠: set[str] | froz
 
 
 def 内容計画を表現(計画: 内容計画, *, 詳細=False, 最大文字数=100000) -> str:
-    if type(詳細) is not bool or type(最大文字数) is not int or not 1 <= 最大文字数 <= 100000:
-        raise ValueError("内容表現条件不正")
-    if not 内容計画を検査(計画):
-        raise ValueError("内容計画不整合")
-    parts = []
-    for unit in 計画.単位:
-        parts.append(unit.本文)
-        parts.extend(unit.条件)
-    parts.extend(計画.留保)
-    if 詳細:
-        parts.append("根拠・由来：\n" + "\n".join(計画.由来 or ("外部由来なし。",)))
-    text = "\n".join(parts)
-    if len(text) > 最大文字数:
-        raise ValueError("必須内容を切断せず保留する")
-    return text
+    """互換入口。内容計画の表現実体は出力系が所有する。"""
+    from ..出力系.互換 import 既存内容計画を表現
+    return 既存内容計画を表現(計画, 詳細=詳細, 最大文字数=最大文字数)

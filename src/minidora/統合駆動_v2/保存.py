@@ -11,8 +11,9 @@ def _型表():
     # 親packageがクラスを同名exportする構成でも、モジュールを明示的に取得する。
     import importlib
     核 = importlib.import_module("minidora.HDS実行主体")
+    from ..駆動系 import 契約 as 関係契約, 学習 as 関係学習
     表 = {}
-    for モジュール in (認識, 依存, 記憶, 観測, 仮説, 計画, 検証, 形成, 政策, 入力境界, 意味構成, 未来, 診断, 核):
+    for モジュール in (認識, 依存, 記憶, 観測, 仮説, 計画, 検証, 形成, 政策, 入力境界, 意味構成, 未来, 診断, 核, 関係契約, 関係学習):
         for obj in vars(モジュール).values():
             if isinstance(obj, type) and obj.__module__ == モジュール.__name__ and (is_dataclass(obj) or issubclass(obj, Enum)):
                 # Callableを持つ実行部品は保存しない。再開時に現行契約を明示注入する。
@@ -25,9 +26,12 @@ def _型表():
 def 保存する(値, *, 最大バイト: int = 8_000_000) -> str:
     整数(最大バイト, "最大保存バイト", 1, 100_000_000)
     表 = _型表()
+    関係形式 = [False]
     def enc(x, 深さ=0):
         if 深さ > 96:
             raise ValueError("保存深さ上限")
+        if type(x).__module__.startswith("minidora.駆動系."):
+            関係形式[0] = True
         if isinstance(x, Enum):
             key = type(x).__module__ + "." + type(x).__qualname__
             if key not in 表:
@@ -55,7 +59,9 @@ def 保存する(値, *, 最大バイト: int = 8_000_000) -> str:
                 raise TypeError("未登録成果型は保存できない: "+key)
             return {"type":key,"fields":{f.name:enc(getattr(x,f.name),深さ+1) for f in fields(x)}}
         raise TypeError("保存できない外部型: "+type(x).__qualname__)
-    payload=json.dumps({"format":"MINIDORA-HDS-STATE-v3","内容":enc(値)},ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False)
+    内容 = enc(値)
+    形式 = "MINIDORA-RELATION-DRIVE-v1" if 関係形式[0] else "MINIDORA-HDS-STATE-v3"
+    payload=json.dumps({"format":形式,"内容":内容},ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False)
     if len(payload.encode('utf-8'))>最大バイト:
         raise ValueError("保存容量上限")
     return payload
@@ -72,7 +78,7 @@ def 復元する(文字列: str, *, 最大バイト: int = 8_000_000):
             d[k]=v
         return d
     root=json.loads(文字列,object_pairs_hook=unique,parse_constant=lambda _:(_ for _ in ()).throw(ValueError("非有限数")))
-    if not isinstance(root,dict) or set(root)!={"format","内容"} or root['format']!='MINIDORA-HDS-STATE-v3':
+    if not isinstance(root,dict) or set(root)!={"format","内容"} or root['format'] not in ('MINIDORA-HDS-STATE-v3','MINIDORA-RELATION-DRIVE-v1'):
         raise ValueError("保存形式不一致")
     表=_型表()
     def dec(x,深さ=0):
@@ -84,6 +90,8 @@ def 復元する(文字列: str, *, 最大バイト: int = 8_000_000):
             if not isinstance(t,type) or not issubclass(t,Enum):raise ValueError("未登録enum")
             return t(dec(x['value'],深さ+1))
         if set(x)=={'type','fields'}:
+            if root['format']=='MINIDORA-HDS-STATE-v3' and str(x['type']).startswith('minidora.駆動系.'):
+                raise ValueError('関係状態の旧形式偽装')
             t=表.get(x['type'])
             if t is None or not is_dataclass(t):raise ValueError("未登録構造型")
             if not isinstance(x['fields'],dict) or set(x['fields'])!={f.name for f in fields(t)}:raise ValueError("構造フィールド不一致")

@@ -373,20 +373,6 @@ class 自然言語器:
         return int(value) if value.is_integer() else value
 
     def 表面化(self, 値: Any, 状態: str, 理由: tuple[str, ...]) -> str:
-        if 状態 == "保留":
-            if "未解消矛盾" in 理由:
-                return "判断を保留します。未解消の矛盾があります。"
-            return "分かりません。確認できる根拠がありません。"
-        if 状態 == "失敗":
-            return "処理できません。"
-        if 値 is None:
-            return "分かりません。"
-        if isinstance(値, bool):
-            return "はい。" if 値 else "いいえ。"
-        if isinstance(値, float) and 値.is_integer():
-            値 = int(値)
-        if isinstance(値, (int, float)):
-            return f"{値}です。"
-        if isinstance(値, str):
-            return 値 if 値.endswith(("。", "！", "？", "!", "?")) else f"{値}。"
-        return f"{値}。"
+        """互換入口。意味解析はここに残し、表現実体だけを出力系へ渡す。"""
+        from .出力系.互換 import 既存日本語値を表現
+        return 既存日本語値を表現(値, 状態, 理由)
