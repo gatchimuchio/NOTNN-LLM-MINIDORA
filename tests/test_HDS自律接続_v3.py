@@ -73,6 +73,8 @@ class 仮説生成試験(unittest.TestCase):
 
     def test_通常循環が座標仮説枝を自動生成する(self):
         s,rules=rules_fixture()
+        _hs, rs, _qs = 関係から仮説を構成(s,rules)
+        s=replace(s,要求認識=frozenset(x.ID for x in rs))
         r=HDS実行主体((),関係規則=rules,最大作用回数=25).実行(s)
         self.assertEqual(r.終端,HDS終端.保留,r.理由)
         self.assertEqual(len(r.状態.仮説),2)

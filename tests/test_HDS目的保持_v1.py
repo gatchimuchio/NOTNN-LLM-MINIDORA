@@ -27,12 +27,12 @@ class HDS目的保持試験(unittest.TestCase):
         ).実行(HDS実行状態(目的=("問いへ回答する",), 要求状態=frozenset({"回答完了"})))
 
         self.assertEqual(結果.終端, HDS終端.保留)
-        self.assertEqual(結果.停止種別, 停止理由.無進展)
-        self.assertEqual(結果.計装.作用実行数, 1)
+        self.assertEqual(結果.停止種別, 停止理由.作用不足)
+        self.assertEqual(結果.計装.作用実行数, 0)
         self.assertEqual(結果.計装.予算拡張数, 0)
         self.assertEqual(結果.計装.目的進展数, 0)
-        self.assertEqual(結果.計装.目的無進展数, 1)
-        self.assertFalse(結果.履歴[0].目的進展)
+        self.assertEqual(結果.計装.目的無進展数, 0)
+        self.assertEqual(結果.履歴, ())
 
     def test_目的から逆算した中間工程は軟予算を延長する(self):
         作用群 = tuple(
@@ -96,6 +96,40 @@ class HDS目的保持試験(unittest.TestCase):
         self.assertEqual(結果.終端, HDS終端.失敗)
         self.assertEqual(結果.停止種別, 停止理由.契約違反)
         self.assertEqual(結果.状態.主体辞書()["HDS目的正本"], ("元目的",))
+
+
+class HDS目的経路拘束試験(unittest.TestCase):
+    def test_目的経路外の学習作用は一度も起動しない(self):
+        呼出 = []
+        def 学習だけする(状態):
+            呼出.append(1)
+            回数 = int(状態.主体辞書().get("学習反復", 0))
+            return HDS作用結果(HDS作用状態.成立, 主体状態差分=(("学習反復", 回数 + 1),))
+        作用 = HDS関数作用("学習だけ", 学習だけする, 入力署名=lambda 状態: str(状態.主体辞書().get("学習反復", 0)), 優先度=100)
+        結果 = HDS実行主体((作用,), 最大作用回数=8, 政策=HDS運用政策(初期作用予算=8, 予算増分=1)).実行(
+            HDS実行状態(目的=("問いへ回答する",), 要求状態=frozenset({"回答完了"})))
+        self.assertEqual(呼出, [])
+        self.assertEqual(結果.計装.作用実行数, 0)
+        self.assertEqual(結果.終端, HDS終端.保留)
+        self.assertEqual(結果.停止種別, 停止理由.作用不足)
+
+    def test_明示した目的依存の前処理は通す(self):
+        呼出 = []
+        def 準備(状態):
+            呼出.append("準備")
+            return HDS作用結果(HDS作用状態.成立, 主体状態差分=(("準備済み", True),))
+        def 解消(状態):
+            呼出.append("解消")
+            return HDS作用結果(HDS作用状態.成立, 解消残差=frozenset({"不足"}))
+        前処理 = HDS関数作用("前処理", 準備, 機会判定=lambda 状態: not bool(状態.主体辞書().get("準備済み", False)), 目的依存=("残差:不足",))
+        解消作用 = HDS関数作用("不足解消", 解消, 解消対象=("不足",), 機会判定=lambda 状態: bool(状態.主体辞書().get("準備済み", False)))
+        結果 = HDS実行主体((前処理, 解消作用), 最大作用回数=4).実行(HDS実行状態(目的=("不足を閉じる",), 残差=frozenset({"不足"})))
+        self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
+        self.assertEqual(呼出, ["準備", "解消"])
+
+    def test_目的依存は修飾名を要求する(self):
+        with self.assertRaisesRegex(ValueError, "作用目的依存"):
+            HDS関数作用("不正", lambda _s: HDS作用結果(HDS作用状態.成立), 目的依存=("不足",))
 
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@ from .能力状態差循環 import 標準能力模型核
 from .計算実行器 import 計算実行器
 from .コア.値 import 署名 as _意味署名
 
-HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v9"
+HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v10"
 
 参照成果名 = "HDS選択:参照"
 参照世代成果名 = "HDS選択:参照世代"
@@ -386,7 +386,7 @@ class HDS選択継承供給:
                 outputs.append((関係観測消費成果名, new_consumed))
 
             clearable = set(s.残差).intersection({
-                残差_未評価, 残差_観測不足, 残差_候補証拠未閉包, 残差_候補証拠矛盾,
+                残差_観測不足, 残差_候補証拠未閉包, 残差_候補証拠矛盾,
                 残差_観測無進展, 残差_参照取得障害,
             })
             add = set()
@@ -412,7 +412,7 @@ class HDS選択継承供給:
             "HDS継承/候補関係観測",
             実行,
             解消対象=tuple(sorted({
-                残差_未評価, 残差_観測不足, 残差_候補証拠未閉包,
+                残差_観測不足, 残差_候補証拠未閉包,
                 残差_候補証拠矛盾, 残差_観測無進展, 残差_参照取得障害,
             })),
             資源負荷=4,
@@ -781,15 +781,12 @@ class HDS選択継承供給:
         )
 
     def 構成(self, 状態: HDS実行状態):
-        関係観測 = self._関係観測作用(状態)
-        if 関係観測 is not None:
-            return (関係観測,)
+        # 供給器は候補を隠して順序を決めない。現在目的への寄与判定と選択は通常循環へ委ねる。
         evaluation = self._評価作用(状態)
-        if evaluation is not None:
-            return (evaluation,)
         compute = self._計算作用(状態)
+        関係観測 = self._関係観測作用(状態)
         参照作用 = self._参照作用(状態)
-        return tuple(x for x in (compute, 参照作用) if x is not None)
+        return tuple(x for x in (evaluation, compute, 関係観測, 参照作用) if x is not None)
 
 
 __all__ = [

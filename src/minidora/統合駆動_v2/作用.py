@@ -106,8 +106,9 @@ class 仮説形成作用:
         if not 候補 or all(現在.get(x.ID) == x for x in 候補):
             return None
         任意 = tuple(sorted({p.観測ID for x in 候補 for p in x.予測} - set(self.雛型.必要認識)))
+        目的依存 = tuple(sorted("認識:" + k for k in 任意))
         return HDS作用機会(self.作用ID, 署名((self.雛型, tuple((k, 状態.ノード署名("認識:" + k)) for k in (*self.雛型.必要認識, *任意)))),
-                            読取認識=self.雛型.必要認識, 未確定読取=任意, 種別="仮説形成")
+                            読取認識=self.雛型.必要認識, 未確定読取=任意, 種別="仮説形成", 目的依存=目的依存)
 
     def 実行(self, 状態):
         from ..HDS実行主体 import HDS作用結果, HDS作用状態
@@ -127,8 +128,9 @@ class 仮説再照合作用:
         if not 更新:
             return None
         ID群 = tuple(sorted({k for x in 更新 for k in (*x.依存, *(p.観測ID for p in x.予測))}))
+        目的依存 = tuple(sorted("認識:" + k for k in ID群))
         return HDS作用機会(self.作用ID, 署名((tuple((k, 状態.ノード署名("認識:" + k)) for k in ID群), 更新)),
-                            未確定読取=ID群, 種別="大域再照合", 優先度=1.0)
+                            未確定読取=ID群, 種別="大域再照合", 優先度=1.0, 目的依存=目的依存)
 
     def 実行(self, 状態):
         from ..HDS実行主体 import HDS作用結果, HDS作用状態
@@ -144,7 +146,8 @@ class 枝合流作用:
         現在 = 状態.認識辞書()
         if not 候補 or all(x.ID in 現在 and 現在[x.ID].意味署名 == x.意味署名 for x in 候補):
             return None
-        return HDS作用機会(self.作用ID, 署名(状態.枝), 種別="枝合流")
+        目的依存 = tuple(sorted("認識:" + x.ID for x in 候補))
+        return HDS作用機会(self.作用ID, 署名(状態.枝), 種別="枝合流", 目的依存=目的依存)
 
     def 実行(self, 状態):
         from ..HDS実行主体 import HDS作用結果, HDS作用状態

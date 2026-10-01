@@ -9,12 +9,12 @@ from minidora.HDS駆動コア import HDS駆動コア
 from minidora.統合駆動_v2.政策 import HDS運用政策
 
 
-def 成立作用(名前="回答", 必要=(), 出力=("完了",), 呼出=None):
+def 成立作用(名前="回答", 必要=(), 出力=("完了",), 呼出=None, 目的依存=()):
     def 実行(状態):
         if 呼出 is not None:
             呼出.append(名前)
         return HDS作用結果(HDS作用状態.成立, 追加状態=frozenset(出力))
-    return HDS関数作用(名前, 実行, 入力状態=必要, 出力状態=出力)
+    return HDS関数作用(名前, 実行, 入力状態=必要, 出力状態=出力, 目的依存=目的依存)
 
 
 class 動的供給試験(unittest.TestCase):
@@ -27,7 +27,7 @@ class 動的供給試験(unittest.TestCase):
 
     def test_現状態から必要な作用が出現する(self):
         呼出 = []
-        前 = 成立作用("前", 出力=("前完了",), 呼出=呼出)
+        前 = 成立作用("前", 出力=("前完了",), 呼出=呼出, 目的依存=("状態:完了",))
         def 供給(状態):
             return (成立作用("後", 必要=("前完了",), 呼出=呼出),) if "前完了" in 状態.成立状態 else (前,)
         結果 = self.主体(供給).実行(self.初期())
@@ -57,7 +57,7 @@ class 動的供給試験(unittest.TestCase):
 
     def test_同入力での無進展作用を繰り返さない(self):
         呼出 = []
-        作用 = HDS関数作用("無進展", lambda 状態: 呼出.append(1) or HDS作用結果(HDS作用状態.保留))
+        作用 = HDS関数作用("無進展", lambda 状態: 呼出.append(1) or HDS作用結果(HDS作用状態.保留), 目的依存=("状態:完了",))
         結果 = self.主体(lambda 状態: (作用,)).実行(self.初期())
         self.assertEqual(結果.終端, HDS終端.保留)
         self.assertEqual(len(呼出), 1)

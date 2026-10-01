@@ -206,7 +206,8 @@ class 不足意味構成作用:
         existing = {x.ID: x for x in 状態.観測要求}
         if not new and all(existing.get(x.ID) == x for x in requests):
             return None
-        return HDS作用機会(self.作用ID, 署名((new, requests)), 優先度=3, 種別="意味構成")
+        目的依存 = tuple(sorted({"残差:" + r for q in requests for r in q.解消残差}))
+        return HDS作用機会(self.作用ID, 署名((new, requests)), 優先度=3, 種別="意味構成", 目的依存=目的依存)
 
     def 実行(self, 状態):
         from ..HDS実行主体 import HDS作用結果, HDS作用状態
@@ -229,7 +230,8 @@ class 関係仮説構成作用:
         old = {x.ID: x for x in 状態.仮説}
         if not rs and all(old.get(x.ID) == x for x in hs):
             return None
-        return HDS作用機会(self.作用ID, 署名((self.規則群, hs, rs, qs)), 優先度=2, 種別="仮説形成")
+        目的依存 = tuple(sorted({"認識:" + q.ID for q in qs}))
+        return HDS作用機会(self.作用ID, 署名((self.規則群, hs, rs, qs)), 優先度=2, 種別="仮説形成", 目的依存=目的依存)
 
     def 実行(self, 状態):
         from ..HDS実行主体 import HDS作用結果, HDS作用状態
@@ -252,7 +254,8 @@ class 自動分岐作用:
         existing = {x.ID: x for x in 状態.枝}
         if all(existing.get(x.ID) == x for x in rows):
             return None
-        return HDS作用機会(self.作用ID, 署名(rows), 種別="枝生成")
+        目的依存 = tuple(sorted({"認識:" + x.ID for row in rows for x in row.認識}))
+        return HDS作用機会(self.作用ID, 署名(rows), 種別="枝生成", 目的依存=目的依存)
 
     def 実行(self, 状態):
         from ..HDS実行主体 import HDS作用結果, HDS作用状態

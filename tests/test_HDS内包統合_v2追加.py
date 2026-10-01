@@ -45,7 +45,7 @@ class 接続追加試験(unittest.TestCase):
         self.assertEqual(t,s); self.assertEqual(t.状態署名,s.状態署名)
 
     def test_保存復元後も同一作用を反復しない(self):
-        calls=[]; a=HDS関数作用('無進展',lambda s:calls.append(1) or HDS作用結果(HDS作用状態.保留))
+        calls=[]; a=HDS関数作用('無進展',lambda s:calls.append(1) or HDS作用結果(HDS作用状態.保留),目的依存=('状態:完了',))
         実行主体=HDS実行主体((a,)); r=実行主体.実行(基礎状態()); t=実行主体.再開(復元する(保存する(r)))
         self.assertEqual(calls,[1]); self.assertEqual(len(r.履歴),len(t.履歴))
 

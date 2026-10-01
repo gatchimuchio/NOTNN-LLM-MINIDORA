@@ -49,6 +49,55 @@ def 目的を観測(状態, 認識有効判定, *, 契約署名: str | None = No
     )
 
 
+def 目的未充足ノード(状態, 認識有効判定, *, 必要認識=(), 修復状態=(), 修復認識=()):
+    """現在目的から逆算した未充足ノードを修飾名で返す。
+
+    目的に関係しない再評価待ち・学習状態・主体内部状態は根にしない。
+    """
+    nodes = {"状態:" + str(x) for x in 状態.要求状態 if x not in 状態.成立状態}
+    nodes.update("残差:" + str(x) for x in 状態.残差)
+    required = set(状態.要求認識) | set(必要認識) | set(修復認識)
+    nodes.update("認識:" + str(x) for x in required if not 認識有効判定(状態, x))
+    nodes.update("状態:" + str(x) for x in 修復状態 if x not in 状態.成立状態)
+    return frozenset(nodes)
+
+
+def 作用が目的経路に属する(
+    状態, 機会, *, 認識有効判定, 関連作用ID=(), 必要認識=(), 修復状態=(), 修復認識=(), 計画仕様=None,
+):
+    """作用を「実行可能」ではなく「現在目的へ接続する」ことでゲートする。
+
+    学習済み期待効果は目的関連性の根拠にしない。静的契約、明示された前処理依存、
+    実際の未充足認識への識別だけを採用する。
+    """
+    nodes = 目的未充足ノード(状態, 認識有効判定, 必要認識=必要認識, 修復状態=修復状態, 修復認識=修復認識)
+    if not nodes:
+        return False
+    if 機会.作用ID in set(関連作用ID):
+        return True
+
+    unmet_states = {x[3:] for x in nodes if x.startswith("状態:")}
+    residuals = {x[3:] for x in nodes if x.startswith("残差:")}
+    recognitions = {x[3:] for x in nodes if x.startswith("認識:")}
+
+    if 計画仕様 is not None:
+        if set(計画仕様.追加状態) & unmet_states:
+            return True
+        if set(計画仕様.解消残差) & residuals:
+            return True
+    else:
+        if set(機会.出力状態) & unmet_states:
+            return True
+        if set(機会.解消対象) & residuals:
+            return True
+
+    if set(機会.識別対象) & recognitions:
+        return True
+    if set(getattr(機会, "目的依存", ())) & nodes:
+        return True
+    return False
+
+
 def 計画効果を実測(状態差, 計画仕様) -> bool:
     if 計画仕様 is None:
         return False
@@ -84,4 +133,4 @@ def 目的進展を判定(
     return 直接進展 or 計画進展, 新最良
 
 
-__all__ = ["HDS目的観測", "目的契約署名", "目的を観測", "計画効果を実測", "目的進展を判定"]
+__all__ = ["HDS目的観測", "目的契約署名", "目的を観測", "目的未充足ノード", "作用が目的経路に属する", "計画効果を実測", "目的進展を判定"]

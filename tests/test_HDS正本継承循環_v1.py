@@ -198,7 +198,7 @@ class HDS正本継承循環試験(unittest.TestCase):
         履歴 = [x.作用ID for x in 結果.履歴]
         self.assertIn("HDS継承/候補関係観測", 履歴)
         self.assertIn("HDS継承/模型再評価", 履歴)
-        self.assertLess(履歴.index("HDS継承/候補関係観測"), 履歴.index("HDS継承/模型再評価"))
+        self.assertLess(履歴.index("HDS継承/模型再評価"), 履歴.index("HDS継承/候補関係観測"))
 
     @patch("minidora.HDS選択継承循環.HDS既存能力直接反証評価")
     def test_後続観測の2独立proofだけ承認基準を更新(self, 反証評価):
@@ -256,7 +256,7 @@ class HDS正本継承循環試験(unittest.TestCase):
         履歴 = [x.作用ID for x in 結果.履歴]
         self.assertIn("HDS継承/候補関係観測", 履歴)
         self.assertIn("HDS継承/模型再評価", 履歴)
-        self.assertLess(履歴.index("HDS継承/候補関係観測"), 履歴.index("HDS継承/模型再評価"))
+        self.assertLess(履歴.index("HDS継承/模型再評価"), 履歴.index("HDS継承/候補関係観測"))
 
     def test_後続観測で閉包しても証明なし拡張は影結果に留める(self):
         provider = 第二層完全参照()

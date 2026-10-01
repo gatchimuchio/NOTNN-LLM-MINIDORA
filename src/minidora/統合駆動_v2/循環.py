@@ -18,7 +18,7 @@ from .自動記憶 import 自動記憶圧縮作用
 from .自動形成 import 自動経験形成作用, 自動形成文脈
 from .未来 import 未来列を構成
 from .診断 import 例外を診断
-from .目的保持 import 目的契約署名, 目的を観測, 目的進展を判定
+from .目的保持 import 目的契約署名, 目的を観測, 目的進展を判定, 作用が目的経路に属する
 from ..コア.状態操作 import 状態差を受理
 from ..コア.検証管理 import 検証器群を実行
 from .作用 import 観測作用, 仮説形成作用, 仮説再照合作用, 枝合流作用, 草案検証作用
@@ -27,7 +27,7 @@ from .作用 import 観測作用, 仮説形成作用, 仮説再照合作用, 枝
 def _関連仕様(状態, 作用群, 追加要求=frozenset()):
     仕様 = [getattr(a, "計画仕様", None) for a in 作用群]
     仕様 = [s for s in 仕様 if isinstance(s, HDS作用仕様)]
-    必要状態 = set(状態.要求状態) | set(追加要求)
+    必要状態 = set(状態.未達状態) | set(追加要求)
     必要残差 = set(状態.残差)
     関連, 増加 = {}, True
     while 増加:
@@ -173,44 +173,45 @@ def 通常循環(主体, 初期状態, 前回=None):
             阻害履歴.append(HDS阻害(停止理由.契約違反, "状態制約", "現在状態が明示不変条件に違反"))
             return 終了(HDS終端.失敗, 停止理由.契約違反, ("HDS_STATE_INVARIANT_VIOLATION",))
         if 現在.閉包済み:
+            # 目的成立後はまず検証を閉じる。学習・圧縮を再び通常循環の目的へ昇格させない。
+            if 主体.最終検証器 and 現在.状態署名 not in 最終検証済:
+                if len(履歴) >= 主体.最大作用回数 or 統計["消費資源"] + 1 > 政策.最大資源:
+                    return 終了(HDS終端.保留, 停止理由.予算枯渇, ("HDS_FINAL_VALIDATION_BUDGET_EXHAUSTED",))
+                前署名 = 現在.状態署名
+                機会 = HDS作用機会("内的/目的検証", 署名((前署名, tuple((v.ID, v.版) for v in 主体.最終検証器))), 種別="目的検証")
+                if (機会.作用ID, 機会.作用入力署名) in 使用済み:
+                    return 終了(HDS終端.保留, 停止理由.検証不成立, ("HDS_FINAL_VALIDATION_REPEATED",))
+                try:
+                    検証失敗 = list(検証器群を実行(現在, 主体.最終検証器, None))
+                except Exception as exc:
+                    記録する(機会, HDS作用結果(HDS作用状態.失敗, 停止要求=True,
+                        理由=(f"{type(exc).__name__}: {exc}",),
+                        阻害=HDS阻害(停止理由.契約違反, 機会.作用ID, str(exc) or type(exc).__name__)))
+                    return 契約失敗("内的/目的検証", exc)
+                結果 = HDS作用結果(HDS作用状態.成立,
+                                   追加残差=frozenset("検証:" + k for k in 検証失敗),
+                                   理由=("目的契約検証",),
+                                   阻害=HDS阻害(停止理由.検証不成立, "内的/目的検証", ",".join(検証失敗), True) if 検証失敗 else None)
+                記録する(機会, 結果)
+                if 検証失敗:
+                    continue
+                最終検証済.add(現在.状態署名)
+
+            # 閉包後処理は各1回だけ。実行しても通常作用選択へ戻らず、そのまま採用する。
             圧縮機会 = 圧縮作用.機会(現在)
             if 圧縮機会 is not None and (圧縮機会.作用ID, 圧縮機会.作用入力署名) not in 使用済み:
                 if len(履歴) < 主体.最大作用回数 and 統計["消費資源"] + 圧縮機会.資源負荷 <= 政策.最大資源:
                     記録する(圧縮機会, 圧縮作用.実行(deepcopy(現在)))
-                    continue
-            if not 主体.最終検証器 or 現在.状態署名 in 最終検証済:
-                if 政策.自動形成 and not 形成試行済 and 前回 is None:
-                    形成試行済 = True
-                    形成 = 自動経験形成作用(初期状態, tuple(履歴), 利用作用群, 主体.最終検証器)
-                    機会 = 形成.機会(現在)
-                    if 機会 is not None and len(履歴) < 主体.最大作用回数 and 統計["消費資源"] + 機会.資源負荷 <= 政策.最大資源:
-                        記録する(機会, 形成.実行(deepcopy(現在)))
-                        統計["自動形成数"] += 1
-                        統計["再現作用数"] += 形成.再現回数
-                        統計["形成再検証数"] += int(形成.再現成功)
-                        continue
-                return 終了(HDS終端.採用, 停止理由.目的達成, ("HDS_GOAL_CLOSED",))
-            if len(履歴) >= 主体.最大作用回数 or 統計["消費資源"] + 1 > 政策.最大資源:
-                return 終了(HDS終端.保留, 停止理由.予算枯渇, ("HDS_FINAL_VALIDATION_BUDGET_EXHAUSTED",))
-            前署名 = 現在.状態署名
-            機会 = HDS作用機会("内的/目的検証", 署名((前署名, tuple((v.ID, v.版) for v in 主体.最終検証器))), 種別="目的検証")
-            if (機会.作用ID, 機会.作用入力署名) in 使用済み:
-                return 終了(HDS終端.保留, 停止理由.検証不成立, ("HDS_FINAL_VALIDATION_REPEATED",))
-            try:
-                検証失敗 = list(検証器群を実行(現在, 主体.最終検証器, None))
-            except Exception as exc:
-                記録する(機会, HDS作用結果(HDS作用状態.失敗, 停止要求=True,
-                    理由=(f"{type(exc).__name__}: {exc}",),
-                    阻害=HDS阻害(停止理由.契約違反, 機会.作用ID, str(exc) or type(exc).__name__)))
-                return 契約失敗("内的/目的検証", exc)
-            結果 = HDS作用結果(HDS作用状態.成立,
-                               追加残差=frozenset("検証:" + k for k in 検証失敗),
-                               理由=("目的契約検証",),
-                               阻害=HDS阻害(停止理由.検証不成立, "内的/目的検証", ",".join(検証失敗), True) if 検証失敗 else None)
-            記録する(機会, 結果)
-            if not 検証失敗:
-                最終検証済.add(現在.状態署名)
-            continue
+            if 政策.自動形成 and not 形成試行済 and 前回 is None:
+                形成試行済 = True
+                形成 = 自動経験形成作用(初期状態, tuple(履歴), 利用作用群, 主体.最終検証器)
+                機会 = 形成.機会(現在)
+                if 機会 is not None and len(履歴) < 主体.最大作用回数 and 統計["消費資源"] + 機会.資源負荷 <= 政策.最大資源:
+                    記録する(機会, 形成.実行(deepcopy(現在)))
+                    統計["自動形成数"] += 1
+                    統計["再現作用数"] += 形成.再現回数
+                    統計["形成再検証数"] += int(形成.再現成功)
+            return 終了(HDS終端.採用, 停止理由.目的達成, ("HDS_GOAL_CLOSED",))
 
         if len(履歴) >= 主体.最大作用回数 or 統計["消費資源"] >= 政策.最大資源:
             return 終了(HDS終端.保留, 停止理由.予算枯渇, ("HDS_ACTION_BUDGET_EXHAUSTED",))
@@ -223,6 +224,7 @@ def 通常循環(主体, 初期状態, 前回=None):
 
         修復状態 = frozenset(k for b in 失敗入力.values() if b.修復可能 for k in b.必要状態)
         関連仕様 = _関連仕様(現在, 利用作用群, 修復状態)
+        関連作用ID = frozenset(s.作用ID for s in 関連仕様)
         必要認識 = 現在.要求認識 | frozenset(k for s in 関連仕様 for k in s.読取認識)
         必要認識 |= frozenset(k for b in 失敗入力.values() if b.修復可能 for k in b.必要認識)
         待ち = list(必要認識)
@@ -240,15 +242,15 @@ def 通常循環(主体, 初期状態, 前回=None):
             return 終了(HDS終端.保留, 停止理由.予算枯渇, ("HDS_OBSERVATION_CAPACITY_EXHAUSTED",))
         内的 = [観測作用(r, p, 政策.参照再利用回数) for r in 観測待ち for p in 主体.観測器 if p.手段 in r.手段]
         内的.append(不足意味構成作用())
-        if 主体.関係規則:
-            内的.append(関係仮説構成作用(主体.関係規則, 政策.最大内部生成))
-        内的.append(自動分岐作用())
-        内的.append(圧縮作用)
-        内的.extend(仮説形成作用(t) for t in 主体.仮説雛型)
-        内的.append(枝合流作用())
+        if 必要認識:
+            if 主体.関係規則:
+                内的.append(関係仮説構成作用(主体.関係規則, 政策.最大内部生成))
+            内的.append(自動分岐作用())
+            内的.extend(仮説形成作用(t) for t in 主体.仮説雛型)
+            内的.append(枝合流作用())
         内的.extend(草案検証作用(d.ID, 主体.検証器) for d in 現在.草案 if d.区分 in ("未検証", "失効"))
         差による再照合 = bool(履歴 and (履歴[-1].状態差.認識差 or 履歴[-1].状態差.変更依存))
-        if len(履歴) % 政策.大域間隔 == 0 or 差による再照合 or any(x.区分 == 認識区分.競合 for x in 現在.認識):
+        if 必要認識 and (len(履歴) % 政策.大域間隔 == 0 or 差による再照合 or any(x.区分 == 認識区分.競合 for x in 現在.認識 if x.ID in 必要認識)):
             内的.append(仮説再照合作用())
         全作用 = tuple(利用作用群) + tuple(内的)
         ID別 = {}
@@ -304,6 +306,11 @@ def 通常循環(主体, 初期状態, 前回=None):
                     制約除外.append((o, 制約))
                     continue
                 if not o.状態変更可能 or (o.作用ID, o.作用入力署名) in 使用済み:
+                    continue
+                if not 作用が目的経路に属する(
+                    現在, o, 認識有効判定=有効認識, 関連作用ID=関連作用ID, 必要認識=必要認識,
+                    修復状態=修復状態, 計画仕様=spec if isinstance(spec, HDS作用仕様) else None,
+                ):
                     continue
                 if not o.入力状態 <= 現在.成立状態 or any(not 有効認識(現在, k) for k in o.読取認識) or any(not ノード有効(現在, "成果:" + k) for k in o.読取成果):
                     依存除外 = True

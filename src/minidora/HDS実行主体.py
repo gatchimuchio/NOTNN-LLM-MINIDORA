@@ -211,6 +211,8 @@ class HDS作用機会:
     作用定義ID: str = ""
     意味入力署名: str = ""
     期待: 期待効果 = 期待効果()
+    # 現在目的の未充足ノードへの前処理依存。直接効果の偽装には使わない。
+    目的依存: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.作用ID, str) or not self.作用ID.strip():
@@ -240,6 +242,9 @@ class HDS作用機会:
         文字(self.意味入力署名, "意味入力署名")
         if not isinstance(self.期待, 期待効果):
             raise TypeError("期待効果型が不正")
+        文字列組(self.目的依存, "作用目的依存")
+        if any(not x.startswith(("状態:", "残差:", "認識:")) for x in self.目的依存):
+            raise ValueError("作用目的依存は状態:/残差:/認識:で修飾する")
 
     @property
     def 計画出力状態(self) -> frozenset[str]:
@@ -449,6 +454,7 @@ class HDS関数作用:
         純粋作用: bool = False,
         作用定義ID: str | None = None,
         意味入力署名: Callable[[HDS実行状態], str] | None = None,
+        目的依存: Sequence[str] = (),
     ) -> None:
         文字(作用ID, "作用ID")
         整数(資源負荷, "作用資源負荷")
@@ -470,6 +476,10 @@ class HDS関数作用:
         self._読取成果 = tuple(読取成果)
         self._必要権限 = tuple(必要権限)
         self._契約版 = 契約版
+        self._目的依存 = tuple(str(x) for x in 目的依存)
+        文字列組(self._目的依存, "作用目的依存")
+        if any(not x.startswith(("状態:", "残差:", "認識:")) for x in self._目的依存):
+            raise ValueError("作用目的依存は状態:/残差:/認識:で修飾する")
         if 作用定義ID is None:
             # 現行運用の能力作用は計画/工程が呼出住所で、末尾能力名が定義名。
             # それ以外は従来どおり作用IDを定義IDとして扱う。
@@ -534,6 +544,7 @@ class HDS関数作用:
             契約版=self._契約版,
             作用定義ID=self.作用定義ID,
             意味入力署名=str(意味署名),
+            目的依存=self._目的依存,
         )
 
     def 実行(self, 状態: HDS実行状態) -> HDS作用結果:

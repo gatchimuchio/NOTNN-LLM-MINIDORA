@@ -280,7 +280,7 @@ class 工程供給:
                             (next_key + "/回復根拠", 正準(asdict(policy)))),
                             理由=("目的と資料を保持した局所再計画", policy.動作))
             return HDS関数作用("運用/回復/" + plan_key, replan, 入力状態=("運用:計画構成済",),
-                    解消対象=("運用:成果未構成",), 読取成果=(plan_key, failure_key, "運用入力"),
+                    読取成果=(plan_key, failure_key, "運用入力"), 目的依存=("残差:運用:成果未構成",),
                     優先度=5, 契約版=運用版, 作用定義ID="運用/回復")
         return None
 

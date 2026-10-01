@@ -54,7 +54,7 @@ def 比較する(原本:Path):
         add(f'残差解消{n}',shortage)
     add('既に閉包',lambda m:m.HDS実行主体(()).実行(m.HDS実行状態(要求状態=frozenset({'済'}),成立状態=frozenset({'済'}))))
     add('未達で作用なし',lambda m:m.HDS実行主体(()).実行(m.HDS実行状態(要求状態=frozenset({'未達'}))))
-    add('一度実行後に無進展停止',lambda m:m.HDS実行主体((m.HDS関数作用('無進展',lambda s:m.HDS作用結果(m.HDS作用状態.保留)),)).実行(m.HDS実行状態(要求状態=frozenset({'未達'}))))
+    add('一度実行後に無進展停止',lambda m:m.HDS実行主体((m.HDS関数作用('無進展',lambda s:m.HDS作用結果(m.HDS作用状態.保留),目的依存=('状態:未達',)),)).実行(m.HDS実行状態(要求状態=frozenset({'未達'}))))
     for 状態 in ('保留','失敗'):
         add('明示停止'+状態,lambda m,状態=状態:m.HDS実行主体((m.HDS関数作用('停止',lambda s:m.HDS作用結果(getattr(m.HDS作用状態,状態),停止要求=True,理由=('明示試験',))),)).実行(m.HDS実行状態(要求状態=frozenset({'未達'}))))
     def 主体(m):

@@ -29,6 +29,7 @@ class HDS適応記憶試験(unittest.TestCase):
                 )
             ),
             機会判定=lambda 状態: "観測不足" in 状態.残差,
+            解消対象=("観測不足",),
         )
         利用 = HDS関数作用(
             "資料利用",
@@ -70,6 +71,7 @@ class HDS適応記憶試験(unittest.TestCase):
                 or HDS作用結果(HDS作用状態.成立, 追加状態=frozenset({"資料あり"}))
             ),
             機会判定=lambda 状態: "資料あり" not in 状態.成立状態,
+            出力状態=("資料あり",),
         )
         ノイズ = HDS関数作用(
             "高優先度ノイズ",
