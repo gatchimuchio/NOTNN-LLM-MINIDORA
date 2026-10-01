@@ -205,7 +205,7 @@ def 実行結果から経験(ID, 初期状態, 結果, 文脈署名, 仕様群):
                   "" if 成功 else 署名(結果.阻害履歴), tuple(sorted((k, 契約[k]) for k in set(列))))
 
 
-def 形成手順を再利用(関係, 成立状態, 残差, 要求状態, 仕様群, 文脈署名, 最大資源):
+def 形成手順を再利用(関係, 成立状態, 残差, 要求状態, 仕様群, 文脈署名, 最大資源, *, 可用ノード=frozenset()):
     """保存手順を現在の契約で再展開する。成果や成立状態を直接返さない。"""
     from .計画 import HDS構成計画
     if not 関係.使用可能 or not 関係.作用契約 or 関係.文脈署名 != 文脈署名 or 関係.要求状態 != 要求状態 or not 関係.前提状態 <= 成立状態:
@@ -215,15 +215,18 @@ def 形成手順を再利用(関係, 成立状態, 残差, 要求状態, 仕様�
     if any(k not in 束 or k not in 契約 or 束[k].版 != 契約[k] for k in 関係.作用列):
         return None
     s, r, 列, 費用 = 成立状態, 残差, [], 0
+    nodes = frozenset(x for x in 可用ノード if not x.startswith(("状態:", "残差:")))
     for k in 関係.作用列:
         a = 束[k]
-        if not a.入力状態 <= s:
+        available = nodes | {"状態:" + x for x in s}
+        if any((x[3:] in r) if x.startswith("残差:") else (x not in available) for x in a.入力ノード集合):
             return None
+        nn = frozenset(x for x in nodes | a.出力ノード集合 if not x.startswith(("状態:", "残差:")))
         ns, nr = (s - a.削除状態) | a.追加状態, (r - a.解消残差) | a.追加残差
-        if (ns, nr) != (s, r):
+        if (ns, nr, nn) != (s, r, nodes):
             列.append(k)
             費用 += a.資源負荷
-        s, r = ns, nr
+        s, r, nodes = ns, nr, nn
     if 列 and 要求状態 <= s and not r and 費用 <= 最大資源:
         return HDS構成計画(tuple(列), 0, False, 費用)
     return None

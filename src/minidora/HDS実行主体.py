@@ -17,12 +17,13 @@ from .統合駆動_v2.観測 import HDS観測要求, HDS観測器
 from .統合駆動_v2.検証 import HDS草案, HDS検証器, HDS検証票
 from .統合駆動_v2.形成 import HDS形成関係
 from .統合駆動_v2.政策 import HDS運用政策, HDS阻害, HDS計装, 停止理由
-from .統合駆動_v2.計画 import HDS作用仕様
+from .統合駆動_v2.計画 import HDS作用仕様, HDS目的経路, HDS探索契約, ノードを検査
 from .統合駆動_v2.意味構成 import HDS関係規則
 from .統合駆動_v2.未来 import HDS未来制約, HDS未来状態
 from .統合駆動_v2.診断 import HDS失敗診断
 from .統合駆動_v2.適応記憶 import HDS適応記憶
 from .コア.効果 import 期待効果
+from .コア.指示関係 import HDS指示関係
 
 HDS実行主体版 = "HDS実行主体-v4"
 
@@ -86,8 +87,18 @@ class HDS実行状態:
     再評価待ち: frozenset[str] = frozenset()
     認識履歴: tuple[HDS認識項目, ...] = ()
     検証票: tuple[HDS検証票, ...] = ()
+    指示関係: HDS指示関係 | None = None
 
     def __post_init__(self) -> None:
+        入力指示 = dict(self.主体状態).get("HDS指示関係")
+        if 入力指示 is not None:
+            if not isinstance(入力指示, HDS指示関係):
+                raise TypeError("入力準備の指示関係型が不正")
+            if self.指示関係 is not None and self.指示関係 != 入力指示:
+                raise ValueError("入力準備と実行状態の指示関係が競合")
+            object.__setattr__(self, "指示関係", 入力指示)
+        if self.指示関係 is not None and not isinstance(self.指示関係, HDS指示関係):
+            raise TypeError("指示関係型が必要")
         if type(self.版) is not int or self.版 < 0:
             raise ValueError("HDS実行状態の版は0以上の整数である必要がある")
         if not isinstance(self.目的, tuple) or any(not isinstance(項目, str) or not 項目.strip() for 項目 in self.目的):
@@ -151,6 +162,7 @@ class HDS実行状態:
             self.草案,
             self.形成関係,
             self.再評価待ち,
+            self.指示関係,
         ))
 
     def 成果辞書(self) -> dict[str, object]:
@@ -213,6 +225,8 @@ class HDS作用機会:
     期待: 期待効果 = 期待効果()
     # 現在目的の未充足ノードへの前処理依存。直接効果の偽装には使わない。
     目的依存: tuple[str, ...] = ()
+    読取ノード: tuple[str, ...] = ()
+    生成ノード: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.作用ID, str) or not self.作用ID.strip():
@@ -243,8 +257,15 @@ class HDS作用機会:
         if not isinstance(self.期待, 期待効果):
             raise TypeError("期待効果型が不正")
         文字列組(self.目的依存, "作用目的依存")
-        if any(not x.startswith(("状態:", "残差:", "認識:")) for x in self.目的依存):
-            raise ValueError("作用目的依存は状態:/残差:/認識:で修飾する")
+        for 名 in ("読取ノード", "生成ノード"):
+            文字列組(getattr(self, 名), 名)
+        for x in self.目的依存:
+            try:
+                ノードを検査(x)
+            except ValueError as exc:
+                raise ValueError("作用目的依存: " + str(exc)) from exc
+        for x in (*self.読取ノード, *self.生成ノード):
+            ノードを検査(x)
 
     @property
     def 計画出力状態(self) -> frozenset[str]:
@@ -351,6 +372,17 @@ class HDS作用記録:
     未来状態: tuple[HDS未来状態, ...] = ()
     診断: HDS失敗診断 | None = None
     目的進展: bool = False
+    目的契約: str = ""
+    目的依存: tuple[str, ...] = ()
+    必要ノード: tuple[str, ...] = ()
+    進展根拠: tuple[str, ...] = ()
+    探索契約ID: str = ""
+    探索契約署名: str = ""
+    指示前観測: object | None = None
+    指示後観測: object | None = None
+    対応座標: tuple[str, ...] = ()
+    作用対応: object | None = None
+    対応契約版: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -374,6 +406,10 @@ class HDS実行結果:
     観測待ち: tuple[HDS観測要求, ...] = ()
     阻害履歴: tuple[HDS阻害, ...] = ()
     入力履歴: tuple[HDS入力更新記録, ...] = ()
+    目的経路: HDS目的経路 | None = None
+    指示帰還: object | None = None
+    指示除外: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    指示開始署名: str = ""
 
 
 class HDS作用器(Protocol):
@@ -455,6 +491,11 @@ class HDS関数作用:
         作用定義ID: str | None = None,
         意味入力署名: Callable[[HDS実行状態], str] | None = None,
         目的依存: Sequence[str] = (),
+        生成成果: Sequence[str] = (),
+        読取ノード: Sequence[str] = (),
+        生成ノード: Sequence[str] = (),
+        契約完全: bool = False,
+        探索: HDS探索契約 | None = None,
     ) -> None:
         文字(作用ID, "作用ID")
         整数(資源負荷, "作用資源負荷")
@@ -478,8 +519,11 @@ class HDS関数作用:
         self._契約版 = 契約版
         self._目的依存 = tuple(str(x) for x in 目的依存)
         文字列組(self._目的依存, "作用目的依存")
-        if any(not x.startswith(("状態:", "残差:", "認識:")) for x in self._目的依存):
-            raise ValueError("作用目的依存は状態:/残差:/認識:で修飾する")
+        for x in self._目的依存:
+            try:
+                ノードを検査(x)
+            except ValueError as exc:
+                raise ValueError("作用目的依存: " + str(exc)) from exc
         if 作用定義ID is None:
             # 現行運用の能力作用は計画/工程が呼出住所で、末尾能力名が定義名。
             # それ以外は従来どおり作用IDを定義IDとして扱う。
@@ -494,9 +538,36 @@ class HDS関数作用:
             作用ID, self._入力状態, self._出力状態, 解消残差=self._解消対象,
             読取認識=self._読取認識, 必要権限=self._必要権限,
             資源負荷=self._資源負荷, 版=契約版, 純粋=純粋作用,
+            読取成果=self._読取成果, 生成成果=tuple(生成成果),
+            読取ノード=tuple(読取ノード), 生成ノード=tuple(生成ノード),
+            目的依存=self._目的依存, 契約完全=契約完全, 探索=探索,
         )
         if self.計画仕様.作用ID != self.作用ID:
             raise ValueError("計画仕様と作用IDが異なる")
+        # 計画側だけに存在する読取条件を、実行側から落とさない。
+        spec = self.計画仕様
+        if 探索 is not None and spec.探索 is not None and 探索 != spec.探索:
+            raise ValueError("計画仕様と作用の探索契約が異なる")
+        self.計画仕様 = replace(spec,
+            探索=探索 or spec.探索,
+            入力状態=spec.入力状態 | self._入力状態,
+            読取認識=tuple(sorted(set(spec.読取認識) | set(self._読取認識))),
+            読取成果=tuple(sorted(set(spec.読取成果) | set(self._読取成果))),
+            生成成果=tuple(sorted(set(spec.生成成果) | set(生成成果))),
+            読取ノード=tuple(sorted(set(spec.読取ノード) | set(読取ノード))),
+            生成ノード=tuple(sorted(set(spec.生成ノード) | set(生成ノード))),
+            目的依存=tuple(sorted(set(spec.目的依存) | set(self._目的依存))),
+            必要権限=tuple(sorted(set(spec.必要権限) | set(self._必要権限))),
+            資源負荷=max(spec.資源負荷, self._資源負荷))
+        self._入力状態 = self.計画仕様.入力状態
+        self._読取認識 = self.計画仕様.読取認識
+        self._読取成果 = self.計画仕様.読取成果
+        self._読取ノード = self.計画仕様.読取ノード
+        self._生成ノード = tuple(sorted(set(self.計画仕様.生成ノード)
+                                  | {"成果:" + x for x in self.計画仕様.生成成果}))
+        self._目的依存 = self.計画仕様.目的依存
+        self._必要権限 = self.計画仕様.必要権限
+        self._資源負荷 = self.計画仕様.資源負荷
 
     @property
     def 目的依存(self) -> tuple[str, ...]:
@@ -508,22 +579,31 @@ class HDS関数作用:
             return str(self._意味入力署名(状態))
         if self._入力署名 is not None:
             return str(self._入力署名(状態))
-        if self._読取認識 or self._読取成果 or self._入力状態:
+        if self._読取認識 or self._読取成果 or self._入力状態 or self._読取ノード:
             from .コア.状態操作 import ノード意味値
+            from .統合駆動_v2.目的保持 import 目的ノード署名
             return _署名((
                 self.作用定義ID, self._契約版,
                 tuple((k, _署名(ノード意味値(状態, "認識:" + k))) for k in self._読取認識),
                 tuple((k, _署名(ノード意味値(状態, "成果:" + k))) for k in self._読取成果),
                 tuple((k, _署名(ノード意味値(状態, "状態:" + k))) for k in sorted(self._入力状態)),
+                tuple((k, 目的ノード署名(状態, k)) for k in self._読取ノード),
             ))
         # 明示入力がない作用を全体状態で過剰分断しない。
         # 状態依存が意味上必要なら読取契約または専用署名関数として宣言する。
         return _署名((self.作用定義ID, self._契約版, "明示意味入力なし"))
 
     def 機会(self, 状態: HDS実行状態) -> HDS作用機会 | None:
-        if self._機会判定 is not None and not bool(self._機会判定(状態)):
+        from .統合駆動_v2.目的保持 import 目的ノード有効, 目的ノード署名
+        準備済 = all(目的ノード有効(状態, x) for x in self.計画仕様.入力ノード集合)
+        # 不足入力を読む任意の判定・署名関数を起動しない。契約上の候補だけを
+        # 返して生産側の逆算を可能にし、実入力の成立後に判定を実行する。
+        if 準備済 and self._機会判定 is not None and not bool(self._機会判定(状態)):
             return None
-        if self._入力署名 is not None:
+        if not 準備済:
+            署名 = _署名((self.作用ID, self._契約版, "入力準備待ち",
+                        tuple((x, 目的ノード署名(状態, x)) for x in sorted(self.計画仕様.入力ノード集合))))
+        elif self._入力署名 is not None:
             署名 = self._入力署名(状態)
         elif self._読取認識 or self._読取成果:
             署名 = _署名((self._契約版, tuple((k, 状態.ノード署名("認識:" + k)) for k in self._読取認識), tuple((k, 状態.ノード署名("成果:" + k)) for k in self._読取成果), tuple((k, 状態.ノード署名("状態:" + k)) for k in sorted(self._入力状態))))
@@ -531,7 +611,7 @@ class HDS関数作用:
             署名 = 状態.状態署名
         # 未成立の上流入力を読む意味署名関数は、候補観測時にはまだ実行しない。
         # 実入力が成立した後、通常循環が再署名してから実行内期待を適用する。
-        意味署名 = self.意味入力を署名(状態) if self._入力状態.issubset(状態.成立状態) else str(署名)
+        意味署名 = self.意味入力を署名(状態) if 準備済 else str(署名)
         return HDS作用機会(
             self.作用ID,
             str(署名),
@@ -549,6 +629,8 @@ class HDS関数作用:
             作用定義ID=self.作用定義ID,
             意味入力署名=str(意味署名),
             目的依存=self._目的依存,
+            読取ノード=self._読取ノード,
+            生成ノード=self._生成ノード,
         )
 
     def 実行(self, 状態: HDS実行状態) -> HDS作用結果:

@@ -220,9 +220,22 @@ class 関係仮説構成作用:
     作用ID = "内的/関係仮説構成"
     def __init__(self, 規則群, 最大件数):
         self.規則群, self.最大件数 = tuple(規則群), 最大件数
+        self._生成署名 = None
+        self._生成結果 = None
+        self.生成実行数 = 0
+        self.生成再利用数 = 0
 
     def _生成(self, 状態):
-        return 関係から仮説を構成(状態, self.規則群, 最大件数=self.最大件数)
+        # 機会取得と実行は同じ作用インスタンスを使う。状態や規則が変われば
+        # 必ず再構成し、同じ入力での二重生成だけを省く。例外は保存しない。
+        入力 = 署名((self.規則群, self.最大件数, 状態.状態署名))
+        if self._生成署名 == 入力:
+            self.生成再利用数 += 1
+            return self._生成結果
+        結果 = 関係から仮説を構成(状態, self.規則群, 最大件数=self.最大件数)
+        self._生成署名, self._生成結果 = 入力, 結果
+        self.生成実行数 += 1
+        return 結果
 
     def 機会(self, 状態):
         from ..HDS実行主体 import HDS作用機会
@@ -230,7 +243,12 @@ class 関係仮説構成作用:
         old = {x.ID: x for x in 状態.仮説}
         if not rs and all(old.get(x.ID) == x for x in hs):
             return None
-        目的依存 = tuple(sorted({"認識:" + x.ID for x in rs} | {"認識:" + q.ID for q in qs}))
+        # 座標が登録済みでも、後続の仮説・予測が使う意味座標との接続は残る。
+        # 新規差分0件を目的との関係0件へ読み替えない。
+        目的依存 = tuple(sorted(
+            {"認識:" + x.ID for x in rs} | {"認識:" + q.ID for q in qs}
+            | {"認識:" + p.観測ID for h in hs for p in h.予測}
+        ))
         return HDS作用機会(self.作用ID, 署名((self.規則群, hs, rs, qs)), 優先度=2, 種別="仮説形成", 目的依存=目的依存)
 
     def 実行(self, 状態):

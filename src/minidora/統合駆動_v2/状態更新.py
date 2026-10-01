@@ -93,7 +93,8 @@ def 閉包可能(状態) -> bool:
         for child in 隣接[n]:
             入次数[child]-=1
             if 入次数[child]==0: 待ち.append(child)
-    return 済 == len(関連)
+    from .指示接続 import 指示閉包可能
+    return 済 == len(関連) and 指示閉包可能(状態)
 
 
 def _更新群(元, 差, 削除=()):
