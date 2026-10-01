@@ -1,0 +1,61 @@
+name: 一時 MINIDORA 目的依存駆動 GPQA実測
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/一時_GPQA_目的依存駆動.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gpqa-purpose-driven-current
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 869ab8d81d86d771613817bf00d15bb75803b299
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: GPQA Diamond 198問 LIVE_ONLY
+        shell: bash
+        run: |
+          start=$(date +%s)
+          env -u GITHUB_SHA python tools/正本評価.py gpqa-e2e --out current_gpqa.json
+          code=$?
+          end=$(date +%s)
+          echo $((end-start)) > runtime_seconds.txt
+          exit $code
+      - name: 結果要約
+        if: always()
+        shell: bash
+        run: |
+          if [ -f current_gpqa.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path("current_gpqa.json").read_text(encoding="utf-8"))
+          print(json.dumps(data.get("指標"), ensure_ascii=False, indent=2))
+          print(json.dumps(data.get("実行内状態遷移"), ensure_ascii=False, indent=2))
+          PY
+          fi
+          if [ -f runtime_seconds.txt ]; then
+            echo "runtime_seconds=$(cat runtime_seconds.txt)"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: purpose-driven-gpqa
+          path: |
+            current_gpqa.json
+            runtime_seconds.txt
+          if-no-files-found: warn
