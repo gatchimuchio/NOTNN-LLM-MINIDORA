@@ -35,15 +35,15 @@ def _関連仕様(状態, 作用群, 追加要求=frozenset()):
               | {"認識:" + x for x in 必要認識})
     関連 = {}
     # 直接効果を持たない境界作用でも、目的依存が明示されていれば逆算の起点にする。
-    for action, spec in 対:
-        if set(getattr(action, "目的依存", ())) & 目的ノード:
+    for 作用, spec in 対:
+        if set(getattr(作用, "目的依存", ())) & 目的ノード:
             関連[spec.作用ID] = spec
             必要状態.update(spec.入力状態)
             必要残差.update(spec.追加残差)
     増加 = True
     while 増加:
         増加 = False
-        for _action, spec in 対:
+        for _作用, spec in 対:
             if spec.作用ID not in 関連 and (spec.追加状態 & 必要状態 or spec.解消残差 & 必要残差):
                 関連[spec.作用ID] = spec
                 必要状態.update(spec.入力状態)
