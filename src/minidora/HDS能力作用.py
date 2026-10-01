@@ -12,6 +12,7 @@ from .HDS実行主体 import (
 )
 from .製品版.能力契約 import 能力モジュール, 能力文脈
 from .採否 import 実行状態
+from .統合駆動_v2.計画 import HDS作用仕様
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +73,15 @@ class HDS能力モジュール作用:
             max(0, int(資源負荷)),
             "能力未成立",
             閾値,
+        )
+        # 能力適合器も汎用目的逆算へ参加できる静的作用契約を持つ。
+        self.計画仕様 = HDS作用仕様(
+            self.作用ID,
+            self.設定.入力状態,
+            self.設定.出力状態,
+            解消残差=self.設定.解消対象,
+            資源負荷=self.設定.資源負荷,
+            版=str(getattr(self.モジュール, "版", "")),
         )
 
     def _文脈(self, 状態: HDS実行状態) -> 能力文脈:

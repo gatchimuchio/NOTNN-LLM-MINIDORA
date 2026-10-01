@@ -92,7 +92,7 @@ class 署名境界試験(unittest.TestCase):
 
 class 基本循環互換試験(unittest.TestCase):
     def test_局所成功と目的閉包を分離(self):
-        r = HDS実行主体((単純作用("局所", 出力=("途中",)),)).実行(HDS実行状態(要求状態=F({"完了"})))
+        r = HDS実行主体((単純作用("局所", 出力=("途中",), 目的依存=("状態:完了",)),)).実行(HDS実行状態(要求状態=F({"完了"})))
         self.assertEqual(r.終端, HDS終端.保留)
         self.assertIn("途中", r.状態.成立状態)
 
@@ -107,7 +107,7 @@ class 基本循環互換試験(unittest.TestCase):
 
     def test_同じ作用入力で無進展反復しない(self):
         calls = []
-        a = HDS関数作用("無進展", lambda s: calls.append(1) or HDS作用結果(HDS作用状態.保留))
+        a = HDS関数作用("無進展", lambda s: calls.append(1) or HDS作用結果(HDS作用状態.保留), 目的依存=("状態:未達",))
         r = HDS実行主体((a,), 最大作用回数=8).実行(HDS実行状態(要求状態=F({"未達"})))
         self.assertEqual(calls, [1])
         self.assertEqual(len(r.履歴), 1)
@@ -132,7 +132,7 @@ class 基本循環互換試験(unittest.TestCase):
             HDS駆動コア().実行("何かする", 目的=("回答",))
 
     def test_未知停止の理由を残す(self):
-        a = HDS関数作用("壊れた", lambda s: (_ for _ in ()).throw(RuntimeError("未知の停止")))
+        a = HDS関数作用("壊れた", lambda s: (_ for _ in ()).throw(RuntimeError("未知の停止")), 目的依存=("状態:完了",))
         r = HDS実行主体((a,)).実行(HDS実行状態(要求状態=F({"完了"})))
         self.assertEqual(r.停止種別, 停止理由.未知失敗)
         self.assertEqual(r.終端, HDS終端.失敗)
@@ -149,7 +149,7 @@ class 基本循環互換試験(unittest.TestCase):
             s.成果[0][1].append(2)
             return 成立(("完了",))
         initial = HDS実行状態(要求状態=F({"完了"}), 成果=(("値", [1]),))
-        r = HDS実行主体((HDS関数作用("改変", run),)).実行(initial)
+        r = HDS実行主体((HDS関数作用("改変", run, 目的依存=("状態:完了",)),)).実行(initial)
         self.assertEqual(r.終端, HDS終端.失敗)
         self.assertEqual(initial.成果辞書()["値"], [1])
         self.assertEqual(r.状態.成果辞書()["値"], [1])
@@ -289,7 +289,7 @@ class 観測仮説試験(unittest.TestCase):
     def test_仮説生成は事実確定ではない(self):
         doc=資料();base=確定("根",元=doc)
         template=HDS仮説雛型("規則",("根",),(HDS仮説("h","未観測の仮説",(HDS予測("次",3),),排他群="g"),))
-        r=HDS実行主体((),仮説雛型=(template,)).実行(HDS実行状態(要求状態=F({"未達"}),認識=(base,),記憶=HDS記憶((doc,))))
+        r=HDS実行主体((),仮説雛型=(template,)).実行(HDS実行状態(要求認識=F({"次"}),認識=(base,),記憶=HDS記憶((doc,))))
         self.assertTrue(r.状態.仮説)
         self.assertEqual(r.状態.仮説[0].区分,認識区分.暫定)
         self.assertEqual(r.終端,HDS終端.保留)
@@ -297,18 +297,22 @@ class 観測仮説試験(unittest.TestCase):
     def test_反証から仮説を棄却(self):
         doc=資料();obs=確定("a",2,doc)
         h=HDS仮説("h","3である",(HDS予測("a",3),),排他群="g")
-        s=HDS実行状態(要求状態=F({"未達"}),認識=(obs,),仮説=(h,),記憶=HDS記憶((doc,)))
-        r=HDS実行主体(()).実行(s)
-        self.assertEqual(r.状態.仮説[0].区分,認識区分.棄却)
-        self.assertGreaterEqual(r.計装.大域再照合数,1)
+        s=HDS実行状態(認識=(obs,),仮説=(h,),記憶=HDS記憶((doc,)))
+        from minidora.統合駆動_v2.作用 import 仮説再照合作用
+        更新 = 仮説再照合作用().実行(s)
+        t, _ = HDS実行主体._状態更新(s, 更新)
+        self.assertEqual(t.仮説[0].区分,認識区分.棄却)
 
     def test_作業枝は仮定を落とさず合流(self):
         bs=(HDS作業枝("左",("前提A",),(HDS認識項目("x","対象","値",1,認識区分.暫定),)),
             HDS作業枝("右",("前提B",),(HDS認識項目("x","対象","値",2,認識区分.暫定),)))
-        r=HDS実行主体(()).実行(HDS実行状態(要求状態=F({"未達"}),枝=bs))
-        self.assertEqual(len(r.状態.認識),2)
-        self.assertEqual({x.区分 for x in r.状態.認識},{認識区分.条件付き})
-        self.assertEqual({x.値 for x in r.状態.認識},{1,2})
+        s=HDS実行状態(枝=bs)
+        from minidora.統合駆動_v2.作用 import 枝合流作用
+        更新 = 枝合流作用().実行(s)
+        t, _ = HDS実行主体._状態更新(s, 更新)
+        self.assertEqual(len(t.認識),2)
+        self.assertEqual({x.区分 for x in t.認識},{認識区分.条件付き})
+        self.assertEqual({x.値 for x in t.認識},{1,2})
 
 
 class 記憶政策試験(unittest.TestCase):
@@ -437,7 +441,7 @@ class 計画回復検証試験(unittest.TestCase):
 
     def test_再開で過去と同じ入力を再実行しない(self):
         calls=[]
-        a=HDS関数作用("無進展",lambda s:calls.append(1) or HDS作用結果(HDS作用状態.保留))
+        a=HDS関数作用("無進展",lambda s:calls.append(1) or HDS作用結果(HDS作用状態.保留),目的依存=("状態:未達",))
         実行主体=HDS実行主体((a,),最大作用回数=8)
         r=実行主体.実行(HDS実行状態(要求状態=F({"未達"})))
         t=実行主体.再開(r)

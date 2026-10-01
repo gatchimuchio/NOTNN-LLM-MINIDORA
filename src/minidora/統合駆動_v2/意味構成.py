@@ -230,7 +230,7 @@ class 関係仮説構成作用:
         old = {x.ID: x for x in 状態.仮説}
         if not rs and all(old.get(x.ID) == x for x in hs):
             return None
-        目的依存 = tuple(sorted({"認識:" + q.ID for q in qs}))
+        目的依存 = tuple(sorted({"認識:" + x.ID for x in rs} | {"認識:" + q.ID for q in qs}))
         return HDS作用機会(self.作用ID, 署名((self.規則群, hs, rs, qs)), 優先度=2, 種別="仮説形成", 目的依存=目的依存)
 
     def 実行(self, 状態):

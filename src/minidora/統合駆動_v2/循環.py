@@ -25,18 +25,29 @@ from .作用 import 観測作用, 仮説形成作用, 仮説再照合作用, 枝
 
 
 def _関連仕様(状態, 作用群, 追加要求=frozenset()):
-    仕様 = [getattr(a, "計画仕様", None) for a in 作用群]
-    仕様 = [s for s in 仕様 if isinstance(s, HDS作用仕様)]
+    対 = tuple((a, getattr(a, "計画仕様", None)) for a in 作用群)
+    対 = tuple((a, spec) for a, spec in 対 if isinstance(spec, HDS作用仕様))
     必要状態 = set(状態.未達状態) | set(追加要求)
     必要残差 = set(状態.残差)
-    関連, 増加 = {}, True
+    必要認識 = set(状態.要求認識)
+    目的ノード = ({"状態:" + x for x in 必要状態}
+              | {"残差:" + x for x in 必要残差}
+              | {"認識:" + x for x in 必要認識})
+    関連 = {}
+    # 直接効果を持たない境界作用でも、目的依存が明示されていれば逆算の起点にする。
+    for action, spec in 対:
+        if set(getattr(action, "目的依存", ())) & 目的ノード:
+            関連[spec.作用ID] = spec
+            必要状態.update(spec.入力状態)
+            必要残差.update(spec.追加残差)
+    増加 = True
     while 増加:
         増加 = False
-        for s in 仕様:
-            if s.作用ID not in 関連 and (s.追加状態 & 必要状態 or s.解消残差 & 必要残差):
-                関連[s.作用ID] = s
-                必要状態.update(s.入力状態)
-                必要残差.update(s.追加残差)
+        for _action, spec in 対:
+            if spec.作用ID not in 関連 and (spec.追加状態 & 必要状態 or spec.解消残差 & 必要残差):
+                関連[spec.作用ID] = spec
+                必要状態.update(spec.入力状態)
+                必要残差.update(spec.追加残差)
                 増加 = True
     return tuple(関連[k] for k in sorted(関連))
 

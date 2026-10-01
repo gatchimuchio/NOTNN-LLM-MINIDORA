@@ -498,6 +498,10 @@ class HDS関数作用:
         if self.計画仕様.作用ID != self.作用ID:
             raise ValueError("計画仕様と作用IDが異なる")
 
+    @property
+    def 目的依存(self) -> tuple[str, ...]:
+        return self._目的依存
+
     def 意味入力を署名(self, 状態: HDS実行状態) -> str:
         """作用が宣言して読む意味入力だけから、作用定義単位の署名を構成する。"""
         if self._意味入力署名 is not None:

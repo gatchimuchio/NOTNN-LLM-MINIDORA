@@ -292,6 +292,8 @@ class 再監査反例試験(unittest.TestCase):
 
     def test_認識源更新で仮説とその枝を再開放(self):
         s,rules=rules_fixture()
+        _hs, rs, _qs = 関係から仮説を構成(s,rules)
+        s=replace(s,要求認識=frozenset(x.ID for x in rs))
         実行主体=HDS実行主体((),関係規則=rules,最大作用回数=40)
         r=実行主体.実行(s)
         d=HDS資料("計測更新","1","警報なし", "試験")

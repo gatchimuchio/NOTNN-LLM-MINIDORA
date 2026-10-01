@@ -340,6 +340,8 @@ class HDS選択継承供給:
         if generation >= self.設定.最大回復回数:
             return None
         refs = self._参照(状態)
+        if values.get(評価参照署名成果名) != _参照署名(refs):
+            return None
         plan = self._関係観測計画(refs)
         consumed_raw = values.get(関係観測消費成果名, ())
         consumed = set(str(x) for x in consumed_raw if str(x)) if isinstance(consumed_raw, tuple) else set()
@@ -385,14 +387,8 @@ class HDS選択継承供給:
             if not transport_bad:
                 outputs.append((関係観測消費成果名, new_consumed))
 
-            clearable = set(s.残差).intersection({
-                残差_観測不足, 残差_候補証拠未閉包, 残差_候補証拠矛盾,
-                残差_観測無進展, 残差_参照取得障害,
-            })
-            add = set()
-            if transport_bad:
-                clearable.discard(残差_参照取得障害)
-                add.add(残差_参照取得障害)
+            clearable = {残差_参照取得障害} if (not transport_bad and 残差_参照取得障害 in s.残差) else set()
+            add = {残差_参照取得障害} if transport_bad else set()
             reason = (
                 "HDS_CANDIDATE_RELATION_OBSERVATION_ADAPTED"
                 if after != before else
@@ -666,7 +662,7 @@ class HDS選択継承供給:
             merged = refs if any(x.識別子 == record.識別子 for x in refs) else (*refs, record)
             return HDS作用結果(
                 HDS作用状態.成立,
-                解消残差=frozenset(set(s.残差).intersection({残差_計算要求, 残差_観測不足, 残差_候補識別不足})),
+                解消残差=frozenset(set(s.残差).intersection({残差_計算要求})),
                 成果=((参照成果名, tuple(merged)), (計算済み成果名, True)),
                 理由=("HDS_INHERITED_COMPUTE_EXECUTED",),
             )
@@ -674,7 +670,7 @@ class HDS選択継承供給:
         return HDS関数作用(
             "HDS継承/計算",
             実行,
-            解消対象=(残差_計算要求, 残差_観測不足, 残差_候補識別不足),
+            解消対象=(残差_計算要求,),
             資源負荷=1,
             優先度=8.0,
             読取成果=(参照成果名, 計算済み成果名),
@@ -687,6 +683,9 @@ class HDS選択継承供給:
         if self.参照供給器 is None or not 回復可能残差.intersection(状態.残差):
             return None
         values = self._成果(状態)
+        refs_now = self._参照(状態)
+        if values.get(評価参照署名成果名) != _参照署名(refs_now):
+            return None
         generation = int(values.get(参照世代成果名, 0))
         if generation >= self.設定.最大回復回数:
             return None
@@ -717,7 +716,7 @@ class HDS選択継承供給:
             if after == before and transport_bad:
                 return HDS作用結果(
                     HDS作用状態.成立,
-                    解消残差=frozenset(set(recover).difference({残差_参照取得障害})),
+                    解消残差=frozenset(),
                     追加残差=frozenset() if 残差_参照取得障害 in s.残差 else frozenset({残差_参照取得障害}),
                     成果=((参照世代成果名, level), (参照記憶成果名, memory), diag_out),
                     理由=("HDS_REFERENCE_TRANSPORT_RETRY", f"世代:{level}"),
@@ -736,22 +735,17 @@ class HDS選択継承供給:
                     )
                 # 観測方法を尽くしても、意味上の未閉包・矛盾は「無進展」に潰さない。
                 # 無進展は観測経路の状態、候補証拠未閉包/矛盾は意味状態として併存させる。
-                保持残差 = {残差_観測無進展, 残差_候補証拠未閉包, 残差_候補証拠矛盾}
-                final_clear = frozenset(set(recover).difference(保持残差))
                 final_add = frozenset() if 残差_観測無進展 in s.残差 else frozenset({残差_観測無進展})
                 return HDS作用結果(
                     HDS作用状態.成立,
-                    解消残差=final_clear,
+                    解消残差=frozenset({残差_参照取得障害} if 残差_参照取得障害 in s.残差 else ()),
                     追加残差=final_add,
                     成果=((参照世代成果名, level), (参照記憶成果名, memory), diag_out),
                     理由=("HDS_INHERITED_REFERENCE_NO_PROGRESS",),
                 )
 
-            add = set()
-            clear = set(recover)
-            if transport_bad:
-                clear.discard(残差_参照取得障害)
-                add.add(残差_参照取得障害)
+            add = {残差_参照取得障害} if transport_bad else set()
+            clear = {残差_参照取得障害} if (not transport_bad and 残差_参照取得障害 in s.残差) else set()
             return HDS作用結果(
                 HDS作用状態.成立,
                 解消残差=frozenset(clear),

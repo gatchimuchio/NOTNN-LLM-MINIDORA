@@ -101,7 +101,7 @@ class 接続追加試験(unittest.TestCase):
         self.assertEqual(r.終端,HDS終端.失敗); self.assertEqual(r.履歴[-1].作用ID,'内的/目的検証'); self.assertEqual(r.計装.作用実行数,len(r.履歴))
 
     def test_状態反映を拒否しても実行した回数を残す(self):
-        a=HDS関数作用('不正証明',lambda s:HDS作用結果(HDS作用状態.成立,成果=(('x',5),),検証依存=(('認識:x','古い署名'),)),読取認識=('x',))
+        a=HDS関数作用('不正証明',lambda s:HDS作用結果(HDS作用状態.成立,成果=(('x',5),),検証依存=(('認識:x','古い署名'),)),読取認識=('x',),目的依存=('状態:完了',))
         r=HDS実行主体((a,)).実行(基礎状態())
         self.assertEqual(r.終端,HDS終端.失敗); self.assertEqual(r.計装.作用実行数,1); self.assertNotIn('x',r.状態.成果辞書())
 

@@ -26,7 +26,7 @@ class _空参照供給器:
 
 
 class HDS学習機械循環V2試験(unittest.TestCase):
-    def test_評価結果より前に現在状態から候補関係観測が発火する(self) -> None:
+    def test_現在材料を評価してから不足時だけ候補関係観測が発火する(self) -> None:
         構文化器 = 公開HDSコンパイラ()
         中核 = HDS駆動コア(HDSコンパイラ=構文化器, 最大作用回数=40)
         供給器 = _空参照供給器()
@@ -35,7 +35,6 @@ class HDS学習機械循環V2試験(unittest.TestCase):
 
         def 評価を監査(自己, 参照群):
             評価時問合せ数.append(len(供給器.問合せ))
-            self.assertGreater(len(供給器.問合せ), 0)
             return 元評価(自己, 参照群)
 
         with patch.object(HDS選択継承供給, "_評価", new=評価を監査):
@@ -48,7 +47,8 @@ class HDS学習機械循環V2試験(unittest.TestCase):
             )
 
         self.assertTrue(評価時問合せ数)
-        self.assertGreater(評価時問合せ数[0], 0)
+        self.assertEqual(評価時問合せ数[0], 0)
+        self.assertGreater(len(供給器.問合せ), 0)
 
     def test_実観測参照は同一中核の次処理へ継承される(self) -> None:
         構文化器 = 公開HDSコンパイラ()

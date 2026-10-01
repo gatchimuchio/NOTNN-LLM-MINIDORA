@@ -7,6 +7,7 @@ from .HDS実行主体 import HDS作用機会, HDS作用結果, HDS作用状態, 
 from .参照 import 参照供給器, 参照記録
 from .計算中間表現 import 計算中間表現, 計算実行結果
 from .計算実行器 import 計算実行器
+from .統合駆動_v2.計画 import HDS作用仕様
 
 
 class HDS参照取得作用:
@@ -32,6 +33,7 @@ class HDS参照取得作用:
         取得段階: str = "標準",
         作用ID: str = "参照取得",
         資源負荷: int = 4,
+        目的依存: Sequence[str] = (),
     ) -> None:
         if not callable(getattr(供給器, "検索", None)):
             raise TypeError("HDS参照取得作用には検索可能な参照供給器が必要")
@@ -55,6 +57,14 @@ class HDS参照取得作用:
         self.取得段階 = 取得段階.strip()
         self.資源負荷 = max(0, int(資源負荷))
         self.作用ID = 作用ID.strip()
+        self.目的依存 = tuple(str(x) for x in 目的依存)
+        if any(not x.startswith(("状態:", "残差:", "認識:")) for x in self.目的依存):
+            raise ValueError("参照取得の目的依存は状態:/残差:/認識:で修飾する")
+        self.計画仕様 = HDS作用仕様(
+            self.作用ID, self.入力状態, frozenset({self.出力状態}),
+            解消残差=self.解消対象, 資源負荷=self.資源負荷,
+            版="参照取得:" + self.取得段階,
+        )
 
     def _問合せ(self, 状態: HDS実行状態) -> str:
         値 = self.問合せ if self.問合せ生成 is None else self.問合せ生成(状態)
@@ -94,6 +104,7 @@ class HDS参照取得作用:
             0.0,
             True,
             ("REFERENCE_PROVIDER_AS_HDS_OBSERVATION", f"取得段階:{self.取得段階}"),
+            目的依存=self.目的依存,
         )
 
     def 実行(self, 状態: HDS実行状態) -> HDS作用結果:
@@ -147,6 +158,7 @@ class HDS計算実行作用:
         解消対象: Sequence[str] = ("計算要求",),
         作用ID: str = "計算実行",
         資源負荷: int = 1,
+        目的依存: Sequence[str] = (),
     ) -> None:
         if not callable(getattr(実行器, "計算実行", None)):
             raise TypeError("HDS計算実行作用には計算実行器が必要")
@@ -167,6 +179,14 @@ class HDS計算実行作用:
         self.解消対象 = frozenset(str(x) for x in 解消対象)
         self.資源負荷 = max(0, int(資源負荷))
         self.作用ID = 作用ID.strip()
+        self.目的依存 = tuple(str(x) for x in 目的依存)
+        if any(not x.startswith(("状態:", "残差:", "認識:")) for x in self.目的依存):
+            raise ValueError("計算実行の目的依存は状態:/残差:/認識:で修飾する")
+        self.計画仕様 = HDS作用仕様(
+            self.作用ID, self.入力状態, frozenset({self.出力状態}),
+            解消残差=self.解消対象, 資源負荷=self.資源負荷,
+            版="計算実行:v1",
+        )
 
     def _計算入力(self, 状態: HDS実行状態) -> tuple[計算中間表現, dict]:
         if self.計算入力生成 is None:
@@ -209,6 +229,7 @@ class HDS計算実行作用:
             0.0,
             True,
             ("COMPUTE_EXECUTOR_AS_HDS_ACTION",),
+            目的依存=self.目的依存,
         )
 
     def 実行(self, 状態: HDS実行状態) -> HDS作用結果:
