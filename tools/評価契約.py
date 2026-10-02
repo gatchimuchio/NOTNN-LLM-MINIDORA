@@ -7,6 +7,7 @@ from typing import Any
 
 契約形式 = "minidora.外部評価.契約.v3"
 GPQA実参照E2E識別子 = "gpqa-diamond-e2e-live-v3"
+GPQA評価二系統契約形式 = "minidora.gpqa.二系統評価.v1"
 GPQA正本全問題数 = 198
 GPQA正本資料集合CSV_SHA256 = "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305"
 GPQA正本選択肢シャッフル種 = 0
@@ -15,11 +16,38 @@ GPQA正本EuropePMC有効 = True
 GPQA正本Crossref有効 = True
 GPQA正本Wikipedia言語群 = ("en",)
 GPQA正本中核入口 = "HDS駆動コア.選択実行"
+GPQA性能継承下限正答 = 40
+GPQA全数実行時間上限分 = 90
+GPQA並列評価方式 = "問題独立並列"
+GPQA直列評価方式 = "同一Core直列"
 
 
 def _正本SHA256(payload: Any) -> str:
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
+
+
+def GPQA評価二系統条件() -> dict[str, Any]:
+    return {
+        "契約形式": GPQA評価二系統契約形式,
+        "課題": "GPQA Diamond",
+        "全問題数": GPQA正本全問題数,
+        "並列性能継承": {
+            "実行方式": GPQA並列評価方式,
+            "問題間状態継承": False,
+            "必須完走": True,
+            "wall_clock上限分": GPQA全数実行時間上限分,
+            "正答下限": GPQA性能継承下限正答,
+        },
+        "直列学習効果": {
+            "実行方式": GPQA直列評価方式,
+            "問題間状態継承": True,
+            "必須完走": True,
+            "wall_clock上限分": GPQA全数実行時間上限分,
+            "性能継承判定対象": False,
+        },
+        "学習効果差分": "直列正答 - 並列正答",
+    }
 
 
 def GPQA正本手順を検証(評価条件: dict[str, Any]) -> tuple[str, ...]:
@@ -85,6 +113,7 @@ def GPQA実参照E2E契約(評価条件: dict[str, Any]) -> dict[str, Any]:
         "同一実行内状態遷移記録許可": True,
         "実行間コード差直接比較": False,
         "スナップショット得点時系列保存許可": True,
+        "二系統評価条件": GPQA評価二系統条件(),
         "主張可能範囲": [
             "同一の正本GPQA運用規則で、その実行時点の外部参照環境を含めた現行中核E2E性能スナップショット",
             "同一実行内で記録した初期継承状態から最終状態への遷移",
@@ -94,6 +123,7 @@ def GPQA実参照E2E契約(評価条件: dict[str, Any]) -> dict[str, Any]:
             "保存済み参照結果・再生束等の固定参照資料をGPQA正本性能評価へ利用すること",
             "部分実行値をGPQA正本性能として採用すること",
             "独立LIVE参照を用いる別実行またはpaired実行の得点差をコード変更だけの因果差とみなすこと",
+            "240分を根拠あるGPQA性能評価時間として扱うこと",
         ],
     }
 
