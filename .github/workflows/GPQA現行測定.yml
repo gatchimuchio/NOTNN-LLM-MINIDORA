@@ -1,4 +1,4 @@
-name: MINIDORA GPQA 正本実測
+name: MINIDORA GPQA 直列学習実測
 
 on:
   workflow_dispatch:
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   measure:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -26,8 +26,17 @@ jobs:
           python-version: "3.12"
       - name: パッケージ導入
         run: python -m pip install -e .
-      - name: GPQA Diamond 198問 正本E2E実測
-        run: python tools/正本評価.py gpqa-e2e --out gpqa_e2e.json
+      - name: GPQA Diamond 198問 同一Core直列学習実測
+        shell: bash
+        run: |
+          start=$(date +%s)
+          set +e
+          python tools/正本評価.py gpqa-e2e --out gpqa_e2e.json
+          code=$?
+          set -e
+          end=$(date +%s)
+          echo $((end-start)) > runtime_seconds.txt
+          exit $code
       - name: 結果要約
         if: always()
         run: |
@@ -41,10 +50,15 @@ jobs:
           print(json.dumps(data.get('評価契約'), ensure_ascii=False, indent=2))
           PY
           fi
+          if [ -f runtime_seconds.txt ]; then
+            echo "runtime_seconds=$(cat runtime_seconds.txt)"
+          fi
       - name: 測定成果を保存
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: minidora-gpqa-e2e-canonical
-          path: gpqa_e2e.json
+          name: minidora-gpqa-serial-learning
+          path: |
+            gpqa_e2e.json
+            runtime_seconds.txt
           if-no-files-found: warn
