@@ -20,6 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
+      - name: 90分の計測起点と締切を固定
+        id: deadline
+        run: |
+          start=$(date +%s)
+          echo "started=$start" >> "$GITHUB_OUTPUT"
+          echo "deadline=$((start+5400))" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
@@ -27,16 +33,10 @@ jobs:
       - name: パッケージ導入
         run: python -m pip install -e .
       - name: GPQA Diamond 198問 同一Core直列学習実測
-        shell: bash
-        run: |
-          start=$(date +%s)
-          set +e
-          python tools/正本評価.py gpqa-e2e --out gpqa_e2e.json
-          code=$?
-          set -e
-          end=$(date +%s)
-          echo $((end-start)) > runtime_seconds.txt
-          exit $code
+        env:
+          GPQA_STARTED_EPOCH: ${{ steps.deadline.outputs.started }}
+          GPQA_DEADLINE_EPOCH: ${{ steps.deadline.outputs.deadline }}
+        run: python tools/GPQA実測管理.py --mode serial --out gpqa_e2e.json --started-epoch "$GPQA_STARTED_EPOCH" --deadline-epoch "$GPQA_DEADLINE_EPOCH"
       - name: 結果要約
         if: always()
         run: |
@@ -45,6 +45,7 @@ jobs:
           import json
           from pathlib import Path
           data=json.loads(Path('gpqa_e2e.json').read_text(encoding='utf-8'))
+          Path('runtime_seconds.txt').write_text(str(data['実測']['経過秒'])+'\n', encoding='utf-8')
           print(json.dumps(data.get('評価条件'), ensure_ascii=False, indent=2))
           print(json.dumps(data.get('指標'), ensure_ascii=False, indent=2))
           print(json.dumps(data.get('評価契約'), ensure_ascii=False, indent=2))

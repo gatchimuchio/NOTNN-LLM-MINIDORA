@@ -16,7 +16,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  deadline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      started: ${{ steps.clock.outputs.started }}
+      deadline: ${{ steps.clock.outputs.deadline }}
+    steps:
+      - name: 全shard共通の90分締切
+        id: clock
+        run: |
+          start=$(date +%s)
+          echo "started=$start" >> "$GITHUB_OUTPUT"
+          echo "deadline=$((start+5400))" >> "$GITHUB_OUTPUT"
   measure:
+    needs: deadline
     strategy:
       fail-fast: false
       matrix:
@@ -70,65 +84,41 @@ jobs:
           python-version: "3.12"
       - name: パッケージ導入
         run: python -m pip install -e .
-      - name: 問題独立shard実測
+      - name: 独立問題と共通締切を適用
         run: >-
           python tools/GPQA並列性能継承評価.py
-          --start-index ${{ matrix.start }}
-          --limit ${{ matrix.limit }}
+          --start-index ${{ matrix.start }} --limit ${{ matrix.limit }}
+          --started-epoch ${{ needs.deadline.outputs.started }}
+          --deadline-epoch ${{ needs.deadline.outputs.deadline }}
           --out gpqa_parallel_${{ matrix.shard }}.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: gpqa-parallel-${{ matrix.shard }}
           path: gpqa_parallel_${{ matrix.shard }}.json
-          if-no-files-found: error
-
+          if-no-files-found: warn
   aggregate:
-    needs: measure
+    if: always()
+    needs: [deadline, measure]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           pattern: gpqa-parallel-*
           path: shards
           merge-multiple: true
-      - name: 198問集約と40点下限判定
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          payloads=[json.loads(p.read_text(encoding="utf-8")) for p in sorted(Path("shards").glob("gpqa_parallel_*.json"))]
-          rows=[row for payload in payloads for row in payload["個票"]]
-          rows.sort(key=lambda row:int(row["番号"]))
-          indices=[int(row["番号"]) for row in rows]
-          if indices != list(range(198)):
-              raise SystemExit(f"198問一意完走違反: count={len(rows)}")
-          revisions={payload["評価条件"]["リポジトリ版"] for payload in payloads}
-          if len(revisions)!=1:
-              raise SystemExit(f"revision不一致: {sorted(revisions)}")
-          if any(payload["評価条件"].get("問題間継続状態") is not False for payload in payloads):
-              raise SystemExit("問題間状態継承が無効ではない")
-          correct=sum(bool(row["正答"]) for row in rows)
-          answered=sum(bool(row["回答済み"]) for row in rows)
-          result={
-              "契約形式":"minidora.gpqa.parallel-inheritance.v1",
-              "リポジトリ版":next(iter(revisions)),
-              "全数":198,
-              "正答":correct,
-              "回答":answered,
-              "保留":198-answered,
-              "性能継承下限":40,
-              "性能継承成立":correct>=40,
-              "問題間継続状態":False,
-              "個票":rows,
-          }
-          Path("gpqa_parallel_full.json").write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-          print(json.dumps({k:v for k,v in result.items() if k!="個票"},ensure_ascii=False,indent=2))
-          if correct < 40:
-              raise SystemExit(f"性能退行: {correct}/198 < 40/198")
-          PY
+      - name: 全数・版・時間・40点下限を実値で検査
+        run: >-
+          python tools/GPQA並列集計.py --dir shards --out gpqa_parallel_full.json
+          --revision ${{ github.sha }}
+          --started-epoch ${{ needs.deadline.outputs.started }}
+          --deadline-epoch ${{ needs.deadline.outputs.deadline }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

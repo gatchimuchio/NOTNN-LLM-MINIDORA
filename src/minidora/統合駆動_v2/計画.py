@@ -31,8 +31,11 @@ class HDS探索契約:
     最大試行: int = 2
     最大資源: int = 2
     版: str = "v1"
+    再観測: bool = False
 
     def __post_init__(self):
+        if type(self.再観測) is not bool:
+            raise TypeError("再観測はbool")
         for 名 in ("ID", "不明点", "版"):
             文字(getattr(self, 名), 名)
         for 名 in ("取得ノード", "利用先"):
@@ -73,6 +76,10 @@ class HDS作用仕様:
     探索: HDS探索契約 | None = None
     # 供給時に具体化した対象・作用の対応。元の指示正本は変更しない。
     指示対応: object | None = None
+    # 起動条件と成果の因果親を分離する。参照の更新を自己失効にしない。
+    観測入力: tuple[str, ...] = ()
+    # 観測は外界を読むが純粋計算ではない。自動再現では再実行しない。
+    観測専用: bool = False
 
     def __post_init__(self):
         if self.指示対応 is not None:
@@ -85,8 +92,13 @@ class HDS作用仕様:
             raise TypeError("純粋作用・契約完全宣言はbool")
         if self.探索 is not None and not isinstance(self.探索, HDS探索契約):
             raise TypeError("探索契約型が必要")
-        if self.探索 is not None and not self.純粋:
-            raise ValueError("探索の有限再試行には純粋作用の契約が必要")
+        if type(self.観測専用) is not bool:
+            raise TypeError("観測専用はbool")
+        if self.探索 is not None and not (self.純粋 or self.観測専用):
+            raise ValueError("有限探索には純粋作用または観測専用契約が必要")
+        文字列組(self.観測入力, "観測入力")
+        for 項 in self.観測入力:
+            ノードを検査(項)
         文字(self.作用ID); 文字(self.版)
         for 名 in ("入力状態", "追加状態", "削除状態", "解消残差", "追加残差"):
             群 = getattr(self, 名)
@@ -109,7 +121,7 @@ class HDS作用仕様:
         return frozenset({"状態:" + x for x in self.入力状態}
                          | {"認識:" + x for x in self.読取認識}
                          | {"成果:" + x for x in self.読取成果}
-                         | set(self.読取ノード))
+                         | set(self.読取ノード) | set(self.観測入力))
 
     @property
     def 出力ノード集合(self) -> frozenset[str]:

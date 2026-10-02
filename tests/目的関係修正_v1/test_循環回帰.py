@@ -8,9 +8,9 @@ from minidora.統合駆動_v2.計画 import HDS作用仕様
 from minidora.統合駆動_v2.政策 import HDS運用政策, 停止理由
 from minidora.統合駆動_v2.検証 import HDS検証器
 if __package__:
-    from .test_purpose_evidence import 仮説入力
+    from .test_目的証拠 import 仮説入力
 else:
-    from test_purpose_evidence import 仮説入力
+    from test_目的証拠 import 仮説入力
 
 
 def policy(budget=16):
@@ -20,8 +20,8 @@ def ready(name):
     return HDS作用結果(HDS作用状態.成立, 追加状態=frozenset({name}))
 
 
-class NormalCycleRegressions(unittest.TestCase):
-    def test_prepare_then_answer_with_budget_one(self):
+class 通常循環回帰試験(unittest.TestCase):
+    def test_準備後回答を軟予算1でも失わない(self):
         first=HDS関数作用('準備',lambda s:ready('準備済'),出力状態=('準備済',))
         last=HDS関数作用('回答',lambda s:ready('回答済'),入力状態=('準備済',),出力状態=('回答済',))
         state=HDS実行状態(目的=('回答を形成する',),要求状態=frozenset({'回答済'}))
@@ -30,7 +30,7 @@ class NormalCycleRegressions(unittest.TestCase):
         self.assertEqual(tuple(h.作用ID for h in r.履歴),('準備','回答'))
         self.assertTrue(r.履歴[0].目的進展)
 
-    def test_intermediate_explicit_dependency_is_not_lost(self):
+    def test_中間の明示依存を失わない(self):
         first=HDS関数作用('前処理',lambda s:ready('中間'),計画仕様=HDS作用仕様('前処理'),目的依存=('状態:準備済',))
         last=HDS関数作用('回答',lambda s:ready('回答済'),入力状態=('準備済',),出力状態=('回答済',))
         middle=HDS関数作用('準備',lambda s:ready('準備済'),入力状態=('中間',),出力状態=('準備済',))
@@ -38,7 +38,7 @@ class NormalCycleRegressions(unittest.TestCase):
         self.assertEqual(r.終端,HDS終端.採用,r.理由)
         self.assertEqual([h.作用ID for h in r.履歴],['前処理','準備','回答'])
 
-    def test_same_purpose_label_cannot_fund_unbounded_counter(self):
+    def test_同じ目的ラベルで無限反復しない(self):
         called=[]
         def counter(s):
             called.append(1)
@@ -50,7 +50,7 @@ class NormalCycleRegressions(unittest.TestCase):
         self.assertEqual(len(called),1,'入力署名の変化だけでは再試行を認めない')
         self.assertFalse(any(h.目的進展 for h in r.履歴))
 
-    def test_closed_goal_is_not_blocked_by_optional_supplier(self):
+    def test_閉包済み目的を任意供給器が阻害しない(self):
         called=[]
         def broken(s):
             called.append(1)
@@ -60,32 +60,32 @@ class NormalCycleRegressions(unittest.TestCase):
         self.assertEqual(r.終端,HDS終端.採用)
         self.assertFalse(called)
 
-    def test_final_verification_failure_never_becomes_commit(self):
+    def test_最終検証失敗を採用しない(self):
         s=HDS実行状態(要求状態=frozenset({'回答'}),成立状態=frozenset({'回答'}))
         r=HDS実行主体((),最終検証器=(HDS検証器('値検証',lambda s,d:False),),政策=policy()).実行(s)
         self.assertNotEqual(r.終端,HDS終端.採用)
         self.assertIn('検証:値検証',r.状態.残差)
 
-    def test_permissions_are_not_relaxed(self):
+    def test_権限境界を緩和しない(self):
         called=[]
         a=HDS関数作用('回答',lambda s:(called.append(1) or ready('回答')),出力状態=('回答',),必要権限=('外部変更',))
         r=HDS実行主体((a,),政策=policy()).実行(HDS実行状態(要求状態=frozenset({'回答'})))
         self.assertNotEqual(r.終端,HDS終端.採用)
         self.assertFalse(called)
 
-    def test_cancel_precedes_even_ready_answer(self):
+    def test_取消は回答準備済みでも優先する(self):
         r=HDS実行主体((),停止要求=lambda:True,政策=policy()).実行(HDS実行状態())
         self.assertEqual(r.停止種別,停止理由.明示停止)
         self.assertFalse(r.履歴)
 
-    def test_hypotheses_materialize_in_real_normal_loop(self):
+    def test_通常循環で仮説を実体化する(self):
         state,rules,target=仮説入力()
         r=HDS実行主体((),関係規則=rules,政策=policy(),最大作用回数=12).実行(state)
         self.assertEqual(len(r.状態.仮説),2,r.理由)
         self.assertNotEqual(r.終端,HDS終端.採用)
         self.assertTrue(any(h.作用ID=='内的/関係仮説構成' for h in r.履歴))
 
-    def test_read_product_missing_is_suspended_not_signer_failure(self):
+    def test_読取成果欠落は署名失敗でなく保留にする(self):
         calls=[]
         def signer(s):
             calls.append(1)
@@ -95,14 +95,14 @@ class NormalCycleRegressions(unittest.TestCase):
         self.assertEqual(r.終端,HDS終端.保留)
         self.assertFalse(calls)
 
-    def test_goal_original_cannot_be_rewritten_by_operation(self):
+    def test_作用から目的原本を書き換えられない(self):
         a=HDS関数作用('改ざん',lambda s:HDS作用結果(HDS作用状態.成立,主体状態差分=(('HDS目的正本',('別目的',)),)),出力状態=('回答',))
         s=HDS実行状態(要求状態=frozenset({'回答'}),主体状態=(('HDS目的正本',('原要求',)),))
         r=HDS実行主体((a,),政策=policy()).実行(s)
         self.assertEqual(r.終端,HDS終端.失敗)
         self.assertEqual(r.状態.主体辞書()['HDS目的正本'],('原要求',))
 
-    def test_unavailable_product_does_not_invoke_opportunity_predicate(self):
+    def test_利用不能成果では機会判定を呼ばない(self):
         calls=[]
         def predicate(s):
             calls.append(1)
@@ -112,7 +112,7 @@ class NormalCycleRegressions(unittest.TestCase):
         self.assertEqual(r.終端,HDS終端.保留)
         self.assertFalse(calls)
 
-    def test_unavailable_product_does_not_invoke_input_signer(self):
+    def test_利用不能成果では入力署名を呼ばない(self):
         calls=[]
         def signer(s):
             calls.append(1)

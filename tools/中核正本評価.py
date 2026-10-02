@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import asdict, is_dataclass
+from time import perf_counter_ns
 import json
 import os
 from pathlib import Path
@@ -95,7 +97,13 @@ def _一問を実行(
     *,
     構文化器: 公開HDSコンパイラ,
     中核: HDS駆動コア,
+    記録=None,
 ) -> dict[str, object]:
+    開始ns = perf_counter_ns()
+    def 進行(段階):
+        if 記録 is not None:
+            記録({"段階": 段階})
+    進行("問題束形成")
     provider_base = 一般知識参照供給器(
         OpenAlex_API_key=None,
         EuropePMC有効=True,
@@ -124,11 +132,15 @@ def _一問を実行(
         構文化器.問題コンパイル束 = original_kernel
     question_ir = kernel.意味IR
     requests = tuple(kernel.参照観測要求)
+    構文化終了ns = perf_counter_ns()
+    進行("初期参照取得")
     initial_diagnostics: list[参照取得診断] = []
     initial_refs = tuple(HDS参照検索(
         provider, question_ir, 観測要求=requests, 診断収集=initial_diagnostics,
     ))
     initial_query_count = len(provider.calls)
+    参照終了ns = perf_counter_ns()
+    進行("中核実行")
 
     前状態署名 = 中核.継続状態署名
     前継続記憶資料件数 = 中核.継続記憶資料件数
@@ -147,6 +159,8 @@ def _一問を実行(
         最大回復回数=6,
         カーネル正本=kernel,
     )
+    中核終了ns = perf_counter_ns()
+    進行("個票形成")
     if kernel_count != 1:
         raise RuntimeError(f"問題束の形成回数が1ではない: index={index} count={kernel_count}")
 
@@ -220,6 +234,17 @@ def _一問を実行(
         "処理後継続参照件数": 後継続参照件数,
         "初回評価参照件数": len(初回評価参照),
         "中核理由": list(run.理由),
+        "停止種別": run.停止種別.value if run.停止種別 is not None else None,
+        "最終残差": sorted(run.状態.残差),
+        "計装": asdict(run.計装),
+        "作用履歴": [{"作用ID": h.作用ID, "理由": list(h.理由),
+                        "進展根拠": list(h.進展根拠), "目的進展": h.目的進展}
+                       for h in run.履歴],
+        "採用監査": _JSON化(products.get("HDS選択:採用監査")),
+        "時間内訳秒": {"問題束形成": (構文化終了ns - 開始ns) / 1e9,
+                      "初期参照取得": (参照終了ns - 構文化終了ns) / 1e9,
+                      "中核実行": (中核終了ns - 参照終了ns) / 1e9,
+                      "個票形成": (perf_counter_ns() - 中核終了ns) / 1e9},
     }
 
 
@@ -278,71 +303,31 @@ def _集計(rows: list[dict[str, object]]) -> tuple[dict[str, object], dict[str,
     return metrics, transition
 
 
+def _JSON化(値):
+    if is_dataclass(値):
+        return _JSON化(asdict(値))
+    if isinstance(値, dict):
+        return {str(k): _JSON化(v) for k, v in 値.items()}
+    if isinstance(値, (tuple, list)):
+        return [_JSON化(v) for v in 値]
+    if 値 is None or type(値) in (str, int, float, bool):
+        return 値
+    raise TypeError("個票へ未対応の値型が渡された: " + type(値).__name__)
+
+
 def GPQA中核正本を実行(出力: Path) -> dict[str, object]:
-    with tempfile.TemporaryDirectory(prefix="minidora-gpqa-canonical-") as td:
-        csv_path, zip_hash, csv_hash = _download_dataset(Path(td))
-        cases = _load_cases(csv_path)
-    if len(cases) != 198 or csv_hash != GPQA正本資料集合CSV_SHA256:
-        raise RuntimeError(f"GPQA正本資料不一致: n={len(cases)} sha={csv_hash}")
-
-    rows: list[dict[str, object]] = []
-    構文化器 = 公開HDSコンパイラ()
-    中核 = HDS駆動コア(HDSコンパイラ=構文化器, 最大作用回数=40)
-    for index, (question, choices, gold) in enumerate(cases):
-        row = _一問を実行(
-            index,
-            question,
-            tuple(choices),
-            gold,
-            構文化器=構文化器,
-            中核=中核,
-        )
-        rows.append(row)
-        print(
-            f"CASE {index + 1:03d}/198 terminal={row['終端']} pred={row['予測ラベル']} "
-            f"correct={row['正答']} refs={row['初期参照件数']}->{row['最終参照件数']}",
-            flush=True,
-        )
-
-    metrics, transition = _集計(rows)
-    if metrics["問題束形成総数"] != 198:
-        raise RuntimeError("問題束一問一形成の総数が198ではない")
-    payload: dict[str, object] = {
-        "契約形式": "minidora.gpqa.current-kernel-run.v3",
-        "評価条件": {
-            "外部評価": "GPQA Diamond",
-            "資料集合ZIP_SHA256": zip_hash,
-            "資料集合CSV_SHA256": csv_hash,
-            "全問題数": 198,
-            "選択番号群": list(range(198)),
-            "選択肢シャッフル種": 0,
-            "OpenAlex有効": False,
-            "EuropePMC有効": True,
-            "Crossref有効": True,
-            "Wikipedia言語群": ["en"],
-            "参照方式": "LIVE_ONLY",
-            "固定参照資料許可": False,
-            "中核入口": "HDS駆動コア.選択実行",
-            "既存能力継承": True,
-            "学習循環": True,
-            "外付け能力モジュール": False,
-            "科学専門モジュール": False,
-            "旧HDS監督": False,
-            "問題束一問一形成": True,
-            "学習対象期間": "同一HDS駆動コアでGPQA198問を連続処理",
-            "問題間継続状態": True,
-            "継続対象": ["HDS記憶", "根拠有効な確定認識", "形成関係", "作用適応記憶", "実観測参照"],
-            "採点結果の学習利用": False,
-            "正解利用境界": "中核実行後の採点のみ",
-            "リポジトリ版": _リポジトリ版(),
-        },
-        "指標": metrics,
-        "実行内状態遷移": transition,
-        "個票": rows,
-    }
-    出力.parent.mkdir(parents=True, exist_ok=True)
-    出力.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return payload
+    try:
+        from .GPQA実測管理 import GPQAを測定, 原子的保存
+    except ImportError:
+        from GPQA実測管理 import GPQAを測定, 原子的保存
+    内容 = GPQAを測定(出力, 方式="直列")
+    if 内容.get("実測", {}).get("完走") is not True:
+        raise RuntimeError("GPQA全数未完了。途中個票と停止箇所は出力済み")
+    metrics, transition = _集計(内容["個票"])
+    内容["指標"] = metrics
+    内容["実行内状態遷移"] = transition
+    原子的保存(出力, 内容)
+    return 内容
 
 
 __all__ = ["GPQA中核正本を実行"]

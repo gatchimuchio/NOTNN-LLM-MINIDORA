@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from time import perf_counter_ns
+from .統合駆動_v2.計画 import HDS作用仕様, HDS探索契約
 from typing import Callable, Sequence
 
 from .HDS実行主体 import HDS実行状態, HDS作用結果, HDS作用状態, HDS関数作用
@@ -24,7 +26,7 @@ from .能力状態差循環 import 標準能力模型核
 from .計算実行器 import 計算実行器
 from .コア.値 import 署名 as _意味署名
 
-HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v10"
+HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v11"
 
 参照成果名 = "HDS選択:参照"
 参照世代成果名 = "HDS選択:参照世代"
@@ -42,6 +44,7 @@ HDS選択継承循環版 = "HDS-MINIDORA-SELECTION-INHERITANCE-v10"
 参照取得診断成果名 = "HDS選択:参照取得診断"
 関係観測消費成果名 = "HDS選択:関係観測消費"
 関係観測世代成果名 = "HDS選択:関係観測世代"
+採用監査成果名 = "HDS選択:採用監査"
 
 残差_未評価 = "HDS選択:未評価"
 残差_観測不足 = "HDS選択:観測不足"
@@ -79,10 +82,13 @@ def _署名(値: object) -> str:
 
 
 def _参照署名(参照群: Sequence[参照記録]) -> str:
-    return _署名(tuple(
-        (x.識別子, x.供給器, x.由来, float(x.信頼), x.条件, x.意味キー, x.表示値)
-        for x in 参照群
-    ))
+    # 本文・対象・時点・範囲・証拠境界の変更を再評価へ反映する。
+    return _署名(tuple(参照群))
+
+
+def _根拠付き承認(結果: object) -> bool:
+    return bool(_承認済み(結果) and 結果.回答内容 is not None
+                and HDS既存能力結果証明済み(結果))
 
 
 def _承認済み(結果: object) -> bool:
@@ -136,7 +142,7 @@ def _標準追加採用証明(
     初期参照署名: str,
     現在参照署名: str,
 ) -> bool:
-    if _承認済み(基準) or not _承認済み(拡張) or 初期参照署名 == 現在参照署名:
+    if _根拠付き承認(基準) or not _根拠付き承認(拡張) or 初期参照署名 == 現在参照署名:
         return False
     return HDS既存能力結果証明済み(拡張)
 
@@ -290,36 +296,92 @@ class HDS選択継承供給:
         )
 
     def _資料IR群(self, 参照群: tuple[参照記録, ...]) -> tuple[object, ...]:
-        compile_fn = getattr(self.コンパイラ, "コンパイル", None)
-        if not callable(compile_fn):
+        関数 = getattr(self.コンパイラ, "コンパイル", None)
+        if not callable(関数):
+            self._資料診断 = (("構文化器", "コンパイル不在"),)
             return ()
-        out: list[object] = []
-        for record in 参照群:
-            try:
-                out.append(compile_fn(HDS入力資料本文(record)))
-            except Exception:
-                continue
-        return tuple(out)
+        文脈鍵 = (id(getattr(関数, "__func__", 関数)), str(getattr(self.コンパイラ, "版", "")))
+        if getattr(self, "_構文化文脈鍵", None) != 文脈鍵:
+            self._資料キャッシュ = {}
+            self._構文化文脈鍵 = 文脈鍵
+        既存 = self._資料キャッシュ
+        今回, 出力, 診断 = {}, [], []
+        for 記録 in 参照群:
+            本文 = HDS入力資料本文(記録)
+            鍵 = _署名((記録, 本文))
+            if 鍵 in 既存:
+                値, 失敗 = 既存[鍵]
+                self._構文化再利用数 = getattr(self, "_構文化再利用数", 0) + 1
+            else:
+                開始 = perf_counter_ns()
+                try:
+                    値, 失敗 = 関数(本文), None
+                except Exception as 例外:
+                    値, 失敗 = None, type(例外).__name__ + ": " + str(例外)
+                finally:
+                    self._構文化時間ns = getattr(self, "_構文化時間ns", 0) + perf_counter_ns() - 開始
+                    self._構文化実行数 = getattr(self, "_構文化実行数", 0) + 1
+            今回[鍵] = (値, 失敗)
+            if 失敗 is not None:
+                診断.append((str(記録.識別子), 失敗))
+            else:
+                出力.append(値)
+        # 一問・現在参照の寿命に限定する。失敗も再現可能な診断として残す。
+        self._資料キャッシュ, self._資料診断 = 今回, tuple(診断)
+        return tuple(出力)
 
     def _関係観測計画(self, 参照群: tuple[参照記録, ...]) -> HDS候補関係観測計画:
-        return HDS候補関係観測計画を構成(
-            self.質問IR,
-            self.候補意味IR,
-            self._資料IR群(参照群),
-        )
+        資料群 = self._資料IR群(参照群)
+        鍵 = _署名((self.質問IR, self.候補意味IR, 資料群))
+        if getattr(self, "_関係計画鍵", None) != 鍵:
+            self._関係計画値 = HDS候補関係観測計画を構成(self.質問IR, self.候補意味IR, 資料群)
+            self._関係計画鍵 = 鍵
+        return self._関係計画値
 
-    def _品質残差(self, 状態: HDS実行状態, 参照群: tuple[参照記録, ...]) -> frozenset[str]:
-        if self.参照供給器 is None:
+    def _品質残差(self, 状態, 参照群, 結果=None) -> frozenset[str]:
+        """根拠成立は既存評価器、反証監査は採用する候補に限定する。"""
+        if not _根拠付き承認(結果) or str(結果.回答ラベル) not in self.選択肢:
+            return frozenset({残差_証明不足})
+        対象 = _候補対象関係群(self.質問IR, self.候補意味IR, str(結果.回答ラベル))
+        if not 対象:
             return frozenset()
-        plan = self._関係観測計画(参照群)
-        out: set[str] = set()
-        if plan.未観測関係数 > 0:
-            out.add(残差_候補証拠未閉包)
-        if plan.矛盾関係数 > 0:
-            out.add(残差_候補証拠矛盾)
-        if 残差_参照取得障害 in 状態.残差:
-            out.add(残差_参照取得障害)
-        return frozenset(out)
+        証拠 = []
+        言語 = "自然言語:ja" if str(getattr(self.質問IR, "入力言語", "ja")).casefold().startswith("ja") else "自然言語:en"
+        for 番号, 資料 in enumerate(self._資料IR群(tuple(参照群))):
+            値 = HDS内部言語状態(資料, 識別子=f"採用監査:{番号}", 言語体系=言語, 証拠境界=True)
+            if 値.証拠利用可:
+                証拠.extend(値.関係構造)
+        照合 = 証拠状態照合(対象, tuple(証拠))
+        if int(getattr(照合, "反証", 0)) or int(getattr(照合, "矛盾", 0)):
+            return frozenset({残差_候補証拠矛盾})
+        # 未観測の他候補や任意取得失敗は、成立済み回答の反証ではない。
+        return frozenset()
+
+    def _基準資料を照合(self, 状態, 現参照):
+        原資料 = self._成果(状態).get(初回評価参照成果名, self.初期参照)
+        原資料 = 原資料 if isinstance(原資料, tuple) else self.初期参照
+        def 鍵(記録):
+            return (str(記録.供給器), str(記録.識別子))
+        def 内容署名(記録):
+            条件 = tuple((k, v) for k, v in 記録.条件 if not str(k).startswith("hds_"))
+            return _署名((記録.対象, 記録.内容, 記録.由来, 記録.信頼, 記録.意味キー, 記録.値,
+                          記録.時点, 記録.範囲, 条件, 記録.意味確定))
+        元 = {鍵(x): x for x in 原資料}
+        現 = {鍵(x): x for x in 現参照}
+        訂正 = any(k in 現 and 内容署名(v) != 内容署名(現[k]) for k, v in 元.items())
+        元.update(現)
+        return 訂正, tuple(元.values())
+
+    def _操作仕様(self, ID, *, 生成=(), 観測入力=(), 解消=(), 探索=None, 資源=1):
+        return HDS作用仕様(ID,
+            追加状態=frozenset({選択閉包状態}) if ID == "HDS継承/模型再評価" else frozenset(),
+            解消残差=frozenset(解消), 生成成果=tuple(生成), 観測入力=tuple(観測入力),
+            資源負荷=資源, 版=HDS選択継承循環版, 観測専用=探索 is not None, 探索=探索)
+
+    def _観測探索(self, ID):
+        return HDS探索契約(ID, "選択を成立させる関係・証拠の不足を観測する",
+            ("成果:" + 参照成果名,), ("状態:" + 選択閉包状態,),
+            最大試行=self.設定.最大回復回数, 最大資源=4 * self.設定.最大回復回数, 再観測=True)
 
     @staticmethod
     def _取得障害(診断群: Sequence[参照取得診断]) -> bool:
@@ -368,8 +430,8 @@ class HDS選択継承供給:
             memory = 参照記録群を統合(memory_raw if isinstance(memory_raw, tuple) else current_refs, observed)
             limit = HDS追加参照統合上限(len(current_refs), len(observed))
             merged = HDS候補被覆優先統合(observed, current_refs, self.選択肢, limit)
-            before = tuple((x.識別子, x.条件) for x in current_refs)
-            after = tuple((x.識別子, x.条件) for x in merged)
+            before = _参照署名(current_refs)
+            after = _参照署名(merged)
             diag_out = self._診断成果(current_values, diagnostics)
             transport_bad = self._取得障害(diagnostics)
 
@@ -421,185 +483,107 @@ class HDS選択継承供給:
             )),
             契約版=HDS選択継承循環版,
             作用定義ID="HDS継承/候補関係観測",
+            計画仕様=self._操作仕様("HDS継承/候補関係観測",
+                生成=(参照成果名, 関係観測世代成果名, 参照記憶成果名, 参照取得診断成果名),
+                観測入力=("成果:" + 参照成果名,),
+                探索=self._観測探索("HDS継承/候補関係観測探索"), 資源=4),
         )
 
     def _評価作用(self, 状態: HDS実行状態):
-        refs = self._参照(状態)
-        ref_sig = _参照署名(refs)
-        if self._成果(状態).get(評価参照署名成果名) == ref_sig:
+        if self._成果(状態).get(評価参照署名成果名) == _参照署名(self._参照(状態)):
             return None
 
         def 実行(s: HDS実行状態):
-            refs_now = self._参照(s)
-            current_sig = _参照署名(refs_now)
-            結果 = self._評価(refs_now)
-            values = self._成果(s)
-            subjects = s.主体辞書()
-            baseline = subjects.get(基準結果主体名)
-            initial = not isinstance(baseline, HDS選択実行結果)
-            baseline_diff = ()
-            if initial:
-                baseline = 結果
-                baseline_diff = ((基準結果主体名, baseline),)
+            参照群 = self._参照(s)
+            現署名 = _参照署名(参照群)
+            開始 = perf_counter_ns()
+            結果 = self._評価(参照群)
+            評価時間 = perf_counter_ns() - 開始
+            値 = self._成果(s)
+            基準 = s.主体辞書().get(基準結果主体名)
+            初回 = not isinstance(基準, HDS選択実行結果)
+            基準差分 = ()
+            if 初回:
+                基準 = 結果
+                基準差分 = ((基準結果主体名, 基準),)
+            選択解消 = frozenset(set(s.残差).intersection(選択残差集合))
+            入力解消 = frozenset(set(s.残差).intersection(self.入力残差非阻害対象))
+            出力 = {現行結果成果名: 結果, 評価参照署名成果名: 現署名}
+            if 初回:
+                出力[初回評価参照成果名] = 参照群
+            訂正, 基準資料 = self._基準資料を照合(s, 参照群)
+            基準阻害 = self._品質残差(s, 基準資料, 基準)
+            現行阻害 = self._品質残差(s, 参照群, 結果)
+            採用, 判定, 理由 = None, None, ()
 
-            selection_clear = frozenset(set(s.残差).intersection(選択残差集合))
-            input_clear = frozenset(set(s.残差).intersection(self.入力残差非阻害対象))
-            outputs: list[tuple[str, object]] = [
-                (現行結果成果名, 結果),
-                (評価参照署名成果名, current_sig),
-            ]
-            if initial:
-                outputs.append((初回評価参照成果名, refs_now))
-
-            品質残差 = self._品質残差(s, refs_now) if _承認済み(結果) else frozenset()
-            if 品質残差:
-                return HDS作用結果(
-                    HDS作用状態.成立,
-                    解消残差=frozenset(set(selection_clear).difference(品質残差)),
-                    追加残差=frozenset(set(品質残差).difference(s.残差)),
-                    成果=tuple(outputs),
-                    主体状態差分=baseline_diff,
-                    理由=("HDS_REFERENCE_EVIDENCE_QUALITY_PENDING",),
-                )
-
-            if _承認済み(baseline):
-                if not initial and current_sig != self.初期参照署名:
-                    counter = HDS既存能力直接反証評価(
-                        self.質問IR,
-                        refs_now,
-                        コンパイル=getattr(self.コンパイラ, "コンパイル"),
-                        基礎能力核=self.基礎能力核,
-                        候補意味IR=self.候補意味IR,
-                        基準ラベル=str(baseline.回答ラベル),
-                        最小独立証拠数=2,
-                    )
-                    if counter is not None:
-                        judge = HDS証拠優越包絡(
-                            baseline, counter,
-                            基準承認判定=_承認済み,
-                            拡張承認判定=_承認済み,
-                            証拠優越証明=lambda _old, _new: True,
-                        )
-                        outputs[0] = (現行結果成果名, counter)
-                        outputs.extend(((非退行判定成果名, judge), (影結果成果名, counter), (回答成果名, counter.回答ラベル)))
-                        if input_clear:
-                            outputs.append((入力残差影成果名, tuple(sorted(input_clear))))
-                        return HDS作用結果(
-                            HDS作用状態.成立,
-                            追加状態=frozenset({選択閉包状態}),
-                            解消残差=frozenset((*selection_clear, *input_clear)),
-                            成果=tuple(outputs),
-                            主体状態差分=baseline_diff,
-                            理由=tuple(dict.fromkeys((*judge.理由, "HDS_DIRECT_COUNTEREVIDENCE_REVERIFIED"))),
-                        )
-                    if (
-                        _承認済み(結果)
-                        and 結果.回答ラベル != baseline.回答ラベル
-                        and _候補証拠優越(
-                            self.質問IR,
-                            self.候補意味IR,
-                            結果,
-                            基準ラベル=str(baseline.回答ラベル),
-                            新ラベル=str(結果.回答ラベル),
-                            最小独立支持数=2,
-                        )
-                    ):
-                        judge = HDS証拠優越包絡(
-                            baseline, 結果,
-                            基準承認判定=_承認済み,
-                            拡張承認判定=_承認済み,
-                            証拠優越証明=lambda _old, _new: True,
-                        )
-                        outputs.extend(((非退行判定成果名, judge), (影結果成果名, 結果), (回答成果名, 結果.回答ラベル)))
-                        if input_clear:
-                            outputs.append((入力残差影成果名, tuple(sorted(input_clear))))
-                        return HDS作用結果(
-                            HDS作用状態.成立,
-                            追加状態=frozenset({選択閉包状態}),
-                            解消残差=frozenset((*selection_clear, *input_clear)),
-                            成果=tuple(outputs),
-                            主体状態差分=baseline_diff,
-                            理由=tuple(dict.fromkeys((*judge.理由, "HDS_SUPERIOR_EVIDENCE_ADOPTED"))),
-                        )
-                    if 結果 is not baseline:
-                        outputs.append((影結果成果名, 結果))
-
-                outputs.append((回答成果名, baseline.回答ラベル))
-                if input_clear:
-                    outputs.append((入力残差影成果名, tuple(sorted(input_clear))))
-                return HDS作用結果(
-                    HDS作用状態.成立,
-                    追加状態=frozenset({選択閉包状態}),
-                    解消残差=frozenset((*selection_clear, *input_clear)),
-                    成果=tuple(outputs),
-                    主体状態差分=baseline_diff,
-                    理由=("HDS_BASELINE_APPROVAL_KEPT", "HDS_MINIDORA_CANONICAL_INHERITED"),
-                )
-
-            if not initial and _承認済み(結果):
-                proof = (
-                    bool(self.拡張採用証明(baseline, 結果))
-                    if self.拡張採用証明 is not None
-                    else _標準追加採用証明(
-                        baseline, 結果,
-                        初期参照署名=self.初期参照署名,
-                        現在参照署名=current_sig,
-                    )
-                )
-                judge = HDS非退行包絡(
-                    baseline,
-                    基準承認判定=_承認済み,
-                    拡張実行=lambda: 結果,
-                    拡張承認判定=_承認済み,
-                    拡張採用証明=lambda _old, _new: proof,
-                )
-                outputs.extend(((非退行判定成果名, judge), (影結果成果名, 結果)))
-                if judge.拡張採用:
-                    outputs.append((回答成果名, 結果.回答ラベル))
-                    if input_clear:
-                        outputs.append((入力残差影成果名, tuple(sorted(input_clear))))
-                    return HDS作用結果(
-                        HDS作用状態.成立,
-                        追加状態=frozenset({選択閉包状態}),
-                        解消残差=frozenset((*selection_clear, *input_clear)),
-                        成果=tuple(outputs),
-                        主体状態差分=baseline_diff,
-                        理由=tuple(dict.fromkeys((*judge.理由, "HDS_MINIDORA_CANONICAL_INHERITED"))),
-                    )
-                return HDS作用結果(
-                    HDS作用状態.成立,
-                    解消残差=selection_clear,
-                    追加残差=frozenset({残差_証明不足}),
-                    成果=tuple(outputs),
-                    主体状態差分=baseline_diff,
-                    理由=tuple(dict.fromkeys((*judge.理由, "HDS_EXTENSION_SHADOW_ONLY"))),
-                )
-
-            residuals = _選択残差(結果, refs_now)
+            if _根拠付き承認(基準) and not 初回 and 現署名 != self.初期参照署名:
+                反証 = HDS既存能力直接反証評価(
+                    self.質問IR, 参照群, コンパイル=getattr(self.コンパイラ, "コンパイル"),
+                    基礎能力核=self.基礎能力核, 候補意味IR=self.候補意味IR,
+                    基準ラベル=str(基準.回答ラベル), 最小独立証拠数=2)
+                if 反証 is not None and not self._品質残差(s, 参照群, 反証):
+                    採用, 理由 = 反証, ("HDS_DIRECT_COUNTEREVIDENCE_REVERIFIED",)
+                elif not 現行阻害 and 結果.回答ラベル != 基準.回答ラベル and _候補証拠優越(
+                    self.質問IR, self.候補意味IR, 結果, 基準ラベル=str(基準.回答ラベル),
+                    新ラベル=str(結果.回答ラベル), 最小独立支持数=2):
+                    採用, 理由 = 結果, ("HDS_SUPERIOR_EVIDENCE_ADOPTED",)
+                if 採用 is not None:
+                    判定 = HDS証拠優越包絡(基準, 採用, 基準承認判定=_根拠付き承認,
+                        拡張承認判定=_根拠付き承認, 証拠優越証明=lambda _前, _後: True)
+            if 採用 is None and not 基準阻害 and not 訂正:
+                採用, 理由 = 基準, ("HDS_BASELINE_APPROVAL_KEPT", "HDS_MINIDORA_CANONICAL_INHERITED")
+            elif 採用 is None and 訂正 and not 現行阻害 and 結果.回答ラベル == 基準.回答ラベル:
+                採用, 理由 = 結果, ("HDS_BASELINE_EVIDENCE_REVALIDATED",)
+            elif 採用 is None and not _根拠付き承認(基準) and not 現行阻害 and not 初回:
+                証明 = bool(self.拡張採用証明(基準, 結果)) if self.拡張採用証明 is not None else _標準追加採用証明(
+                    基準, 結果, 初期参照署名=self.初期参照署名, 現在参照署名=現署名)
+                判定 = HDS非退行包絡(基準, 基準承認判定=_根拠付き承認, 拡張実行=lambda: 結果,
+                    拡張承認判定=_根拠付き承認, 拡張採用証明=lambda _前, _後: 証明)
+                if 判定.拡張採用:
+                    採用, 理由 = 結果, ("HDS_MINIDORA_CANONICAL_INHERITED",)
+            if 判定 is not None:
+                出力[非退行判定成果名] = 判定
+                出力[影結果成果名] = 結果
+            出力[採用監査成果名] = {
+                "基準根拠成立": _根拠付き承認(基準), "基準資料訂正": 訂正,
+                "基準阻害": tuple(sorted(基準阻害)), "現行阻害": tuple(sorted(現行阻害)),
+                "採用ラベル": 採用.回答ラベル if 採用 is not None else None,
+                "取得診断": tuple(値.get(参照取得診断成果名, ())),
+                "資料解釈診断": getattr(self, "_資料診断", ()), "評価時間ns": 評価時間,
+                "構文化実行数": getattr(self, "_構文化実行数", 0),
+                "構文化再利用数": getattr(self, "_構文化再利用数", 0)}
+            if 採用 is not None:
+                if 採用 is not 結果:
+                    出力[影結果成果名] = 結果
+                出力[現行結果成果名], 出力[回答成果名] = 採用, 採用.回答ラベル
+                if 入力解消:
+                    出力[入力残差影成果名] = tuple(sorted(入力解消))
+                return HDS作用結果(HDS作用状態.成立, 追加状態=frozenset({選択閉包状態}),
+                    解消残差=frozenset((*選択解消, *入力解消)), 成果=tuple(出力.items()),
+                    主体状態差分=基準差分, 理由=理由)
+            残差 = set(_選択残差(結果, 参照群))
+            if _承認済み(結果):
+                残差.update(現行阻害 or {残差_証明不足})
+            if _根拠付き承認(基準):
+                残差.update(基準阻害)
+                if 訂正:
+                    残差.add(残差_証明不足)
             if self.数量計算契約.状態 == "法則不足":
-                residuals = frozenset((*residuals, 残差_数量法則不足))
-            if self._計算計画() is not None and not bool(values.get(計算済み成果名, False)):
-                residuals = frozenset((*residuals, 残差_計算要求))
-            return HDS作用結果(
-                HDS作用状態.成立,
-                解消残差=frozenset(set(selection_clear).difference(residuals)),
-                追加残差=frozenset(set(residuals).difference(s.残差)),
-                成果=tuple(outputs),
-                主体状態差分=baseline_diff,
-                理由=tuple(dict.fromkeys(("HDS_SELECTION_NOT_CLOSED", *tuple(結果.理由)))),
-            )
+                残差.add(残差_数量法則不足)
+            if self._計算計画() is not None and not bool(値.get(計算済み成果名, False)):
+                残差.add(残差_計算要求)
+            return HDS作用結果(HDS作用状態.成立,
+                解消残差=frozenset(set(選択解消).difference(残差)),
+                追加残差=frozenset(残差.difference(s.残差)), 成果=tuple(出力.items()),
+                主体状態差分=基準差分, 理由=("HDS_SELECTION_NOT_CLOSED", *tuple(結果.理由)))
 
-        return HDS関数作用(
-            "HDS継承/模型再評価",
-            実行,
-            解消対象=tuple(sorted(選択残差集合 | self.入力残差非阻害対象)),
-            資源負荷=2,
-            優先度=10.0,
-            読取成果=(),
-            入力署名=lambda s: _参照署名(self._参照(s)),
-            契約版=HDS選択継承循環版,
+        return HDS関数作用("HDS継承/模型再評価", 実行, 出力状態=(選択閉包状態,),
+            解消対象=tuple(sorted(選択残差集合 | self.入力残差非阻害対象)), 資源負荷=2, 優先度=10.0,
+            入力署名=lambda s: _参照署名(self._参照(s)), 契約版=HDS選択継承循環版,
             作用定義ID="HDS継承/模型再評価",
-        )
+            計画仕様=self._操作仕様("HDS継承/模型再評価",
+                生成=(現行結果成果名, 評価参照署名成果名, 初回評価参照成果名, 回答成果名, 採用監査成果名),
+                観測入力=("成果:" + 参照成果名,), 解消=選択残差集合 | self.入力残差非阻害対象, 資源=2))
 
     def _計算計画(self):
         if self.計算実行器 is None:
@@ -673,7 +657,10 @@ class HDS選択継承供給:
             解消対象=(残差_計算要求,),
             資源負荷=1,
             優先度=8.0,
-            読取成果=(参照成果名, 計算済み成果名),
+            読取成果=(),
+            計画仕様=self._操作仕様("HDS継承/計算",
+                生成=(参照成果名, 計算済み成果名),
+                観測入力=("成果:" + 参照成果名, "成果:" + 計算済み成果名), 解消=(残差_計算要求,)),
             入力署名=lambda s: _署名((_参照署名(self._参照(s)), bool(self._成果(s).get(計算済み成果名, False)))),
             契約版=HDS選択継承循環版,
             作用定義ID="HDS継承/計算",
@@ -705,8 +692,8 @@ class HDS選択継承供給:
             )
             limit = HDS追加参照統合上限(len(refs), len(observed))
             merged = HDS候補被覆優先統合(refs, observed, self.選択肢, limit)
-            before = tuple((x.識別子, x.条件) for x in refs)
-            after = tuple((x.識別子, x.条件) for x in merged)
+            before = _参照署名(refs)
+            after = _参照署名(merged)
             memory_raw = values_now.get(参照記憶成果名, refs)
             memory = 参照記録群を統合(memory_raw if isinstance(memory_raw, tuple) else refs, observed)
             diag_out = self._診断成果(values_now, diagnostics)
@@ -772,6 +759,10 @@ class HDS選択継承供給:
             )),
             契約版=HDS選択継承循環版,
             作用定義ID="HDS継承/追加参照",
+            計画仕様=self._操作仕様("HDS継承/追加参照",
+                生成=(参照成果名, 参照世代成果名, 参照記憶成果名, 参照取得診断成果名),
+                観測入力=("成果:" + 参照成果名,),
+                探索=self._観測探索("HDS継承/追加参照探索"), 資源=4),
         )
 
     def 構成(self, 状態: HDS実行状態):

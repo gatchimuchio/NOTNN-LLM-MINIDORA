@@ -432,6 +432,7 @@ def 通常循環(主体, 初期状態, 前回=None):
                 入力状態 = o.入力状態 | frozenset(修復入力) | (spec.入力状態 if isinstance(spec, HDS作用仕様) else frozenset())
                 読取成果 = tuple(sorted(set(o.読取成果) | (set(spec.読取成果) if isinstance(spec, HDS作用仕様) else set())))
                 読取ノード = tuple(sorted(set(o.読取ノード) | (set(spec.読取ノード) if isinstance(spec, HDS作用仕様) else set())))
+                観測入力 = spec.観測入力 if isinstance(spec, HDS作用仕様) else ()
                 探索 = spec.探索 if isinstance(spec, HDS作用仕様) else None
                 if 探索 is not None:
                     契約値 = 署名(探索)
@@ -444,11 +445,12 @@ def 通常循環(主体, 初期状態, 前回=None):
                         tuple((k, 現在.ノード署名("認識:" + k)) for k in (*読取認識, *o.未確定読取)),
                         tuple((k, 現在.ノード署名("成果:" + k)) for k in 読取成果),
                         tuple((k, 目的ノード署名(現在, k)) for k in 読取ノード),
+                        tuple((k, 目的ノード署名(現在, k)) for k in 観測入力),
                         tuple((k, 現在.ノード署名("状態:" + k)) for k in sorted(入力状態)))
                 準備済 = (入力状態 <= 現在.成立状態
                         and all(有効認識(現在, k) for k in 読取認識)
                         and all(ノード有効(現在, "成果:" + k) for k in 読取成果)
-                        and all(目的ノード有効(現在, k) for k in 読取ノード))
+                        and all(目的ノード有効(現在, k) for k in (*読取ノード, *観測入力)))
                 意味入力 = o.意味入力署名
                 if 準備済:
                     意味署名関数 = getattr(a, "意味入力を署名", None)
@@ -505,7 +507,7 @@ def 通常循環(主体, 初期状態, 前回=None):
             if 探索 is not None:
                 接続 = (set(探索.利用先) & 必要ノード
                         and any(not 目的ノード有効(現在, n) for n in 探索.利用先 if n in 必要ノード)
-                        and any(not 目的ノード有効(現在, n) for n in 探索.取得ノード))
+                        and (探索.再観測 or any(not 目的ノード有効(現在, n) for n in 探索.取得ノード)))
                 探索可能 = bool(接続 and 探索残枠(探索, o.資源負荷))
                 if not 探索可能:
                     統計["探索上限除外数"] += 1

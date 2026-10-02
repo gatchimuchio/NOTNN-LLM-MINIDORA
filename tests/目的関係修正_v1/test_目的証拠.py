@@ -24,8 +24,8 @@ def 仮説入力():
     return state, rules, target
 
 
-class PurposeEvidenceTests(unittest.TestCase):
-    def test_two_stage_hypothesis_does_not_lose_purpose(self):
+class 目的証拠試験(unittest.TestCase):
+    def test_二段仮説で目的を失わない(self):
         state, rules, target = 仮説入力()
         action = 関係仮説構成作用(rules, 128)
         first = action.機会(state)
@@ -40,7 +40,7 @@ class PurposeEvidenceTests(unittest.TestCase):
         self.assertFalse(有効認識(reflected, target))
         self.assertFalse(reflected.閉包済み)
 
-    def test_hypothesis_generation_is_reused_but_not_across_changed_input(self):
+    def test_仮説生成は同一入力で再利用し入力変更では再利用しない(self):
         state, rules, _ = 仮説入力()
         action = 関係仮説構成作用(rules, 128)
         action.機会(state)
@@ -50,20 +50,20 @@ class PurposeEvidenceTests(unittest.TestCase):
         action.機会(next_state)
         self.assertEqual(action.生成実行数, 2)
 
-    def test_progress_uses_identity_not_residual_count(self):
+    def test_進展は残差件数でなく同一性を見る(self):
         state = HDS実行状態(目的=('回答する',), 残差=frozenset({'未確認A'}))
         after = replace(state, 残差=frozenset({'追加確認B', '追加確認C'}))
         a, b = 目的を観測(state, 有効認識), 目的を観測(after, 有効認識)
         ok, _ = 目的進展を判定(前観測=a, 後観測=b, 最良直接尺度=a.直接尺度)
         self.assertTrue(ok)
 
-    def test_purpose_signature_rejects_mutation(self):
+    def test_目的署名が途中変更を拒否する(self):
         s = HDS実行状態(目的=('元の目的',))
         original = 目的を観測(s, 有効認識)
         with self.assertRaises(ValueError):
             目的を観測(replace(s, 目的=('別目的',)), 有効認識, 契約署名=original.契約署名)
 
-    def test_intermediate_evidence_extends_but_counter_does_not(self):
+    def test_中間証拠は延長し単なる反復は延長しない(self):
         s = HDS実行状態(目的=('回答する',), 要求状態=frozenset({'回答'}))
         necessary = frozenset({'成果:数量', '状態:回答'})
         prepared = replace(s, 成果=(('数量', 3),))
@@ -79,7 +79,7 @@ class PurposeEvidenceTests(unittest.TestCase):
         ok, _ = 目的進展を判定(前観測=a, 後観測=c, 最良直接尺度=a.直接尺度)
         self.assertFalse(ok)
 
-    def test_missing_product_does_not_invoke_semantic_signer(self):
+    def test_欠落成果では意味署名を呼ばない(self):
         called = []
         def signer(state):
             called.append(True)
