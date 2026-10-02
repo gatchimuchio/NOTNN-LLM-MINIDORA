@@ -1,0 +1,137 @@
+name: MINIDORA GPQA 並列性能継承
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".benchmark/gpqa-current-trigger"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gpqa-parallel-inheritance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { shard: "000-004", start: 0, limit: 5 }
+          - { shard: "005-009", start: 5, limit: 5 }
+          - { shard: "010-014", start: 10, limit: 5 }
+          - { shard: "015-019", start: 15, limit: 5 }
+          - { shard: "020-024", start: 20, limit: 5 }
+          - { shard: "025-029", start: 25, limit: 5 }
+          - { shard: "030-034", start: 30, limit: 5 }
+          - { shard: "035-039", start: 35, limit: 5 }
+          - { shard: "040-044", start: 40, limit: 5 }
+          - { shard: "045-049", start: 45, limit: 5 }
+          - { shard: "050-054", start: 50, limit: 5 }
+          - { shard: "055-059", start: 55, limit: 5 }
+          - { shard: "060-064", start: 60, limit: 5 }
+          - { shard: "065-069", start: 65, limit: 5 }
+          - { shard: "070-074", start: 70, limit: 5 }
+          - { shard: "075-079", start: 75, limit: 5 }
+          - { shard: "080-084", start: 80, limit: 5 }
+          - { shard: "085-089", start: 85, limit: 5 }
+          - { shard: "090-094", start: 90, limit: 5 }
+          - { shard: "095-099", start: 95, limit: 5 }
+          - { shard: "100-104", start: 100, limit: 5 }
+          - { shard: "105-109", start: 105, limit: 5 }
+          - { shard: "110-114", start: 110, limit: 5 }
+          - { shard: "115-119", start: 115, limit: 5 }
+          - { shard: "120-124", start: 120, limit: 5 }
+          - { shard: "125-129", start: 125, limit: 5 }
+          - { shard: "130-134", start: 130, limit: 5 }
+          - { shard: "135-139", start: 135, limit: 5 }
+          - { shard: "140-144", start: 140, limit: 5 }
+          - { shard: "145-149", start: 145, limit: 5 }
+          - { shard: "150-154", start: 150, limit: 5 }
+          - { shard: "155-159", start: 155, limit: 5 }
+          - { shard: "160-164", start: 160, limit: 5 }
+          - { shard: "165-169", start: 165, limit: 5 }
+          - { shard: "170-174", start: 170, limit: 5 }
+          - { shard: "175-179", start: 175, limit: 5 }
+          - { shard: "180-184", start: 180, limit: 5 }
+          - { shard: "185-189", start: 185, limit: 5 }
+          - { shard: "190-194", start: 190, limit: 5 }
+          - { shard: "195-197", start: 195, limit: 3 }
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: 問題独立shard実測
+        run: >-
+          python tools/GPQA並列性能継承評価.py
+          --start-index ${{ matrix.start }}
+          --limit ${{ matrix.limit }}
+          --out gpqa_parallel_${{ matrix.shard }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gpqa-parallel-${{ matrix.shard }}
+          path: gpqa_parallel_${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  aggregate:
+    needs: measure
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gpqa-parallel-*
+          path: shards
+          merge-multiple: true
+      - name: 198問集約と40点下限判定
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payloads=[json.loads(p.read_text(encoding="utf-8")) for p in sorted(Path("shards").glob("gpqa_parallel_*.json"))]
+          rows=[row for payload in payloads for row in payload["個票"]]
+          rows.sort(key=lambda row:int(row["番号"]))
+          indices=[int(row["番号"]) for row in rows]
+          if indices != list(range(198)):
+              raise SystemExit(f"198問一意完走違反: count={len(rows)}")
+          revisions={payload["評価条件"]["リポジトリ版"] for payload in payloads}
+          if len(revisions)!=1:
+              raise SystemExit(f"revision不一致: {sorted(revisions)}")
+          if any(payload["評価条件"].get("問題間継続状態") is not False for payload in payloads):
+              raise SystemExit("問題間状態継承が無効ではない")
+          correct=sum(bool(row["正答"]) for row in rows)
+          answered=sum(bool(row["回答済み"]) for row in rows)
+          result={
+              "契約形式":"minidora.gpqa.parallel-inheritance.v1",
+              "リポジトリ版":next(iter(revisions)),
+              "全数":198,
+              "正答":correct,
+              "回答":answered,
+              "保留":198-answered,
+              "性能継承下限":40,
+              "性能継承成立":correct>=40,
+              "問題間継続状態":False,
+              "個票":rows,
+          }
+          Path("gpqa_parallel_full.json").write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          print(json.dumps({k:v for k,v in result.items() if k!="個票"},ensure_ascii=False,indent=2))
+          if correct < 40:
+              raise SystemExit(f"性能退行: {correct}/198 < 40/198")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: minidora-gpqa-parallel-inheritance
+          path: gpqa_parallel_full.json
+          if-no-files-found: error
