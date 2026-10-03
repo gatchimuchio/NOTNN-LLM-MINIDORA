@@ -1,4 +1,5 @@
 name: MINIDORA rev5 候補還元
+# retrigger: 2026-10-04 final verified return
 
 on:
   push:
