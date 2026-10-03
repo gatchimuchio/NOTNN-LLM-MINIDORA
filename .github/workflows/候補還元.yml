@@ -15,7 +15,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  還元検証:
+  return_verify:
+    name: 候補適用・全体検証・還元
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
