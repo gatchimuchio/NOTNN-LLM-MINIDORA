@@ -65,6 +65,17 @@ jobs:
           rm .github/workflows/候補還元.yml
           git diff --check
 
+      - name: 候補適用後ソースを保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: minidora-rev5-candidate-source
+          path: |
+            src
+            tests
+            tools
+            現行正本.md
+          if-no-files-found: error
+
       - name: パッケージ導入
         run: python -m pip install -e .
 
