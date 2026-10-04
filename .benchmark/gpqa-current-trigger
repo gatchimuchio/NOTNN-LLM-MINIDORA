@@ -1,6 +1,6 @@
-run=dual-gpqa-78d507b-20261005
-purpose=現行改良版MINIDORAの並列性能継承40/198下限と直列学習効果を同一revisionで実測
+run=dual-gpqa-repair-7ca71d5-20261005
+purpose=非退行契約・模型再評価経路修復後の並列性能継承と直列学習効果を同一revisionで再実測
 parallel=問題独立並列
 serial=同一Core直列
 wall_clock_limit_minutes=90
-source_revision=78d507bf3750f0140a79a946af1272de0081df4e
+source_revision=7ca71d5399bf90cc6bea3429bbb6d03a7deda4c0
