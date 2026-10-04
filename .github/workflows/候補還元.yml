@@ -1,5 +1,5 @@
 name: MINIDORA rev5 候補還元
-# retrigger: 2026-10-04 final-local-green
+# retrigger: 2026-10-04 japanese-audit-fix
 
 on:
   push:
@@ -76,6 +76,29 @@ jobs:
           PY
           git apply --check /tmp/minidora_rev5_final_fix.patch
           git apply /tmp/minidora_rev5_final_fix.patch
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("src/minidora/コア/継続保存.py")
+          s=p.read_text(encoding="utf-8")
+          s=s.replace('    data = _正規JSON(本文) + "\\n"\n    with 仮.open("w", encoding="utf-8") as f:\n        f.write(data); f.flush(); os.fsync(f.fileno())',
+                      '    保存文字列 = _正規JSON(本文) + "\\n"\n    with 仮.open("w", encoding="utf-8") as f:\n        f.write(保存文字列); f.flush(); os.fsync(f.fileno())')
+          p.write_text(s,encoding="utf-8")
+          p=Path("src/minidora/駆動系/接続.py")
+          s=p.read_text(encoding="utf-8")
+          s=s.replace("result_name, learn_name, goal = 目的出力成果, 目的学習成果, 目的回答済",
+                      "出力名, 学習名, 到達状態 = 目的出力成果, 目的学習成果, 目的回答済")
+          s=s.replace("subject=(('HDS目的正本',(要求.ID,要求.版,要求.世界ID,要求.署名)),(照合消費成果,0))",
+                      "主体初期値=(('HDS目的正本',(要求.ID,要求.版,要求.世界ID,要求.署名)),(照合消費成果,0))")
+          s=s.replace("result_name, learn_name, goal = 出力成果, 学習成果, 回答済",
+                      "出力名, 学習名, 到達状態 = 出力成果, 学習成果, 回答済")
+          s=s.replace("subject=(('HDS目的正本',(要求.ID,要求.版,要求.世界ID,要求.署名)),)",
+                      "主体初期値=(('HDS目的正本',(要求.ID,要求.版,要求.世界ID,要求.署名)),)")
+          s=s.replace("要求状態=frozenset({goal})", "要求状態=frozenset({到達状態})")
+          s=s.replace("成果=initial_results,主体状態=subject", "成果=initial_results,主体状態=主体初期値")
+          s=s.replace("proposal=values.get(learn_name); output=values.get(result_name)",
+                      "proposal=values.get(学習名); output=values.get(出力名)")
+          p.write_text(s,encoding="utf-8")
+          PY
           rm -f src/minidora/構文化再利用.py src/minidora/継続保存.py
           rm .github/workflows/候補還元.yml
           git diff --check
