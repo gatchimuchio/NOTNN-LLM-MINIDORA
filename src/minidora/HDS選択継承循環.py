@@ -519,9 +519,11 @@ class HDS選択継承供給:
         return 訂正, tuple(元.values())
 
     def _操作仕様(self, ID, *, 生成=(), 観測入力=(), 読取成果=(), 解消=(), 探索=None, 資源=1):
+        評価作用 = ID == "HDS継承/模型再評価"
         return HDS作用仕様(ID,
-            追加状態=frozenset({選択閉包状態}) if ID == "HDS継承/模型再評価" else frozenset(),
+            追加状態=frozenset({選択閉包状態}) if 評価作用 else frozenset(),
             解消残差=frozenset(解消), 生成成果=tuple(生成), 観測入力=tuple(観測入力), 読取成果=tuple(読取成果),
+            目的依存=(("状態:" + 選択閉包状態,) if 評価作用 else ()),
             資源負荷=資源, 版=HDS選択継承循環版, 観測専用=探索 is not None, 探索=探索, 入力不変保証=True)
 
     def _観測探索(self, ID):
