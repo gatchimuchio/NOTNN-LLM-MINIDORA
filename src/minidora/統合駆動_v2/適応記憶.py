@@ -63,82 +63,137 @@ def _既に満たす(機会, 前状態) -> bool:
 
 
 class HDS適応記憶:
-    """同一定義・同一意味入力で観測した効果を、Core寿命内の後続処理へ継続利用する。
+    """作用効果の全経験を保持し、主演算は最新窓と反証後の安定効果だけを見る。"""
 
-    最終回答や採点結果ではなく、各作用の実測状態差だけを保持する。
-    最新の反証以後に再確認された安定効果だけを後続計画へ反映する。
-    """
-
-    __slots__ = ("_経験列",)
+    __slots__ = ("_経験列", "_保管経験", "_最大経験数", "_安定索引")
 
     def __init__(self, 最大経験数: int = 256) -> None:
         if type(最大経験数) is not int or not 1 <= 最大経験数 <= 4096:
             raise ValueError("最大経験数は1..4096の整数が必要")
-        self._経験列 = deque(maxlen=最大経験数)
+        self._最大経験数 = 最大経験数
+        self._経験列 = deque()
+        self._保管経験 = []
+        self._安定索引 = {}
+
+    @property
+    def 全経験(self):
+        return (*self._保管経験, *tuple(self._経験列))
 
     @property
     def 経験数(self) -> int:
-        return len(self._経験列)
+        return len(self._保管経験) + len(self._経験列)
+
+    @property
+    def 保管経験数(self) -> int:
+        return len(self._保管経験)
+
+    def _再索引(self) -> None:
+        索引 = {}
+        文脈群 = {x.文脈 for x in self.全経験}
+        for 文脈 in 文脈群:
+            対象 = [x for x in self.全経験 if x.文脈 == 文脈]
+            最後の反証 = max((i for i, x in enumerate(対象) if x.反証), default=-1)
+            有効 = tuple(x for x in 対象[最後の反証 + 1:] if x.成立 and x.変化有無)
+            if 有効:
+                索引[文脈] = len(有効)
+        self._安定索引 = 索引
+
+    def _追加(self, 経験: _経験) -> None:
+        if not isinstance(経験, _経験):
+            raise TypeError("適応経験型が不正")
+        if len(self._経験列) >= self._最大経験数:
+            self._保管経験.append(self._経験列.popleft())
+        self._経験列.append(経験)
+        self._再索引()
 
     @property
     def 状態署名(self) -> str:
         from ..コア.値 import 署名
-        return 署名(tuple(self._経験列))
+        return 署名((self._最大経験数, self.全経験))
 
     def 初期化(self) -> None:
         self._経験列.clear()
+        self._保管経験.clear()
+        self._安定索引 = {}
+
+    def スナップショット(self):
+        return {"最大経験数": self._最大経験数, "経験": tuple(self._経験列), "保管経験": tuple(self._保管経験)}
+
+    def 復元(self, 記録) -> None:
+        if not isinstance(記録, dict) or set(記録) not in ({"最大経験数", "経験"}, {"最大経験数", "経験", "保管経験"}):
+            raise ValueError("適応記憶スナップショット不正")
+        最大 = 記録["最大経験数"]; 経験 = 記録["経験"]; 保管 = 記録.get("保管経験", ())
+        if type(最大) is not int or not 1 <= 最大 <= 4096 or not isinstance(経験, tuple) or not isinstance(保管, tuple):
+            raise ValueError("適応記憶スナップショット不正")
+        if any(not isinstance(x, _経験) for x in (*保管, *経験)):
+            raise TypeError("適応経験型が不正")
+        if len(経験) > 最大:
+            raise ValueError("適応記憶の最新窓が上限を超える")
+        self._最大経験数 = 最大
+        self._経験列 = deque(経験)
+        self._保管経験 = list(保管)
+        self._再索引()
 
     def 結果を受け取る(self, 機会, 結果, 状態差, 前状態=None) -> None:
         if str(機会.作用ID).startswith("内的/"):
             return
         成立 = _成立か(結果)
         変化 = bool(状態差.変化有無)
-        # 同じ意味入力で実行失敗した場合、以前の成功期待をそのまま残さない。
-        # 成功かつ無変化は、既に効果が成立していた場合は反証にしない。
         反証 = (not 成立) or (成立 and not 変化 and not _既に満たす(機会, 前状態))
-        self._経験列.append(
-            _経験(
-                _文脈(機会),
-                成立,
-                変化,
-                frozenset(getattr(状態差, "追加状態", ())),
-                frozenset(getattr(状態差, "削除状態", ())),
-                frozenset(getattr(状態差, "解消残差", ())),
-                frozenset(getattr(状態差, "追加残差", ())),
-                反証,
-            )
-        )
+        self._追加(_経験(
+            _文脈(機会), 成立, 変化,
+            frozenset(getattr(状態差, "追加状態", ())),
+            frozenset(getattr(状態差, "削除状態", ())),
+            frozenset(getattr(状態差, "解消残差", ())),
+            frozenset(getattr(状態差, "追加残差", ())),
+            反証,
+        ))
 
     def _安定効果(self, 機会) -> 期待効果:
         文脈 = _文脈(機会)
-        対象 = [x for x in self._経験列 if x.文脈 == 文脈]
+        対象 = [x for x in self.全経験 if x.文脈 == 文脈]
         if not 対象:
             return 期待効果()
-        # 最新の反証より前の成功は再利用しない。
         最後の反証 = max((i for i, x in enumerate(対象) if x.反証), default=-1)
         有効 = [x for x in 対象[最後の反証 + 1:] if x.成立 and x.変化有無]
         if not 有効:
             return 期待効果()
-
-        追加 = set(有効[0].追加状態)
-        削除 = set(有効[0].削除状態)
-        解消 = set(有効[0].解消残差)
-        追加残差 = set(有効[0].追加残差)
+        追加 = set(有効[0].追加状態); 削除 = set(有効[0].削除状態)
+        解消 = set(有効[0].解消残差); 追加残差 = set(有効[0].追加残差)
         for 経験 in 有効[1:]:
-            追加.intersection_update(経験.追加状態)
-            削除.intersection_update(経験.削除状態)
-            解消.intersection_update(経験.解消残差)
-            追加残差.intersection_update(経験.追加残差)
-        return 期待効果(frozenset(追加), frozenset(削除), frozenset(解消),
-                      frozenset(追加残差), len(有効))
+            追加.intersection_update(経験.追加状態); 削除.intersection_update(経験.削除状態)
+            解消.intersection_update(経験.解消残差); 追加残差.intersection_update(経験.追加残差)
+        return 期待効果(frozenset(追加), frozenset(削除), frozenset(解消), frozenset(追加残差), len(有効))
+
+    def _構造安定効果(self, 機会) -> 期待効果:
+        文脈 = _文脈(機会)
+        同一定義 = [x for x in self.全経験
+                    if (x.文脈.作用定義ID, x.文脈.種別, x.文脈.契約版)
+                    == (文脈.作用定義ID, 文脈.種別, 文脈.契約版)]
+        署名群 = sorted({x.文脈.意味入力署名 for x in 同一定義})
+        if len(署名群) < 2:
+            return 期待効果()
+        効果群=[]
+        for 入力署名 in 署名群:
+            対象=[x for x in 同一定義 if x.文脈.意味入力署名==入力署名]
+            最後=max((i for i,x in enumerate(対象) if x.反証),default=-1)
+            有効=[x for x in 対象[最後+1:] if x.成立 and x.変化有無]
+            if not 有効: continue
+            a=set(有効[0].追加状態); d=set(有効[0].削除状態); r=set(有効[0].解消残差); ar=set(有効[0].追加残差)
+            for e in 有効[1:]: a&=set(e.追加状態); d&=set(e.削除状態); r&=set(e.解消残差); ar&=set(e.追加残差)
+            効果群.append((a,d,r,ar))
+        if len(効果群)<2:
+            return 期待効果()
+        a,d,r,ar=map(set,効果群[0])
+        for x in 効果群[1:]: a&=x[0];d&=x[1];r&=x[2];ar&=x[3]
+        return 期待効果(frozenset(a),frozenset(d),frozenset(r),frozenset(ar),len(効果群))
 
     def 機会を補正(self, 機会):
         if str(機会.作用ID).startswith("内的/"):
             return 機会
         効果 = self._安定効果(機会)
-        if 効果.空:
-            return 機会
-        # 契約効果は変更せず、経験由来の期待だけ別欄へ保持する。
+        if 効果.空: 効果 = self._構造安定効果(機会)
+        if 効果.空: return 機会
         return replace(機会, 期待=効果)
 
 

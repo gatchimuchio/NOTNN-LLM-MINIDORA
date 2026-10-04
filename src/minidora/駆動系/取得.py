@@ -7,11 +7,14 @@ def 作用供給を取得(主体, 現在, 政策):
     """許可された供給器の作用を取得する。容量不足は所有主体へ返す。"""
     供給 = []
     for 供給器 in 主体.作用供給器:
-        写し = deepcopy(現在)
-        前署名 = 写し.状態署名
-        候補 = 供給器.構成(写し)
-        if 写し.状態署名 != 前署名:
-            raise ValueError("作用供給器が状態を変更した")
+        if getattr(供給器, "入力不変保証", False):
+            候補 = 供給器.構成(現在)
+        else:
+            写し = deepcopy(現在)
+            前署名 = 写し.状態署名
+            候補 = 供給器.構成(写し)
+            if 写し.状態署名 != 前署名:
+                raise ValueError("作用供給器が状態を変更した")
         if type(候補) is not tuple:
             raise TypeError("作用供給器の返却はtupleが必要")
         if len(供給) + len(候補) > 政策.最大内部生成:
@@ -32,11 +35,14 @@ def 作用供給を取得(主体, 現在, 政策):
 def 作用機会を取得(作用, 現在):
     """状態複製へだけ作用機会を問い合わせ、入力書換えと型の逸脱を拒否する。"""
     from ..HDS実行主体 import HDS作用機会
-    写し = deepcopy(現在)
-    写し署名 = 写し.状態署名
-    o = 作用.機会(写し)
-    if 写し.状態署名 != 写し署名:
-        raise ValueError("機会観測が主体状態を書換えた")
+    if getattr(getattr(作用, "計画仕様", None), "入力不変保証", False):
+        o = 作用.機会(現在)
+    else:
+        写し = deepcopy(現在)
+        写し署名 = 写し.状態署名
+        o = 作用.機会(写し)
+        if 写し.状態署名 != 写し署名:
+            raise ValueError("機会観測が主体状態を書換えた")
     if o is None:
         return None
     if not isinstance(o, HDS作用機会) or o.作用ID != 作用.作用ID:

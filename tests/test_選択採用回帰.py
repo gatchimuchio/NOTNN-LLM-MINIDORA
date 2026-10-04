@@ -47,10 +47,10 @@ class 選択採用回帰(TestCase):
   p=patch.object(m,k,v);p.start();self.ps.append(p)
  def tearDown(self):
   for p in reversed(self.ps):p.stop()
- def 評価(self,s,state):return s._評価作用(state).実行(state)
- def 循環(self,s,state,上限=20):
-  core=HDS実行主体((),作用供給器=(HDS作用供給器('選択供給',s.構成,'unit'),),最大作用回数=上限,政策=HDS運用政策(自動形成=False))
-  return core.実行(state)
+ def 評価(self,s,作業状態):return s._評価作用(作業状態).実行(作業状態)
+ def 循環(self,s,作業状態,上限=20):
+  中核=HDS実行主体((),作用供給器=(HDS作用供給器('選択供給',s.構成,'unit'),),最大作用回数=上限,政策=HDS運用政策(自動形成=False))
+  return 中核.実行(作業状態)
  def 観測設定(self,fn):
   self.差替('HDS追加参照検索',fn);self.差替('HDS追加参照統合上限',lambda *a:32)
   self.差替('HDS候補被覆優先統合',lambda a,b,*args:tuple(dict((r.識別子,r) for r in (*a,*b)).values()))

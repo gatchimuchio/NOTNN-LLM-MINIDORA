@@ -1,3 +1,7 @@
+from pathlib import Path
+import sys
+道具経路=str(Path(__file__).resolve().parents[1]/"tools")
+if 道具経路 not in sys.path: sys.path.insert(0,道具経路)
 from unittest import TestCase
 from copy import deepcopy
 from GPQA並列集計 import 集計

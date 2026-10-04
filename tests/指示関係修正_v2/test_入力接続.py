@@ -30,8 +30,8 @@ def コア入力():
         HDSコア表現制約('ja'),('元の依頼',))
 
 
-def 射影(core):
-    return コア入力を指示へ射影(core,
+def 射影(中核):
+    return コア入力を指示へ射影(中核,
         条件=(HDS指示条件('対象','意味/t','成果:対象','一致','注文A','維持',
                           参照座標=('条件/c','実行制約/bound')),
               HDS指示条件('単価','意味/u','成果:単価',段階='適用'),
@@ -42,9 +42,9 @@ def 射影(core):
         帰還先=(HDS帰還先('手段/検証・帰還','成果:合計','依頼者'),))
 
 
-def 入力状態(core=None, projection=None):
-    core=core or コア入力();p=projection or 射影(core)
-    prepared=既存入力を準備(core.原文,None,入力正本=core,
+def 入力状態(中核=None, 指示射影=None):
+    中核=中核 or コア入力();p=指示射影 or 射影(中核)
+    prepared=既存入力を準備(中核.原文,None,入力正本=中核,
         成果初期値=(('対象','注文A'),('数量',3)),主体初期値=(('HDS指示関係',p),))
     return HDS実行状態(目的=prepared.目的初期値,要求状態=frozenset({'回答済'}),
         成果=prepared.成果初期値,主体状態=prepared.主体初期値,
@@ -58,8 +58,8 @@ class 入力接続試験(unittest.TestCase):
         self.assertEqual(r.指示帰還.内容,(('依頼者','成果:合計',21),))
         self.assertEqual(r.状態.成果辞書()['HDSコア入力'],コア入力())
     def test_原入力全体を正規形で保存する(self):
-        core=コア入力();p=射影(core)
-        self.assertEqual(p.原入力署名,署名(core))
+        中核=コア入力();p=射影(中核)
+        self.assertEqual(p.原入力署名,署名(中核))
         self.assertIn('候補',p.原入力正本)
         self.assertIn('注文A以外',p.原文)
         self.assertIn('条件ID',p.座標辞書()['関係/r'].内容)
@@ -68,22 +68,22 @@ class 入力接続試験(unittest.TestCase):
         self.assertEqual(p.座標辞書()['意味/option'].状態,座標状態.未確定)
         self.assertEqual(p.座標辞書()['目的/必要性'].状態,座標状態.未観測)
     def test_未知の意味種別を原文付きで残す(self):
-        core=コア入力();x=HDSコア意味項目('new','未知の分類',('原文',1),'将来追加状態','元の観測')
-        p=射影(replace(core,意味項目=core.意味項目+(x,)))
+        中核=コア入力();x=HDSコア意味項目('new','未知の分類',('原文',1),'将来追加状態','元の観測')
+        p=射影(replace(中核,意味項目=中核.意味項目+(x,)))
         self.assertIn('未知の分類',p.座標辞書()['意味/new'].内容)
         self.assertEqual(p.座標辞書()['意味/new'].状態,座標状態.未確定)
     def test_未対応の実行制約を保存だけで済ませない(self):
-        core=コア入力();core=replace(core,実行制約=core.実行制約+(HDSコア実行制約('新制約','追加','未対応制約'),))
-        p=射影(core);self.assertEqual(p.未接続座標,('実行制約/新制約',))
-        r=run(入力状態(core,p))
+        中核=コア入力();中核=replace(中核,実行制約=中核.実行制約+(HDSコア実行制約('新制約','追加','未対応制約'),))
+        p=射影(中核);self.assertEqual(p.未接続座標,('実行制約/新制約',))
+        r=run(入力状態(中核,p))
         self.assertEqual(r.終端,HDS終端.保留)
         self.assertEqual(r.履歴,())
         self.assertIn('実行制約/新制約',r.理由[-1])
     def test_未対応の表現要求を勝手に無視しない(self):
-        core=replace(コア入力(),表現制約=HDSコア表現制約('ja','en',(HDSコア表現要求('style','形式','一文'),)))
-        p=射影(core)
+        中核=replace(コア入力(),表現制約=HDSコア表現制約('ja','en',(HDSコア表現要求('style','形式','一文'),)))
+        p=射影(中核)
         self.assertIn('表現制約',p.未接続座標)
-        self.assertEqual(run(入力状態(core,p)).終端,HDS終端.保留)
+        self.assertEqual(run(入力状態(中核,p)).終端,HDS終端.保留)
     def test_別入力の射影を混ぜない(self):
         a=コア入力();b=replace(a,認知世界ID='注文B')
         r=run(入力状態(b,射影(a)))

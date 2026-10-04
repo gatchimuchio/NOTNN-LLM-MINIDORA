@@ -186,6 +186,13 @@ def 作用対応を取る(状態, 作用ID, 仕様=None):
     if 固定 is not None and 供給 is not None and 固定 != 供給:
         raise ValueError("供給された作用対応が原指示の対応と競合")
     対応 = 固定 or 供給
+    if 対応 is None and 指示.自動作用接続 and 仕様 is not None and not 作用ID.startswith("内的/"):
+        from .計画 import HDS作用仕様
+        from ..コア.指示関係 import HDS作用対応
+        if not isinstance(仕様, HDS作用仕様) or 仕様.作用ID != 作用ID:
+            raise TypeError("自動接続には信頼された作用仕様が必要")
+        # 採否・権限・目的経路は既存の通常循環で検査する。対応生成は許可ではない。
+        対応 = HDS作用対応(作用ID, ("実行/対象",), "実行/作用")
     if 対応 is None:
         return None
     from ..コア.指示関係 import HDS作用対応
@@ -207,10 +214,10 @@ def 作用指示を検査(状態, 作用ID, 仕様=None):
     if 対応 is None:
         return ("対象・作用への対応が未構成",)
     coords = 状態.指示関係.座標辞書()
-    unknown = tuple(k for k in (*対応.対象座標, 対応.作用座標)
+    未確定 = tuple(k for k in (*対応.対象座標, 対応.作用座標)
                     if coords[k].内容 is None or coords[k].状態 in (座標状態.矛盾, 座標状態.留保, 座標状態.未観測))
-    if unknown:
-        return tuple("座標の適用が未確定:" + k for k in unknown)
+    if 未確定:
+        return tuple("座標の適用が未確定:" + k for k in 未確定)
     by_id = {x.ID: x for x in 状態.指示関係.条件}
     return tuple(k + ":" + o.判定 for k in 対応.条件ID
                  if (o := 条件を観測(状態, by_id[k])).判定 != "成立")

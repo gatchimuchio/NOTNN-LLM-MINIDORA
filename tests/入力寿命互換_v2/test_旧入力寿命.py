@@ -13,13 +13,13 @@ def 入力():
 
 class 旧入力寿命試験(unittest.TestCase):
     def test_指示未接続の旧入力形成を目的変更と混同しない(self):
-        core=入力()
+        中核=入力()
         a=HDS関数作用('旧入力形成',lambda s:HDS作用結果(HDS作用状態.成立,
-            成果=(('HDSコア入力',core),),主体状態差分=(('HDSコア入力署名',core.意味署名),),追加状態=frozenset({'入力形成済み'})),出力状態=('入力形成済み',))
+            成果=(('HDSコア入力',中核),),主体状態差分=(('HDSコア入力署名',中核.意味署名),),追加状態=frozenset({'入力形成済み'})),出力状態=('入力形成済み',))
         s=HDS実行状態(目的=('入力を形成する',),要求状態=frozenset({'入力形成済み'}))
         r=HDS実行主体((a,),政策=HDS運用政策(自動形成=False)).実行(s)
         self.assertEqual(r.終端,HDS終端.採用,r.理由)
-        self.assertEqual(r.状態.成果辞書()['HDSコア入力'],core)
+        self.assertEqual(r.状態.成果辞書()['HDSコア入力'],中核)
     def test_指示未接続の目的署名を保存する(self):
         s=HDS実行状態(目的=('元目的',),要求状態=frozenset({'到達'}))
         self.assertEqual(目的契約署名(s),署名((s.目的,s.要求状態,s.要求認識,())))

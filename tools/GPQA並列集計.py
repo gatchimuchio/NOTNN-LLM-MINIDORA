@@ -53,11 +53,11 @@ def 集計(資料群,*,版,開始,締切,現在=None):
 def main():
     p=argparse.ArgumentParser();p.add_argument('--dir',type=Path,required=True);p.add_argument('--out',type=Path,required=True)
     p.add_argument('--revision',required=True);p.add_argument('--started-epoch',type=float,required=True);p.add_argument('--deadline-epoch',type=float,required=True)
-    a=p.parse_args();data=[];読込失敗=[]
+    a=p.parse_args();資料=[];読込失敗=[]
     for f in sorted(a.dir.glob('gpqa_parallel_*.json')):
-        try:data.append(json.loads(f.read_text(encoding='utf-8')))
+        try:資料.append(json.loads(f.read_text(encoding='utf-8')))
         except Exception as exc:読込失敗.append(f.name+': '+str(exc))
-    r=集計(data,版=a.revision,開始=a.started_epoch,締切=a.deadline_epoch)
+    r=集計(資料,版=a.revision,開始=a.started_epoch,締切=a.deadline_epoch)
     if 読込失敗:r['受入失敗'].extend(読込失敗);r['性能継承成立']=False
     原子的保存(a.out,r);print(json.dumps({k:v for k,v in r.items()if k!='個票'},ensure_ascii=False,indent=2))
     return 0 if r['性能継承成立'] else 3

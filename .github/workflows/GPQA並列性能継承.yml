@@ -95,7 +95,9 @@ jobs:
         if: always()
         with:
           name: gpqa-parallel-${{ matrix.shard }}
-          path: gpqa_parallel_${{ matrix.shard }}.json
+          path: |
+            gpqa_parallel_${{ matrix.shard }}.json
+            gpqa_parallel_${{ matrix.shard }}.checkpoints/
           if-no-files-found: warn
   aggregate:
     if: always()

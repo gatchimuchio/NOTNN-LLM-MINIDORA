@@ -1,5 +1,7 @@
 from pathlib import Path
 import importlib,sys,tempfile,json,time,os
+道具経路=str(Path(__file__).resolve().parents[1]/"tools")
+if 道具経路 not in sys.path: sys.path.insert(0,道具経路)
 from unittest import TestCase
 from unittest.mock import patch
 from GPQA実測管理 import _実行を管理,原子的保存,GPQAを測定,時間上限秒,性能継承下限

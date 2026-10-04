@@ -13,8 +13,8 @@ else:
     from test_目的証拠 import 仮説入力
 
 
-def policy(budget=16):
-    return HDS運用政策(初期作用予算=budget, 予算増分=1, 自動形成=False)
+def policy(予算=16):
+    return HDS運用政策(初期作用予算=予算, 予算増分=1, 自動形成=False)
 
 def ready(name):
     return HDS作用結果(HDS作用状態.成立, 追加状態=frozenset({name}))
@@ -24,8 +24,8 @@ class 通常循環回帰試験(unittest.TestCase):
     def test_準備後回答を軟予算1でも失わない(self):
         first=HDS関数作用('準備',lambda s:ready('準備済'),出力状態=('準備済',))
         last=HDS関数作用('回答',lambda s:ready('回答済'),入力状態=('準備済',),出力状態=('回答済',))
-        state=HDS実行状態(目的=('回答を形成する',),要求状態=frozenset({'回答済'}))
-        r=HDS実行主体((first,last),政策=policy(1)).実行(state)
+        作業状態=HDS実行状態(目的=('回答を形成する',),要求状態=frozenset({'回答済'}))
+        r=HDS実行主体((first,last),政策=policy(1)).実行(作業状態)
         self.assertEqual(r.終端,HDS終端.採用, r.理由)
         self.assertEqual(tuple(h.作用ID for h in r.履歴),('準備','回答'))
         self.assertTrue(r.履歴[0].目的進展)
@@ -43,9 +43,9 @@ class 通常循環回帰試験(unittest.TestCase):
         def counter(s):
             called.append(1)
             return HDS作用結果(HDS作用状態.成立,主体状態差分=(('回数',len(called)),))
-        action=HDS関数作用('内部更新',counter,目的依存=('状態:回答',),
+        作用=HDS関数作用('内部更新',counter,目的依存=('状態:回答',),
                          意味入力署名=lambda s:str(s.主体辞書().get('回数',0)))
-        r=HDS実行主体((action,),政策=policy(),最大作用回数=8).実行(HDS実行状態(要求状態=frozenset({'回答'})))
+        r=HDS実行主体((作用,),政策=policy(),最大作用回数=8).実行(HDS実行状態(要求状態=frozenset({'回答'})))
         self.assertNotEqual(r.終端,HDS終端.採用)
         self.assertEqual(len(called),1,'入力署名の変化だけでは再試行を認めない')
         self.assertFalse(any(h.目的進展 for h in r.履歴))
@@ -55,8 +55,8 @@ class 通常循環回帰試験(unittest.TestCase):
         def broken(s):
             called.append(1)
             raise RuntimeError('任意供給器の故障')
-        state=HDS実行状態(要求状態=frozenset({'回答'}),成立状態=frozenset({'回答'}))
-        r=HDS実行主体((),作用供給器=(HDS作用供給器('任意',broken),),政策=policy()).実行(state)
+        作業状態=HDS実行状態(要求状態=frozenset({'回答'}),成立状態=frozenset({'回答'}))
+        r=HDS実行主体((),作用供給器=(HDS作用供給器('任意',broken),),政策=policy()).実行(作業状態)
         self.assertEqual(r.終端,HDS終端.採用)
         self.assertFalse(called)
 
@@ -79,8 +79,8 @@ class 通常循環回帰試験(unittest.TestCase):
         self.assertFalse(r.履歴)
 
     def test_通常循環で仮説を実体化する(self):
-        state,rules,target=仮説入力()
-        r=HDS実行主体((),関係規則=rules,政策=policy(),最大作用回数=12).実行(state)
+        作業状態,rules,target=仮説入力()
+        r=HDS実行主体((),関係規則=rules,政策=policy(),最大作用回数=12).実行(作業状態)
         self.assertEqual(len(r.状態.仮説),2,r.理由)
         self.assertNotEqual(r.終端,HDS終端.採用)
         self.assertTrue(any(h.作用ID=='内的/関係仮説構成' for h in r.履歴))

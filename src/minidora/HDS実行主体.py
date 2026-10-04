@@ -88,6 +88,7 @@ class HDS実行状態:
     認識履歴: tuple[HDS認識項目, ...] = ()
     検証票: tuple[HDS検証票, ...] = ()
     指示関係: HDS指示関係 | None = None
+    操作座標: object | None = None
 
     def __post_init__(self) -> None:
         入力指示 = dict(self.主体状態).get("HDS指示関係")
@@ -99,6 +100,12 @@ class HDS実行状態:
             object.__setattr__(self, "指示関係", 入力指示)
         if self.指示関係 is not None and not isinstance(self.指示関係, HDS指示関係):
             raise TypeError("指示関係型が必要")
+        if self.操作座標 is not None:
+            from .コア.座標展開 import HDS座標場
+            if not isinstance(self.操作座標, HDS座標場):
+                raise TypeError("操作座標はHDS座標場が必要")
+            if self.指示関係 is not None and self.操作座標.原指示 != self.指示関係:
+                raise ValueError("操作座標と指示関係が不一致")
         if type(self.版) is not int or self.版 < 0:
             raise ValueError("HDS実行状態の版は0以上の整数である必要がある")
         if not isinstance(self.目的, tuple) or any(not isinstance(項目, str) or not 項目.strip() for 項目 in self.目的):
@@ -162,7 +169,8 @@ class HDS実行状態:
             self.草案,
             self.形成関係,
             self.再評価待ち,
-            self.指示関係,
+            self.指示関係.署名 if self.指示関係 is not None else None,
+            self.操作座標.署名 if self.操作座標 is not None else None,
         ))
 
     def 成果辞書(self) -> dict[str, object]:
@@ -302,6 +310,7 @@ class HDS作用結果:
     検証票追加: tuple[HDS検証票, ...] = ()
     阻害: HDS阻害 | None = None
     診断: HDS失敗診断 | None = None
+    座標更新: object | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.状態, HDS作用状態):
@@ -347,6 +356,10 @@ class HDS作用結果:
             raise TypeError("記憶更新型が不正")
         if self.阻害 is not None and not isinstance(self.阻害, HDS阻害):
             raise TypeError("阻害型が不正")
+        if self.座標更新 is not None:
+            from .コア.座標展開 import HDS座標場
+            if not isinstance(self.座標更新, HDS座標場):
+                raise TypeError("座標更新はHDS座標場が必要")
         文字列組(tuple(k for k, _ in self.検証依存), "検証依存ノード")
         if any(not isinstance(x, HDS検証票) for x in self.検証票追加):
             raise TypeError("検証票型が不正")
@@ -383,6 +396,11 @@ class HDS作用記録:
     対応座標: tuple[str, ...] = ()
     作用対応: object | None = None
     対応契約版: str = ""
+    内容進展ノード: tuple[str, ...] = ()
+    管理進展ノード: tuple[str, ...] = ()
+    使用座標面: tuple[str, ...] = ()
+    目的条件判定: tuple[tuple[str, str], ...] = ()
+    目的進展対応: tuple[object, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -655,12 +673,15 @@ class HDS作用供給器:
     ID: str
     構成: Callable
     版: str = "v1"
+    入力不変保証: bool = False
 
     def __post_init__(self):
         文字(self.ID)
         文字(self.版)
         if not callable(self.構成):
             raise TypeError("作用供給器には構成関数が必要")
+        if type(self.入力不変保証) is not bool:
+            raise TypeError("入力不変保証はbool")
 
 
 class HDS実行主体:

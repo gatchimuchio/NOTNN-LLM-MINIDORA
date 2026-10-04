@@ -19,41 +19,41 @@ def 仮説入力():
     rules = (HDS関係規則('雨規則', (rain,), observed, (raw.出典(),), 排他群='説明'),
              HDS関係規則('散水規則', (sprinkler,), observed, (raw.出典(),), 排他群='説明'))
     target = _ID(rain, (wet,))
-    state = HDS実行状態(目的=('地面の濡れの原因を識別する',), 要求認識=frozenset({target}),
+    作業状態 = HDS実行状態(目的=('地面の濡れの原因を識別する',), 要求認識=frozenset({target}),
                        認識=(wet,), 記憶=HDS記憶((raw,)))
-    return state, rules, target
+    return 作業状態, rules, target
 
 
 class 目的証拠試験(unittest.TestCase):
     def test_二段仮説で目的を失わない(self):
-        state, rules, target = 仮説入力()
-        action = 関係仮説構成作用(rules, 128)
-        first = action.機会(state)
-        self.assertTrue(作用が目的経路に属する(state, first, 認識有効判定=有効認識))
-        prepared, _ = 状態更新(state, action.実行(state))
+        作業状態, rules, target = 仮説入力()
+        作用 = 関係仮説構成作用(rules, 128)
+        first = 作用.機会(作業状態)
+        self.assertTrue(作用が目的経路に属する(作業状態, first, 認識有効判定=有効認識))
+        prepared, _ = 状態更新(作業状態, 作用.実行(作業状態))
         self.assertFalse(prepared.仮説)
-        second = action.機会(prepared)
+        second = 作用.機会(prepared)
         self.assertIsNotNone(second)
         self.assertTrue(作用が目的経路に属する(prepared, second, 認識有効判定=有効認識))
-        reflected, _ = 状態更新(prepared, action.実行(prepared))
+        reflected, _ = 状態更新(prepared, 作用.実行(prepared))
         self.assertEqual(len(reflected.仮説), 2)
         self.assertFalse(有効認識(reflected, target))
         self.assertFalse(reflected.閉包済み)
 
     def test_仮説生成は同一入力で再利用し入力変更では再利用しない(self):
-        state, rules, _ = 仮説入力()
-        action = 関係仮説構成作用(rules, 128)
-        action.機会(state)
-        result = action.実行(state)
-        self.assertEqual(action.生成実行数, 1)
-        next_state, _ = 状態更新(state, result)
-        action.機会(next_state)
-        self.assertEqual(action.生成実行数, 2)
+        作業状態, rules, _ = 仮説入力()
+        作用 = 関係仮説構成作用(rules, 128)
+        作用.機会(作業状態)
+        結果 = 作用.実行(作業状態)
+        self.assertEqual(作用.生成実行数, 1)
+        次状態, _ = 状態更新(作業状態, 結果)
+        作用.機会(次状態)
+        self.assertEqual(作用.生成実行数, 2)
 
     def test_進展は残差件数でなく同一性を見る(self):
-        state = HDS実行状態(目的=('回答する',), 残差=frozenset({'未確認A'}))
-        after = replace(state, 残差=frozenset({'追加確認B', '追加確認C'}))
-        a, b = 目的を観測(state, 有効認識), 目的を観測(after, 有効認識)
+        作業状態 = HDS実行状態(目的=('回答する',), 残差=frozenset({'未確認A'}))
+        after = replace(作業状態, 残差=frozenset({'追加確認B', '追加確認C'}))
+        a, b = 目的を観測(作業状態, 有効認識), 目的を観測(after, 有効認識)
         ok, _ = 目的進展を判定(前観測=a, 後観測=b, 最良直接尺度=a.直接尺度)
         self.assertTrue(ok)
 
@@ -81,9 +81,9 @@ class 目的証拠試験(unittest.TestCase):
 
     def test_欠落成果では意味署名を呼ばない(self):
         called = []
-        def signer(state):
+        def signer(作業状態):
             called.append(True)
-            return str(state.成果辞書()['未取得'])
+            return str(作業状態.成果辞書()['未取得'])
         a = HDS関数作用('消費', lambda s: HDS作用結果(HDS作用状態.成立),
                        読取成果=('未取得',), 意味入力署名=signer)
         self.assertIsNotNone(a.機会(HDS実行状態()))
