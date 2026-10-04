@@ -718,9 +718,9 @@ class HDS選択継承供給:
                 if 採用 is not None:
                     判定 = HDS証拠優越包絡(基準, 採用, 基準承認判定=_根拠付き承認,
                         拡張承認判定=_根拠付き承認, 証拠優越証明=lambda _前, _後: True)
-            if (採用 is None and _暫定採用可能(基準) and not 基準阻害 and not 訂正
-                    and (基準強証明 or 初回 or 現署名 == self.初期参照署名
-                         or 結果.回答ラベル == 基準.回答ラベル)):
+            # 新しい関係観測は既存能力を上書きする根拠ではない。明示反証・訂正がない限り、
+            # 既存MINIDORAが一意閉包した基準回答を非退行で保持する。
+            if 採用 is None and _暫定採用可能(基準) and not 基準阻害 and not 訂正:
                 採用, 理由 = 基準, ("HDS_BASELINE_APPROVAL_KEPT", "HDS_MINIDORA_CANONICAL_INHERITED")
             elif 採用 is None and not 基準強証明 and not 現行阻害 and 現署名 != self.初期参照署名:
                 # 相対順位の更新は真理保証の昇格ではない。証明を拒否した場合も
@@ -743,7 +743,10 @@ class HDS選択継承供給:
             必要観測 = self._必要観測(s, 関係判定, 結果) if 構造ラベル is None else ()
             明示優越 = bool(採用 is not None and any(x in 理由 for x in (
                 "HDS_DIRECT_COUNTEREVIDENCE_REVERIFIED", "HDS_SUPERIOR_EVIDENCE_ADOPTED")))
-            if (強候補数 > 1 or 必要観測) and not 明示優越:
+            基準保持 = bool(採用 is 基準 and _暫定採用可能(基準) and not 基準阻害 and not 訂正)
+            # 未観測の新関係や他候補の競合だけで、成立済みの基準回答を降格させない。
+            # 推測禁止など入力契約の強い制約は、この後の入力接続検査で別途適用する。
+            if (強候補数 > 1 or 必要観測) and not 明示優越 and not 基準保持:
                 採用 = None
             if 判定 is not None:
                 出力[非退行判定成果名] = 判定
