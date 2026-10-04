@@ -159,7 +159,7 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual(結果.終端, HDS終端.採用)
         self.assertEqual([x.作用ID for x in 結果.履歴], ["継承確認"])
 
-    def test_未解共参照をAPPROVEだけで非阻害化しない(self):
+    def test_未解共参照は入力正本に保持しAPPROVE時だけshadowへ分離する(self):
         問い = "Which molecule inhibits this molecule?"
         選択肢 = ("Molecule A", "Molecule B")
         初期参照 = (
@@ -176,12 +176,23 @@ class HDS正本継承循環試験(unittest.TestCase):
         self.assertEqual([x.種別 for x in 入力束.残差], ["未解共参照"])
 
         結果 = self.コア.選択実行(問い, 選択肢, 初期参照=初期参照)
-        self.assertNotEqual(結果.終端, HDS終端.採用, 結果.理由)
+        self.assertEqual(結果.終端, HDS終端.採用, 結果.理由)
         成果 = 結果.状態.成果辞書()
         self.assertEqual(成果[回答成果名], "A")
         self.assertTrue(成果[入力残差影成果名])
         self.assertEqual([x.種別 for x in 成果["HDSコア入力"].残差], ["未解共参照"])
-        self.assertTrue(any(x.startswith("HDS残差:未解共参照:") for x in 結果.状態.残差))
+        self.assertFalse(any(x.startswith("HDS残差:未解共参照:") for x in 結果.状態.残差))
+
+    def test_模型再評価は選択閉包への目的依存を明示する(self):
+        kernel = self.構文化器.問題コンパイル束(self.問い, self.選択肢)
+        供給 = HDS選択継承供給(kernel, self.構文化器, ())
+        状態 = HDS実行状態(
+            目的=("選択回答",), 要求状態=frozenset({選択閉包状態}),
+            成果=((参照成果名, ()),),
+        )
+        作用 = 供給._評価作用(状態)
+        self.assertIsNotNone(作用)
+        self.assertIn("状態:" + 選択閉包状態, 作用.計画仕様.目的依存)
 
     def test_正式模型承認は追加観測を必須にせず基準を保持(self):
         provider = 固定追加参照((
