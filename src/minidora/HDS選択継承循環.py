@@ -561,15 +561,26 @@ class HDS選択継承供給:
         if values.get(評価参照署名成果名) != _参照署名(refs):
             return None
         if values.get(評価観測署名成果名) != self._観測状態署名(状態): return None
-        判定 = values.get("HDS選択:目的関係判定")
-        if 判定 is None: return None
-        必要 = self._必要観測(状態, 判定, values.get(現行結果成果名))
-        plan = HDS候補関係観測計画(必要, len(必要), 0)
         consumed_raw = values.get(関係観測消費成果名, ())
         consumed = set(str(x) for x in consumed_raw if str(x)) if isinstance(consumed_raw, tuple) else set()
-        pending = tuple(x for x in plan.観測要求 if _観測要求鍵(x) not in consumed)
-        if not pending:
-            return None
+
+        # 能力継承の探索順を保持する。既存MINIDORAが使っていた候補関係観測を
+        # 先に尽くし、それでも未閉包の場合だけ新しい目的関係の不足観測へ進む。
+        既存計画 = self._関係観測計画(refs)
+        既存待ち = tuple(x for x in 既存計画.観測要求 if _観測要求鍵(x) not in consumed)
+        if 既存待ち:
+            pending = 既存待ち
+            観測系列 = "既存能力"
+        else:
+            判定 = values.get("HDS選択:目的関係判定")
+            if 判定 is None:
+                return None
+            必要 = self._必要観測(状態, 判定, values.get(現行結果成果名))
+            plan = HDS候補関係観測計画(必要, len(必要), 0)
+            pending = tuple(x for x in plan.観測要求 if _観測要求鍵(x) not in consumed)
+            if not pending:
+                return None
+            観測系列 = "目的関係"
         優先度 = min(int(x.優先度) for x in pending)
         selected = tuple(x for x in pending if int(x.優先度) == 優先度)
 
@@ -624,7 +635,7 @@ class HDS選択継承供給:
                 解消残差=frozenset(clearable),
                 追加残差=frozenset(add.difference(s.残差)),
                 成果=tuple(outputs),
-                理由=(reason, f"関係観測世代:{level}", f"観測方法優先度:{優先度}", f"件数:{len(merged)}"),
+                理由=(reason, f"観測系列:{観測系列}", f"関係観測世代:{level}", f"観測方法優先度:{優先度}", f"件数:{len(merged)}"),
             )
 
         return HDS関数作用(
@@ -746,7 +757,8 @@ class HDS選択継承供給:
             # 既存MINIDORAが一意閉包した基準回答を非退行で保持する。
             if 採用 is None and _暫定採用可能(基準) and not 基準阻害 and not 訂正:
                 採用, 理由 = 基準, ("HDS_BASELINE_APPROVAL_KEPT", "HDS_MINIDORA_CANONICAL_INHERITED")
-            elif 採用 is None and not 基準強証明 and not 現行阻害 and 現署名 != self.初期参照署名:
+            elif (採用 is None and not 訂正 and not 基準強証明
+                    and not 現行阻害 and 現署名 != self.初期参照署名):
                 # 既存能力が追加参照後に一意閉包した結果は、能力継承として採用できる。
                 # 型付き強証明は上書き権限、既存能力証明は継承権限として分離する。
                 追加証明 = (bool(self.拡張採用証明(基準, 結果)) if self.拡張採用証明 is not None
