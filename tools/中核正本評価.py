@@ -201,7 +201,14 @@ def _一問を実行(
     answer = products.get(回答成果名)
     judge = products.get(非退行判定成果名)
     if not isinstance(current, HDS選択実行結果):
-        raise RuntimeError(f"現行結果欠落: index={index}")
+        履歴要約 = tuple(x.作用ID for x in run.履歴)
+        停止 = run.停止種別.value if run.停止種別 is not None else None
+        raise RuntimeError(
+            f"現行結果欠落: index={index}; terminal={run.終端.value}; stop={停止}; "
+            f"reason={tuple(run.理由)}; residual={tuple(sorted(run.状態.残差))}; "
+            f"actions={履歴要約}; excluded={tuple(run.指示除外)}; "
+            f"reeval={tuple(sorted(run.状態.再評価待ち))}; products={tuple(sorted(products))}"
+        )
     if not isinstance(baseline, HDS選択実行結果):
         raise RuntimeError(f"基準結果欠落: index={index}")
     if not isinstance(final_refs, tuple):
