@@ -561,15 +561,30 @@ class HDS選択継承供給:
         if values.get(評価参照署名成果名) != _参照署名(refs):
             return None
         if values.get(評価観測署名成果名) != self._観測状態署名(状態): return None
-        判定 = values.get("HDS選択:目的関係判定")
-        if 判定 is None: return None
-        必要 = self._必要観測(状態, 判定, values.get(現行結果成果名))
-        plan = HDS候補関係観測計画(必要, len(必要), 0)
         consumed_raw = values.get(関係観測消費成果名, ())
         consumed = set(str(x) for x in consumed_raw if str(x)) if isinstance(consumed_raw, tuple) else set()
-        pending = tuple(x for x in plan.観測要求 if _観測要求鍵(x) not in consumed)
-        if not pending:
-            return None
+
+        # 旧43点能力の観測計画を正本経路として先に保持する。
+        # 新しい目的関係探索は、旧追加参照・旧候補関係観測で閉じなかった後段だけに置く。
+        旧計画 = self._関係観測計画(refs)
+        pending = tuple(x for x in 旧計画.観測要求 if _観測要求鍵(x) not in consumed)
+        if pending:
+            観測系列 = "既存能力"
+        else:
+            参照世代 = int(values.get(参照世代成果名, 0))
+            旧回復終了 = 参照世代 >= self.設定.最大回復回数 or 残差_観測無進展 in 状態.残差
+            if not 旧回復終了:
+                return None
+            判定 = values.get("HDS選択:目的関係判定")
+            if 判定 is None:
+                return None
+            必要 = self._必要観測(状態, 判定, values.get(現行結果成果名))
+            plan = HDS候補関係観測計画(必要, len(必要), 0)
+            pending = tuple(x for x in plan.観測要求 if _観測要求鍵(x) not in consumed)
+            if not pending:
+                return None
+            観測系列 = "目的関係"
+
         優先度 = min(int(x.優先度) for x in pending)
         selected = tuple(x for x in pending if int(x.優先度) == 優先度)
 
@@ -625,7 +640,7 @@ class HDS選択継承供給:
                 解消残差=frozenset(clearable),
                 追加残差=frozenset(add.difference(s.残差)),
                 成果=tuple(outputs),
-                理由=(reason, f"関係観測世代:{level}", f"観測方法優先度:{優先度}", f"件数:{len(merged)}"),
+                理由=(reason, f"観測系列:{観測系列}", f"関係観測世代:{level}", f"観測方法優先度:{優先度}", f"件数:{len(merged)}"),
             )
 
         return HDS関数作用(
@@ -772,9 +787,18 @@ class HDS選択継承供給:
             明示優越 = bool(採用 is not None and any(x in 理由 for x in (
                 "HDS_DIRECT_COUNTEREVIDENCE_REVERIFIED", "HDS_SUPERIOR_EVIDENCE_ADOPTED")))
             基準保持 = bool(採用 is 基準 and _暫定採用可能(基準) and not 基準阻害 and not 訂正)
-            # 未観測の新関係や他候補の競合だけで、成立済みの基準回答を降格させない。
-            # 推測禁止など入力契約の強い制約は、この後の入力接続検査で別途適用する。
-            if (強候補数 > 1 or 必要観測) and not 明示優越 and not 基準保持:
+            既存能力継承採用 = bool(
+                採用 is not None and _暫定採用可能(採用)
+                and any(x in 理由 for x in (
+                    "HDS_EXISTING_CAPABILITY_REVISED",
+                    "HDS_MINIDORA_CANONICAL_INHERITED",
+                    "HDS_BASELINE_EVIDENCE_REVALIDATED",
+                ))
+            )
+            # 未観測の新関係や他候補の競合だけで、旧能力が成立させた回答を降格させない。
+            # 上書きできるのは明示反証・訂正・入力契約違反だけ。
+            if ((強候補数 > 1 or 必要観測) and not 明示優越
+                    and not 基準保持 and not 既存能力継承採用):
                 採用 = None
             if 判定 is not None:
                 出力[非退行判定成果名] = 判定
@@ -937,14 +961,8 @@ class HDS選択継承供給:
         if values.get(評価参照署名成果名) != _参照署名(refs_now):
             return None
         if values.get(評価観測署名成果名) != self._観測状態署名(状態): return None
-        判定 = values.get("HDS選択:目的関係判定")
-        if 判定 is not None and any(x.対象 for x in 判定.候補):
-            # 型付き関係の直接観測を第一手にする。そこで空振りした後だけ、
-            # 同じ目的の別観測手段として段階検索へ広げる。関係構成済みを理由に
-            # 観測そのものを打ち切らない。
-            関係世代 = int(values.get(関係観測世代成果名, 0))
-            if 関係世代 <= 0 or 残差_観測不足 not in 状態.残差:
-                return None
+        # 新しい目的関係が形成済みでも、旧MINIDORAの追加参照経路を抑止しない。
+        # どの観測作用を選ぶかは、旧候補関係計画と残差から通常循環が決める。
         generation = int(values.get(参照世代成果名, 0))
         if generation >= self.設定.最大回復回数:
             return None
