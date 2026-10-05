@@ -22,7 +22,7 @@ import uuid
 
 全数 = 198
 時間上限秒 = 90 * 60
-性能継承下限 = 40
+性能継承下限 = 43
 資料SHA256 = "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305"
 
 
@@ -255,7 +255,7 @@ def GPQAを測定(出力,*,方式,開始番号=0,件数=198,期限epoch=None,並
 
 
 def main():
-    p=argparse.ArgumentParser(description='GPQA全数実測。90分・並列40点下限を固定する。')
+    p=argparse.ArgumentParser(description='GPQA全数実測。90分・並列43点下限を固定する。')
     p.add_argument('--mode',choices=('parallel','serial'),required=True)
     p.add_argument('--out',type=Path,required=True);p.add_argument('--start-index',type=int,default=0)
     p.add_argument('--limit',type=int,default=198);p.add_argument('--workers',type=int,default=1)
