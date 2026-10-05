@@ -407,15 +407,21 @@ class 複合参照供給器:
             記録, 診断 = 既存
             return 記録, replace(診断, 再利用=True, 実取得回数=0)
         if 制限 is not None:
-            if 制限.再試行可能epoch is None or time.time() < 制限.再試行可能epoch:
+            # Retry-Afterが明示された制限だけを供給器全体へ適用する。
+            # 解除時点未提示の429は同一queryの再連打だけを取得済み鍵で止め、
+            # 別queryまで無期限停止へ拡大しない。
+            if 制限.再試行可能epoch is not None and time.time() < 制限.再試行可能epoch:
                 return (), replace(制限, 問合せ=問合せ, 取得件数=0, 実取得回数=0, 再利用=True)
             with self._取得鎖: self._制限.pop(名称, None)
         記録, 診断 = 参照検索を診断(供給器, 問合せ, 上限,
             最大試行=self.最大再試行, 再試行待機秒=self.再試行待機秒, 締切epoch=self.締切epoch)
         with self._取得鎖:
             self._全観測 = 参照全保持を統合(self._全観測, 記録)
-            if 診断.状態 in {"取得", "空"}: self._取得済み[鍵] = (記録, 診断)
-            if 診断.HTTP状態 == 429: self._制限[名称] = 診断
+            if (診断.状態 in {"取得", "空"}
+                    or (診断.HTTP状態 == 429 and 診断.再試行可能epoch is None)):
+                self._取得済み[鍵] = (記録, 診断)
+            if 診断.HTTP状態 == 429 and 診断.再試行可能epoch is not None:
+                self._制限[名称] = 診断
         return 記録, 診断
 
     def 検索診断(self, 問合せ: str, 上限: int = 8) -> tuple[tuple[参照記録, ...], 参照取得診断]:
