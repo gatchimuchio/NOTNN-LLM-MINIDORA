@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - ".benchmark/gpqa-current-trigger"
+      - ".benchmark/gpqa-serial-trigger"
 
 permissions:
   contents: read
