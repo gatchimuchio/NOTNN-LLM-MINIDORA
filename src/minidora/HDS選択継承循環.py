@@ -417,10 +417,14 @@ class HDS選択継承供給:
                 _署名((記録.内容, 記録.対象, 記録.範囲, 記録.時点)), str(記録.内容),
                 str(記録.由来 or 記録.供給器), str(記録.時点 or "未指定"))
         認識 = []
+        from .駆動系.契約 import 関係資源契約
+        最大認識 = 関係資源契約().最大事実
         for 出典, 関係群 in getattr(self, "_今回観測関係", ()):
             資料 = 資料辞書.get(出典)
             if 資料 is None: continue
             for 項 in 関係群:
+                if len(認識) >= 最大認識:
+                    break
                 try:
                     節 = 言語関係を節へ(項)
                 except (TypeError, ValueError):
@@ -432,6 +436,8 @@ class HDS選択継承供給:
                      節.肯定, 節.条件, 節.範囲, 節.時点, 節.様相, 節.量化), 認識区分.確定,
                     根拠=(資料.出典(),), 範囲="資料記述", 時点=資料.時点,
                     検証契約="既存Compiler関係の由来付き射影-v1"))
+            if len(認識) >= 最大認識:
+                break
         記憶 = 状態.記憶.更新(tuple(資料辞書.values())) if 資料辞書 else None
         return tuple({x.ID: x for x in 認識}.values()), 記憶
 
