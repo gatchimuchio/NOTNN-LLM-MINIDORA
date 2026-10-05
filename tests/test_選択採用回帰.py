@@ -76,6 +76,20 @@ class 選択採用回帰(TestCase):
   old=(参照(),);rs=(参照('別資料','ref2'),);x=self.評価(供給(old,lambda r:保留()),状態(rs,回答(),old));self.assertEqual(dict(x.成果).get(m.回答成果名),'A')
  def test_新規証明を採用する(self):
   old=(参照('不明'),);rs=(参照('支持','ref2'),);x=self.評価(供給(old,lambda r:回答()),状態(rs,保留(),old));self.assertEqual(dict(x.成果).get(m.回答成果名),'A');self.assertTrue(dict(x.成果)[m.非退行判定成果名].拡張採用)
+ def test_既存模型の一意閉包を能力継承として再採用する(self):
+  old=(参照('不明'),);rs=(参照('支持','ref2'),)
+  模型=SimpleNamespace(参照最有力候補ID='A',参照候補辞書=lambda:{'A':2.0,'B':1.0,'C':0.0,'D':0.0})
+  実回答=replace(回答(証明=False),MINIDORA模型結果=模型)
+  self.assertFalse(m._根拠付き承認(実回答));self.assertTrue(m._暫定採用可能(実回答))
+  x=self.評価(供給(old,lambda r:実回答),状態(rs,保留(),old))
+  self.assertEqual(dict(x.成果).get(m.回答成果名),'A')
+  self.assertTrue(dict(x.成果)[m.非退行判定成果名].拡張採用)
+ def test_選択APIは論理成果名を回答ラベルへ射影する(self):
+  from minidora.入力系.選択契約 import 選択入力を接続
+  入力=SimpleNamespace(目的=(),検証要求=(),残差=(),実行制約=(),
+      要求成果=('計算結果','取得結果'),表現制約=SimpleNamespace(出力言語=None,要求=()))
+  接続=選択入力を接続(入力)
+  self.assertEqual(接続.成果対応,(('計算結果','成果:HDS選択:回答ラベル'),('取得結果','成果:HDS選択:回答ラベル')))
  def test_拡張証明拒否を守る(self):
   old=(参照('不明'),);rs=(参照('支持','ref2'),);s=供給(old,lambda r:回答());s.拡張採用証明=lambda *a:False;x=self.評価(s,状態(rs,保留(),old));self.assertNotIn(m.回答成果名,dict(x.成果))
  def test_優越証拠で変更できる(self):
