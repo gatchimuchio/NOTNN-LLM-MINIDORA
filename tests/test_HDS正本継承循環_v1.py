@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
@@ -16,6 +17,7 @@ from minidora.HDS選択継承循環 import (
     関係観測消費成果名,
     初回評価参照成果名,
     残差_証明不足,
+    残差_観測不足,
     選択閉包状態,
     基準結果主体名,
     現行結果成果名,
@@ -26,7 +28,7 @@ from minidora.HDS選択継承循環 import (
     関係観測世代成果名,
     入力残差影成果名,
 )
-from minidora.参照 import 参照記録
+from minidora.参照 import 参照記録, 参照取得診断
 
 
 class 固定追加参照:
@@ -246,6 +248,75 @@ class HDS正本継承循環試験(unittest.TestCase):
         再機会 = 再作用.機会(署名だけ)
         self.assertNotEqual(初回機会.作用入力署名, 再機会.作用入力署名)
         self.assertEqual(初回作用.意味入力を署名(初期), 再作用.意味入力を署名(署名だけ))
+
+    def test_目的関係存在だけで旧追加参照を抑止しない(self):
+        kernel = self.構文化器.問題コンパイル束(self.問い, self.選択肢)
+        provider = 固定追加参照(())
+        供給 = HDS選択継承供給(kernel, self.構文化器, (), 参照供給器=provider)
+        基本成果 = (
+            (参照成果名, ()), (参照世代成果名, 0),
+            (関係観測世代成果名, 0), (関係観測消費成果名, ()),
+            (計算済み成果名, False),
+            ("HDS選択:目的関係判定", SimpleNamespace(
+                候補=(SimpleNamespace(対象=("既存対象",)),),
+            )),
+        )
+        基本 = HDS実行状態(
+            目的=("選択回答",), 要求状態=frozenset({選択閉包状態}),
+            残差=frozenset({残差_観測不足}), 成果=基本成果,
+        )
+        状態 = HDS実行状態(
+            目的=基本.目的, 要求状態=基本.要求状態, 残差=基本.残差,
+            成果=(*基本成果,
+                (評価参照署名成果名, 供給._参照署名(()) if hasattr(供給, "_参照署名") else None),
+            ),
+        )
+        # private helperはmodule関数なので、署名を実評価状態と同じ値へ置く。
+        from minidora import HDS選択継承循環 as 選択循環
+        状態 = HDS実行状態(
+            目的=基本.目的, 要求状態=基本.要求状態, 残差=基本.残差,
+            成果=(*基本成果,
+                (評価参照署名成果名, 選択循環._参照署名(())),
+                (評価観測署名成果名, 供給._観測状態署名(基本))),
+        )
+        self.assertIsNotNone(供給._参照作用(状態))
+
+    def test_取得障害の候補関係観測を消費済みにしない(self):
+        kernel = self.構文化器.問題コンパイル束(self.問い, self.選択肢)
+        provider = 固定追加参照(())
+        供給 = HDS選択継承供給(kernel, self.構文化器, (), 参照供給器=provider)
+        要求 = SimpleNamespace(
+            候補ラベル="A", 関係種別="支持", 外部検索表層="Molecule A evidence",
+            優先度=0,
+        )
+        供給._関係観測計画 = lambda _refs: SimpleNamespace(観測要求=(要求,))
+        from minidora import HDS選択継承循環 as 選択循環
+        基本成果 = (
+            (参照成果名, ()), (参照世代成果名, 0),
+            (関係観測世代成果名, 0), (関係観測消費成果名, ()),
+            (計算済み成果名, False),
+        )
+        基本 = HDS実行状態(
+            目的=("選択回答",), 要求状態=frozenset({選択閉包状態}),
+            残差=frozenset({残差_観測不足}), 成果=基本成果,
+        )
+        状態 = HDS実行状態(
+            目的=基本.目的, 要求状態=基本.要求状態, 残差=基本.残差,
+            成果=(*基本成果,
+                (評価参照署名成果名, 選択循環._参照署名(())),
+                (評価観測署名成果名, 供給._観測状態署名(基本))),
+        )
+        def 縮退(_provider, _ir, **kwargs):
+            kwargs["診断収集"].append(参照取得診断(
+                "Molecule A evidence", "試験", "失敗", 0, 1,
+                "HTTP Error 429", HTTP状態=429,
+            ))
+            return ()
+        with patch.object(選択循環, "HDS参照検索強化", side_effect=縮退):
+            作用 = 供給._関係観測作用(状態)
+            self.assertIsNotNone(作用)
+            結果 = 作用.実行(状態)
+        self.assertNotIn(関係観測消費成果名, dict(結果.成果))
 
     def test_正式模型承認は追加観測を必須にせず基準を保持(self):
         provider = 固定追加参照((
