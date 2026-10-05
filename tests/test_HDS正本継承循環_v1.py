@@ -265,12 +265,6 @@ class HDS正本継承循環試験(unittest.TestCase):
             目的=("選択回答",), 要求状態=frozenset({選択閉包状態}),
             残差=frozenset({残差_観測不足}), 成果=基本成果,
         )
-        状態 = HDS実行状態(
-            目的=基本.目的, 要求状態=基本.要求状態, 残差=基本.残差,
-            成果=(*基本成果,
-                (評価参照署名成果名, 供給._参照署名(()) if hasattr(供給, "_参照署名") else None),
-            ),
-        )
         # private helperはmodule関数なので、署名を実評価状態と同じ値へ置く。
         from minidora import HDS選択継承循環 as 選択循環
         状態 = HDS実行状態(
