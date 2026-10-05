@@ -125,9 +125,13 @@ def 参照検索を診断(
             最終 = 参照取得診断(str(問合せ), 名称, "縮退" if 既存 else "失敗",
                 len(既存), 試行, type(例外).__name__ + ": " + str(例外),
                 HTTP状態=状態, 再試行可能epoch=再試行, 実取得回数=実取得)
-        if 最終.HTTP状態 == 429:
-            return 既存, replace(最終, 延期理由="供給器の制限解除待ち" if 最終.再試行可能epoch is not None
-                               else "制限解除時点未提示。自動再試行しない")
+        if 最終.HTTP状態 == 429 and 最終.再試行可能epoch is not None:
+            # Retry-Afterが明示された場合は推測せず、その時点まで延期する。
+            return 既存, replace(最終, 延期理由="供給器の制限解除待ち")
+        if 最終.HTTP状態 == 429 and 最終.再試行可能epoch is None and 試行 >= 最大試行:
+            # 解除時点が無い429は恒久停止へ昇格させない。同一queryだけ有限再試行し、
+            # 上限到達後に診断として残す。次回の同一query再利用は複合供給器側が担う。
+            return 既存, replace(最終, 延期理由="制限解除時点未提示。有限再試行上限到達")
         if 試行 < 最大試行 and 再試行待機秒 > 0:
             待機 = float(再試行待機秒) * 試行
             if 締切epoch is not None and time.time() + 待機 >= 締切epoch:
