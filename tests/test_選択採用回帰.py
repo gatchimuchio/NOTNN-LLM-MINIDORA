@@ -84,6 +84,30 @@ class 選択採用回帰(TestCase):
   x=self.評価(供給(old,lambda r:実回答),状態(rs,保留(),old))
   self.assertEqual(dict(x.成果).get(m.回答成果名),'A')
   self.assertTrue(dict(x.成果)[m.非退行判定成果名].拡張採用)
+ def test_暫定順位は必要観測が残る初回では確定しない(self):
+  old=(参照('初期'),)
+  模型=SimpleNamespace(参照最有力候補ID='A',参照候補辞書=lambda:{'A':2.0,'B':1.0,'C':0.0,'D':0.0})
+  実回答=replace(回答(証明=False),MINIDORA模型結果=模型)
+  s=供給(old,lambda r:実回答)
+  判定=SimpleNamespace(一意成立=None,候補=(),学習提案=(),照合数=0,未完了=())
+  s._目的関係評価=lambda _r:判定
+  s._必要観測=lambda *_a,**_kw:(SimpleNamespace(),)
+  x=self.評価(s,状態(old))
+  self.assertNotIn(m.回答成果名,dict(x.成果))
+  self.assertTrue(m.残差_候補証拠未閉包 in x.追加残差)
+
+ def test_暫定順位は異なる参照で同一ラベル再現後に安定採用する(self):
+  old=(参照('初期'),);new=(参照('初期'),参照('追加','new'))
+  模型=SimpleNamespace(参照最有力候補ID='A',参照候補辞書=lambda:{'A':2.0,'B':1.0,'C':0.0,'D':0.0})
+  実回答=replace(回答(証明=False),MINIDORA模型結果=模型)
+  s=供給(old,lambda r:実回答)
+  判定=SimpleNamespace(一意成立=None,候補=(),学習提案=(),照合数=0,未完了=())
+  s._目的関係評価=lambda _r:判定
+  s._必要観測=lambda *_a,**_kw:(SimpleNamespace(),)
+  x=self.評価(s,状態(new,実回答,old))
+  self.assertEqual(dict(x.成果).get(m.回答成果名),'A')
+  self.assertIn('HDS_BASELINE_REOBSERVED_STABLE',x.理由)
+
  def test_選択APIは論理成果名を回答ラベルへ射影する(self):
   from minidora.入力系.選択契約 import 選択入力を接続
   入力=SimpleNamespace(目的=(),検証要求=(),残差=(),実行制約=(),
