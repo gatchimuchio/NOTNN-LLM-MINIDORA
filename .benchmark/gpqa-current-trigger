@@ -1,7 +1,7 @@
-run=parallel-gpqa-43-legacy-first-429-retry-20261006
-purpose=旧43点回復順序・429有限再試行・取得障害未消費を復元した並列能力継承再現
+run=parallel-gpqa-43-reobserved-stability-20261006
+purpose=暫定順位を追加観測後の同一ラベル再現まで確定しない能力再現性修復を並列検証
 parallel=問題独立並列
 serial=off_until_parallel_43
 wall_clock_limit_minutes=90
 performance_inheritance_floor=43
-source_revision=43fe38d5661e6cf8813e2dbdba39be6498a2b0d2
+source_revision=e06087884a11f56ef6bed646ea208628008fac6d
