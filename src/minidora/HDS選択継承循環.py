@@ -782,9 +782,18 @@ class HDS選択継承供給:
             明示優越 = bool(採用 is not None and any(x in 理由 for x in (
                 "HDS_DIRECT_COUNTEREVIDENCE_REVERIFIED", "HDS_SUPERIOR_EVIDENCE_ADOPTED")))
             基準保持 = bool(採用 is 基準 and _暫定採用可能(基準) and not 基準阻害 and not 訂正)
-            # 未観測の新関係や他候補の競合だけで、成立済みの基準回答を降格させない。
-            # 推測禁止など入力契約の強い制約は、この後の入力接続検査で別途適用する。
-            if (強候補数 > 1 or 必要観測) and not 明示優越 and not 基準保持:
+            既存能力継承採用 = bool(
+                採用 is not None and _暫定採用可能(採用)
+                and any(x in 理由 for x in (
+                    "HDS_EXISTING_CAPABILITY_REVISED",
+                    "HDS_MINIDORA_CANONICAL_INHERITED",
+                    "HDS_BASELINE_EVIDENCE_REVALIDATED",
+                ))
+            )
+            # 新しい関係系は、既存能力が既に成立させた採用を「まだ観測したい」という理由だけで
+            # 巻き戻さない。明示反証・訂正・入力契約違反だけが継承済み採用を止められる。
+            if ((強候補数 > 1 or 必要観測) and not 明示優越
+                    and not 基準保持 and not 既存能力継承採用):
                 採用 = None
             if 判定 is not None:
                 出力[非退行判定成果名] = 判定
