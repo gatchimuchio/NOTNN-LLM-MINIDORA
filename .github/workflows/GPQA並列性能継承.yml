@@ -35,46 +35,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { shard: "000-004", start: 0, limit: 5 }
-          - { shard: "005-009", start: 5, limit: 5 }
-          - { shard: "010-014", start: 10, limit: 5 }
-          - { shard: "015-019", start: 15, limit: 5 }
-          - { shard: "020-024", start: 20, limit: 5 }
-          - { shard: "025-029", start: 25, limit: 5 }
-          - { shard: "030-034", start: 30, limit: 5 }
-          - { shard: "035-039", start: 35, limit: 5 }
-          - { shard: "040-044", start: 40, limit: 5 }
-          - { shard: "045-049", start: 45, limit: 5 }
-          - { shard: "050-054", start: 50, limit: 5 }
-          - { shard: "055-059", start: 55, limit: 5 }
-          - { shard: "060-064", start: 60, limit: 5 }
-          - { shard: "065-069", start: 65, limit: 5 }
-          - { shard: "070-074", start: 70, limit: 5 }
-          - { shard: "075-079", start: 75, limit: 5 }
-          - { shard: "080-084", start: 80, limit: 5 }
-          - { shard: "085-089", start: 85, limit: 5 }
-          - { shard: "090-094", start: 90, limit: 5 }
-          - { shard: "095-099", start: 95, limit: 5 }
-          - { shard: "100-104", start: 100, limit: 5 }
-          - { shard: "105-109", start: 105, limit: 5 }
-          - { shard: "110-114", start: 110, limit: 5 }
-          - { shard: "115-119", start: 115, limit: 5 }
-          - { shard: "120-124", start: 120, limit: 5 }
-          - { shard: "125-129", start: 125, limit: 5 }
-          - { shard: "130-134", start: 130, limit: 5 }
-          - { shard: "135-139", start: 135, limit: 5 }
-          - { shard: "140-144", start: 140, limit: 5 }
-          - { shard: "145-149", start: 145, limit: 5 }
-          - { shard: "150-154", start: 150, limit: 5 }
-          - { shard: "155-159", start: 155, limit: 5 }
-          - { shard: "160-164", start: 160, limit: 5 }
-          - { shard: "165-169", start: 165, limit: 5 }
-          - { shard: "170-174", start: 170, limit: 5 }
-          - { shard: "175-179", start: 175, limit: 5 }
-          - { shard: "180-184", start: 180, limit: 5 }
-          - { shard: "185-189", start: 185, limit: 5 }
-          - { shard: "190-194", start: 190, limit: 5 }
-          - { shard: "195-197", start: 195, limit: 3 }
+          - { shard: "000-009", start: 0, limit: 10 }
+          - { shard: "010-019", start: 10, limit: 10 }
+          - { shard: "020-029", start: 20, limit: 10 }
+          - { shard: "030-039", start: 30, limit: 10 }
+          - { shard: "040-049", start: 40, limit: 10 }
+          - { shard: "050-059", start: 50, limit: 10 }
+          - { shard: "060-069", start: 60, limit: 10 }
+          - { shard: "070-079", start: 70, limit: 10 }
+          - { shard: "080-089", start: 80, limit: 10 }
+          - { shard: "090-099", start: 90, limit: 10 }
+          - { shard: "100-109", start: 100, limit: 10 }
+          - { shard: "110-119", start: 110, limit: 10 }
+          - { shard: "120-129", start: 120, limit: 10 }
+          - { shard: "130-139", start: 130, limit: 10 }
+          - { shard: "140-149", start: 140, limit: 10 }
+          - { shard: "150-159", start: 150, limit: 10 }
+          - { shard: "160-169", start: 160, limit: 10 }
+          - { shard: "170-179", start: 170, limit: 10 }
+          - { shard: "180-189", start: 180, limit: 10 }
+          - { shard: "190-197", start: 190, limit: 8 }
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -115,7 +95,7 @@ jobs:
           pattern: gpqa-parallel-*
           path: shards
           merge-multiple: true
-      - name: 全数・版・時間・40点下限を実値で検査
+      - name: 全数・版・時間・43点下限を実値で検査
         run: >-
           python tools/GPQA並列集計.py --dir shards --out gpqa_parallel_full.json
           --revision ${{ github.sha }}
