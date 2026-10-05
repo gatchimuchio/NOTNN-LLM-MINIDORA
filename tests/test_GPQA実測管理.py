@@ -38,7 +38,7 @@ class GPQA実測管理試験(TestCase):
     def test_重複問題IDを事前拒否(self):
         with self.assertRaises(ValueError):_実行を管理([(0,'q',(),'A'),(0,'q',(),'A')],self.out,方式='直列',条件={},期限秒=1)
     def test_時間と下限を変更しない(self):
-        self.assertEqual(時間上限秒,5400);self.assertEqual(性能継承下限,40)
+        self.assertEqual(時間上限秒,5400);self.assertEqual(性能継承下限,43)
     def test_90分超過の締切延長を拒否(self):
         with self.assertRaises(ValueError):GPQAを測定(self.out,方式='直列',期限epoch=time.time()+10000)
     def test_全数前提の直列を分割しない(self):
