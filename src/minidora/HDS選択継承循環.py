@@ -572,6 +572,10 @@ class HDS選択継承供給:
             pending = 既存待ち
             観測系列 = "既存能力"
         else:
+            # 旧能力の通常追加参照がまだ実行可能なら、新しい目的関係探索は後段へ送る。
+            # 能力継承経路の順序を変えず、旧回復を尽くした後だけ新探索を追加する。
+            if self._参照作用(状態) is not None:
+                return None
             判定 = values.get("HDS選択:目的関係判定")
             if 判定 is None:
                 return None
