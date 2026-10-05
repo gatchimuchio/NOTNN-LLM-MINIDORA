@@ -606,9 +606,10 @@ class HDS選択継承供給:
             ]
             if after != before:
                 outputs.append((参照成果名, tuple(merged)))
-            # 観測した要求は成功・部分失敗を問わず消費済みにする。
-            # 子供給器の制限・再試行時点は参照取得側が管理し、全検索を巻き戻さない。
-            outputs.append((関係観測消費成果名, new_consumed))
+            # 取得障害が残る観測は「観測済み」にしない。旧43点経路と同じく、
+            # 成功した観測だけを消費し、429等の縮退時は同じ必要観測を再試行可能に残す。
+            if not transport_bad:
+                outputs.append((関係観測消費成果名, new_consumed))
 
             clearable = {残差_参照取得障害} if (not transport_bad and 残差_参照取得障害 in s.残差) else set()
             add = {残差_参照取得障害} if transport_bad else set()
