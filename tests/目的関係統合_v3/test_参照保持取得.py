@@ -4,7 +4,7 @@ from dataclasses import replace
 from urllib.error import HTTPError
 from email.message import Message
 from minidora.参照 import (参照記録,参照取得診断,参照全保持を統合,参照保持容量超過,
-    参照経験記憶を統合,複合参照供給器,参照検索を診断)
+    参照経験記憶を統合,参照記録群を統合,複合参照供給器,参照検索を診断)
 
 
 def 記録(本文='長い旧観測の本文',識別子='資料',条件=()):
@@ -52,6 +52,14 @@ class 参照保持試験(TestCase):
         with self.assertRaises(参照保持容量超過) as e:
             参照全保持を統合((記録(識別子='一'),),(記録(識別子='二'),),最大件数=1)
         self.assertEqual(len(e.exception.記録群),2)
+    def test_作業窓は同一資料の候補query経路を併合し意味条件は混ぜない(self):
+        旧=記録('同一本文',条件=(('hds_query_選択肢','A'),('温度','低')))
+        新=記録('同一本文',条件=(('hds_query_選択肢','B'),('温度','高')))
+        後=参照記録群を統合((旧,),(新,))[0]
+        self.assertEqual({v for k,v in 後.条件 if k=='hds_query_選択肢'},{'A','B'})
+        self.assertIn(('温度','低'),後.条件)
+        self.assertNotIn(('温度','高'),後.条件)
+
     def test_継承は問い合わせの意味条件と経路を分ける(self):
         原=記録(条件=(('hds_query_選択肢','A'),('温度','低')))
         後=参照経験記憶を統合((),(原,),最大件数=None)[0]
