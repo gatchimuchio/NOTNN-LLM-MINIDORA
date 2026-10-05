@@ -171,7 +171,9 @@ def _標準追加採用証明(
     初期参照署名: str,
     現在参照署名: str,
 ) -> bool:
-    if _根拠付き承認(基準) or not _根拠付き承認(拡張) or 初期参照署名 == 現在参照署名:
+    # 能力継承の採否は、既存MINIDORAが既に証明済みとする能力境界を使う。
+    # 型付き関係の強証明は「既存能力を上書きできるか」の判定へ残し、両者を混同しない。
+    if _暫定採用可能(基準) or not _暫定採用可能(拡張) or 初期参照署名 == 現在参照署名:
         return False
     return True
 
@@ -745,20 +747,22 @@ class HDS選択継承供給:
             if 採用 is None and _暫定採用可能(基準) and not 基準阻害 and not 訂正:
                 採用, 理由 = 基準, ("HDS_BASELINE_APPROVAL_KEPT", "HDS_MINIDORA_CANONICAL_INHERITED")
             elif 採用 is None and not 基準強証明 and not 現行阻害 and 現署名 != self.初期参照署名:
-                # 相対順位の更新は真理保証の昇格ではない。証明を拒否した場合も
-                # 候補は影結果として監査保存し、採用だけを止める。
-                追加証明 = self.拡張採用証明 is None or bool(self.拡張採用証明(基準, 結果))
-                判定 = HDS非退行包絡(基準, 基準承認判定=lambda _前: False,
-                    拡張実行=lambda: 結果, 拡張承認判定=_根拠付き承認,
+                # 既存能力が追加参照後に一意閉包した結果は、能力継承として採用できる。
+                # 型付き強証明は上書き権限、既存能力証明は継承権限として分離する。
+                追加証明 = (bool(self.拡張採用証明(基準, 結果)) if self.拡張採用証明 is not None
+                        else _標準追加採用証明(基準, 結果,
+                            初期参照署名=self.初期参照署名, 現在参照署名=現署名))
+                判定 = HDS非退行包絡(基準, 基準承認判定=_暫定採用可能,
+                    拡張実行=lambda: 結果, 拡張承認判定=_暫定採用可能,
                     拡張採用証明=lambda _前, _後: bool(追加証明 and 現署名 != self.初期参照署名 and not 現行阻害))
-                if 判定.拡張採用: 採用, 理由 = 結果, ("HDS_TENTATIVE_SELECTION_REVISED",)
+                if 判定.拡張採用: 採用, 理由 = 結果, ("HDS_EXISTING_CAPABILITY_REVISED",)
             elif 採用 is None and 訂正 and not 現行阻害 and 結果.回答ラベル == 基準.回答ラベル:
                 採用, 理由 = 結果, ("HDS_BASELINE_EVIDENCE_REVALIDATED",)
-            elif 採用 is None and not _根拠付き承認(基準) and not 現行阻害 and not 初回:
+            elif 採用 is None and not _暫定採用可能(基準) and not 現行阻害 and not 初回:
                 証明 = bool(self.拡張採用証明(基準, 結果)) if self.拡張採用証明 is not None else _標準追加採用証明(
                     基準, 結果, 初期参照署名=self.初期参照署名, 現在参照署名=現署名)
-                判定 = HDS非退行包絡(基準, 基準承認判定=_根拠付き承認, 拡張実行=lambda: 結果,
-                    拡張承認判定=_根拠付き承認, 拡張採用証明=lambda _前, _後: 証明)
+                判定 = HDS非退行包絡(基準, 基準承認判定=_暫定採用可能, 拡張実行=lambda: 結果,
+                    拡張承認判定=_暫定採用可能, 拡張採用証明=lambda _前, _後: 証明)
                 if 判定.拡張採用:
                     採用, 理由 = 結果, ("HDS_MINIDORA_CANONICAL_INHERITED",)
             強候補数 = sum(x.状態 == "成立" for x in 関係判定.候補)
