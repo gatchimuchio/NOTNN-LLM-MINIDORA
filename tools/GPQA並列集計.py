@@ -43,10 +43,10 @@ def 集計(資料群,*,版,開始,締切,現在=None):
     # 集計までを90分に含める。runner待ちを時間計測から消さない。
     if 今>締切:失敗.append('集計完了が90分超過')
     xs=[個票[i]for i in sorted(個票)];score=sum(x['正答'] for x in xs)
-    if score<40:失敗.append(f'性能継承下限未達:{score}/198')
+    if score<性能継承下限:失敗.append(f'性能継承下限未達:{score}/198')
     return {'契約形式':'minidora.gpqa.parallel-inheritance.v2','リポジトリ版':版,
         '全数':198,'完了数':len(xs),'正答':score,'回答':sum(x.get('回答済み') is True for x in xs),
-        '性能継承下限':40,'性能継承成立':not 失敗,'全数wall_clock上限分':90,
+        '性能継承下限':性能継承下限,'性能継承成立':not 失敗,'全数wall_clock上限分':90,
         '開始epoch':開始,'終了epoch':今,'経過秒':今-開始,'受入失敗':失敗,'個票':xs}
 
 
