@@ -561,30 +561,15 @@ class HDS選択継承供給:
         if values.get(評価参照署名成果名) != _参照署名(refs):
             return None
         if values.get(評価観測署名成果名) != self._観測状態署名(状態): return None
+        判定 = values.get("HDS選択:目的関係判定")
+        if 判定 is None: return None
+        必要 = self._必要観測(状態, 判定, values.get(現行結果成果名))
+        plan = HDS候補関係観測計画(必要, len(必要), 0)
         consumed_raw = values.get(関係観測消費成果名, ())
         consumed = set(str(x) for x in consumed_raw if str(x)) if isinstance(consumed_raw, tuple) else set()
-
-        # 能力継承の探索順を保持する。既存MINIDORAが使っていた候補関係観測を
-        # 先に尽くし、それでも未閉包の場合だけ新しい目的関係の不足観測へ進む。
-        既存計画 = self._関係観測計画(refs)
-        既存待ち = tuple(x for x in 既存計画.観測要求 if _観測要求鍵(x) not in consumed)
-        if 既存待ち:
-            pending = 既存待ち
-            観測系列 = "既存能力"
-        else:
-            # 旧能力の通常追加参照がまだ実行可能なら、新しい目的関係探索は後段へ送る。
-            # 能力継承経路の順序を変えず、旧回復を尽くした後だけ新探索を追加する。
-            if self._参照作用(状態) is not None:
-                return None
-            判定 = values.get("HDS選択:目的関係判定")
-            if 判定 is None:
-                return None
-            必要 = self._必要観測(状態, 判定, values.get(現行結果成果名))
-            plan = HDS候補関係観測計画(必要, len(必要), 0)
-            pending = tuple(x for x in plan.観測要求 if _観測要求鍵(x) not in consumed)
-            if not pending:
-                return None
-            観測系列 = "目的関係"
+        pending = tuple(x for x in plan.観測要求 if _観測要求鍵(x) not in consumed)
+        if not pending:
+            return None
         優先度 = min(int(x.優先度) for x in pending)
         selected = tuple(x for x in pending if int(x.優先度) == 優先度)
 
@@ -639,7 +624,7 @@ class HDS選択継承供給:
                 解消残差=frozenset(clearable),
                 追加残差=frozenset(add.difference(s.残差)),
                 成果=tuple(outputs),
-                理由=(reason, f"観測系列:{観測系列}", f"関係観測世代:{level}", f"観測方法優先度:{優先度}", f"件数:{len(merged)}"),
+                理由=(reason, f"関係観測世代:{level}", f"観測方法優先度:{優先度}", f"件数:{len(merged)}"),
             )
 
         return HDS関数作用(
@@ -786,18 +771,9 @@ class HDS選択継承供給:
             明示優越 = bool(採用 is not None and any(x in 理由 for x in (
                 "HDS_DIRECT_COUNTEREVIDENCE_REVERIFIED", "HDS_SUPERIOR_EVIDENCE_ADOPTED")))
             基準保持 = bool(採用 is 基準 and _暫定採用可能(基準) and not 基準阻害 and not 訂正)
-            既存能力継承採用 = bool(
-                採用 is not None and _暫定採用可能(採用)
-                and any(x in 理由 for x in (
-                    "HDS_EXISTING_CAPABILITY_REVISED",
-                    "HDS_MINIDORA_CANONICAL_INHERITED",
-                    "HDS_BASELINE_EVIDENCE_REVALIDATED",
-                ))
-            )
-            # 新しい関係系は、既存能力が既に成立させた採用を「まだ観測したい」という理由だけで
-            # 巻き戻さない。明示反証・訂正・入力契約違反だけが継承済み採用を止められる。
-            if ((強候補数 > 1 or 必要観測) and not 明示優越
-                    and not 基準保持 and not 既存能力継承採用):
+            # 未観測の新関係や他候補の競合だけで、成立済みの基準回答を降格させない。
+            # 推測禁止など入力契約の強い制約は、この後の入力接続検査で別途適用する。
+            if (強候補数 > 1 or 必要観測) and not 明示優越 and not 基準保持:
                 採用 = None
             if 判定 is not None:
                 出力[非退行判定成果名] = 判定
