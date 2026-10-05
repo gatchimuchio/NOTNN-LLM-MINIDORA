@@ -65,7 +65,7 @@ def 選択関係を評価(目的ID,世界ID,候補対象,参照関係,*,変換=(
     if type(反転) is not bool:raise TypeError("選択意図の反転はbool")
     if len({k for k,_ in 候補対象})!=len(候補対象):raise ValueError('候補ID重複')
     学習=学習状態 or 関係学習状態()
-    証拠=[];既出=set()
+    証拠=[];既出=set();入力窓超過=False
     for 出典,関係群 in 参照関係:
         文字(出典)
         for 関係 in 関係群:
@@ -76,9 +76,14 @@ def 選択関係を評価(目的ID,世界ID,候補対象,参照関係,*,変換=(
                 # 関係証明へ昇格させず既存能力側へ残す。
                 continue
             鍵=署名((出典,節))
-            if 鍵 not in 既出:
-                既出.add(鍵);証拠.append(関係証拠('観測:'+鍵,節,(出典,),関係保証.観測))
-    行=[];累積=0;未完=[]
+            if 鍵 in 既出:
+                continue
+            既出.add(鍵)
+            if len(証拠) >= 資源.最大事実:
+                入力窓超過=True
+                continue
+            証拠.append(関係証拠('観測:'+鍵,節,(出典,),関係保証.観測))
+    行=[];累積=0;未完=['観測関係の入力窓上限'] if 入力窓超過 else []
     for ラベル,対象群 in 候補対象:
         try:
             対象=tuple(言語関係を節へ(x) for x in 対象群)
