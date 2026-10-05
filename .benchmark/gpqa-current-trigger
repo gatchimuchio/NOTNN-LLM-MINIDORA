@@ -1,6 +1,7 @@
-run=dual-gpqa-final-d559006-20261005
-purpose=再評価・候補経路・429停止範囲・関係演算窓修復後の並列性能継承と直列学習効果を同一revisionで再実測
+run=parallel-gpqa-inheritance-repair-e775866-20261005
+purpose=旧43点能力継承ゲートと選択成果接続修復後の並列再現性を先行検証
 parallel=問題独立並列
-serial=同一Core直列
+serial=off
+required_parallel_correct=43
 wall_clock_limit_minutes=90
-source_revision=d559006e13c216f1846657015d44456a6b11464b
+source_revision=e775866722caf949ca429a2c99c7c35eec0fd4d2
