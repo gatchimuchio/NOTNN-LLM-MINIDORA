@@ -1,6 +1,6 @@
-run=dual-gpqa-repair-b45c8a0-20261005
-purpose=非退行契約・目的経路・現行結果失効再評価修復後の並列性能継承と直列学習効果を同一revisionで再実測
+run=dual-gpqa-repair-c7d5428-20261005
+purpose=再評価再実行署名と候補query経路保持修復後の並列性能継承と直列学習効果を同一revisionで再実測
 parallel=問題独立並列
 serial=同一Core直列
 wall_clock_limit_minutes=90
-source_revision=b45c8a0078099225983c788cd9abd022cee13fa2
+source_revision=c7d5428f46f41da36e6d3f89a53d143dd98fda13
