@@ -71,21 +71,21 @@ class 参照取得試験(TestCase):
         複合=複合参照供給器(正常,失敗,並列=False)
         一,診断=複合.検索診断('問い')
         二,再診断=複合.検索診断('問い')
-        self.assertEqual(正常.回数,1);self.assertEqual(失敗.回数,1)
+        self.assertEqual(正常.回数,1);self.assertEqual(失敗.回数,3)
         self.assertEqual(一,二);self.assertEqual(診断.状態,'縮退')
         self.assertTrue(再診断.再利用);self.assertEqual(再診断.実取得回数,0)
-    def test_429を短間隔で三回叩かない(self):
+    def test_RetryAfter未提示429は有限再試行する(self):
         器=失敗器()
         with patch('minidora.参照.time.sleep') as 待機:
             _,診断=参照検索を診断(器,'問')
-        self.assertEqual(器.回数,1);待機.assert_not_called()
-        self.assertEqual(診断.HTTP状態,429);self.assertIn('未提示',診断.延期理由)
-    def test_RetryAfter未提示429は同一queryだけ再利用し別queryは試す(self):
+        self.assertEqual(器.回数,3);self.assertEqual(待機.call_count,2)
+        self.assertEqual(診断.HTTP状態,429);self.assertIn('有限再試行上限',診断.延期理由)
+    def test_RetryAfter未提示429は再試行後に同一queryだけ再利用し別queryは試す(self):
         器=失敗器();複合=複合参照供給器(器,並列=False)
         複合.検索診断('問A');複合.検索診断('問A')
-        self.assertEqual(器.回数,1)
+        self.assertEqual(器.回数,3)
         複合.検索診断('問B')
-        self.assertEqual(器.回数,2)
+        self.assertEqual(器.回数,6)
 
     def test_RetryAfterより前に再実行しない(self):
         器=失敗器(60);複合=複合参照供給器(器,並列=False)
