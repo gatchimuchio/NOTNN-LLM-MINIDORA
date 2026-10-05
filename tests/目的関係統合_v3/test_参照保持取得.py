@@ -80,6 +80,13 @@ class 参照取得試験(TestCase):
             _,診断=参照検索を診断(器,'問')
         self.assertEqual(器.回数,1);待機.assert_not_called()
         self.assertEqual(診断.HTTP状態,429);self.assertIn('未提示',診断.延期理由)
+    def test_RetryAfter未提示429は同一queryだけ再利用し別queryは試す(self):
+        器=失敗器();複合=複合参照供給器(器,並列=False)
+        複合.検索診断('問A');複合.検索診断('問A')
+        self.assertEqual(器.回数,1)
+        複合.検索診断('問B')
+        self.assertEqual(器.回数,2)
+
     def test_RetryAfterより前に再実行しない(self):
         器=失敗器(60);複合=複合参照供給器(器,並列=False)
         with patch('minidora.参照.time.time',return_value=100):
