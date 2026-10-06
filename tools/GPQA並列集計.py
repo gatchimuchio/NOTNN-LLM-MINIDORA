@@ -2,6 +2,7 @@
 from __future__ import annotations
 import argparse,json,math,time
 from pathlib import Path
+from collections import Counter
 from GPQA実測管理 import 原子的保存,資料SHA256,全数,時間上限秒,性能継承下限
 
 
