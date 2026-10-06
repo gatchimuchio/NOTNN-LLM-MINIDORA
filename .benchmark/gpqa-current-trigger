@@ -1,7 +1,8 @@
-run=parallel-gpqa-43-reobserved-stability-20261006
-purpose=暫定順位を追加観測後の同一ラベル再現まで確定しない能力再現性修復を並列検証
+run=parallel-gpqa-43-throttled-6683447-20261006
+purpose=713版能力回復経路へ復帰しLIVE取得同時shardを4へ抑制した並列43再現性を検証
 parallel=問題独立並列
 serial=off_until_parallel_43
+max_parallel_shards=4
 wall_clock_limit_minutes=90
 performance_inheritance_floor=43
-source_revision=e06087884a11f56ef6bed646ea208628008fac6d
+source_revision=66834476c9eafd3281ee0b69fd869bb295b814e7
