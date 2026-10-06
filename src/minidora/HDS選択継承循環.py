@@ -736,8 +736,6 @@ class HDS選択継承供給:
             候補判定 = {x.ラベル: x for x in 関係判定.候補}
             基準関係 = 候補判定.get(str(getattr(基準, "回答ラベル", "")))
             基準強証明 = (_根拠付き承認(基準) and not 基準阻害 and not 訂正)
-            強候補数 = sum(x.状態 == "成立" for x in 関係判定.候補)
-            必要観測 = self._必要観測(s, 関係判定, 結果) if 構造ラベル is None else ()
             if 構造ラベル is not None and not 現行阻害 and not 基準強証明:
                 証明可 = self.拡張採用証明 is None or bool(self.拡張採用証明(基準, 結果))
                 if 証明可:
@@ -760,22 +758,10 @@ class HDS選択継承供給:
                 if 採用 is not None:
                     判定 = HDS証拠優越包絡(基準, 採用, 基準承認判定=_根拠付き承認,
                         拡張承認判定=_根拠付き承認, 証拠優越証明=lambda _前, _後: True)
-            # 旧能力の直接根拠・型付き強証明は即時に保持できる。
-            # formal模型の相対順位だけで閉包した回答は、必要観測が残る限り初回で確定しない。
-            # 異なる参照状態で同じラベルを再現した時に初めて安定採用する。
-            基準能力承認 = _暫定採用可能(基準) and not 基準阻害 and not 訂正
-            再観測一致 = bool(
-                not 初回
-                and 現署名 != self.初期参照署名
-                and _暫定採用可能(結果)
-                and 結果.回答ラベル == 基準.回答ラベル
-            )
-            if 採用 is None and 基準能力承認 and (
-                    基準強証明 or not 必要観測 or 再観測一致):
-                if 再観測一致 and not 基準強証明:
-                    採用, 理由 = 結果, ("HDS_BASELINE_REOBSERVED_STABLE", "HDS_MINIDORA_CANONICAL_INHERITED")
-                else:
-                    採用, 理由 = 基準, ("HDS_BASELINE_APPROVAL_KEPT", "HDS_MINIDORA_CANONICAL_INHERITED")
+            # 新しい関係観測は既存能力を上書きする根拠ではない。明示反証・訂正がない限り、
+            # 既存MINIDORAが一意閉包した基準回答を非退行で保持する。
+            if 採用 is None and _暫定採用可能(基準) and not 基準阻害 and not 訂正:
+                採用, 理由 = 基準, ("HDS_BASELINE_APPROVAL_KEPT", "HDS_MINIDORA_CANONICAL_INHERITED")
             elif (採用 is None and not 訂正 and not 基準強証明
                     and not 現行阻害 and 現署名 != self.初期参照署名):
                 # 既存能力が追加参照後に一意閉包した結果は、能力継承として採用できる。
@@ -796,6 +782,8 @@ class HDS選択継承供給:
                     拡張承認判定=_暫定採用可能, 拡張採用証明=lambda _前, _後: 証明)
                 if 判定.拡張採用:
                     採用, 理由 = 結果, ("HDS_MINIDORA_CANONICAL_INHERITED",)
+            強候補数 = sum(x.状態 == "成立" for x in 関係判定.候補)
+            必要観測 = self._必要観測(s, 関係判定, 結果) if 構造ラベル is None else ()
             明示優越 = bool(採用 is not None and any(x in 理由 for x in (
                 "HDS_DIRECT_COUNTEREVIDENCE_REVERIFIED", "HDS_SUPERIOR_EVIDENCE_ADOPTED")))
             基準保持 = bool(採用 is 基準 and _暫定採用可能(基準) and not 基準阻害 and not 訂正)
@@ -805,7 +793,6 @@ class HDS選択継承供給:
                     "HDS_EXISTING_CAPABILITY_REVISED",
                     "HDS_MINIDORA_CANONICAL_INHERITED",
                     "HDS_BASELINE_EVIDENCE_REVALIDATED",
-                    "HDS_BASELINE_REOBSERVED_STABLE",
                 ))
             )
             # 未観測の新関係や他候補の競合だけで、旧能力が成立させた回答を降格させない。
@@ -835,7 +822,7 @@ class HDS選択継承供給:
                 "候補関係": tuple((x.ラベル, x.状態, len(x.対象), len(x.証明), len(x.反証)) for x in 関係判定.候補),
                 "関係照合数": 関係判定.照合数, "関係未完了": 関係判定.未完了,
                 "次の必要観測": tuple(_観測要求鍵(x) for x in 必要観測),
-                "基準根拠成立": 基準強証明, "基準採用可能": _暫定採用可能(基準), "基準資料訂正": 訂正,
+                "基準根拠成立": 基準強証明, "基準採用可能": _根拠付き承認(基準), "基準資料訂正": 訂正,
                 "基準阻害": tuple(sorted(基準阻害)), "現行阻害": tuple(sorted(現行阻害)),
                 "採用ラベル": 採用.回答ラベル if 採用 is not None else None,
                 "取得診断": tuple(値.get(参照取得診断成果名, ())),
