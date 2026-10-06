@@ -109,7 +109,7 @@ def _停止(過程):
     if os.name == "posix":
         try:
             os.killpg(過程.pid, signal.SIGTERM)
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):
             if 過程.is_alive():
                 過程.terminate()
     elif 過程.is_alive():
@@ -118,7 +118,7 @@ def _停止(過程):
     if os.name == "posix":
         try:
             os.killpg(過程.pid, signal.SIGKILL)
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):
             if 過程.is_alive():
                 過程.kill()
     elif 過程.is_alive():
