@@ -176,7 +176,9 @@ def HDS監査参照候補生成(ir: HDSIR, checklist: tuple[HDSチェックリ�
         if "G04" in gates or "G05" in gates:
             suffixes.append(("代替説明" if ja else "alternative explanation", "countermodel", item.関門対応, 85))
         if "G06" in gates:
-            suffixes.append(("証拠" if ja else "evidence", "証拠", item.関門対応, 80))
+            # G06の「証拠」はHDSの正本観測トークンであり、出力言語へ翻訳しない。
+            # 検索表層まで翻訳すると既存能力の参照集合が変わり、性能継承を壊す。
+            suffixes.append(("証拠", "証拠", item.関門対応, 80))
         if "G13" in gates:
             suffixes.append(("機構 境界条件" if ja else "mechanism boundary conditions", "principle_probe", item.関門対応, 75))
     out: list[HDS監査参照候補] = []
