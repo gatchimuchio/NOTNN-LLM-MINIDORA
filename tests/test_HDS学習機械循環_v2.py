@@ -5,12 +5,15 @@ import unittest
 from unittest.mock import patch
 
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
-from minidora.HDS実行主体 import HDS関数作用, HDS作用結果, HDS作用状態, HDS終端
+from minidora.HDS実行主体 import HDS関数作用, HDS作用結果, HDS作用状態, HDS終端, HDS実行状態, HDS実行結果
 from minidora.統合駆動_v2.認識 import HDS認識項目, 認識区分
 from minidora.HDS選択継承循環 import HDS選択継承供給, 初回評価参照成果名
 from minidora.HDS駆動コア import HDS駆動コア
 from minidora.参照 import 参照記録
 from minidora.統合駆動_v2.記憶 import HDS資料
+from minidora.駆動系.契約 import 関係項, 関係節, 関係変換契約
+from minidora.駆動系.学習 import 関係形成, 関係学習状態, 変換を合成
+from minidora.HDS選択継承循環 import 関係学習提案成果名
 
 
 class _空参照供給器:
@@ -25,7 +28,32 @@ class _空参照供給器:
         return ()
 
 
+def _学習状態():
+    x=関係項("x",変数=True,束縛域="test")
+    a=関係変換契約("r1",(関係節("p",(("対象",x),)),),関係節("q",(("対象",x),)),("test:r1",))
+    b=関係変換契約("r2",(関係節("q",(("対象",x),)),),関係節("r",(("対象",x),)),("test:r2",))
+    formed=変換を合成(a,b,0)
+    assert formed is not None
+    return 関係学習状態((関係形成(formed.ID,formed,a,b,0,("proof",),("exp",)),))
+
+
 class HDS学習機械循環V2試験(unittest.TestCase):
+    def test_選択COMMITの関係学習提案をCoreへ帰還する(self) -> None:
+        中核=HDS駆動コア()
+        提案=_学習状態()
+        状態=HDS実行状態(成果=((関係学習提案成果名,提案),))
+        結果=HDS実行結果(HDS終端.採用,状態,())
+        self.assertTrue(中核._選択学習提案を帰還(結果))
+        self.assertEqual(中核.関係学習状態,提案)
+
+    def test_選択SUSPENDの学習提案はCoreへ帰還しない(self) -> None:
+        中核=HDS駆動コア()
+        提案=_学習状態()
+        状態=HDS実行状態(成果=((関係学習提案成果名,提案),))
+        結果=HDS実行結果(HDS終端.保留,状態,())
+        self.assertFalse(中核._選択学習提案を帰還(結果))
+        self.assertEqual(中核.関係学習状態,関係学習状態())
+
     def test_現在材料を評価してから不足時だけ候補関係観測が発火する(self) -> None:
         構文化器 = 公開HDSコンパイラ()
         中核 = HDS駆動コア(HDSコンパイラ=構文化器, 最大作用回数=40)
