@@ -1,10 +1,11 @@
-run=parallel-gpqa-43-provider-circuit-4a849d8-20261007
-purpose=旧43能力経路を保持しWikipedia detail 429自己増幅遮断・provider429計装・2shard並列で性能継承再現を検証
+run=parallel-gpqa-43-full-retry-8e05c55-20261007
+purpose=旧43能力経路・Wikipedia detail 429遮断・429部分成功有限再試行・2shard並列・provider429計装を統合して性能継承再現
 parallel=問題独立並列
 serial=off_until_parallel_43
 max_parallel_shards=2
 wikipedia_detail_429_circuit=true
+partial_429_retry=true
 provider_429_instrumentation=true
 wall_clock_limit_minutes=90
 performance_inheritance_floor=43
-source_revision=4a849d83614447ff110b2f7268d92e6f90d163ee
+source_revision=8e05c552cb4ed99857f5548d58172e42a167c705
