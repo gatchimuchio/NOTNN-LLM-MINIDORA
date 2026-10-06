@@ -104,6 +104,23 @@ class 参照取得試験(TestCase):
         self.assertEqual(器.回数,3);self.assertEqual(待機.call_count,2)
         self.assertEqual(診断.状態,'取得');self.assertEqual(群[0].内容,'本文回復')
 
+    def test_非429の部分縮退も旧契約どおり有限再試行する(self):
+        class 部分障害器:
+            名称='部分障害'
+            def __init__(self):self.回数=0
+            def 検索診断(self,問合せ,上限):
+                self.回数+=1
+                if self.回数==1:
+                    return ((記録('一覧だけ',識別子='同一資料'),),
+                        参照取得診断(問合せ,self.名称,'縮退',1,1,'OSError: temporary detail failure'))
+                return ((記録('本文回復',識別子='同一資料'),),
+                    参照取得診断(問合せ,self.名称,'取得',1,1,None))
+        器=部分障害器()
+        with patch('minidora.参照.time.sleep') as 待機:
+            群,診断=参照検索を診断(器,'問')
+        self.assertEqual(器.回数,2);self.assertEqual(待機.call_count,1)
+        self.assertEqual(診断.状態,'取得');self.assertEqual(群[0].内容,'本文回復')
+
     def test_RetryAfterより前に再実行しない(self):
         器=失敗器(60);複合=複合参照供給器(器,並列=False)
         with patch('minidora.参照.time.time',return_value=100):
