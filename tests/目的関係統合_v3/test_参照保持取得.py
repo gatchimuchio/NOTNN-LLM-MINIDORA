@@ -87,6 +87,23 @@ class 参照取得試験(TestCase):
         複合.検索診断('問B')
         self.assertEqual(器.回数,6)
 
+    def test_429付き部分成功はdetail回復まで有限再試行する(self):
+        class 部分制限器:
+            名称='部分制限'
+            def __init__(self):self.回数=0
+            def 検索診断(self,問合せ,上限):
+                self.回数+=1
+                if self.回数<3:
+                    return ((記録('一覧だけ',識別子='同一資料'),),
+                        参照取得診断(問合せ,self.名称,'縮退',1,1,'HTTP Error 429: Too Many Requests',HTTP状態=429))
+                return ((記録('本文回復',識別子='同一資料'),),
+                    参照取得診断(問合せ,self.名称,'取得',1,1,None))
+        器=部分制限器()
+        with patch('minidora.参照.time.sleep') as 待機:
+            群,診断=参照検索を診断(器,'問')
+        self.assertEqual(器.回数,3);self.assertEqual(待機.call_count,2)
+        self.assertEqual(診断.状態,'取得');self.assertEqual(群[0].内容,'本文回復')
+
     def test_RetryAfterより前に再実行しない(self):
         器=失敗器(60);複合=複合参照供給器(器,並列=False)
         with patch('minidora.参照.time.time',return_value=100):
