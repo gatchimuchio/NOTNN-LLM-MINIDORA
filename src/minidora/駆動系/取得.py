@@ -65,12 +65,17 @@ def 関係を取得(要求, 追加契約=()):
     needed={key(要求.問い)}; selected={}; changed=True
     while changed:
         changed=False
-        for rule in all_rules:
-            if rule.ID not in selected and key(rule.結論) in needed:
+        for goal in tuple(sorted(needed)):
+            候補=tuple(r for r in all_rules if r.ID not in selected and key(r.結論)==goal)
+            if not 候補: continue
+            # 有効形成から来た依存契約付きmacroは、元規則列と証明上同値な短縮経路である。
+            # 同じ結論についてmacroが存在する時は元経路を重複選択せず、macroの前提だけを展開する。
+            macros=tuple(r for r in 候補 if r.依存契約)
+            採用群=macros or 候補
+            for rule in 採用群:
                 selected[rule.ID]=rule
                 needed.update(key(p) for p in rule.前提)
                 changed=True
-    # 形成済みの証明付き短縮則を先に評価する。名称は意味採否へ使わない。
     rules=tuple(sorted(selected.values(),key=lambda r:(not bool(r.依存契約),r.ID)))
     facts=tuple(sorted((x for x in 要求.証拠 if key(x.節) in needed),key=lambda x:x.ID))
     return 関係取得結果(要求.署名,facts,rules,tuple(sorted({x[0] for x in needed})))
