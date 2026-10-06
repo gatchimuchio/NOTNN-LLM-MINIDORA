@@ -99,6 +99,52 @@ class HDS学習機械循環V2試験(unittest.TestCase):
         初回参照 = 次.状態.成果辞書().get(初回評価参照成果名, ())
         self.assertTrue(any(x.識別子 == "memory-a" for x in 初回参照))
 
+    def test_全保持認識から現在問の作業集合だけを投入し未使用認識は保持する(self) -> None:
+        中核=HDS駆動コア(最大作用回数=8)
+        扉資料=HDS資料("door","1","扉は施錠","試験")
+        天気資料=HDS資料("weather","1","晴天","試験")
+        中核._継続記憶=中核._継続記憶.更新((扉資料,天気資料))
+        扉=HDS認識項目("door-lock","扉","施錠",True,認識区分.確定,
+            根拠=(扉資料.出典(),),検証契約="test/v1")
+        天気=HDS認識項目("weather-clear","天気","晴天",True,認識区分.確定,
+            根拠=(天気資料.出典(),),検証契約="test/v1")
+        中核._継続認識=(扉,天気)
+        観測=[]
+        def 実行(状態):
+            観測.append(tuple(x.ID for x in 状態.認識))
+            return HDS作用結果(HDS作用状態.成立,追加状態=frozenset({"完了"}))
+        結果=中核.実行("扉の施錠を確認",要求状態=("完了",),
+            追加作用=(HDS関数作用("確認",実行,出力状態=("完了",)),))
+        self.assertEqual(結果.終端,HDS終端.採用)
+        self.assertEqual(観測,[("door-lock",)])
+        self.assertEqual({x.ID for x in 中核._継続認識},{"door-lock","weather-clear"})
+
+    def test_作業外認識も根拠資料改訂時は正本から失効する(self) -> None:
+        中核=HDS駆動コア(最大作用回数=8)
+        扉資料=HDS資料("door","1","扉は施錠","試験")
+        天気旧=HDS資料("weather","1","晴天","試験")
+        天気新=HDS資料("weather","2","雨天","試験")
+        中核._継続記憶=中核._継続記憶.更新((扉資料,天気旧))
+        扉=HDS認識項目("door-lock","扉","施錠",True,認識区分.確定,
+            根拠=(扉資料.出典(),),検証契約="test/v1")
+        天気=HDS認識項目("weather-clear","天気","晴天",True,認識区分.確定,
+            根拠=(天気旧.出典(),),検証契約="test/v1")
+        中核._継続認識=(扉,天気)
+        def 更新(状態):
+            return HDS作用結果(HDS作用状態.成立,追加状態=frozenset({"更新済み"}),
+                記憶更新=状態.記憶.更新((天気新,)))
+        中核.実行("扉の施錠を確認",要求状態=("更新済み",),
+            追加作用=(HDS関数作用("資料更新",更新,出力状態=("更新済み",)),))
+        self.assertEqual({x.ID for x in 中核._継続認識},{"door-lock"})
+
+    def test_作業認識の依存鎖を一緒に投入する(self) -> None:
+        根=HDS認識項目("root","天気","晴天",True,認識区分.確定,
+            依存=("seed",),検証契約="test/v1")
+        seed=HDS認識項目("seed","観測","晴天",True,認識区分.確定,
+            根拠=(HDS資料("seed-doc","1","晴天","試験").出典(),),検証契約="test/v1")
+        群=HDS駆動コア._認識作業集合("天気を判断",(seed,根))
+        self.assertEqual({x.ID for x in 群},{"root","seed"})
+
     def test_継続状態は別中核へ漏れない(self) -> None:
         構文化器 = 公開HDSコンパイラ()
         問い = "Which molecule inhibits Enzyme X?"
