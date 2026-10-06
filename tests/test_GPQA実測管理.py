@@ -24,7 +24,7 @@ class GPQA実測管理試験(TestCase):
         start=time.monotonic();r=self.run_it(questions=('ok','停止'),期限秒=2.0)
         self.assertEqual(r['測定状態'],'時間超過');self.assertLess(time.monotonic()-start,4)
         self.assertEqual(r['指標']['完了数'],1);self.assertEqual(r['実行中'][0]['工程'],'人工推論')
-        self.assertEqual(json.loads(self.out.read_text())['個票'],r['個票'])
+        self.assertEqual(json.loads(self.out.read_text(encoding='utf-8'))['個票'],r['個票'])
     def test_処理例外でも完了個票保存(self):
         r=self.run_it(questions=('ok','例外'));self.assertEqual(r['測定状態'],'処理失敗');self.assertEqual(r['指標']['完了数'],1)
     def test_ワーカー異常終了を保留成功にしない(self):
