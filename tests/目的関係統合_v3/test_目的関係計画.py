@@ -3,6 +3,10 @@ from unittest import TestCase
 from minidora.駆動系.契約 import *
 from minidora.駆動系.目的不足 import 不足関係を構成,不足を検索表層へ
 from minidora.駆動系.接続 import 関係結果を読む
+from minidora.駆動系.取得 import 関係を取得
+from minidora.駆動系.変換 import 関係を変換
+from minidora.駆動系.射影 import 関係結果を射影
+from minidora.駆動系.学習 import 関係学習状態, 実行経験を形成, 有効形成を取得
 from minidora.HDS駆動コア import HDS駆動コア
 from minidora.統合駆動_v2.政策 import HDS運用政策
 
@@ -62,6 +66,27 @@ class 目的関係計画試験(TestCase):
         出力=関係結果を読む(結果)
         self.assertEqual(出力.状態,'成立',結果.阻害履歴)
         self.assertEqual(len(結果.状態.操作座標.面),27)
+
+class 形成短縮経路試験(TestCase):
+    def test_形成済みmacroは元二段規則を重複実行しない(self):
+        x=項('x',True)
+        規=(規則('一次',(節('原料',x),),節('中間',x)),規則('二次',(節('中間',x),),節('完成',x)))
+        初要求=関係要求('学習:甲','完成','世界',節('完成','甲'),(証拠(節('原料','甲'),'甲資料'),),規)
+        初取得=関係を取得(初要求)
+        初変換=関係を変換(初要求,初取得)
+        初出力=関係結果を射影(初要求,初変換)
+        学習=実行経験を形成(関係学習状態(),初要求,初変換,初出力)
+        macro=有効形成を取得(学習,規)
+        self.assertTrue(macro)
+
+        次要求=関係要求('学習:乙','完成','世界',節('完成','乙'),(証拠(節('原料','乙'),'乙資料'),),規)
+        次取得=関係を取得(次要求,macro)
+        self.assertEqual({r.ID for r in 次取得.変換},{r.ID for r in macro})
+        次変換=関係を変換(次要求,次取得)
+        次出力=関係結果を射影(次要求,次変換,macro)
+        self.assertEqual(次出力.状態,'成立')
+        self.assertLess(次変換.照合数,初変換.照合数)
+
 
 class 観測帰還統合試験(TestCase):
     def test_目的から中間観測を作り同じ通常循環で採用する(self):
