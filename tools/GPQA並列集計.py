@@ -5,6 +5,31 @@ from pathlib import Path
 from GPQA実測管理 import 原子的保存,資料SHA256,全数,時間上限秒,性能継承下限
 
 
+def _参照健全性(rows):
+    状態=Counter()
+    HTTP429=Counter()
+    子診断総数=0
+    for row in rows:
+        監査=row.get('採用監査')
+        診断群=監査.get('取得診断',()) if isinstance(監査,dict) else ()
+        for 診断 in 診断群 if isinstance(診断群,(list,tuple)) else ():
+            子群=診断.get('子診断',()) if isinstance(診断,dict) else ()
+            for 子 in 子群 if isinstance(子群,(list,tuple)) else ():
+                if not isinstance(子,dict):continue
+                子診断総数+=1
+                供給器=str(子.get('供給器') or '未知')
+                状態[(供給器,str(子.get('状態') or '未知'))]+=1
+                if 子.get('HTTP状態')==429:HTTP429[供給器]+=1
+    return {
+        '子診断総数':子診断総数,
+        'HTTP429総数':sum(HTTP429.values()),
+        'Wikipedia429':sum(v for k,v in HTTP429.items() if k.startswith('Wikipedia')),
+        'Crossref429':sum(v for k,v in HTTP429.items() if k.startswith('Crossref')),
+        'EuropePMC429':sum(v for k,v in HTTP429.items() if k.startswith('EuropePMC')),
+        '供給器状態':{f'{k[0]}:{k[1]}':v for k,v in sorted(状態.items())},
+    }
+
+
 def 集計(資料群,*,版,開始,締切,現在=None):
     今=time.time() if 現在 is None else 現在
     失敗=[];個票={}
@@ -47,6 +72,7 @@ def 集計(資料群,*,版,開始,締切,現在=None):
     return {'契約形式':'minidora.gpqa.parallel-inheritance.v2','リポジトリ版':版,
         '全数':198,'完了数':len(xs),'正答':score,'回答':sum(x.get('回答済み') is True for x in xs),
         '性能継承下限':性能継承下限,'性能継承成立':not 失敗,'全数wall_clock上限分':90,
+        '参照健全性':_参照健全性(xs),
         '開始epoch':開始,'終了epoch':今,'経過秒':今-開始,'受入失敗':失敗,'個票':xs}
 
 
