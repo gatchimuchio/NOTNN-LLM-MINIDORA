@@ -118,15 +118,15 @@ class 不足観測補強試験(TestCase):
         with self.assertRaises(ValueError):不足観測内容(replace(self.不足(),状態='予算未完了'),候補ラベル='B',言語='en')
 
 class 監査検索言語試験(TestCase):
-    def test_実関数の日本語内部責任と英語表層を分ける(self):
-        # 未取得Compiler群を差し替えて動いたと主張せず、この実関数だけを取り出して検査。
+    def test_G06証拠probeは入力言語で翻訳せず正本表層を保持する(self):
+        # G06は会話表現ではなくHDS観測演算子。英語入力でも旧43能力の検索表層を変えない。
         p=Path(__file__).resolve().parents[2]/'src/minidora/HDS構文化失敗.py'
         tree=ast.parse(p.read_text())
         fn=next(x for x in tree.body if isinstance(x,ast.FunctionDef) and x.name=='HDS監査参照候補生成')
         構文木=ast.Module(body=[ast.ImportFrom(module='__future__',names=[ast.alias(name='annotations')],level=0),fn],type_ignores=[])
         env={'HDS監査参照候補':lambda *a:a}
         exec(compile(ast.fix_missing_locations(構文木),str(p),'exec'),env)
-        for 言語,末尾 in (('ja','証拠'),('en','evidence')):
+        for 言語 in ('ja','en'):
             ir=SimpleNamespace(座標=(),座標辞書=lambda:{},正規化文='対象',原文='対象',入力言語=言語)
             r=env['HDS監査参照候補生成'](ir,(SimpleNamespace(関門対応=('G06',)),))
-            self.assertTrue(r[0][0].endswith(末尾));self.assertEqual(r[0][1],'証拠')
+            self.assertTrue(r[0][0].endswith('証拠'));self.assertEqual(r[0][1],'証拠')
