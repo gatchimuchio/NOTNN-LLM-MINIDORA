@@ -121,7 +121,7 @@ class 監査検索言語試験(TestCase):
     def test_G06証拠probeは入力言語で翻訳せず正本表層を保持する(self):
         # G06は会話表現ではなくHDS観測演算子。英語入力でも旧43能力の検索表層を変えない。
         p=Path(__file__).resolve().parents[2]/'src/minidora/HDS構文化失敗.py'
-        tree=ast.parse(p.read_text())
+        tree=ast.parse(p.read_text(encoding='utf-8'))
         fn=next(x for x in tree.body if isinstance(x,ast.FunctionDef) and x.name=='HDS監査参照候補生成')
         構文木=ast.Module(body=[ast.ImportFrom(module='__future__',names=[ast.alias(name='annotations')],level=0),fn],type_ignores=[])
         env={'HDS監査参照候補':lambda *a:a}
