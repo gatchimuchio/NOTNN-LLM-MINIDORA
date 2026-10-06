@@ -291,6 +291,18 @@ class HDS駆動コア:
             raise TypeError("関係要求型が必要")
         return self.実行(要求.目的, 関係要求=要求)
 
+    def _選択学習提案を帰還(self, 結果: HDS実行結果) -> bool:
+        """COMMIT済み選択runの関係学習提案だけをCore寿命へ反映する。"""
+        from .駆動系.学習 import 関係学習状態
+        from .HDS選択継承循環 import 関係学習提案成果名
+        if not isinstance(結果, HDS実行結果) or 結果.終端 != HDS終端.採用:
+            return False
+        提案 = 結果.状態.成果辞書().get(関係学習提案成果名)
+        if not isinstance(提案, 関係学習状態):
+            return False
+        self._関係学習状態 = 提案
+        return True
+
     def 関係形成を隔離(self, ID, 反例):
         from .駆動系.学習 import 関係形成を隔離
         self._関係学習状態 = 関係形成を隔離(self._関係学習状態, ID, 反例)
@@ -421,6 +433,9 @@ class HDS駆動コア:
             成果対応=選択接続.成果対応,
             追加作用供給器=(HDS作用供給器("HDS選択継承循環", 供給.構成, "v4", 入力不変保証=True),),
         )
+        # 選択入口も構造化関係入口と同じCore-owned学習状態へ帰還する。
+        # HOLD/FAILや採用前の候補から成功形成を持ち越さない。
+        self._選択学習提案を帰還(結果)
         最終参照 = dict(結果.状態.成果).get(参照記憶成果名, 初期参照群)
         if isinstance(最終参照, tuple) and all(isinstance(x, 参照記録) for x in 最終参照):
             全観測 = getattr(参照供給器, "全観測記録", ()) if 参照供給器 is not None else ()
