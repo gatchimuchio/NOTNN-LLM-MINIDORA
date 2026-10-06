@@ -32,4 +32,13 @@ class 並列集計試験(TestCase):
     def test_結果が揃っても異常終了は採用しない(self):g=群();g[0]['測定状態']='処理失敗';self.assertFalse(self.結果(g)['性能継承成立'])
     def test_参照条件を変更しない(self):g=群();g[0]['評価条件']['参照方式']='REPLAY';self.assertFalse(self.結果(g)['性能継承成立'])
     def test_一問一形成を検査(self):g=群();g[0]['個票'][0]['問題束形成回数']=2;self.assertFalse(self.結果(g)['性能継承成立'])
+    def test_provider別429を採点と分離して計装(self):
+        g=群(43);g[0]['個票'][0]['採用監査']={'取得診断':[{'子診断':[
+            {'供給器':'Wikipedia:en','状態':'失敗','HTTP状態':429},
+            {'供給器':'Crossref','状態':'取得','HTTP状態':None},
+        ]}]}
+        r=self.結果(g);self.assertTrue(r['性能継承成立'])
+        self.assertEqual(r['参照健全性']['HTTP429総数'],1)
+        self.assertEqual(r['参照健全性']['Wikipedia429'],1)
+        self.assertEqual(r['参照健全性']['Crossref429'],0)
     def test_空の資料群で成功しない(self):self.assertFalse(self.結果([])['性能継承成立'])
