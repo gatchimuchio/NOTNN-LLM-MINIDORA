@@ -131,6 +131,63 @@ class HDS駆動コア:
         self._継続形成関係 = tuple(形成辞書[k] for k in sorted(形成辞書))
         return 更新
 
+    @staticmethod
+    def _認識作業集合(問合せ: str, 正本: Sequence[HDS認識項目], *,
+                 初期認識: Sequence[HDS認識項目] = (), 要求認識: Sequence[str] = (),
+                 カーネル正本=None) -> tuple[HDS認識項目, ...]:
+        """全保持した認識から、現在入力へ接続する作業集合とその依存鎖だけを取り出す。"""
+        from .意味字句 import 意味語
+        辞書 = {x.ID: x for x in 正本}
+        語 = set(意味語(問合せ))
+        if カーネル正本 is not None:
+            意味IR = getattr(カーネル正本, "意味IR", None)
+            for 座標 in tuple(getattr(意味IR, "座標", ())):
+                内容 = getattr(座標, "内容", None)
+                if isinstance(内容, str):
+                    語.update(意味語(内容))
+        def 項目語(x):
+            out=set()
+            for 値 in (x.対象, x.関係, x.値, *x.条件):
+                if isinstance(値, str): out.update(意味語(値))
+            return out
+        選択 = {x.ID for x in 初期認識} | {str(x) for x in 要求認識}
+        if 語:
+            選択.update(x.ID for x in 正本 if 語.intersection(項目語(x)))
+        待ち=list(選択)
+        while 待ち:
+            ID=待ち.pop()
+            項目=辞書.get(ID)
+            if 項目 is None: continue
+            for 依存ID in 項目.依存:
+                if 依存ID not in 選択:
+                    選択.add(依存ID);待ち.append(依存ID)
+        return tuple(辞書[k] for k in sorted(選択) if k in 辞書)
+
+    @staticmethod
+    def _継続認識を統合(正本候補: Sequence[HDS認識項目], 作業ID: frozenset[str],
+                  実行後: Sequence[HDS認識項目], 記憶: HDS記憶) -> tuple[HDS認識項目, ...]:
+        """作業集合の更新だけを正本へ戻し、全保持側の有効性を線形依存検査する。"""
+        辞書={x.ID:x for x in 正本候補 if x.ID not in 作業ID}
+        辞書.update((x.ID,x) for x in 実行後)
+        資料=記憶.正本辞書(); memo={}; visiting=set()
+        def 有効(ID):
+            if ID in memo:return memo[ID]
+            if ID in visiting:
+                memo[ID]=False;return False
+            x=辞書.get(ID)
+            if x is None or x.区分!=認識区分.確定 or x.条件 or x.反証:
+                memo[ID]=False;return False
+            visiting.add(ID)
+            ok=True
+            for 根拠 in x.根拠:
+                元=資料.get(根拠.資料ID)
+                if 元 is None or 元.版!=根拠.版 or 元.内容署名!=根拠.内容署名:
+                    ok=False;break
+            if ok:
+                ok=all(有効(k) for k in x.依存)
+            visiting.discard(ID);memo[ID]=ok;return ok
+        return tuple(辞書[k] for k in sorted(辞書) if 有効(k))
+
     def 実行(self, 問合せ: str, *, 目的: Sequence[str] = (), 要求状態: Sequence[str] = (),
            追加作用: Sequence[HDS作用器] = (), 追加作用供給器: Sequence[HDS作用供給器] = (),
            カーネル正本: HDSカーネル束 | None = None, 入力正本: HDSコア入力束 | None = None,
@@ -166,7 +223,12 @@ class HDS駆動コア:
             if 前 is not None and 前.意味署名 != 項目.意味署名 and 項目.改訂 <= 前.改訂:
                 raise ValueError("継続認識を同一改訂以下で無言上書きできない")
             継続認識辞書[項目.ID] = 項目
-        初期認識群 = tuple(継続認識辞書[k] for k in sorted(継続認識辞書))
+        継続認識候補 = tuple(継続認識辞書[k] for k in sorted(継続認識辞書))
+        初期認識群 = self._認識作業集合(
+            問合せ, 継続認識候補, 初期認識=tuple(初期認識), 要求認識=tuple(要求認識),
+            カーネル正本=カーネル正本,
+        )
+        認識作業ID = frozenset(x.ID for x in 初期認識群)
 
         作用群: list[HDS作用器] = []
         残差群 = set(明示残差)
@@ -241,9 +303,8 @@ class HDS駆動コア:
         # SUSPEND/FAILを含め、通常循環で実際に保持・形成された状態は次回処理の前提へ継承する。
         self._継続記憶 = 結果.状態.記憶
         self._継続形成関係 = 結果.状態.形成関係
-        self._継続認識 = tuple(
-            x for x in 結果.状態.認識
-            if x.区分 == 認識区分.確定 and 有効認識(結果.状態, x.ID)
+        self._継続認識 = self._継続認識を統合(
+            継続認識候補, 認識作業ID, 結果.状態.認識, 結果.状態.記憶,
         )
         return 結果
 
