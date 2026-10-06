@@ -24,7 +24,7 @@ class 継続保存試験(TestCase):
         with self.assertRaises(ValueError):self.中核.継続状態を復元(self.場所,リポジトリ版='r2')
     def test_破損時に元の中核を変更しない(self):
         self.中核.継続状態を保存(self.場所,リポジトリ版='r1');前=self.中核.継続状態署名
-        内容=json.loads(self.場所.read_text());内容['完了問題番号']=99;self.場所.write_text(json.dumps(内容))
+        内容=json.loads(self.場所.read_text(encoding='utf-8'));内容['完了問題番号']=99;self.場所.write_text(json.dumps(内容,ensure_ascii=False),encoding='utf-8')
         with self.assertRaises(ValueError):self.中核.継続状態を復元(self.場所,リポジトリ版='r1')
         self.assertEqual(前,self.中核.継続状態署名)
     def test_任意の型名をロードしない(self):
