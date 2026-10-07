@@ -1,0 +1,175 @@
+name: MINIDORA GPQA 二系統学習実証
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".benchmark/gpqa-dual-trigger"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gpqa-dual-learning-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parallel_deadline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      started: ${{ steps.clock.outputs.started }}
+      deadline: ${{ steps.clock.outputs.deadline }}
+    steps:
+      - name: 並列90分の共通締切
+        id: clock
+        run: |
+          start=$(date +%s)
+          echo "started=$start" >> "$GITHUB_OUTPUT"
+          echo "deadline=$((start+5400))" >> "$GITHUB_OUTPUT"
+
+  parallel_measure:
+    needs: parallel_deadline
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - { shard: "000-009", start: 0, limit: 10 }
+          - { shard: "010-019", start: 10, limit: 10 }
+          - { shard: "020-029", start: 20, limit: 10 }
+          - { shard: "030-039", start: 30, limit: 10 }
+          - { shard: "040-049", start: 40, limit: 10 }
+          - { shard: "050-059", start: 50, limit: 10 }
+          - { shard: "060-069", start: 60, limit: 10 }
+          - { shard: "070-079", start: 70, limit: 10 }
+          - { shard: "080-089", start: 80, limit: 10 }
+          - { shard: "090-099", start: 90, limit: 10 }
+          - { shard: "100-109", start: 100, limit: 10 }
+          - { shard: "110-119", start: 110, limit: 10 }
+          - { shard: "120-129", start: 120, limit: 10 }
+          - { shard: "130-139", start: 130, limit: 10 }
+          - { shard: "140-149", start: 140, limit: 10 }
+          - { shard: "150-159", start: 150, limit: 10 }
+          - { shard: "160-169", start: 160, limit: 10 }
+          - { shard: "170-179", start: 170, limit: 10 }
+          - { shard: "180-189", start: 180, limit: 10 }
+          - { shard: "190-197", start: 190, limit: 8 }
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: 問題独立並列を実測
+        run: >-
+          python tools/GPQA並列性能継承評価.py
+          --start-index ${{ matrix.start }} --limit ${{ matrix.limit }}
+          --started-epoch ${{ needs.parallel_deadline.outputs.started }}
+          --deadline-epoch ${{ needs.parallel_deadline.outputs.deadline }}
+          --out gpqa_parallel_${{ matrix.shard }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gpqa-dual-parallel-${{ matrix.shard }}
+          path: |
+            gpqa_parallel_${{ matrix.shard }}.json
+            gpqa_parallel_${{ matrix.shard }}.checkpoints/
+          if-no-files-found: warn
+
+  parallel_aggregate:
+    if: always()
+    needs: [parallel_deadline, parallel_measure]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: gpqa-dual-parallel-*
+          path: shards
+          merge-multiple: true
+      - name: 並列43点下限を検査
+        run: >-
+          python tools/GPQA並列集計.py --dir shards --out gpqa_parallel_full.json
+          --revision ${{ github.sha }}
+          --started-epoch ${{ needs.parallel_deadline.outputs.started }}
+          --deadline-epoch ${{ needs.parallel_deadline.outputs.deadline }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gpqa-dual-parallel-full
+          path: gpqa_parallel_full.json
+          if-no-files-found: error
+
+  serial_measure:
+    needs: parallel_aggregate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: 直列90分の起点と締切
+        id: clock
+        run: |
+          start=$(date +%s)
+          echo "started=$start" >> "$GITHUB_OUTPUT"
+          echo "deadline=$((start+5400))" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: 同一Core直列198問を実測
+        env:
+          GPQA_STARTED_EPOCH: ${{ steps.clock.outputs.started }}
+          GPQA_DEADLINE_EPOCH: ${{ steps.clock.outputs.deadline }}
+        run: >-
+          python tools/GPQA実測管理.py --mode serial --out gpqa_serial.json
+          --started-epoch "$GPQA_STARTED_EPOCH" --deadline-epoch "$GPQA_DEADLINE_EPOCH"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gpqa-dual-serial-full
+          path: |
+            gpqa_serial.json
+            gpqa_serial.checkpoints/
+          if-no-files-found: warn
+
+  learning_compare:
+    needs: [parallel_aggregate, serial_measure]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: gpqa-dual-parallel-full
+          path: parallel
+      - uses: actions/download-artifact@v4
+        with:
+          name: gpqa-dual-serial-full
+          path: serial
+      - name: 対応198問の学習効果を判定
+        run: >-
+          python tools/GPQA学習効果比較.py
+          --parallel parallel/gpqa_parallel_full.json
+          --serial serial/gpqa_serial.json
+          --out gpqa_learning_effect.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: minidora-gpqa-learning-effect
+          path: gpqa_learning_effect.json
+          if-no-files-found: warn
