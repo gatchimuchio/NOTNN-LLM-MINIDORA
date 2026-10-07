@@ -55,6 +55,7 @@ class HDS駆動コア:
         self._適応記憶 = HDS適応記憶(4096)
         from .駆動系.学習 import 関係学習状態
         self._関係学習状態 = 関係学習状態()
+        self._最終認識作業件数 = 0
 
     @property
     def 継続状態署名(self) -> str:
@@ -96,6 +97,14 @@ class HDS駆動コア:
     def 観測経路経験数(self) -> int:
         return self._適応記憶.観測経路経験数
 
+    @property
+    def 関係学習形成件数(self) -> int:
+        return len(self._関係学習状態.全形成)
+
+    @property
+    def 最終認識作業件数(self) -> int:
+        return int(self._最終認識作業件数)
+
     def 選択観測要求を適応(self, 要求群):
         """Core-owned経験から検索経路だけを適応する。候補ラベル・goldは学習キーに含めない。"""
         return self._適応記憶.観測要求を適応(tuple(要求群))
@@ -119,6 +128,7 @@ class HDS駆動コア:
         self._適応記憶.初期化()
         from .駆動系.学習 import 関係学習状態
         self._関係学習状態 = 関係学習状態()
+        self._最終認識作業件数 = 0
 
     def 形成関係を審査(
         self,
@@ -238,6 +248,7 @@ class HDS駆動コア:
             カーネル正本=カーネル正本,
         )
         認識作業ID = frozenset(x.ID for x in 初期認識群)
+        self._最終認識作業件数 = len(初期認識群)
 
         作用群: list[HDS作用器] = []
         残差群 = set(明示残差)
