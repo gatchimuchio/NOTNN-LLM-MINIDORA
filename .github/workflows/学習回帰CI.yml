@@ -1,0 +1,55 @@
+name: MINIDORA 学習回帰CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/minidora/HDS駆動コア.py"
+      - "src/minidora/HDS選択継承循環.py"
+      - "src/minidora/選択観測学習.py"
+      - "src/minidora/HDS参照.py"
+      - "src/minidora/駆動系/**"
+      - "src/minidora/統合駆動_v2/**"
+      - "tools/GPQA*.py"
+      - "評価/GPQA評価二系統契約_v1.json"
+      - "評価/評価契約_v3.md"
+      - "tests/test_HDS学習機械循環_v2.py"
+      - "tests/test_GPQA学習効果比較.py"
+      - "tests/test_GPQA評価二系統契約.py"
+      - "tests/test_GPQA並列集計.py"
+      - "tests/目的関係統合_v3/test_目的関係計画.py"
+      - ".github/workflows/学習回帰CI.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: learning-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  learning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: パッケージ導入
+        run: python -m pip install -e .
+      - name: 日本語基底
+        run: |
+          python tools/日本語基底監査.py
+          python tools/日本語基底詳細監査.py
+      - name: 学習機械循環
+        run: python -m unittest tests.test_HDS学習機械循環_v2 -v
+      - name: 関係形成と短縮
+        run: python -m unittest tests.目的関係統合_v3.test_目的関係計画 -v
+      - name: GPQA学習受入
+        run: |
+          python -m unittest tests.test_GPQA学習効果比較 -v
+          python -m unittest tests.test_GPQA評価二系統契約 -v
+          python -m unittest tests.test_GPQA並列集計 -v
