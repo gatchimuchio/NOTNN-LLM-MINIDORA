@@ -26,6 +26,8 @@ class GPQA評価二系統契約試験(unittest.TestCase):
         self.assertTrue(契約["直列学習効果"]["問題間状態継承"])
         self.assertEqual(契約["直列学習効果"]["wall_clock上限分"], 90)
         self.assertEqual(契約["比較"]["学習効果差分"], "直列正答 - 並列正答")
+        self.assertEqual(契約["直列学習効果"]["学習実証条件"]["対応問題片側正確検定有意水準"], 0.05)
+        self.assertTrue(契約["直列学習効果"]["学習実証条件"]["後続適応観測"])
 
     def test_評価契約実装も同じ下限と時間を返す(self) -> None:
         道具 = 評価契約を読む()
@@ -35,6 +37,8 @@ class GPQA評価二系統契約試験(unittest.TestCase):
         self.assertEqual(条件["直列学習効果"]["wall_clock上限分"], 90)
         self.assertFalse(条件["並列性能継承"]["問題間状態継承"])
         self.assertTrue(条件["直列学習効果"]["問題間状態継承"])
+        self.assertEqual(条件["学習効果有意水準"], 0.05)
+        self.assertTrue(条件["直列学習効果"]["学習実証条件"]["学習状態更新"])
 
     def test_直列workflowは240分を廃止し90分を強制する(self) -> None:
         本文 = (根 / ".github" / "workflows" / "GPQA現行測定.yml").read_text(encoding="utf-8")
