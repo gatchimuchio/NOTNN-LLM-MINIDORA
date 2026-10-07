@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -9,14 +10,16 @@ from minidora.HDS実行主体 import HDS関数作用, HDS作用結果, HDS作用
 from minidora.統合駆動_v2.認識 import HDS認識項目, 認識区分
 from minidora.HDS選択継承循環 import HDS選択継承供給, 初回評価参照成果名
 from minidora.HDS駆動コア import HDS駆動コア
-from minidora.参照 import 参照記録
+from minidora.参照 import 参照記録, 参照取得診断
 from minidora.統合駆動_v2.記憶 import HDS資料
 from minidora.駆動系.契約 import 関係項, 関係節, 関係変換契約
 from minidora.駆動系.学習 import 関係形成, 関係学習状態, 変換を合成
-from minidora.HDS選択継承循環 import 関係学習提案成果名
+from minidora.HDS選択継承循環 import (
+    関係学習提案成果名, 回答成果名, 現行結果成果名, 参照成果名, 参照取得診断成果名,
+)
 from minidora.HDS観測計画 import HDS参照観測要求
 from minidora.統合駆動_v2.適応記憶 import HDS適応記憶
-from minidora.選択観測学習 import HDS観測経路鍵を構成
+from minidora.選択観測学習 import HDS観測経路鍵を構成, HDS観測経路鍵を文字列
 
 
 class _空参照供給器:
@@ -88,6 +91,34 @@ class HDS観測経路学習試験(unittest.TestCase):
         復元=HDS適応記憶();復元.復元(記憶.スナップショット())
         self.assertEqual(復元.観測経路経験,記憶.観測経路経験)
         復元.初期化();self.assertEqual(復元.観測経路経験数,0)
+
+
+class HDS観測根拠帰還試験(unittest.TestCase):
+    def _結果(self, req, *, 寄与=True):
+        token=HDS観測経路鍵を文字列(HDS観測経路鍵を構成(req))
+        ref=参照記録("doc:1","対象","candidate relation target evidence","試験","試験",1.0,
+            条件=(("hds_query_学習経路",token),))
+        roots=("最大局所対応:doc:1:1.000000000",) if 寄与 else ("最大局所対応:other:1.000000000",)
+        模型=SimpleNamespace(候補差=(SimpleNamespace(
+            候補ID="A",寄与=(SimpleNamespace(関係名="候補共同参照",根拠=roots),)),))
+        current=SimpleNamespace(回答ラベル="A",MINIDORA模型結果=模型)
+        diag=参照取得診断(req.外部検索表層,"試験","取得",1)
+        state=HDS実行状態(成果=(
+            (回答成果名,"A"),(現行結果成果名,current),(参照成果名,(ref,)),
+            (参照取得診断成果名,(diag,)),
+        ))
+        return HDS実行結果(HDS終端.採用,state,())
+
+    def test_採用候補へ実寄与した参照経路だけ成功経験へ帰還する(self) -> None:
+        中核=HDS駆動コア();req=_観測要求("局所検証")
+        self.assertTrue(中核._選択観測経験を帰還(self._結果(req), (req,)))
+        self.assertEqual(中核.観測経路経験数,1)
+        self.assertTrue(中核._適応記憶.観測経路経験[0].成功)
+
+    def test_取得しただけの非寄与資料は観測成功へ昇格しない(self) -> None:
+        中核=HDS駆動コア();req=_観測要求("局所検証")
+        self.assertFalse(中核._選択観測経験を帰還(self._結果(req,寄与=False), (req,)))
+        self.assertEqual(中核.観測経路経験数,0)
 
 
 class HDS学習機械循環V2試験(unittest.TestCase):
