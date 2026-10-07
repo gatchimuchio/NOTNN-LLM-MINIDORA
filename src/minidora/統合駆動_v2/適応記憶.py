@@ -204,7 +204,7 @@ class HDS適応記憶:
             for index, row in 縮退候補:
                 key = HDS観測経路鍵を構成(row)
                 trials, success = self.観測経路成績(key)
-                if trials >= 2 and success > 0:
+                if trials >= 2 and success >= 2:
                     候補.append((success, trials, -int(getattr(row, "優先度", 50)), index, row))
             if not 候補:
                 continue
