@@ -281,13 +281,15 @@ class HDS選択継承供給:
         設定: HDS選択継承設定 | None = None,
         拡張採用証明: Callable[[HDS選択実行結果, HDS選択実行結果], bool] | None = None,
         入力残差非阻害対象: Sequence[str] = (),
-        意味変換契約=(), 関係学習状態=None,
+        意味変換契約=(), 関係学習状態=None, 参照観測要求_=None,
     ) -> None:
         if not isinstance(カーネル束, HDSカーネル束):
             raise TypeError("選択継承循環にはHDSカーネル束が必要")
         self.カーネル束 = カーネル束
         self.質問IR = カーネル束.意味IR
-        self.参照観測要求 = tuple(カーネル束.参照観測要求)
+        self.参照観測要求 = tuple(
+            カーネル束.参照観測要求 if 参照観測要求_ is None else 参照観測要求_
+        )
         self.候補意味IR = カーネル束.候補意味IR辞書 or None
         self.数量計算契約 = カーネル束.数量計算契約
         self.コンパイラ = コンパイラ
