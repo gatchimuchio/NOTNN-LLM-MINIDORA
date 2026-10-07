@@ -85,6 +85,14 @@ class HDS観測経路学習試験(unittest.TestCase):
         adapted=記憶.観測要求を適応((primary,local))
         self.assertEqual(next(x for x in adapted if "局所検証" in x.provenance).段階,"fallback")
 
+    def test_二試行一成功でも観測経路を昇格しない(self) -> None:
+        記憶=HDS適応記憶()
+        primary=_観測要求("主観測");local=_観測要求("局所検証")
+        記憶.観測経路を記録((primary,local),(local,))
+        記憶.観測経路を記録((primary,local),())
+        adapted=記憶.観測要求を適応((primary,local))
+        self.assertEqual(next(x for x in adapted if "局所検証" in x.provenance).段階,"fallback")
+
     def test_観測経路経験を保存復元し初期化できる(self) -> None:
         記憶=HDS適応記憶();primary=_観測要求("主観測");local=_観測要求("局所検証")
         記憶.観測経路を記録((primary,local),(local,))
