@@ -40,6 +40,15 @@ class GPQA評価二系統契約試験(unittest.TestCase):
         self.assertEqual(条件["学習効果有意水準"], 0.05)
         self.assertTrue(条件["直列学習効果"]["学習実証条件"]["学習状態更新"])
 
+    def test_二系統workflowは同一revisionで並列合格後だけ直列へ進む(self) -> None:
+        本文=(根/".github"/"workflows"/"GPQA二系統学習実証.yml").read_text(encoding="utf-8")
+        self.assertIn("needs: parallel_aggregate",本文)
+        self.assertIn("--revision ${{ github.sha }}",本文)
+        self.assertIn("tools/GPQA学習効果比較.py",本文)
+        self.assertIn("max-parallel: 4",本文)
+        self.assertLess(本文.index("parallel_aggregate:"),本文.index("serial_measure:"))
+        self.assertLess(本文.index("serial_measure:"),本文.index("learning_compare:"))
+
     def test_直列workflowは240分を廃止し90分を強制する(self) -> None:
         本文 = (根 / ".github" / "workflows" / "GPQA現行測定.yml").read_text(encoding="utf-8")
         self.assertIn("timeout-minutes: 90", 本文)
