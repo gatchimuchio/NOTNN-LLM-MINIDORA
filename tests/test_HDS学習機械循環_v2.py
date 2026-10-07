@@ -18,6 +18,8 @@ from minidora.HDS選択継承循環 import (
     関係学習提案成果名, 回答成果名, 現行結果成果名, 参照成果名, 参照取得診断成果名,
 )
 from minidora.HDS観測計画 import HDS参照観測要求
+from minidora.HDS参照 import HDS参照検索
+from minidora.HDS中間表現 import HDSIR, HDS実行核
 from minidora.統合駆動_v2.適応記憶 import HDS適応記憶
 from minidora.選択観測学習 import HDS観測経路鍵を構成, HDS観測経路鍵を文字列
 
@@ -99,6 +101,39 @@ class HDS観測経路学習試験(unittest.TestCase):
         復元=HDS適応記憶();復元.復元(記憶.スナップショット())
         self.assertEqual(復元.観測経路経験,記憶.観測経路経験)
         復元.初期化();self.assertEqual(復元.観測経路経験数,0)
+
+
+class HDS観測経路資源改善試験(unittest.TestCase):
+    class _供給器:
+        名称="観測経路資源試験"
+        並列安全=False
+        def __init__(self): self.問合せ=[]
+        def 検索(self,問合せ,上限=8):
+            q=" ".join(str(問合せ).split())
+            self.問合せ.append(q)
+            if "局所検証" in q:
+                return (参照記録("局所資料","対象","局所資料本文","試験","試験",1.0),)
+            return ()
+
+    def test_学習後は成功経路を先に使い外部問合せ数を削減する(self) -> None:
+        主=_観測要求("主観測")
+        局所=_観測要求("局所検証")
+        ir=HDSIR("問い","問い","世界",(),(),(),(),HDS実行核(),入力言語="en")
+
+        未学習供給=self._供給器()
+        未学習=HDS参照検索(未学習供給,ir,観測要求=(主,局所))
+        self.assertTrue(未学習)
+        self.assertEqual(len(未学習供給.問合せ),2)
+
+        記憶=HDS適応記憶()
+        for _ in range(2):
+            記憶.観測経路を記録((主,局所),(局所,))
+        適応=記憶.観測要求を適応((主,局所))
+        学習後供給=self._供給器()
+        学習後=HDS参照検索(学習後供給,ir,観測要求=適応)
+        self.assertTrue(学習後)
+        self.assertEqual(len(学習後供給.問合せ),1)
+        self.assertIn("局所検証",学習後供給.問合せ[0])
 
 
 class HDS観測根拠帰還試験(unittest.TestCase):
