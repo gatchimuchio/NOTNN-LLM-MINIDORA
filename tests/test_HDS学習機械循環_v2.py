@@ -95,19 +95,19 @@ class HDS観測経路学習試験(unittest.TestCase):
 
 class HDS観測根拠帰還試験(unittest.TestCase):
     def _結果(self, req, *, 寄与=True):
-        token=HDS観測経路鍵を文字列(HDS観測経路鍵を構成(req))
+        経路印=HDS観測経路鍵を文字列(HDS観測経路鍵を構成(req))
         ref=参照記録("doc:1","対象","candidate relation target evidence","試験","試験",1.0,
-            条件=(("hds_query_学習経路",token),))
+            条件=(("hds_query_学習経路",経路印),))
         roots=("最大局所対応:doc:1:1.000000000",) if 寄与 else ("最大局所対応:other:1.000000000",)
         模型=SimpleNamespace(候補差=(SimpleNamespace(
             候補ID="A",寄与=(SimpleNamespace(関係名="候補共同参照",根拠=roots),)),))
         current=SimpleNamespace(回答ラベル="A",MINIDORA模型結果=模型)
         diag=参照取得診断(req.外部検索表層,"試験","取得",1)
-        state=HDS実行状態(成果=(
+        状態=HDS実行状態(成果=(
             (回答成果名,"A"),(現行結果成果名,current),(参照成果名,(ref,)),
             (参照取得診断成果名,(diag,)),
         ))
-        return HDS実行結果(HDS終端.採用,state,())
+        return HDS実行結果(HDS終端.採用,状態,())
 
     def test_採用候補へ実寄与した参照経路だけ成功経験へ帰還する(self) -> None:
         中核=HDS駆動コア();req=_観測要求("局所検証")
