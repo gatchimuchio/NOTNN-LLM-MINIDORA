@@ -14,6 +14,9 @@ from minidora.統合駆動_v2.記憶 import HDS資料
 from minidora.駆動系.契約 import 関係項, 関係節, 関係変換契約
 from minidora.駆動系.学習 import 関係形成, 関係学習状態, 変換を合成
 from minidora.HDS選択継承循環 import 関係学習提案成果名
+from minidora.HDS観測計画 import HDS参照観測要求
+from minidora.統合駆動_v2.適応記憶 import HDS適応記憶
+from minidora.選択観測学習 import HDS観測経路鍵を構成
 
 
 class _空参照供給器:
@@ -28,6 +31,21 @@ class _空参照供給器:
         return ()
 
 
+def _観測要求(経路, *, label="A", ID="観測:A"):
+    if 経路=="主観測":
+        段階="primary"; provenance=("Compiler外部文脈",)
+    elif 経路=="局所検証":
+        段階="fallback"; provenance=("局所検証",)
+    else:
+        段階="fallback"; provenance=("縮退",)
+    return HDS参照観測要求(
+        ID=ID, 関係ID="r-current", 関係種別="作用", 未知位置="始点",
+        既知端点=("target",), 条件範囲=(), 候補ラベル=label, 候補表層="candidate",
+        外部言語="en", 外部検索表層=f"{label} route {経路}", 必須被覆=True,
+        段階=段階, 優先度=10 if 段階=="primary" else 20, provenance=provenance,
+    )
+
+
 def _学習状態():
     x=関係項("x",変数=True,束縛域="test")
     a=関係変換契約("r1",(関係節("p",(("対象",x),)),),関係節("q",(("対象",x),)),("test:r1",))
@@ -35,6 +53,41 @@ def _学習状態():
     formed=変換を合成(a,b,0)
     assert formed is not None
     return 関係学習状態((関係形成(formed.ID,formed,a,b,0,("proof",),("exp",)),))
+
+
+class HDS観測経路学習試験(unittest.TestCase):
+    def test_候補ラベルを観測学習キーへ入れない(self) -> None:
+        a=_観測要求("局所検証",label="A",ID="観測:A")
+        b=_観測要求("局所検証",label="B",ID="観測:B")
+        self.assertEqual(HDS観測経路鍵を構成(a),HDS観測経路鍵を構成(b))
+
+    def test_二回成功した局所検証を同型次問の主観測へ昇格する(self) -> None:
+        記憶=HDS適応記憶()
+        primary=_観測要求("主観測")
+        local=_観測要求("局所検証")
+        for _ in range(2):
+            記憶.観測経路を記録((primary,local),(local,))
+        次primary=_観測要求("主観測",label="B",ID="観測:B")
+        次local=_観測要求("局所検証",label="B",ID="観測:B")
+        adapted=記憶.観測要求を適応((次primary,次local))
+        local_after=next(x for x in adapted if "局所検証" in x.provenance)
+        primary_after=next(x for x in adapted if "Compiler外部文脈" in x.provenance)
+        self.assertEqual(local_after.段階,"primary")
+        self.assertEqual(primary_after.段階,"fallback")
+
+    def test_一回成功だけでは観測経路を昇格しない(self) -> None:
+        記憶=HDS適応記憶()
+        primary=_観測要求("主観測");local=_観測要求("局所検証")
+        記憶.観測経路を記録((primary,local),(local,))
+        adapted=記憶.観測要求を適応((primary,local))
+        self.assertEqual(next(x for x in adapted if "局所検証" in x.provenance).段階,"fallback")
+
+    def test_観測経路経験を保存復元し初期化できる(self) -> None:
+        記憶=HDS適応記憶();primary=_観測要求("主観測");local=_観測要求("局所検証")
+        記憶.観測経路を記録((primary,local),(local,))
+        復元=HDS適応記憶();復元.復元(記憶.スナップショット())
+        self.assertEqual(復元.観測経路経験,記憶.観測経路経験)
+        復元.初期化();self.assertEqual(復元.観測経路経験数,0)
 
 
 class HDS学習機械循環V2試験(unittest.TestCase):
