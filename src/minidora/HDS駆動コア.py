@@ -164,10 +164,20 @@ class HDS駆動コア:
                 内容 = getattr(座標, "内容", None)
                 if isinstance(内容, str):
                     語.update(意味語(内容))
+        def 文字列群(値):
+            if isinstance(値, str):
+                yield 値
+            elif isinstance(値, Mapping):
+                for k, v in 値.items():
+                    yield from 文字列群(k); yield from 文字列群(v)
+            elif isinstance(値, (tuple, list, set, frozenset)):
+                for item in 値:
+                    yield from 文字列群(item)
         def 項目語(x):
             out=set()
-            for 値 in (x.対象, x.関係, x.値, *x.条件):
-                if isinstance(値, str): out.update(意味語(値))
+            for 値 in (x.対象, x.関係, x.値, *x.条件, x.範囲, x.時点, x.検証契約):
+                for text in 文字列群(値):
+                    out.update(意味語(text))
             return out
         選択 = {x.ID for x in 初期認識} | {str(x) for x in 要求認識}
         if 語:
