@@ -221,6 +221,15 @@ class HDS学習機械循環V2試験(unittest.TestCase):
             追加作用=(HDS関数作用("資料更新",更新,出力状態=("更新済み",)),))
         self.assertEqual({x.ID for x in 中核._継続認識},{"door-lock"})
 
+    def test_構造tuple内の関係語から過去認識を作業集合へ戻す(self) -> None:
+        関係認識=HDS認識項目(
+            "rel-1","参照記憶:doc-1","観測された記述関係",
+            ("inhibits",(("始点","Molecule A"),("終点","Enzyme X"))),
+            認識区分.確定,検証契約="test/v1",
+        )
+        群=HDS駆動コア._認識作業集合("Which molecule inhibits Enzyme X?",(関係認識,))
+        self.assertEqual(tuple(x.ID for x in 群),("rel-1",))
+
     def test_作業認識の依存鎖を一緒に投入する(self) -> None:
         根=HDS認識項目("root","天気","晴天",True,認識区分.確定,
             依存=("seed",),検証契約="test/v1")
