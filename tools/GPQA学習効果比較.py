@@ -18,6 +18,24 @@ def _版(結果):
     return str(結果.get("リポジトリ版") or 結果.get("評価条件", {}).get("リポジトリ版") or "")
 
 
+比較共通条件 = (
+    "資料集合CSV_SHA256", "全問題数", "選択肢シャッフル種",
+    "参照方式", "固定参照資料許可", "採点結果の学習利用",
+    "中核入口", "問題束一問一形成", "OpenAlex有効", "EuropePMC有効",
+    "Crossref有効", "Wikipedia言語群", "選択番号群",
+)
+
+
+def _共通条件を検査(並列, 直列):
+    p = 並列.get("評価条件")
+    s = 直列.get("評価条件")
+    if not isinstance(p, dict) or not isinstance(s, dict):
+        raise ValueError("並列・直列の評価条件が必要")
+    for key in 比較共通条件:
+        if p.get(key) != s.get(key) or type(p.get(key)) is not type(s.get(key)):
+            raise ValueError("共通評価条件不一致:" + key)
+
+
 def _個票(結果):
     rows = tuple(結果.get("個票", ()))
     if len(rows) != 全問題数:
@@ -46,6 +64,7 @@ def 比較(並列, 直列):
     p版, s版 = _版(並列), _版(直列)
     if not p版 or p版 != s版:
         raise ValueError("並列と直列は同一リポジトリ版が必要")
+    _共通条件を検査(並列, 直列)
     p_rows, s_rows = _個票(並列), _個票(直列)
 
     p_score = sum(bool(p_rows[i].get("正答")) for i in range(全問題数))
