@@ -1,0 +1,12 @@
+run=gpqa-dual-learning-proof-20261008
+purpose=学習経路修復版で並列43能力継承を確認し、同一revision直列198問で有意な学習効果を検証
+source_revision=0f57af2ba094e681080ef9d0b26dd6951652566b
+parallel_floor=43
+parallel_max_shards=4
+parallel_state_carryover=false
+serial_state_carryover=true
+serial_only_after_parallel_pass=true
+learning_significance_alpha=0.05
+require_learning_state_update=true
+require_downstream_adaptation=true
+wall_clock_limit_minutes_each=90
