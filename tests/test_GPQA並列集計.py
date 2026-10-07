@@ -11,7 +11,7 @@ def 群(score=43):
     cond={'資料集合CSV_SHA256':資料SHA256,'全問題数':198,'選択肢シャッフル種':0,
         '実行方式':'問題独立並列','問題間継続状態':False,'参照方式':'LIVE_ONLY',
         '固定参照資料許可':False,'採点結果の学習利用':False,'中核入口':'HDS駆動コア.選択実行',
-        'リポジトリ版':'revision','OpenAlex有効':False,'EuropePMC有効':True,'Crossref有効':True,
+        '問題束一問一形成':True,'リポジトリ版':'revision','OpenAlex有効':False,'EuropePMC有効':True,'Crossref有効':True,
         'Wikipedia言語群':['en'],'全数wall_clock上限分':90}
     rows=[{'番号':i,'問題束形成回数':1,'予測ラベル':'A','正解ラベル':'A' if i<score else 'B','正答':i<score,'回答済み':True,'終端':'COMMIT'}for i in range(198)]
     return [{'評価条件':{**cond,'選択番号群':list(range(i,min(198,i+5)))},'測定状態':'完了','実測':{'完走':True,'開始epoch':100,'終了epoch':200},'個票':rows[i:i+5]}for i in range(0,198,5)]
