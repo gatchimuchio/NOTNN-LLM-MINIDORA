@@ -129,6 +129,52 @@ class HDS観測根拠帰還試験(unittest.TestCase):
         self.assertEqual(中核.観測経路経験数,0)
 
 
+class HDS公開選択学習統合試験(unittest.TestCase):
+    def _局所成功を実行(self, 中核, 構文化器, 問い, 選択肢, 参照本文, 識別子):
+        kernel=構文化器.問題コンパイル束(問い,選択肢)
+        局所=next(
+            x for x in kernel.参照観測要求
+            if "局所検証" in x.provenance and x.候補ラベル=="A"
+        )
+        経路印=HDS観測経路鍵を文字列(HDS観測経路鍵を構成(局所))
+        参照=参照記録(
+            識別子,選択肢[0],参照本文,"試験観測","試験",1.0,
+            条件=(("hds_query_学習経路",経路印),),
+        )
+        診断=参照取得診断(局所.外部検索表層,"試験","取得",1,実取得回数=1)
+        結果=中核.選択実行(
+            問い,選択肢,初期参照=(参照,),初期参照診断=(診断,),カーネル正本=kernel,
+        )
+        self.assertEqual(結果.終端,HDS終端.採用,結果.理由)
+        self.assertEqual(結果.状態.成果辞書().get(回答成果名),"A")
+        return kernel,局所
+
+    def test_公開選択を二回成功すると第三問の同型観測経路が適応する(self) -> None:
+        構文化器=公開HDSコンパイラ()
+        中核=HDS駆動コア(HDSコンパイラ=構文化器,最大作用回数=40)
+        self._局所成功を実行(
+            中核,構文化器,
+            "Which molecule inhibits Enzyme X?",("Molecule A","Molecule B"),
+            "Molecule A inhibits Enzyme X.","学習資料1",
+        )
+        self._局所成功を実行(
+            中核,構文化器,
+            "Which compound inhibits Enzyme Y?",("Compound C","Compound D"),
+            "Compound C inhibits Enzyme Y.","学習資料2",
+        )
+        self.assertGreaterEqual(中核.観測経路経験数,2)
+
+        第三=構文化器.問題コンパイル束(
+            "Which ligand inhibits Enzyme Z?",("Ligand E","Ligand F"),
+        )
+        元局所=next(x for x in 第三.参照観測要求 if "局所検証" in x.provenance and x.候補ラベル=="A")
+        self.assertEqual(元局所.段階,"fallback")
+        適応=中核.選択観測要求を適応(第三.参照観測要求)
+        後局所=next(x for x in 適応 if "局所検証" in x.provenance and x.候補ラベル=="A")
+        self.assertEqual(後局所.段階,"primary")
+        self.assertIn("経験優先経路",後局所.provenance)
+
+
 class HDS学習機械循環V2試験(unittest.TestCase):
     def test_選択COMMITの関係学習提案を中核へ帰還する(self) -> None:
         中核=HDS駆動コア()
