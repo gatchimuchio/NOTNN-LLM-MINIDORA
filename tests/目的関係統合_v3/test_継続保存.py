@@ -33,11 +33,11 @@ class 継続保存試験(TestCase):
     def test_未知の値をreprで落とさない(self):
         with self.assertRaises(TypeError):_符号化(object(),_型登録())
     def test_観測経路学習状態も保存復元する(self):
-        primary=HDS参照観測要求('obs:A','r','作用','始点',('target',),(),'A','candidate','en',
+        主観測=HDS参照観測要求('obs:A','r','作用','始点',('target',),(),'A','candidate','en',
             'candidate relation target',True,段階='primary',優先度=10,provenance=('Compiler外部文脈',))
-        fallback=HDS参照観測要求('obs:A','r','作用','始点',('target',),(),'A','candidate','en',
+        縮退観測=HDS参照観測要求('obs:A','r','作用','始点',('target',),(),'A','candidate','en',
             'candidate target',True,段階='fallback',優先度=20,provenance=('局所検証',))
-        self.中核._適応記憶.観測経路を記録((primary,fallback),(fallback,))
+        self.中核._適応記憶.観測経路を記録((主観測,縮退観測),(縮退観測,))
         self.中核.継続状態を保存(self.場所,リポジトリ版='r1')
         新=HDS駆動コア();新.継続状態を復元(self.場所,リポジトリ版='r1')
         self.assertEqual(新.観測経路経験数,self.中核.観測経路経験数)
