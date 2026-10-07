@@ -195,13 +195,13 @@ class HDS適応記憶:
             by_id.setdefault(str(getattr(row, "ID", "")), []).append((index, row))
         for group in by_id.values():
             primary = [(i, x) for i, x in group if str(getattr(x, "段階", "")) == "primary"]
-            fallback = [(i, x) for i, x in group if str(getattr(x, "段階", "")) == "fallback"]
-            if not primary or not fallback:
+            縮退候補 = [(i, x) for i, x in group if str(getattr(x, "段階", "")) == "fallback"]
+            if not primary or not 縮退候補:
                 continue
             p_key = HDS観測経路鍵を構成(primary[0][1])
             p_trials, p_success = self.観測経路成績(p_key)
             候補 = []
-            for index, row in fallback:
+            for index, row in 縮退候補:
                 key = HDS観測経路鍵を構成(row)
                 trials, success = self.観測経路成績(key)
                 if trials >= 2 and success > 0:
@@ -209,18 +209,18 @@ class HDS適応記憶:
             if not 候補:
                 continue
             候補.sort(key=lambda x: (-x[0] / x[1], -x[0], -x[2], x[3]))
-            success, trials, _priority, best_index, best = 候補[0]
+            success, trials, _優先度, best_index, best = 候補[0]
             # primaryに十分な実績があり、同等以上なら経路を入れ替えない。
             if p_trials >= 2 and p_success * trials >= success * p_trials:
                 continue
-            primary_priority = min(int(getattr(x, "優先度", 50)) for _, x in primary)
+            主観測優先度 = min(int(getattr(x, "優先度", 50)) for _, x in primary)
             rows[best_index] = replace(
-                best, 段階="primary", 優先度=primary_priority,
+                best, 段階="primary", 優先度=主観測優先度,
                 provenance=tuple(dict.fromkeys((*tuple(getattr(best, "provenance", ())), "経験優先経路"))),
             )
             for index, row in primary:
                 rows[index] = replace(
-                    row, 段階="fallback", 優先度=max(primary_priority + 10, int(getattr(row, "優先度", 50))),
+                    row, 段階="fallback", 優先度=max(主観測優先度 + 10, int(getattr(row, "優先度", 50))),
                     provenance=tuple(dict.fromkeys((*tuple(getattr(row, "provenance", ())), "経験降格経路"))),
                 )
         return tuple(sorted(rows, key=lambda x: (int(getattr(x, "優先度", 50)), str(getattr(x, "ID", "")), str(getattr(x, "外部検索表層", "")).casefold())))
