@@ -6,6 +6,7 @@ from minidora.HDS駆動コア import HDS駆動コア
 from minidora.参照 import 参照記録,参照全保持を統合
 from minidora.統合駆動_v2.適応記憶 import HDS適応記憶,_経験,_作用文脈
 from minidora.コア.継続保存 import _符号化,_復号,_型登録
+from minidora.HDS観測計画 import HDS参照観測要求
 
 class 継続保存試験(TestCase):
     def setUp(self):
@@ -31,6 +32,17 @@ class 継続保存試験(TestCase):
         with self.assertRaises(ValueError):_復号({'type':'os:system','fields':{}},_型登録())
     def test_未知の値をreprで落とさない(self):
         with self.assertRaises(TypeError):_符号化(object(),_型登録())
+    def test_観測経路学習状態も保存復元する(self):
+        primary=HDS参照観測要求('obs:A','r','作用','始点',('target',),(),'A','candidate','en',
+            'candidate relation target',True,段階='primary',優先度=10,provenance=('Compiler外部文脈',))
+        fallback=HDS参照観測要求('obs:A','r','作用','始点',('target',),(),'A','candidate','en',
+            'candidate target',True,段階='fallback',優先度=20,provenance=('局所検証',))
+        self.中核._適応記憶.観測経路を記録((primary,fallback),(fallback,))
+        self.中核.継続状態を保存(self.場所,リポジトリ版='r1')
+        新=HDS駆動コア();新.継続状態を復元(self.場所,リポジトリ版='r1')
+        self.assertEqual(新.観測経路経験数,self.中核.観測経路経験数)
+        self.assertEqual(新._適応記憶.観測経路経験,self.中核._適応記憶.観測経路経験)
+
     def test_登録契約変更を拒否(self):
         self.中核.継続状態を保存(self.場所,リポジトリ版='r1')
         with self.assertRaises(ValueError):HDS駆動コア(最大作用回数=20).継続状態を復元(self.場所,リポジトリ版='r1')
