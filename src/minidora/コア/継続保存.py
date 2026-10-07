@@ -23,6 +23,7 @@ def _型登録():
         "minidora.統合駆動_v2.形成", "minidora.統合駆動_v2.適応記憶",
         "minidora.統合駆動_v2.政策", "minidora.統合駆動_v2.依存",
         "minidora.参照", "minidora.駆動系.契約", "minidora.駆動系.学習",
+        "minidora.選択観測学習",
     )
     表 = {}
     for 名 in 名群:
