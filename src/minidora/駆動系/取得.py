@@ -62,16 +62,20 @@ def 関係を取得(要求, 追加契約=()):
     if len({x.ID for x in all_rules})!=len(all_rules): raise ValueError('変換契約IDが競合')
     # 極性を除いたキー。否定を見落として肯定を採用しない。
     def key(atom): return (atom.骨格[0],atom.骨格[1],*atom.骨格[3:])
-    needed={key(要求.問い)}; selected={}; changed=True
+    needed={key(要求.問い)}; selected={}; 短縮済み目標=set(); changed=True
     while changed:
         changed=False
         for goal in tuple(sorted(needed)):
+            if goal in 短縮済み目標:
+                continue
             候補=tuple(r for r in all_rules if r.ID not in selected and key(r.結論)==goal)
             if not 候補: continue
             # 有効形成から来た依存契約付きmacroは、元規則列と証明上同値な短縮経路である。
-            # 同じ結論についてmacroが存在する時は元経路を重複選択せず、macroの前提だけを展開する。
+            # 一度macroで覆った目標へ次周回で元規則を再侵入させない。
             macros=tuple(r for r in 候補 if r.依存契約)
             採用群=macros or 候補
+            if macros:
+                短縮済み目標.add(goal)
             for rule in 採用群:
                 selected[rule.ID]=rule
                 needed.update(key(p) for p in rule.前提)
