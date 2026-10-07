@@ -85,7 +85,6 @@ class HDS適応記憶:
         self._経験列 = deque()
         self._保管経験 = []
         self._安定索引 = {}
-        self._観測経路経験.clear()
         self._観測経路経験 = []
 
     @property
@@ -137,6 +136,7 @@ class HDS適応記憶:
         self._経験列.clear()
         self._保管経験.clear()
         self._安定索引 = {}
+        self._観測経路経験.clear()
 
     def スナップショット(self):
         return {
