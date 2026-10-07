@@ -180,8 +180,17 @@ class HDS駆動コア:
                     out.update(意味語(text))
             return out
         選択 = {x.ID for x in 初期認識} | {str(x) for x in 要求認識}
-        if 語:
-            選択.update(x.ID for x in 正本 if 語.intersection(項目語(x)))
+        問い正規 = " ".join(str(問合せ).split()).casefold()
+        if 語 or 問い正規:
+            選択.update(
+                x.ID for x in 正本
+                if 語.intersection(項目語(x))
+                or any(
+                    len(語片) >= 2 and 語片.casefold() in 問い正規
+                    for 語片 in (str(x.対象), str(x.関係))
+                    if str(語片).strip()
+                )
+            )
         待ち=list(選択)
         while 待ち:
             ID=待ち.pop()
