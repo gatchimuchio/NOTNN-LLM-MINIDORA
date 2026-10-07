@@ -41,6 +41,7 @@ def 集計(資料群,*,版,開始,締切,現在=None):
     共通={'資料集合CSV_SHA256':資料SHA256,'全問題数':198,'選択肢シャッフル種':0,
         '実行方式':'問題独立並列','問題間継続状態':False,'参照方式':'LIVE_ONLY',
         '固定参照資料許可':False,'採点結果の学習利用':False,'中核入口':'HDS駆動コア.選択実行',
+        '問題束一問一形成':True,
         'リポジトリ版':版,'OpenAlex有効':False,'EuropePMC有効':True,'Crossref有効':True,
         'Wikipedia言語群':['en'],'全数wall_clock上限分':90}
     for n,p in enumerate(資料群):
@@ -70,7 +71,9 @@ def 集計(資料群,*,版,開始,締切,現在=None):
     if 今>締切:失敗.append('集計完了が90分超過')
     xs=[個票[i]for i in sorted(個票)];score=sum(x['正答'] for x in xs)
     if score<性能継承下限:失敗.append(f'性能継承下限未達:{score}/198')
+    集計条件={**共通,'選択番号群':list(range(198))}
     return {'契約形式':'minidora.gpqa.parallel-inheritance.v2','リポジトリ版':版,
+        '評価条件':集計条件,
         '全数':198,'完了数':len(xs),'正答':score,'回答':sum(x.get('回答済み') is True for x in xs),
         '性能継承下限':性能継承下限,'性能継承成立':not 失敗,'全数wall_clock上限分':90,
         '参照健全性':_参照健全性(xs),
