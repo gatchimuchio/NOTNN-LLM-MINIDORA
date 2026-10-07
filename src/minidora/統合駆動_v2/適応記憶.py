@@ -4,6 +4,7 @@ from collections import deque
 from dataclasses import dataclass, replace
 
 from ..コア.効果 import 期待効果
+from ..選択観測学習 import HDS観測経路鍵, HDS観測経路鍵を構成
 
 
 @dataclass(frozen=True, slots=True)
@@ -12,6 +13,16 @@ class _作用文脈:
     意味入力署名: str
     種別: str
     契約版: str
+
+
+@dataclass(frozen=True, slots=True)
+class HDS観測経路経験:
+    鍵: HDS観測経路鍵
+    成功: bool
+
+    def __post_init__(self):
+        if not isinstance(self.鍵, HDS観測経路鍵) or type(self.成功) is not bool:
+            raise TypeError("観測経路経験の型不正")
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,7 +76,7 @@ def _既に満たす(機会, 前状態) -> bool:
 class HDS適応記憶:
     """作用効果の全経験を保持し、主演算は最新窓と反証後の安定効果だけを見る。"""
 
-    __slots__ = ("_経験列", "_保管経験", "_最大経験数", "_安定索引")
+    __slots__ = ("_経験列", "_保管経験", "_最大経験数", "_安定索引", "_観測経路経験")
 
     def __init__(self, 最大経験数: int = 256) -> None:
         if type(最大経験数) is not int or not 1 <= 最大経験数 <= 4096:
@@ -74,6 +85,8 @@ class HDS適応記憶:
         self._経験列 = deque()
         self._保管経験 = []
         self._安定索引 = {}
+        self._観測経路経験.clear()
+        self._観測経路経験 = []
 
     @property
     def 全経験(self):
@@ -86,6 +99,15 @@ class HDS適応記憶:
     @property
     def 保管経験数(self) -> int:
         return len(self._保管経験)
+
+    @property
+    def 観測経路経験数(self) -> int:
+        return len(self._観測経路経験)
+
+    @property
+    def 観測経路経験(self) -> tuple[HDS観測経路経験, ...]:
+        return tuple(self._観測経路経験)
+
 
     def _再索引(self) -> None:
         索引 = {}
@@ -109,7 +131,7 @@ class HDS適応記憶:
     @property
     def 状態署名(self) -> str:
         from ..コア.値 import 署名
-        return 署名((self._最大経験数, self.全経験))
+        return 署名((self._最大経験数, self.全経験, tuple(self._観測経路経験)))
 
     def 初期化(self) -> None:
         self._経験列.clear()
@@ -117,22 +139,91 @@ class HDS適応記憶:
         self._安定索引 = {}
 
     def スナップショット(self):
-        return {"最大経験数": self._最大経験数, "経験": tuple(self._経験列), "保管経験": tuple(self._保管経験)}
+        return {
+            "最大経験数": self._最大経験数,
+            "経験": tuple(self._経験列),
+            "保管経験": tuple(self._保管経験),
+            "観測経路経験": tuple(self._観測経路経験),
+        }
 
     def 復元(self, 記録) -> None:
-        if not isinstance(記録, dict) or set(記録) not in ({"最大経験数", "経験"}, {"最大経験数", "経験", "保管経験"}):
+        許可 = (
+            {"最大経験数", "経験"},
+            {"最大経験数", "経験", "保管経験"},
+            {"最大経験数", "経験", "保管経験", "観測経路経験"},
+        )
+        if not isinstance(記録, dict) or set(記録) not in 許可:
             raise ValueError("適応記憶スナップショット不正")
         最大 = 記録["最大経験数"]; 経験 = 記録["経験"]; 保管 = 記録.get("保管経験", ())
-        if type(最大) is not int or not 1 <= 最大 <= 4096 or not isinstance(経験, tuple) or not isinstance(保管, tuple):
+        経路 = 記録.get("観測経路経験", ())
+        if (
+            type(最大) is not int or not 1 <= 最大 <= 4096
+            or not isinstance(経験, tuple) or not isinstance(保管, tuple) or not isinstance(経路, tuple)
+        ):
             raise ValueError("適応記憶スナップショット不正")
         if any(not isinstance(x, _経験) for x in (*保管, *経験)):
             raise TypeError("適応経験型が不正")
+        if any(not isinstance(x, HDS観測経路経験) for x in 経路):
+            raise TypeError("観測経路経験型が不正")
         if len(経験) > 最大:
             raise ValueError("適応記憶の最新窓が上限を超える")
         self._最大経験数 = 最大
         self._経験列 = deque(経験)
         self._保管経験 = list(保管)
+        self._観測経路経験 = list(経路)
         self._再索引()
+
+    def 観測経路を記録(self, 試行要求群, 成功要求群=()) -> None:
+        試行 = {HDS観測経路鍵を構成(x) for x in tuple(試行要求群)}
+        成功 = {HDS観測経路鍵を構成(x) for x in tuple(成功要求群)} & 試行
+        for 鍵 in sorted(試行):
+            self._観測経路経験.append(HDS観測経路経験(鍵, 鍵 in 成功))
+
+    def 観測経路成績(self, 鍵: HDS観測経路鍵) -> tuple[int, int]:
+        if not isinstance(鍵, HDS観測経路鍵):
+            raise TypeError("HDS観測経路鍵型が必要")
+        rows = tuple(x for x in self._観測経路経験 if x.鍵 == 鍵)
+        return len(rows), sum(x.成功 for x in rows)
+
+    def 観測要求を適応(self, 要求群):
+        """同一観測IDの候補対称な検索表層だけを、過去成功率でprimaryへ入替える。"""
+        rows = list(tuple(要求群))
+        if not rows or not self._観測経路経験:
+            return tuple(rows)
+        by_id = {}
+        for index, row in enumerate(rows):
+            by_id.setdefault(str(getattr(row, "ID", "")), []).append((index, row))
+        for group in by_id.values():
+            primary = [(i, x) for i, x in group if str(getattr(x, "段階", "")) == "primary"]
+            fallback = [(i, x) for i, x in group if str(getattr(x, "段階", "")) == "fallback"]
+            if not primary or not fallback:
+                continue
+            p_key = HDS観測経路鍵を構成(primary[0][1])
+            p_trials, p_success = self.観測経路成績(p_key)
+            候補 = []
+            for index, row in fallback:
+                key = HDS観測経路鍵を構成(row)
+                trials, success = self.観測経路成績(key)
+                if trials >= 2 and success > 0:
+                    候補.append((success, trials, -int(getattr(row, "優先度", 50)), index, row))
+            if not 候補:
+                continue
+            候補.sort(key=lambda x: (-x[0] / x[1], -x[0], -x[2], x[3]))
+            success, trials, _priority, best_index, best = 候補[0]
+            # primaryに十分な実績があり、同等以上なら経路を入れ替えない。
+            if p_trials >= 2 and p_success * trials >= success * p_trials:
+                continue
+            primary_priority = min(int(getattr(x, "優先度", 50)) for _, x in primary)
+            rows[best_index] = replace(
+                best, 段階="primary", 優先度=primary_priority,
+                provenance=tuple(dict.fromkeys((*tuple(getattr(best, "provenance", ())), "経験優先経路"))),
+            )
+            for index, row in primary:
+                rows[index] = replace(
+                    row, 段階="fallback", 優先度=max(primary_priority + 10, int(getattr(row, "優先度", 50))),
+                    provenance=tuple(dict.fromkeys((*tuple(getattr(row, "provenance", ())), "経験降格経路"))),
+                )
+        return tuple(sorted(rows, key=lambda x: (int(getattr(x, "優先度", 50)), str(getattr(x, "ID", "")), str(getattr(x, "外部検索表層", "")).casefold())))
 
     def 結果を受け取る(self, 機会, 結果, 状態差, 前状態=None) -> None:
         if str(機会.作用ID).startswith("内的/"):
@@ -197,4 +288,4 @@ class HDS適応記憶:
         return replace(機会, 期待=効果)
 
 
-__all__ = ["HDS適応記憶"]
+__all__ = ["HDS適応記憶", "HDS観測経路経験"]
