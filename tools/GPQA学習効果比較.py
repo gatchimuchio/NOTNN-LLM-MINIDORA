@@ -99,10 +99,10 @@ def main():
     p.add_argument("--serial", required=True)
     p.add_argument("--out", required=True)
     a = p.parse_args()
-    result = 比較(_読む(a.parallel), _読む(a.serial))
-    Path(a.out).write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result["学習実証成立"] else 3
+    結果 = 比較(_読む(a.parallel), _読む(a.serial))
+    Path(a.out).write_text(json.dumps(結果, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(結果, ensure_ascii=False, indent=2))
+    return 0 if 結果["学習実証成立"] else 3
 
 
 if __name__ == "__main__":
