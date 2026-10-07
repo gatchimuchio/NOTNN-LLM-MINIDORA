@@ -38,7 +38,7 @@ def _学習状態():
 
 
 class HDS学習機械循環V2試験(unittest.TestCase):
-    def test_選択COMMITの関係学習提案をCoreへ帰還する(self) -> None:
+    def test_選択COMMITの関係学習提案を中核へ帰還する(self) -> None:
         中核=HDS駆動コア()
         提案=_学習状態()
         状態=HDS実行状態(成果=((関係学習提案成果名,提案),))
@@ -46,7 +46,7 @@ class HDS学習機械循環V2試験(unittest.TestCase):
         self.assertTrue(中核._選択学習提案を帰還(結果))
         self.assertEqual(中核.関係学習状態,提案)
 
-    def test_選択SUSPENDの学習提案はCoreへ帰還しない(self) -> None:
+    def test_選択SUSPENDの学習提案は中核へ帰還しない(self) -> None:
         中核=HDS駆動コア()
         提案=_学習状態()
         状態=HDS実行状態(成果=((関係学習提案成果名,提案),))
