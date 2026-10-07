@@ -92,6 +92,15 @@ class HDS駆動コア:
     def 継続参照記憶(self) -> tuple[参照記録, ...]:
         return tuple(self._継続参照記憶)
 
+    @property
+    def 観測経路経験数(self) -> int:
+        return self._適応記憶.観測経路経験数
+
+    def 選択観測要求を適応(self, 要求群):
+        """Core-owned経験から検索経路だけを適応する。候補ラベル・goldは学習キーに含めない。"""
+        return self._適応記憶.観測要求を適応(tuple(要求群))
+
+
     def 継続状態を保存(self, 経路, *, リポジトリ版, 完了問題番号=None):
         from .コア.継続保存 import 継続状態を保存
         return 継続状態を保存(self, 経路, リポジトリ版=リポジトリ版, 完了問題番号=完了問題番号)
@@ -389,6 +398,74 @@ class HDS駆動コア:
         return HDS非退行包絡(基準結果, 基準承認判定=基準承認判定, 拡張実行=実拡張実行,
                          拡張承認判定=実拡張承認判定, 拡張採用証明=拡張採用証明)
 
+    @staticmethod
+    def _選択寄与参照ID(現在結果, 関係判定, 参照群) -> frozenset[str]:
+        """採用候補へ実際に寄与した参照IDだけを抽出する。取得件数そのものは成功と見なさない。"""
+        参照ID = {str(x.識別子) for x in tuple(参照群) if str(getattr(x, "識別子", ""))}
+        out=set()
+        label=str(getattr(現在結果, "回答ラベル", "") or "")
+        if 関係判定 is not None and label:
+            候補=next((x for x in tuple(getattr(関係判定, "候補", ())) if str(getattr(x, "ラベル", ""))==label),None)
+            if 候補 is not None:
+                for 束 in (*tuple(getattr(候補, "証明", ())), *tuple(getattr(候補, "反証", ()))):
+                    for 回答 in tuple(getattr(束, "回答", ())):
+                        for 根拠 in tuple(getattr(回答, "根拠", ())):
+                            if str(根拠) in 参照ID:
+                                out.add(str(根拠))
+        模型=getattr(現在結果, "MINIDORA模型結果", None)
+        if 模型 is not None and label:
+            row=next((x for x in tuple(getattr(模型, "候補差", ())) if str(getattr(x, "候補ID", ""))==label),None)
+            if row is not None:
+                for 寄与 in tuple(getattr(row, "寄与", ())):
+                    if not str(getattr(寄与, "関係名", "")).startswith(("候補共同参照","候補共同再照合")):
+                        continue
+                    for 根拠 in tuple(getattr(寄与, "根拠", ())):
+                        text=str(根拠)
+                        for ID in 参照ID:
+                            if text.startswith("局所対応:"+ID+":") or text.startswith("最大局所対応:"+ID+":"):
+                                out.add(ID)
+        return frozenset(out)
+
+    def _選択観測経験を帰還(self, 結果: HDS実行結果, 観測要求群) -> bool:
+        from .HDS選択継承循環 import (
+            回答成果名, 現行結果成果名, 参照成果名, 参照取得診断成果名,
+        )
+        from .選択観測学習 import HDS観測経路鍵を構成, 参照観測経路鍵群
+        if not isinstance(結果, HDS実行結果) or 結果.終端 != HDS終端.採用:
+            return False
+        成果=結果.状態.成果辞書()
+        label=成果.get(回答成果名)
+        現在=成果.get(現行結果成果名)
+        参照群=成果.get(参照成果名, ())
+        if label is None or getattr(現在, "回答ラベル", None) != label or not isinstance(参照群, tuple):
+            return False
+        診断群=成果.get(参照取得診断成果名, ())
+        問合せ集合={
+            " ".join(str(getattr(x, "問合せ", "")).split()).casefold()
+            for x in tuple(診断群) if str(getattr(x, "問合せ", "")).strip()
+        }
+        試行=tuple(
+            x for x in tuple(観測要求群)
+            if " ".join(str(getattr(x, "外部検索表層", "")).split()).casefold() in 問合せ集合
+        )
+        if not 試行:
+            return False
+        関係判定=成果.get("HDS選択:目的関係判定")
+        寄与ID=self._選択寄与参照ID(現在, 関係判定, 参照群)
+        if not 寄与ID:
+            return False
+        成功鍵=set()
+        for 参照 in 参照群:
+            if str(getattr(参照, "識別子", "")) in 寄与ID:
+                成功鍵.update(参照観測経路鍵群(参照))
+        if not 成功鍵:
+            return False
+        成功=tuple(x for x in 試行 if HDS観測経路鍵を構成(x) in 成功鍵)
+        if not 成功:
+            return False
+        self._適応記憶.観測経路を記録(試行, 成功)
+        return True
+
     def 選択実行(self, 問合せ: str, 選択肢: Sequence[str], *, 初期参照=(), 初期参照診断=(), 参照供給器=None,
              計算実行器_=None, 模型核=None, 基礎能力核=None, 既存能力継承: bool = True,
              最大回復回数: int = 6, 拡張採用証明=None,
@@ -433,6 +510,7 @@ class HDS駆動コア:
                 )
         問題IR = 問題束.意味IR
         入力束 = 問題束.コア入力
+        観測要求群 = self.選択観測要求を適応(tuple(問題束.参照観測要求))
         from .HDS選択継承循環 import (
             HDS選択継承供給, HDS選択継承設定, 参照成果名, 参照世代成果名,
             計算済み成果名, 参照記憶成果名, 参照取得診断成果名,
@@ -447,7 +525,7 @@ class HDS駆動コア:
                 固定参照供給器(self._継続参照記憶, 名称="HDS継続参照記憶"),
                 問題IR,
                 上限=32,
-                観測要求=tuple(問題束.参照観測要求),
+                観測要求=観測要求群,
             )
         # 演算窓で未採用の参照も、入力を受理した時点で全保持する。
         受理参照 = 参照全保持を統合(記憶参照, tuple(初期参照))
@@ -477,6 +555,7 @@ class HDS駆動コア:
             設定=HDS選択継承設定(最大回復回数), 拡張採用証明=拡張採用証明,
             入力残差非阻害対象=入力残差非阻害対象,
             意味変換契約=self.意味変換契約, 関係学習状態=self._関係学習状態,
+            参照観測要求_=観測要求群,
         )
         供給.入力接続 = 選択接続
         結果 = self.実行(
@@ -497,6 +576,7 @@ class HDS駆動コア:
         # 選択入口も構造化関係入口と同じCore-owned学習状態へ帰還する。
         # HOLD/FAILや採用前の候補から成功形成を持ち越さない。
         self._選択学習提案を帰還(結果)
+        self._選択観測経験を帰還(結果, 観測要求群)
         最終参照 = dict(結果.状態.成果).get(参照記憶成果名, 初期参照群)
         if isinstance(最終参照, tuple) and all(isinstance(x, 参照記録) for x in 最終参照):
             全観測 = getattr(参照供給器, "全観測記録", ()) if 参照供給器 is not None else ()
