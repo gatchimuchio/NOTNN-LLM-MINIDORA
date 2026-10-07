@@ -51,7 +51,7 @@ class GPQA学習効果比較試験(TestCase):
         s=直列(set(range(43)) | set(range(50,60)),適応=False)
         self.assertFalse(本体.比較(p,s)["学習実証成立"])
 
-    def test_異なるrevisionを比較しない(self):
+    def test_異なる版を比較しない(self):
         with self.assertRaises(ValueError):
             本体.比較(並列(43,"a"),直列(set(range(53)),版="b"))
 
