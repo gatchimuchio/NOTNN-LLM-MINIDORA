@@ -8,9 +8,19 @@ from unittest import TestCase
 仕様.loader.exec_module(本体)
 
 
+def 共通条件(版):
+    return {
+        "資料集合CSV_SHA256":"dataset","全問題数":198,"選択肢シャッフル種":0,
+        "参照方式":"LIVE_ONLY","固定参照資料許可":False,"採点結果の学習利用":False,
+        "中核入口":"HDS駆動コア.選択実行","問題束一問一形成":True,
+        "OpenAlex有効":False,"EuropePMC有効":True,"Crossref有効":True,
+        "Wikipedia言語群":["en"],"選択番号群":list(range(198)),"リポジトリ版":版,
+    }
+
+
 def 並列(score=43, 版="same"):
     rows=[{"番号":i,"正答":i<score} for i in range(198)]
-    return {"リポジトリ版":版,"性能継承成立":score>=43,"個票":rows}
+    return {"リポジトリ版":版,"評価条件":共通条件(版),"性能継承成立":score>=43,"個票":rows}
 
 
 def 直列(correct, *, 版="same", 適応=True):
@@ -24,7 +34,7 @@ def 直列(correct, *, 版="same", 適応=True):
             "計装":{"形成再利用数":0},
         })
     return {
-        "評価条件":{"リポジトリ版":版},
+        "評価条件":共通条件(版),
         "測定状態":"完了","実測":{"全数完走":True,"経過秒":1000},
         "個票":rows,
     }
@@ -50,6 +60,13 @@ class GPQA学習効果比較試験(TestCase):
         p=並列(43)
         s=直列(set(range(43)) | set(range(50,60)),適応=False)
         self.assertFalse(本体.比較(p,s)["学習実証成立"])
+
+    def test_provider条件が異なれば比較しない(self):
+        p=並列(43)
+        s=直列(set(range(53)))
+        s["評価条件"]["Crossref有効"]=False
+        with self.assertRaises(ValueError):
+            本体.比較(p,s)
 
     def test_異なる版を比較しない(self):
         with self.assertRaises(ValueError):
