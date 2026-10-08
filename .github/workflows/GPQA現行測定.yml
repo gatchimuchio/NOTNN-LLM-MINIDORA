@@ -2,11 +2,6 @@ name: MINIDORA GPQA 直列学習実測
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - ".benchmark/gpqa-current-trigger"
 
 permissions:
   contents: read
