@@ -1,0 +1,78 @@
+name: MINIDORA GPQA 固定資料四象限並列
+
+on:
+  push:
+    branches:
+      - audit/root-cause-replay-20261008
+    paths:
+      - ".benchmark/gpqa-matrix-replay-trigger"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  replay:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { code: "best42-code", source_ref: "c00344dca245c91aea7cfb0387db6991818be0be", evidence: "best42", evidence_run: "37415074083", evidence_pattern: "gpqa-parallel-*" }
+          - { code: "best42-code", source_ref: "c00344dca245c91aea7cfb0387db6991818be0be", evidence: "current38", evidence_run: "37667516687", evidence_pattern: "gpqa-dual-parallel-*" }
+          - { code: "current-code", source_ref: "14b0c746fa2d09940580bab6befdb36bde6a352b", evidence: "best42", evidence_run: "37415074083", evidence_pattern: "gpqa-parallel-*" }
+          - { code: "current-code", source_ref: "14b0c746fa2d09940580bab6befdb36bde6a352b", evidence: "current38", evidence_run: "37667516687", evidence_pattern: "gpqa-dual-parallel-*" }
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: audit
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.source_ref }}
+          path: source
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: gatchimuchio/NOTNN-LLM-MINIDORA
+          run-id: ${{ matrix.evidence_run }}
+          pattern: ${{ matrix.evidence_pattern }}
+          path: evidence
+          merge-multiple: true
+      - name: 一象限を再評価
+        env:
+          PYTHONPATH: audit/tools
+        run: >-
+          python audit/tools/GPQA固定資料単一再生.py
+          --source source --evidence evidence
+          --code-name "${{ matrix.code }}" --evidence-name "${{ matrix.evidence }}"
+          --out result-${{ matrix.code }}-${{ matrix.evidence }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quadrant-${{ matrix.code }}-${{ matrix.evidence }}
+          path: result-${{ matrix.code }}-${{ matrix.evidence }}.json
+
+  aggregate:
+    needs: replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: audit
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: quadrant-*
+          path: quadrants
+          merge-multiple: true
+      - name: 四象限を集計
+        run: >-
+          python audit/tools/GPQA固定資料四象限集計.py
+          --dir quadrants --out gpqa_matrix_replay_audit.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minidora-gpqa-matrix-replay-audit
+          path: gpqa_matrix_replay_audit.json
