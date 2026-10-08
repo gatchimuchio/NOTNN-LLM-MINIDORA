@@ -1,8 +1,8 @@
-run=parallel-gpqa-43-canonical-restore-20261008
-purpose=2026-10-02に43/198を出したe9d49f4 tree完全復帰版の能力継承再現
+run=parallel-gpqa-learning-path-preservation-20261008
+purpose=43点能力正本に独立成功経験の作用経路学習だけを追加した版の問題独立並列非退行確認
 parallel=問題独立並列
-serial=off_until_parallel_43
+serial=off
 wall_clock_limit_minutes=90
-acceptance_floor=43
-source_tree=e9d49f4fd3cd75e29a58a134ad9201b80f265b9e
-source_revision=0b1bd156c2b4928730c7f199b4f4768a60ead156
+historical_peak=43
+source_revision=1287d72ddbc0f4a86a924abe7b911602ee825b50
+learning=successful_action_path_support2_with_counterevidence
