@@ -108,6 +108,62 @@ class HDS適応記憶試験(unittest.TestCase):
         第二 = HDS適応記憶()
         self.assertTrue(第二.機会を補正(機会).期待.空)
 
+    def test_複数成功経験から同型新入力で成功経路を静的優先度より上位へ置く(self):
+        from types import SimpleNamespace
+        from minidora.HDS実行主体 import 標準HDS作用選択器
+
+        記憶 = HDS適応記憶()
+        差 = SimpleNamespace(変化有無=True)
+
+        def 経路記録(署名, 支持=True):
+            行 = SimpleNamespace(
+                作用ID="経験経路",
+                対象残差=("不足",),
+                対象未達状態=("完了",),
+                前状態署名=署名,
+                作用入力署名="同一run内で変化してよい",
+                作用状態=HDS作用状態.成立 if 支持 else HDS作用状態.失敗,
+                目的進展=支持,
+                進展根拠=("残差:不足",) if 支持 else (),
+                状態差=差,
+            )
+            結果 = SimpleNamespace(
+                終端=HDS終端.採用 if 支持 else HDS終端.保留,
+                状態=SimpleNamespace(閉包済み=支持),
+                履歴=(行,),
+            )
+            記憶.実行結果を受け取る(結果)
+
+        経路記録("入力一")
+        経路記録("入力二")
+        self.assertEqual(記憶.経路経験数, 2)
+
+        状態 = HDS実行状態(
+            要求状態=frozenset({"完了"}),
+            残差=frozenset({"不足"}),
+        )
+        学習候補 = HDS作用機会(
+            "経験経路", "入力三",
+            出力状態=frozenset({"完了"}),
+            解消対象=frozenset({"不足"}),
+            優先度=0.0,
+        )
+        静的候補 = HDS作用機会(
+            "静的高優先度", "入力三",
+            出力状態=frozenset({"完了"}),
+            解消対象=frozenset({"不足"}),
+            優先度=100.0,
+        )
+        未学習選択 = 標準HDS作用選択器(HDS適応記憶()).選択(状態, (学習候補, 静的候補))
+        self.assertEqual(未学習選択.作用ID, "静的高優先度")
+        学習選択 = 標準HDS作用選択器(記憶).選択(状態, (学習候補, 静的候補))
+        self.assertEqual(学習選択.作用ID, "経験経路")
+
+        経路記録("入力四", 支持=False)
+        経路記録("入力五", 支持=False)
+        反証後 = 標準HDS作用選択器(記憶).選択(状態, (学習候補, 静的候補))
+        self.assertEqual(反証後.作用ID, "静的高優先度")
+
     def test_失敗反証で同一文脈の旧期待を撤回する(self):
         機会 = HDS作用機会("作用A", "入力", 作用定義ID="定義A", 意味入力署名="意味A")
         前 = HDS実行状態()
