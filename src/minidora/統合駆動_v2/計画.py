@@ -80,7 +80,6 @@ class HDS作用仕様:
     観測入力: tuple[str, ...] = ()
     # 観測は外界を読むが純粋計算ではない。自動再現では再実行しない。
     観測専用: bool = False
-    入力不変保証: bool = False
 
     def __post_init__(self):
         if self.指示対応 is not None:
@@ -95,8 +94,6 @@ class HDS作用仕様:
             raise TypeError("探索契約型が必要")
         if type(self.観測専用) is not bool:
             raise TypeError("観測専用はbool")
-        if type(self.入力不変保証) is not bool:
-            raise TypeError("入力不変保証はbool")
         if self.探索 is not None and not (self.純粋 or self.観測専用):
             raise ValueError("有限探索には純粋作用または観測専用契約が必要")
         文字列組(self.観測入力, "観測入力")

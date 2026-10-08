@@ -43,9 +43,9 @@ def 作用群(*, wrong=False, calls=None):
         return HDS作用結果(HDS作用状態.成立,成果=(('単価',7),))
     def calc(s):
         calls.append('計算')
-        資料=s.成果辞書()
+        data=s.成果辞書()
         return HDS作用結果(HDS作用状態.成立,追加状態=frozenset({'回答済'}),
-            成果=(('合計',99 if wrong else 資料['数量']*資料['単価']),))
+            成果=(('合計',99 if wrong else data['数量']*data['単価']),))
     return (HDS関数作用('単価取得',get,生成成果=('単価',),契約完全=True),
             HDS関数作用('計算',calc,読取成果=('数量','単価'),生成成果=('合計',),出力状態=('回答済',),契約完全=True))
 

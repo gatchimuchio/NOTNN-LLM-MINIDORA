@@ -1,27 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 from minidora.HDS構文化器_v1 import 公開HDSコンパイラ
-from minidora.HDS実行主体 import HDS関数作用, HDS作用結果, HDS作用状態, HDS終端, HDS実行状態, HDS実行結果
+from minidora.HDS実行主体 import HDS関数作用, HDS作用結果, HDS作用状態, HDS終端
 from minidora.統合駆動_v2.認識 import HDS認識項目, 認識区分
 from minidora.HDS選択継承循環 import HDS選択継承供給, 初回評価参照成果名
 from minidora.HDS駆動コア import HDS駆動コア
-from minidora.参照 import 参照記録, 参照取得診断
+from minidora.参照 import 参照記録
 from minidora.統合駆動_v2.記憶 import HDS資料
-from minidora.駆動系.契約 import 関係項, 関係節, 関係変換契約
-from minidora.駆動系.学習 import 関係形成, 関係学習状態, 変換を合成
-from minidora.HDS選択継承循環 import (
-    関係学習提案成果名, 回答成果名, 現行結果成果名, 参照成果名, 参照取得診断成果名,
-)
-from minidora.HDS観測計画 import HDS参照観測要求
-from minidora.HDS参照 import HDS参照検索
-from minidora.HDS中間表現 import HDSIR, HDS実行核
-from minidora.統合駆動_v2.適応記憶 import HDS適応記憶
-from minidora.選択観測学習 import HDS観測経路鍵を構成, HDS観測経路鍵を文字列
 
 
 class _空参照供給器:
@@ -36,197 +25,7 @@ class _空参照供給器:
         return ()
 
 
-def _観測要求(経路, *, label="A", ID="観測:A"):
-    if 経路=="主観測":
-        段階="primary"; provenance=("Compiler外部文脈",)
-    elif 経路=="局所検証":
-        段階="fallback"; provenance=("局所検証",)
-    else:
-        段階="fallback"; provenance=("縮退",)
-    return HDS参照観測要求(
-        ID=ID, 関係ID="r-current", 関係種別="作用", 未知位置="始点",
-        既知端点=("target",), 条件範囲=(), 候補ラベル=label, 候補表層="candidate",
-        外部言語="en", 外部検索表層=f"{label} route {経路}", 必須被覆=True,
-        段階=段階, 優先度=10 if 段階=="primary" else 20, provenance=provenance,
-    )
-
-
-def _学習状態():
-    x=関係項("x",変数=True,束縛域="test")
-    a=関係変換契約("r1",(関係節("p",(("対象",x),)),),関係節("q",(("対象",x),)),("test:r1",))
-    b=関係変換契約("r2",(関係節("q",(("対象",x),)),),関係節("r",(("対象",x),)),("test:r2",))
-    formed=変換を合成(a,b,0)
-    assert formed is not None
-    return 関係学習状態((関係形成(formed.ID,formed,a,b,0,("proof",),("exp",)),))
-
-
-class HDS観測経路学習試験(unittest.TestCase):
-    def test_候補ラベルを観測学習キーへ入れない(self) -> None:
-        a=_観測要求("局所検証",label="A",ID="観測:A")
-        b=_観測要求("局所検証",label="B",ID="観測:B")
-        self.assertEqual(HDS観測経路鍵を構成(a),HDS観測経路鍵を構成(b))
-
-    def test_二回成功した局所検証を同型次問の主観測へ昇格する(self) -> None:
-        記憶=HDS適応記憶()
-        primary=_観測要求("主観測")
-        local=_観測要求("局所検証")
-        for _ in range(2):
-            記憶.観測経路を記録((primary,local),(local,))
-        次primary=_観測要求("主観測",label="B",ID="観測:B")
-        次local=_観測要求("局所検証",label="B",ID="観測:B")
-        adapted=記憶.観測要求を適応((次primary,次local))
-        local_after=next(x for x in adapted if "局所検証" in x.provenance)
-        primary_after=next(x for x in adapted if "Compiler外部文脈" in x.provenance)
-        self.assertEqual(local_after.段階,"primary")
-        self.assertEqual(primary_after.段階,"fallback")
-
-    def test_一回成功だけでは観測経路を昇格しない(self) -> None:
-        記憶=HDS適応記憶()
-        primary=_観測要求("主観測");local=_観測要求("局所検証")
-        記憶.観測経路を記録((primary,local),(local,))
-        adapted=記憶.観測要求を適応((primary,local))
-        self.assertEqual(next(x for x in adapted if "局所検証" in x.provenance).段階,"fallback")
-
-    def test_二試行一成功でも観測経路を昇格しない(self) -> None:
-        記憶=HDS適応記憶()
-        primary=_観測要求("主観測");local=_観測要求("局所検証")
-        記憶.観測経路を記録((primary,local),(local,))
-        記憶.観測経路を記録((primary,local),())
-        adapted=記憶.観測要求を適応((primary,local))
-        self.assertEqual(next(x for x in adapted if "局所検証" in x.provenance).段階,"fallback")
-
-    def test_観測経路経験を保存復元し初期化できる(self) -> None:
-        記憶=HDS適応記憶();primary=_観測要求("主観測");local=_観測要求("局所検証")
-        記憶.観測経路を記録((primary,local),(local,))
-        復元=HDS適応記憶();復元.復元(記憶.スナップショット())
-        self.assertEqual(復元.観測経路経験,記憶.観測経路経験)
-        復元.初期化();self.assertEqual(復元.観測経路経験数,0)
-
-
-class HDS観測経路資源改善試験(unittest.TestCase):
-    class _供給器:
-        名称="観測経路資源試験"
-        並列安全=False
-        def __init__(self): self.問合せ=[]
-        def 検索(self,問合せ,上限=8):
-            q=" ".join(str(問合せ).split())
-            self.問合せ.append(q)
-            if "局所検証" in q:
-                return (参照記録("局所資料","対象","局所資料本文","試験","試験",1.0),)
-            return ()
-
-    def test_学習後は成功経路を先に使い外部問合せ数を削減する(self) -> None:
-        主=_観測要求("主観測")
-        局所=_観測要求("局所検証")
-        ir=HDSIR("問い","問い","世界",(),(),(),(),HDS実行核(),入力言語="en")
-
-        未学習供給=self._供給器()
-        未学習=HDS参照検索(未学習供給,ir,観測要求=(主,局所))
-        self.assertTrue(未学習)
-        self.assertEqual(len(未学習供給.問合せ),2)
-
-        記憶=HDS適応記憶()
-        for _ in range(2):
-            記憶.観測経路を記録((主,局所),(局所,))
-        適応=記憶.観測要求を適応((主,局所))
-        学習後供給=self._供給器()
-        学習後=HDS参照検索(学習後供給,ir,観測要求=適応)
-        self.assertTrue(学習後)
-        self.assertEqual(len(学習後供給.問合せ),1)
-        self.assertIn("局所検証",学習後供給.問合せ[0])
-
-
-class HDS観測根拠帰還試験(unittest.TestCase):
-    def _結果(self, req, *, 寄与=True):
-        経路印=HDS観測経路鍵を文字列(HDS観測経路鍵を構成(req))
-        ref=参照記録("doc:1","対象","candidate relation target evidence","試験","試験",1.0,
-            条件=(("hds_query_学習経路",経路印),))
-        roots=("最大局所対応:doc:1:1.000000000",) if 寄与 else ("最大局所対応:other:1.000000000",)
-        模型=SimpleNamespace(候補差=(SimpleNamespace(
-            候補ID="A",寄与=(SimpleNamespace(関係名="候補共同参照",根拠=roots),)),))
-        current=SimpleNamespace(回答ラベル="A",MINIDORA模型結果=模型)
-        diag=参照取得診断(req.外部検索表層,"試験","取得",1)
-        状態=HDS実行状態(成果=(
-            (回答成果名,"A"),(現行結果成果名,current),(参照成果名,(ref,)),
-            (参照取得診断成果名,(diag,)),
-        ))
-        return HDS実行結果(HDS終端.採用,状態,())
-
-    def test_採用候補へ実寄与した参照経路だけ成功経験へ帰還する(self) -> None:
-        中核=HDS駆動コア();req=_観測要求("局所検証")
-        self.assertTrue(中核._選択観測経験を帰還(self._結果(req), (req,)))
-        self.assertEqual(中核.観測経路経験数,1)
-        self.assertTrue(中核._適応記憶.観測経路経験[0].成功)
-
-    def test_取得しただけの非寄与資料は観測成功へ昇格しない(self) -> None:
-        中核=HDS駆動コア();req=_観測要求("局所検証")
-        self.assertFalse(中核._選択観測経験を帰還(self._結果(req,寄与=False), (req,)))
-        self.assertEqual(中核.観測経路経験数,0)
-
-
-class HDS公開選択学習統合試験(unittest.TestCase):
-    def _局所成功を実行(self, 中核, 構文化器, 問い, 選択肢, 参照本文, 識別子):
-        kernel=構文化器.問題コンパイル束(問い,選択肢)
-        局所=next(
-            x for x in kernel.参照観測要求
-            if "局所検証" in x.provenance and x.候補ラベル=="A"
-        )
-        経路印=HDS観測経路鍵を文字列(HDS観測経路鍵を構成(局所))
-        参照=参照記録(
-            識別子,選択肢[0],参照本文,"試験観測","試験",1.0,
-            条件=(("hds_query_学習経路",経路印),),
-        )
-        診断=参照取得診断(局所.外部検索表層,"試験","取得",1,実取得回数=1)
-        結果=中核.選択実行(
-            問い,選択肢,初期参照=(参照,),初期参照診断=(診断,),カーネル正本=kernel,
-        )
-        self.assertEqual(結果.終端,HDS終端.採用,結果.理由)
-        self.assertEqual(結果.状態.成果辞書().get(回答成果名),"A")
-        return kernel,局所
-
-    def test_公開選択を二回成功すると第三問の同型観測経路が適応する(self) -> None:
-        構文化器=公開HDSコンパイラ()
-        中核=HDS駆動コア(HDSコンパイラ=構文化器,最大作用回数=40)
-        self._局所成功を実行(
-            中核,構文化器,
-            "Which molecule inhibits Enzyme X?",("Molecule A","Molecule B"),
-            "Molecule A inhibits Enzyme X.","学習資料1",
-        )
-        self._局所成功を実行(
-            中核,構文化器,
-            "Which compound inhibits Enzyme Y?",("Compound C","Compound D"),
-            "Compound C inhibits Enzyme Y.","学習資料2",
-        )
-        self.assertGreaterEqual(中核.観測経路経験数,2)
-
-        第三=構文化器.問題コンパイル束(
-            "Which ligand inhibits Enzyme Z?",("Ligand E","Ligand F"),
-        )
-        元局所=next(x for x in 第三.参照観測要求 if "局所検証" in x.provenance and x.候補ラベル=="A")
-        self.assertEqual(元局所.段階,"fallback")
-        適応=中核.選択観測要求を適応(第三.参照観測要求)
-        後局所=next(x for x in 適応 if "局所検証" in x.provenance and x.候補ラベル=="A")
-        self.assertEqual(後局所.段階,"primary")
-        self.assertIn("経験優先経路",後局所.provenance)
-
-
 class HDS学習機械循環V2試験(unittest.TestCase):
-    def test_選択COMMITの関係学習提案を中核へ帰還する(self) -> None:
-        中核=HDS駆動コア()
-        提案=_学習状態()
-        状態=HDS実行状態(成果=((関係学習提案成果名,提案),))
-        結果=HDS実行結果(HDS終端.採用,状態,())
-        self.assertTrue(中核._選択学習提案を帰還(結果))
-        self.assertEqual(中核.関係学習状態,提案)
-
-    def test_選択SUSPENDの学習提案は中核へ帰還しない(self) -> None:
-        中核=HDS駆動コア()
-        提案=_学習状態()
-        状態=HDS実行状態(成果=((関係学習提案成果名,提案),))
-        結果=HDS実行結果(HDS終端.保留,状態,())
-        self.assertFalse(中核._選択学習提案を帰還(結果))
-        self.assertEqual(中核.関係学習状態,関係学習状態())
-
     def test_現在材料を評価してから不足時だけ候補関係観測が発火する(self) -> None:
         構文化器 = 公開HDSコンパイラ()
         中核 = HDS駆動コア(HDSコンパイラ=構文化器, 最大作用回数=40)
@@ -271,62 +70,6 @@ class HDS学習機械循環V2試験(unittest.TestCase):
         次 = 中核.選択実行(問い, 選択肢, 初期参照=())
         初回参照 = 次.状態.成果辞書().get(初回評価参照成果名, ())
         self.assertTrue(any(x.識別子 == "memory-a" for x in 初回参照))
-
-    def test_全保持認識から現在問の作業集合だけを投入し未使用認識は保持する(self) -> None:
-        中核=HDS駆動コア(最大作用回数=8)
-        扉資料=HDS資料("door","1","扉は施錠","試験")
-        天気資料=HDS資料("weather","1","晴天","試験")
-        中核._継続記憶=中核._継続記憶.更新((扉資料,天気資料))
-        扉=HDS認識項目("door-lock","扉","施錠",True,認識区分.確定,
-            根拠=(扉資料.出典(),),検証契約="test/v1")
-        天気=HDS認識項目("weather-clear","天気","晴天",True,認識区分.確定,
-            根拠=(天気資料.出典(),),検証契約="test/v1")
-        中核._継続認識=(扉,天気)
-        観測=[]
-        def 実行(状態):
-            観測.append(tuple(x.ID for x in 状態.認識))
-            return HDS作用結果(HDS作用状態.成立,追加状態=frozenset({"完了"}))
-        結果=中核.実行("扉の施錠を確認",要求状態=("完了",),
-            追加作用=(HDS関数作用("確認",実行,出力状態=("完了",)),))
-        self.assertEqual(結果.終端,HDS終端.採用)
-        self.assertEqual(観測,[("door-lock",)])
-        self.assertEqual({x.ID for x in 中核._継続認識},{"door-lock","weather-clear"})
-
-    def test_作業外認識も根拠資料改訂時は正本から失効する(self) -> None:
-        中核=HDS駆動コア(最大作用回数=8)
-        扉資料=HDS資料("door","1","扉は施錠","試験")
-        天気旧=HDS資料("weather","1","晴天","試験")
-        天気新=HDS資料("weather","2","雨天","試験")
-        中核._継続記憶=中核._継続記憶.更新((扉資料,天気旧))
-        扉=HDS認識項目("door-lock","扉","施錠",True,認識区分.確定,
-            根拠=(扉資料.出典(),),検証契約="test/v1")
-        天気=HDS認識項目("weather-clear","天気","晴天",True,認識区分.確定,
-            根拠=(天気旧.出典(),),検証契約="test/v1")
-        中核._継続認識=(扉,天気)
-        def 更新(状態):
-            return HDS作用結果(HDS作用状態.成立,追加状態=frozenset({"更新済み"}),
-                記憶更新=状態.記憶.更新((天気新,)))
-        中核.実行("扉の施錠を確認",要求状態=("更新済み",),
-            追加作用=(HDS関数作用("資料更新",更新,出力状態=("更新済み",)),))
-        self.assertEqual({x.ID for x in 中核._継続認識},{"door-lock"})
-
-    def test_構造tuple内の関係語から過去認識を作業集合へ戻す(self) -> None:
-        根拠資料=HDS資料("関係資料","1","Molecule A inhibits Enzyme X.","試験")
-        関係認識=HDS認識項目(
-            "関係認識1","参照記憶:関係資料","観測された記述関係",
-            ("inhibits",(("始点","Molecule A"),("終点","Enzyme X"))),
-            認識区分.確定,根拠=(根拠資料.出典(),),検証契約="試験検証/v1",
-        )
-        群=HDS駆動コア._認識作業集合("Which molecule inhibits Enzyme X?",(関係認識,))
-        self.assertEqual(tuple(x.ID for x in 群),("関係認識1",))
-
-    def test_作業認識の依存鎖を一緒に投入する(self) -> None:
-        根=HDS認識項目("root","天気","晴天",True,認識区分.確定,
-            依存=("seed",),検証契約="test/v1")
-        seed=HDS認識項目("seed","観測","晴天",True,認識区分.確定,
-            根拠=(HDS資料("seed-doc","1","晴天","試験").出典(),),検証契約="test/v1")
-        群=HDS駆動コア._認識作業集合("天気を判断",(seed,根))
-        self.assertEqual({x.ID for x in 群},{"root","seed"})
 
     def test_継続状態は別中核へ漏れない(self) -> None:
         構文化器 = 公開HDSコンパイラ()

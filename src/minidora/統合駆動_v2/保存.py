@@ -7,15 +7,13 @@ from .値 import 整数
 
 
 def _型表():
-    from . import 認識, 依存, 記憶, 観測, 仮説, 計画, 検証, 形成, 政策, 入力境界, 意味構成, 未来, 診断, 指示接続
+    from . import 認識, 依存, 記憶, 観測, 仮説, 計画, 検証, 形成, 政策, 入力境界, 意味構成, 未来, 診断
     # 親packageがクラスを同名exportする構成でも、モジュールを明示的に取得する。
     import importlib
     核 = importlib.import_module("minidora.HDS実行主体")
-    指示関係 = importlib.import_module("minidora.コア.指示関係")
-    座標展開 = importlib.import_module("minidora.コア.座標展開")
     from ..駆動系 import 契約 as 関係契約, 学習 as 関係学習
     表 = {}
-    for モジュール in (認識, 依存, 記憶, 観測, 仮説, 計画, 検証, 形成, 政策, 入力境界, 意味構成, 未来, 診断, 指示接続, 核, 指示関係, 座標展開, 関係契約, 関係学習):
+    for モジュール in (認識, 依存, 記憶, 観測, 仮説, 計画, 検証, 形成, 政策, 入力境界, 意味構成, 未来, 診断, 核, 関係契約, 関係学習):
         for obj in vars(モジュール).values():
             if isinstance(obj, type) and obj.__module__ == モジュール.__name__ and (is_dataclass(obj) or issubclass(obj, Enum)):
                 # Callableを持つ実行部品は保存しない。再開時に現行契約を明示注入する。

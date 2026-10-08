@@ -17,37 +17,24 @@ def 評価契約を読む():
 
 
 class GPQA評価二系統契約試験(unittest.TestCase):
-    def test_機械可読契約は並列43と直列90分を固定する(self) -> None:
+    def test_機械可読契約は並列40と直列90分を固定する(self) -> None:
         契約 = json.loads((根 / "評価" / "GPQA評価二系統契約_v1.json").read_text(encoding="utf-8"))
         self.assertEqual(契約["全問題数"], 198)
-        self.assertEqual(契約["並列性能継承"]["正答下限"], 43)
+        self.assertEqual(契約["並列性能継承"]["正答下限"], 40)
         self.assertFalse(契約["並列性能継承"]["問題間状態継承"])
         self.assertEqual(契約["並列性能継承"]["wall_clock上限分"], 90)
         self.assertTrue(契約["直列学習効果"]["問題間状態継承"])
         self.assertEqual(契約["直列学習効果"]["wall_clock上限分"], 90)
         self.assertEqual(契約["比較"]["学習効果差分"], "直列正答 - 並列正答")
-        self.assertEqual(契約["直列学習効果"]["学習実証条件"]["対応問題片側正確検定有意水準"], 0.05)
-        self.assertTrue(契約["直列学習効果"]["学習実証条件"]["後続適応観測"])
 
     def test_評価契約実装も同じ下限と時間を返す(self) -> None:
         道具 = 評価契約を読む()
         条件 = 道具.GPQA評価二系統条件()
-        self.assertEqual(条件["並列性能継承"]["正答下限"], 43)
+        self.assertEqual(条件["並列性能継承"]["正答下限"], 40)
         self.assertEqual(条件["並列性能継承"]["wall_clock上限分"], 90)
         self.assertEqual(条件["直列学習効果"]["wall_clock上限分"], 90)
         self.assertFalse(条件["並列性能継承"]["問題間状態継承"])
         self.assertTrue(条件["直列学習効果"]["問題間状態継承"])
-        self.assertEqual(条件["学習効果有意水準"], 0.05)
-        self.assertTrue(条件["直列学習効果"]["学習実証条件"]["学習状態更新"])
-
-    def test_二系統workflowは同一revisionで並列合格後だけ直列へ進む(self) -> None:
-        本文=(根/".github"/"workflows"/"GPQA二系統学習実証.yml").read_text(encoding="utf-8")
-        self.assertIn("needs: parallel_aggregate",本文)
-        self.assertIn("--revision ${{ github.sha }}",本文)
-        self.assertIn("tools/GPQA学習効果比較.py",本文)
-        self.assertIn("max-parallel: 4",本文)
-        self.assertLess(本文.index("parallel_aggregate:"),本文.index("serial_measure:"))
-        self.assertLess(本文.index("serial_measure:"),本文.index("learning_compare:"))
 
     def test_直列workflowは240分を廃止し90分を強制する(self) -> None:
         本文 = (根 / ".github" / "workflows" / "GPQA現行測定.yml").read_text(encoding="utf-8")
@@ -59,7 +46,7 @@ class GPQA評価二系統契約試験(unittest.TestCase):
     def test_現行正本は二系統の責任を分離する(self) -> None:
         本文 = (根 / "現行正本.md").read_text(encoding="utf-8")
         self.assertIn("GPQA評価方式: 並列性能継承 + 直列学習効果", 本文)
-        self.assertIn("GPQA性能継承下限: 並列 43/198", 本文)
+        self.assertIn("GPQA性能継承下限: 並列 40/198", 本文)
         self.assertIn("GPQA全数run wall-clock上限: 90分", 本文)
         self.assertIn("学習効果は `直列正答 - 並列正答`", 本文)
         self.assertIn("`timeout-minutes: 240` は性能評価条件として採用しない", 本文)

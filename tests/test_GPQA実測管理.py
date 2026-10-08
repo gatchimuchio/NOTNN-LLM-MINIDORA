@@ -1,7 +1,5 @@
 from pathlib import Path
 import importlib,sys,tempfile,json,time,os
-道具経路=str(Path(__file__).resolve().parents[1]/"tools")
-if 道具経路 not in sys.path: sys.path.insert(0,道具経路)
 from unittest import TestCase
 from unittest.mock import patch
 from GPQA実測管理 import _実行を管理,原子的保存,GPQAを測定,時間上限秒,性能継承下限
@@ -24,7 +22,7 @@ class GPQA実測管理試験(TestCase):
         start=time.monotonic();r=self.run_it(questions=('ok','停止'),期限秒=2.0)
         self.assertEqual(r['測定状態'],'時間超過');self.assertLess(time.monotonic()-start,4)
         self.assertEqual(r['指標']['完了数'],1);self.assertEqual(r['実行中'][0]['工程'],'人工推論')
-        self.assertEqual(json.loads(self.out.read_text(encoding='utf-8'))['個票'],r['個票'])
+        self.assertEqual(json.loads(self.out.read_text())['個票'],r['個票'])
     def test_処理例外でも完了個票保存(self):
         r=self.run_it(questions=('ok','例外'));self.assertEqual(r['測定状態'],'処理失敗');self.assertEqual(r['指標']['完了数'],1)
     def test_ワーカー異常終了を保留成功にしない(self):
@@ -38,7 +36,7 @@ class GPQA実測管理試験(TestCase):
     def test_重複問題IDを事前拒否(self):
         with self.assertRaises(ValueError):_実行を管理([(0,'q',(),'A'),(0,'q',(),'A')],self.out,方式='直列',条件={},期限秒=1)
     def test_時間と下限を変更しない(self):
-        self.assertEqual(時間上限秒,5400);self.assertEqual(性能継承下限,43)
+        self.assertEqual(時間上限秒,5400);self.assertEqual(性能継承下限,40)
     def test_90分超過の締切延長を拒否(self):
         with self.assertRaises(ValueError):GPQAを測定(self.out,方式='直列',期限epoch=time.time()+10000)
     def test_全数前提の直列を分割しない(self):

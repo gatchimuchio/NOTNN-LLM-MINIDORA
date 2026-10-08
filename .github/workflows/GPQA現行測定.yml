@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - ".benchmark/gpqa-serial-trigger"
+      - ".benchmark/gpqa-current-trigger"
 
 permissions:
   contents: read
@@ -61,6 +61,5 @@ jobs:
           name: minidora-gpqa-serial-learning
           path: |
             gpqa_e2e.json
-            gpqa_e2e.checkpoints/
             runtime_seconds.txt
           if-no-files-found: warn

@@ -7,14 +7,11 @@ def 作用供給を取得(主体, 現在, 政策):
     """許可された供給器の作用を取得する。容量不足は所有主体へ返す。"""
     供給 = []
     for 供給器 in 主体.作用供給器:
-        if getattr(供給器, "入力不変保証", False):
-            候補 = 供給器.構成(現在)
-        else:
-            写し = deepcopy(現在)
-            前署名 = 写し.状態署名
-            候補 = 供給器.構成(写し)
-            if 写し.状態署名 != 前署名:
-                raise ValueError("作用供給器が状態を変更した")
+        写し = deepcopy(現在)
+        前署名 = 写し.状態署名
+        候補 = 供給器.構成(写し)
+        if 写し.状態署名 != 前署名:
+            raise ValueError("作用供給器が状態を変更した")
         if type(候補) is not tuple:
             raise TypeError("作用供給器の返却はtupleが必要")
         if len(供給) + len(候補) > 政策.最大内部生成:
@@ -35,14 +32,11 @@ def 作用供給を取得(主体, 現在, 政策):
 def 作用機会を取得(作用, 現在):
     """状態複製へだけ作用機会を問い合わせ、入力書換えと型の逸脱を拒否する。"""
     from ..HDS実行主体 import HDS作用機会
-    if getattr(getattr(作用, "計画仕様", None), "入力不変保証", False):
-        o = 作用.機会(現在)
-    else:
-        写し = deepcopy(現在)
-        写し署名 = 写し.状態署名
-        o = 作用.機会(写し)
-        if 写し.状態署名 != 写し署名:
-            raise ValueError("機会観測が主体状態を書換えた")
+    写し = deepcopy(現在)
+    写し署名 = 写し.状態署名
+    o = 作用.機会(写し)
+    if 写し.状態署名 != 写し署名:
+        raise ValueError("機会観測が主体状態を書換えた")
     if o is None:
         return None
     if not isinstance(o, HDS作用機会) or o.作用ID != 作用.作用ID:
@@ -62,24 +56,15 @@ def 関係を取得(要求, 追加契約=()):
     if len({x.ID for x in all_rules})!=len(all_rules): raise ValueError('変換契約IDが競合')
     # 極性を除いたキー。否定を見落として肯定を採用しない。
     def key(atom): return (atom.骨格[0],atom.骨格[1],*atom.骨格[3:])
-    needed={key(要求.問い)}; selected={}; 短縮済み目標=set(); changed=True
+    needed={key(要求.問い)}; selected={}; changed=True
     while changed:
         changed=False
-        for goal in tuple(sorted(needed)):
-            if goal in 短縮済み目標:
-                continue
-            候補=tuple(r for r in all_rules if r.ID not in selected and key(r.結論)==goal)
-            if not 候補: continue
-            # 有効形成から来た依存契約付きmacroは、元規則列と証明上同値な短縮経路である。
-            # 一度macroで覆った目標へ次周回で元規則を再侵入させない。
-            macros=tuple(r for r in 候補 if r.依存契約)
-            採用群=macros or 候補
-            if macros:
-                短縮済み目標.add(goal)
-            for rule in 採用群:
+        for rule in all_rules:
+            if rule.ID not in selected and key(rule.結論) in needed:
                 selected[rule.ID]=rule
                 needed.update(key(p) for p in rule.前提)
                 changed=True
+    # 形成済みの証明付き短縮則を先に評価する。名称は意味採否へ使わない。
     rules=tuple(sorted(selected.values(),key=lambda r:(not bool(r.依存契約),r.ID)))
     facts=tuple(sorted((x for x in 要求.証拠 if key(x.節) in needed),key=lambda x:x.ID))
     return 関係取得結果(要求.署名,facts,rules,tuple(sorted({x[0] for x in needed})))

@@ -6,7 +6,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import StrEnum
-from functools import lru_cache
 import json
 from .値 import 文字, 文字列組, 不変値, 署名, 正規化
 
@@ -18,11 +17,6 @@ class 座標状態(StrEnum):
     未観測 = "未観測"
     矛盾 = "矛盾"
     留保 = "留保"
-
-
-@lru_cache(maxsize=4096)
-def _指示署名を取得(値):
-    return 署名(値)
 
 
 三組九座標 = (
@@ -142,8 +136,6 @@ class HDS指示関係:
     返却優先: bool = True
     版: str = "指示関係-v2"
     要接続座標: tuple[str, ...] = ()
-    # 実行契約から作った場合に限り、供給された作用仕様の対応を構成する。
-    自動作用接続: bool = False
 
     def __post_init__(self):
         文字(self.原文, "指示原文")
@@ -205,8 +197,6 @@ class HDS指示関係:
                 raise TypeError("検証契約はID・版の組")
             文字列組(行, "検証契約", 一意=False)
         文字列組(tuple(x[0] for x in self.検証契約), "検証器ID")
-        if type(self.自動作用接続) is not bool:
-            raise TypeError("自動作用接続はbool")
         if type(self.返却優先) is not bool:
             raise TypeError("返却優先はbool")
         if not isinstance(self.原入力正本, str) or not isinstance(self.原入力署名, str):
@@ -230,10 +220,7 @@ class HDS指示関係:
 
     @property
     def 署名(self):
-        return _指示署名を取得(self)
-
-    def __deepcopy__(self, memo):
-        return self
+        return 署名(self)
 
 
 def 九座標を用意(値群=()):
@@ -275,9 +262,9 @@ def コア入力を指示へ射影(入力, *, 条件=(), 作用対応=(), 帰還
     links = []
     states = {x.value: x for x in 座標状態}
     states["確定"] = 座標状態.確定値
-    def add(path, value, parent, 作業状態="未確定", span=None):
+    def add(path, value, parent, state="未確定", span=None):
         coord = HDS指示座標(path, parent.split("/")[0], path.split("/")[-1], text(value),
-            states.get(str(作業状態), 座標状態.未確定), ("Core入力:" + path,),
+            states.get(str(state), 座標状態.未確定), ("Core入力:" + path,),
             () if span is None else (tuple(span),), parent)
         children.append(coord)
         links.append((path, parent, "原入力の構成成分"))
@@ -292,7 +279,7 @@ def コア入力を指示へ射影(入力, *, 条件=(), 作用対応=(), 帰還
                           ("実行制約", "手段/境界")):
         for x in getattr(入力, field):
             # 必要性と到達状態を同じ目的文字列で自動充足させない。
-            p = ("目的/必要性" if x.種別 == "必要性" else "目的/評価規則" if x.種別 == "評価規則" else parent) if field == "目的" else parent
+            p = "目的/必要性" if field == "目的" and x.種別 == "必要性" else parent
             add(field + "/" + x.ID, x, p, getattr(x, "状態", "未確定"), getattr(x, "原文範囲", None))
     for field, parent in (("要求成果", "目的/到達状態"), ("表現制約", "手段/境界"),
                           ("文脈引用", "対象/文脈・関係")):

@@ -8,7 +8,6 @@ from .HDS探索方針 import HDS努力水準
 from .HDS中間表現 import HDSIR
 from .HDS観測計画 import HDS参照観測要求, HDS参照観測要求群
 from .参照 import 参照供給器, 参照記録, 参照取得診断, 参照検索を診断
-from .選択観測学習 import HDS観測経路鍵を構成, HDS観測経路鍵を文字列
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +26,6 @@ class _HDS問合せ仕様:
     観測ID: str | None = None
     関係ID: str | None = None
     必須被覆: bool = False
-    学習経路: str = ""
 
 
 def HDS参照予算選択(ir: HDSIR) -> HDS参照予算:
@@ -92,7 +90,6 @@ def _仕様化(request: HDS参照観測要求) -> _HDS問合せ仕様 | None:
         request.ID,
         request.関係ID,
         request.必須被覆,
-        HDS観測経路鍵を文字列(HDS観測経路鍵を構成(request)),
     )
 
 
@@ -179,8 +176,6 @@ def _条件追加(record: 参照記録, spec: _HDS問合せ仕様) -> 参照記�
         additions.append(("hds_query_relation", spec.関係ID))
     if spec.必須被覆:
         additions.append(("hds_observation_required", "true"))
-    if spec.学習経路:
-        additions.append(("hds_query_学習経路", spec.学習経路))
     for item in additions:
         if item not in conditions:
             conditions.append(item)

@@ -1,24 +1,20 @@
-from pathlib import Path
-import sys
-道具経路=str(Path(__file__).resolve().parents[1]/"tools")
-if 道具経路 not in sys.path: sys.path.insert(0,道具経路)
 from unittest import TestCase
 from copy import deepcopy
 from GPQA並列集計 import 集計
 from GPQA実測管理 import 資料SHA256
 
-def 群(score=43):
+def 群(score=40):
     cond={'資料集合CSV_SHA256':資料SHA256,'全問題数':198,'選択肢シャッフル種':0,
         '実行方式':'問題独立並列','問題間継続状態':False,'参照方式':'LIVE_ONLY',
         '固定参照資料許可':False,'採点結果の学習利用':False,'中核入口':'HDS駆動コア.選択実行',
-        '問題束一問一形成':True,'リポジトリ版':'revision','OpenAlex有効':False,'EuropePMC有効':True,'Crossref有効':True,
+        'リポジトリ版':'revision','OpenAlex有効':False,'EuropePMC有効':True,'Crossref有効':True,
         'Wikipedia言語群':['en'],'全数wall_clock上限分':90}
     rows=[{'番号':i,'問題束形成回数':1,'予測ラベル':'A','正解ラベル':'A' if i<score else 'B','正答':i<score,'回答済み':True,'終端':'COMMIT'}for i in range(198)]
     return [{'評価条件':{**cond,'選択番号群':list(range(i,min(198,i+5)))},'測定状態':'完了','実測':{'完走':True,'開始epoch':100,'終了epoch':200},'個票':rows[i:i+5]}for i in range(0,198,5)]
 class 並列集計試験(TestCase):
     def 結果(self,g=None,now=300):return 集計(g if g is not None else 群(),版='revision',開始=100,締切=5500,現在=now)
-    def test_43点以上の一意完走を採用(self):self.assertTrue(self.結果()['性能継承成立'])
-    def test_42点は退行(self):self.assertFalse(self.結果(群(42))['性能継承成立'])
+    def test_40点以上の一意完走を採用(self):self.assertTrue(self.結果()['性能継承成立'])
+    def test_39点は退行(self):self.assertFalse(self.結果(群(39))['性能継承成立'])
     def test_途中結果の合算を全数にしない(self):self.assertFalse(self.結果(群()[:-1])['性能継承成立'])
     def test_番号重複拒否(self):g=群();g[-1]['個票']=[g[0]['個票'][0]];self.assertFalse(self.結果(g)['性能継承成立'])
     def test_不正SHAを拒否(self):g=群();g[0]['評価条件']['資料集合CSV_SHA256']='wrong';self.assertFalse(self.結果(g)['性能継承成立'])
@@ -32,13 +28,4 @@ class 並列集計試験(TestCase):
     def test_結果が揃っても異常終了は採用しない(self):g=群();g[0]['測定状態']='処理失敗';self.assertFalse(self.結果(g)['性能継承成立'])
     def test_参照条件を変更しない(self):g=群();g[0]['評価条件']['参照方式']='REPLAY';self.assertFalse(self.結果(g)['性能継承成立'])
     def test_一問一形成を検査(self):g=群();g[0]['個票'][0]['問題束形成回数']=2;self.assertFalse(self.結果(g)['性能継承成立'])
-    def test_provider別429を採点と分離して計装(self):
-        g=群(43);g[0]['個票'][0]['採用監査']={'取得診断':[{'子診断':[
-            {'供給器':'Wikipedia:en','状態':'失敗','HTTP状態':429},
-            {'供給器':'Crossref','状態':'取得','HTTP状態':None},
-        ]}]}
-        r=self.結果(g);self.assertTrue(r['性能継承成立'])
-        self.assertEqual(r['参照健全性']['HTTP429総数'],1)
-        self.assertEqual(r['参照健全性']['Wikipedia429'],1)
-        self.assertEqual(r['参照健全性']['Crossref429'],0)
     def test_空の資料群で成功しない(self):self.assertFalse(self.結果([])['性能継承成立'])

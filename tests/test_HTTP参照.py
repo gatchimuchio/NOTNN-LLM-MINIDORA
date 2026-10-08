@@ -127,37 +127,6 @@ class HTTP参照供給器試験(unittest.TestCase):
         self.assertEqual(provider.本文cache件数, 1)
         self.assertIsNone(provider.最後のエラー)
 
-    def test_Wikipedia_detail_429後は同一queryの残りdetailを叩かない(self) -> None:
-        class _RateLimitedWikipedia:
-            def __init__(self):
-                self.detail_calls = []
-
-            def __call__(self, url: str, headers, timeout: float):
-                parsed = urlparse(url)
-                if parsed.path.endswith("/search/page"):
-                    return {
-                        "pages": [
-                            {"id": 1, "key": "First", "title": "First", "description": "first desc", "excerpt": "first excerpt"},
-                            {"id": 2, "key": "Second", "title": "Second", "description": "second desc", "excerpt": "second excerpt"},
-                        ]
-                    }
-                if "/page/" in parsed.path:
-                    self.detail_calls.append(parsed.path)
-                    if parsed.path.endswith("/page/First/with_html"):
-                        raise OSError("HTTP Error 429: Too Many Requests")
-                    raise AssertionError("429後の残りdetail HTTPは呼ばない")
-                raise AssertionError(url)
-
-        fake = _RateLimitedWikipedia()
-        provider = Wikipedia参照供給器(言語="en", JSON取得=fake)
-        records, diagnosis = provider.検索診断("rate limited topic", 2)
-
-        self.assertEqual(len(records), 2)
-        self.assertEqual(diagnosis.状態, "縮退")
-        self.assertEqual(fake.detail_calls, ["/w/rest.php/v1/page/First/with_html"])
-        self.assertTrue(all(("wikipedia_detail", "degraded") in record.条件 for record in records))
-        self.assertTrue(any("second excerpt" in record.内容 for record in records))
-
     def test_Wikipedia本文取得だけ失敗なら一覧資料を縮退保持する(self) -> None:
         class _部分失敗HTTP(_FakeHTTP):
             def __call__(self, url: str, headers, timeout: float):

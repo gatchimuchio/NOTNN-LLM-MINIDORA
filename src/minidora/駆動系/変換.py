@@ -8,12 +8,11 @@ from ..統合駆動_v2.診断 import 例外を診断
 def 作用を変換(作用, 選択, 現在):
     """現状態の複製へ作用させ、検証前の局所結果を返す。状態採用は行わない。"""
     from ..HDS実行主体 import HDS作用結果, HDS作用状態
-    不変保証 = getattr(getattr(作用, "計画仕様", None), "入力不変保証", False)
-    前 = 現在 if 不変保証 else deepcopy(現在)
+    前 = deepcopy(現在)
     前署名 = 前.状態署名
     try:
         結果 = 作用.実行(前)
-        if not 不変保証 and 前.状態署名 != 前署名:
+        if 前.状態署名 != 前署名:
             raise ValueError("作用器が受け取った主体状態を直接変更した")
         if not isinstance(結果, HDS作用結果):
             raise TypeError("作用結果契約違反")
@@ -42,9 +41,6 @@ def 関係を変換(要求,取得,*,停止要求=None):
         raise ValueError('取得結果の目的・入力版が異なる')
     演算資源=演算予算(要求.資源,停止要求)
     facts={x.節.署名:x.節 for x in 取得.証拠}
-    事実索引={}
-    for key,fact in facts.items():
-        事実索引.setdefault(fact.骨格,{})[key]=fact
     depth={key:0 for key in facts}
     proved=set(facts); records={}; complete=True; reason='有限閉包'
     try:
@@ -56,7 +52,7 @@ def 関係を変換(要求,取得,*,停止要求=None):
                 for premise in rule.前提:
                     new=[]
                     for env,parents in candidates:
-                        for key,fact in tuple(sorted(事実索引.get(premise.骨格,{}).items())):
+                        for key,fact in tuple(sorted(facts.items())):
                             演算資源.消費()
                             bound=関係を束縛(premise,fact,env)
                             if bound is not None: new.append((bound,parents+(key,)))
@@ -76,9 +72,7 @@ def 関係を変換(要求,取得,*,停止要求=None):
                         records[key]=record
                     if atom.署名 not in facts:
                         if len(facts)>=要求.資源.最大事実: raise 関係資源超過('事実数上限')
-                        facts[atom.署名]=atom;depth[atom.署名]=d
-                        事実索引.setdefault(atom.骨格,{})[atom.署名]=atom
-                        changed=True
+                        facts[atom.署名]=atom;depth[atom.署名]=d;changed=True
                     elif d<depth[atom.署名]:
                         depth[atom.署名]=d
                     if not hypothetical and atom.署名 not in proved:

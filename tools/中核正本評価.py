@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import asdict, is_dataclass
-from enum import Enum
-from time import perf_counter_ns, process_time_ns
+from time import perf_counter_ns
 import json
 import os
 from pathlib import Path
@@ -45,14 +44,6 @@ class _記録参照供給器:
         self.base = base
         self.calls: list[str] = []
         self.lock = Lock()
-        self.実取得回数 = self.再利用回数 = self.延期回数 = 0
-        self.外部時間ns = 0
-        期限 = os.getenv("GPQA_DEADLINE_EPOCH", "")
-        if 期限 and hasattr(base, "締切epoch"): base.締切epoch = float(期限)
-
-    @property
-    def 全観測記録(self):
-        return tuple(getattr(self.base, "全観測記録", ()))
 
     def _記録(self, query: str) -> str:
         normalized = " ".join(str(query).split())
@@ -63,16 +54,9 @@ class _記録参照供給器:
     def 検索診断(self, query: str, limit: int = 8):
         self._記録(query)
         direct = getattr(self.base, "検索診断", None)
-        開始 = perf_counter_ns()
-        try:
-            記録群, 診断 = direct(query, limit) if callable(direct) else 参照検索を診断(self.base, query, limit)
-            with self.lock:
-                self.実取得回数 += 診断.実取得回数
-                self.再利用回数 += int(診断.再利用)
-                self.延期回数 += int(bool(診断.延期理由))
-            return 記録群, 診断
-        finally:
-            with self.lock: self.外部時間ns += perf_counter_ns() - 開始
+        if callable(direct):
+            return direct(query, limit)
+        return 参照検索を診断(self.base, query, limit)
 
     def 検索(self, query: str, limit: int = 8):
         return self.検索診断(query, limit)[0]
@@ -116,7 +100,6 @@ def _一問を実行(
     記録=None,
 ) -> dict[str, object]:
     開始ns = perf_counter_ns()
-    開始CPU = process_time_ns()
     def 進行(段階):
         if 記録 is not None:
             記録({"段階": 段階})
@@ -148,24 +131,15 @@ def _一問を実行(
     finally:
         構文化器.問題コンパイル束 = original_kernel
     question_ir = kernel.意味IR
-    原観測要求 = tuple(kernel.参照観測要求)
-    requests = tuple(中核.選択観測要求を適応(原観測要求))
-    観測経路適応数 = sum(
-        (a.段階, a.優先度) != (b.段階, b.優先度)
-        for a, b in zip(原観測要求, requests)
-    ) if len(原観測要求) == len(requests) else len(requests)
+    requests = tuple(kernel.参照観測要求)
     構文化終了ns = perf_counter_ns()
-    構文化終了CPU = process_time_ns()
     進行("初期参照取得")
     initial_diagnostics: list[参照取得診断] = []
-    from minidora.入力系.選択契約 import 選択入力を接続
-    入力接続 = 選択入力を接続(kernel.コア入力)
     initial_refs = tuple(HDS参照検索(
         provider, question_ir, 観測要求=requests, 診断収集=initial_diagnostics,
-    )) if 入力接続.外部読取可 else ()
+    ))
     initial_query_count = len(provider.calls)
     参照終了ns = perf_counter_ns()
-    参照終了CPU = process_time_ns()
     進行("中核実行")
 
     前状態署名 = 中核.継続状態署名
@@ -173,8 +147,6 @@ def _一問を実行(
     前継続認識件数 = 中核.継続認識件数
     前継続形成関係件数 = 中核.継続形成関係件数
     前適応経験数 = 中核.適応経験数
-    前観測経路経験数 = 中核.観測経路経験数
-    前関係学習形成件数 = 中核.関係学習形成件数
     前継続参照件数 = 中核.継続参照件数
     run = 中核.選択実行(
         question,
@@ -188,7 +160,6 @@ def _一問を実行(
         カーネル正本=kernel,
     )
     中核終了ns = perf_counter_ns()
-    中核終了CPU = process_time_ns()
     進行("個票形成")
     if kernel_count != 1:
         raise RuntimeError(f"問題束の形成回数が1ではない: index={index} count={kernel_count}")
@@ -198,9 +169,6 @@ def _一問を実行(
     後継続認識件数 = 中核.継続認識件数
     後継続形成関係件数 = 中核.継続形成関係件数
     後適応経験数 = 中核.適応経験数
-    後観測経路経験数 = 中核.観測経路経験数
-    後関係学習形成件数 = 中核.関係学習形成件数
-    認識作業件数 = 中核.最終認識作業件数
     後継続参照件数 = 中核.継続参照件数
     products = run.状態.成果辞書()
     subjects = run.状態.主体辞書()
@@ -211,14 +179,7 @@ def _一問を実行(
     answer = products.get(回答成果名)
     judge = products.get(非退行判定成果名)
     if not isinstance(current, HDS選択実行結果):
-        履歴要約 = tuple(x.作用ID for x in run.履歴)
-        停止 = run.停止種別.value if run.停止種別 is not None else None
-        raise RuntimeError(
-            f"現行結果欠落: index={index}; terminal={run.終端.value}; stop={停止}; "
-            f"reason={tuple(run.理由)}; residual={tuple(sorted(run.状態.残差))}; "
-            f"actions={履歴要約}; excluded={tuple(run.指示除外)}; "
-            f"reeval={tuple(sorted(run.状態.再評価待ち))}; products={tuple(sorted(products))}"
-        )
+        raise RuntimeError(f"現行結果欠落: index={index}")
     if not isinstance(baseline, HDS選択実行結果):
         raise RuntimeError(f"基準結果欠落: index={index}")
     if not isinstance(final_refs, tuple):
@@ -269,40 +230,17 @@ def _一問を実行(
         "処理後継続形成関係件数": 後継続形成関係件数,
         "処理前適応経験数": 前適応経験数,
         "処理後適応経験数": 後適応経験数,
-        "処理前観測経路経験数": 前観測経路経験数,
-        "処理後観測経路経験数": 後観測経路経験数,
-        "観測経路適応数": 観測経路適応数,
-        "処理前関係学習形成件数": 前関係学習形成件数,
-        "処理後関係学習形成件数": 後関係学習形成件数,
-        "認識作業件数": 認識作業件数,
         "処理前継続参照件数": 前継続参照件数,
         "処理後継続参照件数": 後継続参照件数,
         "初回評価参照件数": len(初回評価参照),
         "中核理由": list(run.理由),
-        "座標面数": len(run.状態.操作座標.面) if run.状態.操作座標 else 0,
-        "末端座標面数": len(run.状態.操作座標.末端面) if run.状態.操作座標 else 0,
-        "未接続座標": list(run.状態.指示関係.未接続座標) if run.状態.指示関係 else ["未形成"],
-        "外部取得計装": {"実取得回数": provider.実取得回数,
-                         "計測対象": "供給器の取得呼出。内部の物理HTTP要求数ではない",
-                         "物理HTTP要求数": None, "I/O待機単独秒": None,
-                         "再利用回数": provider.再利用回数,
-                         "延期回数": provider.延期回数, "待機を含む秒": provider.外部時間ns / 1e9},
-        "目的関係判定": _JSON化(products.get("HDS選択:目的関係判定")),
         "停止種別": run.停止種別.value if run.停止種別 is not None else None,
         "最終残差": sorted(run.状態.残差),
         "計装": asdict(run.計装),
         "作用履歴": [{"作用ID": h.作用ID, "理由": list(h.理由),
-                        "進展根拠": list(h.進展根拠), "目的進展": h.目的進展,
-                        "使用座標面": list(h.使用座標面), "目的条件判定": list(h.目的条件判定),
-                        "目的進展対応": _JSON化(h.目的進展対応),
-                        "内容進展": list(h.内容進展ノード), "管理進展": list(h.管理進展ノード)}
+                        "進展根拠": list(h.進展根拠), "目的進展": h.目的進展}
                        for h in run.履歴],
         "採用監査": _JSON化(products.get("HDS選択:採用監査")),
-        "CPU時間内訳秒": {"問題束形成": (構文化終了CPU - 開始CPU) / 1e9,
-                          "初期参照取得": (参照終了CPU - 構文化終了CPU) / 1e9,
-                          "中核実行": (中核終了CPU - 参照終了CPU) / 1e9,
-                          "個票形成": (process_time_ns() - 中核終了CPU) / 1e9},
-        "CPU計測範囲": "当該ワーカープロセス。経過時間との差はI/O待機だけを意味しない",
         "時間内訳秒": {"問題束形成": (構文化終了ns - 開始ns) / 1e9,
                       "初期参照取得": (参照終了ns - 構文化終了ns) / 1e9,
                       "中核実行": (中核終了ns - 参照終了ns) / 1e9,
@@ -366,8 +304,6 @@ def _集計(rows: list[dict[str, object]]) -> tuple[dict[str, object], dict[str,
 
 
 def _JSON化(値):
-    if isinstance(値, Enum): return 値.value
-    if isinstance(値, (set, frozenset)): return [_JSON化(x) for x in sorted(値, key=str)]
     if is_dataclass(値):
         return _JSON化(asdict(値))
     if isinstance(値, dict):

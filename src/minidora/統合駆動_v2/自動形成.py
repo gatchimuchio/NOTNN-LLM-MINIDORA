@@ -33,7 +33,7 @@ class 自動経験形成作用:
         if not 履歴列 or any(x.作用ID not in self.作用 or x.作用状態 != HDS作用状態.成立 or x.阻害 for x in 履歴列):
             return None
         specs = [getattr(self.作用[x.作用ID], "計画仕様", None) for x in 履歴列]
-        if any(s is None for s in specs):
+        if any(s is None or not s.純粋 for s in specs):
             return None
         文脈署名 = 自動形成文脈(self.初期, tuple(self.作用.values()))
         根拠署名 = 署名((self.初期.状態署名, 状態.状態署名, 履歴列))
@@ -53,11 +53,7 @@ class 自動経験形成作用:
         if existing is not None and e.根拠署名 in existing.由来:
             return None
         pure = all(self.作用[k].計画仕様.純粋 for k in e.作用列)
-        # 通常循環から自動形成するのは、安全に実再現できる純粋作用だけ。
-        # 非純粋な実経験は明示的に形成器を実行した場合だけ試行状態として保持できる。
-        if not pure:
-            return None
-        cost = 1 + sum(self.作用[k].計画仕様.資源負荷 for k in e.作用列) + len(self.検証)
+        cost = 1 + (sum(self.作用[k].計画仕様.資源負荷 for k in e.作用列) + len(self.検証) if pure else 0)
         return HDS作用機会(self.作用ID, 署名(e), 資源負荷=cost, 種別="経験形成")
 
     def 実行(self, 状態):

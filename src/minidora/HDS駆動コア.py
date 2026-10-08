@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from .HDSコア入力 import HDSコア入力束
     from .HDS構文化処理系列_v1_4 import HDSカーネル束, HDS意味専用計画器
     from .HDS非退行包絡 import HDS非退行判定, HDS非退行包絡
-    from .参照 import 参照取得診断, 参照記録, 参照記録群を統合, 参照経験記憶を統合, 固定参照供給器, 参照全保持を統合
+    from .参照 import 参照取得診断, 参照記録, 参照記録群を統合, 参照経験記憶を統合, 固定参照供給器
 
 HDS駆動コア版 = "MINIDORA-HDS-FIRST-v7"
 HDS継承基準版 = "HDS-MINIDORA-63d5d7e7"
@@ -30,14 +30,8 @@ class HDS駆動コア:
     def __init__(self, *, HDSコンパイラ=None, 最大作用回数: int = 32, 政策: HDS運用政策 | None = None,
                  観測器: Sequence[HDS観測器] = (), 仮説雛型: Sequence[HDS仮説雛型] = (),
                  検証器: Sequence[HDS検証器] = (), 最終検証器: Sequence[HDS検証器] = (),
-                 関係規則=(), 未来制約=(), 作用供給器=(), 停止要求=None, 関係観測器=None, 意味変換契約=()) -> None:
-        from .駆動系.契約 import 関係変換契約
-        if any(not isinstance(x, 関係変換契約) for x in 意味変換契約): raise TypeError("意味変換契約型が必要")
-        self.意味変換契約 = tuple(意味変換契約)
+                 関係規則=(), 未来制約=(), 作用供給器=(), 停止要求=None) -> None:
         self.HDSコンパイラ = HDSコンパイラ
-        if 関係観測器 is not None and not callable(関係観測器):
-            raise TypeError("関係観測器は信頼された実行側で登録する")
-        self.関係観測器 = 関係観測器
         if type(最大作用回数) is not int or not 1 <= 最大作用回数 <= 4096:
             raise ValueError("最大作用回数は1..4096の整数が必要")
         self.最大作用回数 = 最大作用回数
@@ -47,7 +41,6 @@ class HDS駆動コア:
         self.関係規則 = tuple(関係規則); self.未来制約 = tuple(未来制約)
         self.作用供給器 = tuple(作用供給器); self.停止要求 = 停止要求
         # Core寿命を学習対象期間とする。結果ではなく通常循環が更新した状態だけを継承する。
-        self._継続旧世代 = []
         self._継続記憶 = HDS記憶()
         self._継続形成関係: tuple[HDS形成関係, ...] = ()
         self._継続認識: tuple[HDS認識項目, ...] = ()
@@ -55,7 +48,6 @@ class HDS駆動コア:
         self._適応記憶 = HDS適応記憶(4096)
         from .駆動系.学習 import 関係学習状態
         self._関係学習状態 = 関係学習状態()
-        self._最終認識作業件数 = 0
 
     @property
     def 継続状態署名(self) -> str:
@@ -67,7 +59,7 @@ class HDS駆動コア:
             tuple((x.識別子, x.供給器, x.由来, x.内容, x.条件, float(x.信頼)) for x in self._継続参照記憶),
             self._適応記憶.状態署名,
         ))
-        return 署名((旧署名, self._関係学習状態)) if self._関係学習状態.全形成 or self._関係学習状態.残差 else 旧署名
+        return 署名((旧署名, self._関係学習状態)) if self._関係学習状態.形成 or self._関係学習状態.残差 else 旧署名
 
     @property
     def 継続記憶資料件数(self) -> int:
@@ -93,34 +85,7 @@ class HDS駆動コア:
     def 継続参照記憶(self) -> tuple[参照記録, ...]:
         return tuple(self._継続参照記憶)
 
-    @property
-    def 観測経路経験数(self) -> int:
-        return self._適応記憶.観測経路経験数
-
-    @property
-    def 関係学習形成件数(self) -> int:
-        return len(self._関係学習状態.全形成)
-
-    @property
-    def 最終認識作業件数(self) -> int:
-        return int(self._最終認識作業件数)
-
-    def 選択観測要求を適応(self, 要求群):
-        """Core-owned経験から検索経路だけを適応する。候補ラベル・goldは学習キーに含めない。"""
-        return self._適応記憶.観測要求を適応(tuple(要求群))
-
-
-    def 継続状態を保存(self, 経路, *, リポジトリ版, 完了問題番号=None):
-        from .コア.継続保存 import 継続状態を保存
-        return 継続状態を保存(self, 経路, リポジトリ版=リポジトリ版, 完了問題番号=完了問題番号)
-
-    def 継続状態を復元(self, 経路, *, リポジトリ版):
-        from .コア.継続保存 import 継続状態を復元
-        return 継続状態を復元(self, 経路, リポジトリ版=リポジトリ版)
-
     def 継続状態を初期化(self) -> None:
-        self._継続旧世代.append((self._継続記憶, self._継続形成関係, self._継続認識,
-            self._継続参照記憶, self._関係学習状態, self._適応記憶.スナップショット()))
         self._継続記憶 = HDS記憶()
         self._継続形成関係 = ()
         self._継続認識 = ()
@@ -128,7 +93,6 @@ class HDS駆動コア:
         self._適応記憶.初期化()
         from .駆動系.学習 import 関係学習状態
         self._関係学習状態 = 関係学習状態()
-        self._最終認識作業件数 = 0
 
     def 形成関係を審査(
         self,
@@ -150,82 +114,6 @@ class HDS駆動コア:
         self._継続形成関係 = tuple(形成辞書[k] for k in sorted(形成辞書))
         return 更新
 
-    @staticmethod
-    def _認識作業集合(問合せ: str, 正本: Sequence[HDS認識項目], *,
-                 初期認識: Sequence[HDS認識項目] = (), 要求認識: Sequence[str] = (),
-                 カーネル正本=None) -> tuple[HDS認識項目, ...]:
-        """全保持した認識から、現在入力へ接続する作業集合とその依存鎖だけを取り出す。"""
-        from .意味字句 import 意味語
-        辞書 = {x.ID: x for x in 正本}
-        語 = set(意味語(問合せ))
-        if カーネル正本 is not None:
-            意味IR = getattr(カーネル正本, "意味IR", None)
-            for 座標 in tuple(getattr(意味IR, "座標", ())):
-                内容 = getattr(座標, "内容", None)
-                if isinstance(内容, str):
-                    語.update(意味語(内容))
-        def 文字列群(値):
-            if isinstance(値, str):
-                yield 値
-            elif isinstance(値, Mapping):
-                for k, v in 値.items():
-                    yield from 文字列群(k); yield from 文字列群(v)
-            elif isinstance(値, (tuple, list, set, frozenset)):
-                for item in 値:
-                    yield from 文字列群(item)
-        def 項目語(x):
-            out=set()
-            for 値 in (x.対象, x.関係, x.値, *x.条件, x.範囲, x.時点, x.検証契約):
-                for text in 文字列群(値):
-                    out.update(意味語(text))
-            return out
-        選択 = {x.ID for x in 初期認識} | {str(x) for x in 要求認識}
-        問い正規 = " ".join(str(問合せ).split()).casefold()
-        if 語 or 問い正規:
-            選択.update(
-                x.ID for x in 正本
-                if 語.intersection(項目語(x))
-                or any(
-                    len(語片) >= 2 and 語片.casefold() in 問い正規
-                    for 語片 in (str(x.対象), str(x.関係))
-                    if str(語片).strip()
-                )
-            )
-        待ち=list(選択)
-        while 待ち:
-            ID=待ち.pop()
-            項目=辞書.get(ID)
-            if 項目 is None: continue
-            for 依存ID in 項目.依存:
-                if 依存ID not in 選択:
-                    選択.add(依存ID);待ち.append(依存ID)
-        return tuple(辞書[k] for k in sorted(選択) if k in 辞書)
-
-    @staticmethod
-    def _継続認識を統合(正本候補: Sequence[HDS認識項目], 作業ID: frozenset[str],
-                  実行後: Sequence[HDS認識項目], 記憶: HDS記憶) -> tuple[HDS認識項目, ...]:
-        """作業集合の更新だけを正本へ戻し、全保持側の有効性を線形依存検査する。"""
-        辞書={x.ID:x for x in 正本候補 if x.ID not in 作業ID}
-        辞書.update((x.ID,x) for x in 実行後)
-        資料=記憶.正本辞書(); memo={}; visiting=set()
-        def 有効(ID):
-            if ID in memo:return memo[ID]
-            if ID in visiting:
-                memo[ID]=False;return False
-            x=辞書.get(ID)
-            if x is None or x.区分!=認識区分.確定 or x.条件 or x.反証:
-                memo[ID]=False;return False
-            visiting.add(ID)
-            ok=True
-            for 根拠 in x.根拠:
-                元=資料.get(根拠.資料ID)
-                if 元 is None or 元.版!=根拠.版 or 元.内容署名!=根拠.内容署名:
-                    ok=False;break
-            if ok:
-                ok=all(有効(k) for k in x.依存)
-            visiting.discard(ID);memo[ID]=ok;return ok
-        return tuple(辞書[k] for k in sorted(辞書) if 有効(k))
-
     def 実行(self, 問合せ: str, *, 目的: Sequence[str] = (), 要求状態: Sequence[str] = (),
            追加作用: Sequence[HDS作用器] = (), 追加作用供給器: Sequence[HDS作用供給器] = (),
            カーネル正本: HDSカーネル束 | None = None, 入力正本: HDSコア入力束 | None = None,
@@ -236,14 +124,14 @@ class HDS駆動コア:
            初期依存: Sequence[HDS依存辺] = (), 観測要求: Sequence[HDS観測要求] = (),
            初期記憶: HDS記憶 | None = None, 初期仮説: Sequence[HDS仮説] = (),
            初期枝: Sequence[HDS作業枝] = (), 初期草案: Sequence[HDS草案] = (),
-           形成関係: Sequence[HDS形成関係] | None = None, 異種表象: Sequence[HDS異種表象] = (), 関係要求=None, 入力束=None, 成果対応=(), 評価対応=()) -> HDS実行結果:
+           形成関係: Sequence[HDS形成関係] | None = None, 異種表象: Sequence[HDS異種表象] = (), 関係要求=None, 入力束=None) -> HDS実行結果:
         if 関係要求 is not None:
             # 構造化入力は既に入力系を通過している。自由文を第二の解釈経路で再解析しない。
             if (目的 or 要求状態 or 追加作用 or 追加作用供給器 or カーネル正本 is not None
                     or 入力正本 is not None or 初期成立状態 or 初期残差 or 初期成果 or 主体状態
                     or 前回結果 is not None or HDS履歴 or 文脈 is not None or 初期認識 or 要求認識
                     or 初期依存 or 観測要求 or 初期記憶 is not None or 初期仮説 or 初期枝
-                    or 初期草案 or 形成関係 is not None or 異種表象 or 入力束 is not None or 成果対応 or 評価対応):
+                    or 初期草案 or 形成関係 is not None or 異種表象 or 入力束 is not None):
                 raise ValueError("構造化関係要求と旧入口の初期条件を混在させない")
             from .駆動系.接続 import 関係実行へ接続
             return 関係実行へ接続(self, 問合せ, 関係要求)
@@ -252,8 +140,8 @@ class HDS駆動コア:
         明示要求状態 = tuple(str(x) for x in 要求状態)
         明示残差 = tuple(str(x) for x in (初期残差 or ()))
         明示要求認識 = frozenset(要求認識)
-        # 完了条件は入力準備・九座標接続後に検査する。
-        # Kernel自身の要求成果・構造化評価規則を、旧APIの状態ラベル不足だけで拒否しない。
+        if not 明示要求状態 and not 明示残差 and not 明示要求認識:
+            raise ValueError("HDS駆動コアには要求状態・初期残差・要求認識のいずれかによる明示的な完了条件が必要")
 
         継続認識辞書 = {x.ID: x for x in self._継続認識}
         for 項目 in tuple(初期認識):
@@ -261,13 +149,7 @@ class HDS駆動コア:
             if 前 is not None and 前.意味署名 != 項目.意味署名 and 項目.改訂 <= 前.改訂:
                 raise ValueError("継続認識を同一改訂以下で無言上書きできない")
             継続認識辞書[項目.ID] = 項目
-        継続認識候補 = tuple(継続認識辞書[k] for k in sorted(継続認識辞書))
-        初期認識群 = self._認識作業集合(
-            問合せ, 継続認識候補, 初期認識=tuple(初期認識), 要求認識=tuple(要求認識),
-            カーネル正本=カーネル正本,
-        )
-        認識作業ID = frozenset(x.ID for x in 初期認識群)
-        self._最終認識作業件数 = len(初期認識群)
+        初期認識群 = tuple(継続認識辞書[k] for k in sorted(継続認識辞書))
 
         作用群: list[HDS作用器] = []
         残差群 = set(明示残差)
@@ -320,18 +202,6 @@ class HDS駆動コア:
             枝=tuple(初期枝), 草案=tuple(初期草案),
             形成関係=self._継続形成関係 if 形成関係 is None else tuple(形成関係),
         )
-        from .統合駆動_v2.座標接続 import 全入力を座標へ
-        初期 = 全入力を座標へ(初期, 原文=問合せ, 作用群=tuple(作用群),
-                             検証器=self.最終検証器, 成果対応=tuple(成果対応), 評価対応=tuple(評価対応),
-                             構造入力厳格=(入力正本 is not None or 入力束 is not None))
-        if not (明示要求状態 or 明示残差 or 明示要求認識):
-            # API側が何も要求していない通常自由文では、Compilerが抽出した説明用目的を
-            # 勝手に完了条件へ昇格させない。明示的な構造化入力だけは、その要求成果・評価規則を使える。
-            明示構造入力 = 入力正本 is not None or 入力束 is not None
-            指示 = 初期.指示関係
-            if (not 明示構造入力 or 指示 is None
-                    or not any(x.段階 == "達成" for x in 指示.条件)):
-                raise ValueError("HDS駆動コアには要求状態・初期残差・要求認識または入力由来の完了条件が必要")
         結果 = HDS実行主体(
             tuple(作用群), 最大作用回数=self.最大作用回数, 政策=self.政策, 観測器=self.観測器,
             仮説雛型=self.仮説雛型, 検証器=self.検証器, 最終検証器=self.最終検証器,
@@ -342,8 +212,9 @@ class HDS駆動コア:
         # SUSPEND/FAILを含め、通常循環で実際に保持・形成された状態は次回処理の前提へ継承する。
         self._継続記憶 = 結果.状態.記憶
         self._継続形成関係 = 結果.状態.形成関係
-        self._継続認識 = self._継続認識を統合(
-            継続認識候補, 認識作業ID, 結果.状態.認識, 結果.状態.記憶,
+        self._継続認識 = tuple(
+            x for x in 結果.状態.認識
+            if x.区分 == 認識区分.確定 and 有効認識(結果.状態, x.ID)
         )
         return 結果
 
@@ -391,18 +262,6 @@ class HDS駆動コア:
             raise TypeError("関係要求型が必要")
         return self.実行(要求.目的, 関係要求=要求)
 
-    def _選択学習提案を帰還(self, 結果: HDS実行結果) -> bool:
-        """COMMIT済み選択runの関係学習提案だけをCore寿命へ反映する。"""
-        from .駆動系.学習 import 関係学習状態
-        from .HDS選択継承循環 import 関係学習提案成果名
-        if not isinstance(結果, HDS実行結果) or 結果.終端 != HDS終端.採用:
-            return False
-        提案 = 結果.状態.成果辞書().get(関係学習提案成果名)
-        if not isinstance(提案, 関係学習状態):
-            return False
-        self._関係学習状態 = 提案
-        return True
-
     def 関係形成を隔離(self, ID, 反例):
         from .駆動系.学習 import 関係形成を隔離
         self._関係学習状態 = 関係形成を隔離(self._関係学習状態, ID, 反例)
@@ -428,74 +287,6 @@ class HDS駆動コア:
         return HDS非退行包絡(基準結果, 基準承認判定=基準承認判定, 拡張実行=実拡張実行,
                          拡張承認判定=実拡張承認判定, 拡張採用証明=拡張採用証明)
 
-    @staticmethod
-    def _選択寄与参照ID(現在結果, 関係判定, 参照群) -> frozenset[str]:
-        """採用候補へ実際に寄与した参照IDだけを抽出する。取得件数そのものは成功と見なさない。"""
-        参照ID = {str(x.識別子) for x in tuple(参照群) if str(getattr(x, "識別子", ""))}
-        out=set()
-        label=str(getattr(現在結果, "回答ラベル", "") or "")
-        if 関係判定 is not None and label:
-            候補=next((x for x in tuple(getattr(関係判定, "候補", ())) if str(getattr(x, "ラベル", ""))==label),None)
-            if 候補 is not None:
-                for 束 in (*tuple(getattr(候補, "証明", ())), *tuple(getattr(候補, "反証", ()))):
-                    for 回答 in tuple(getattr(束, "回答", ())):
-                        for 根拠 in tuple(getattr(回答, "根拠", ())):
-                            if str(根拠) in 参照ID:
-                                out.add(str(根拠))
-        模型=getattr(現在結果, "MINIDORA模型結果", None)
-        if 模型 is not None and label:
-            row=next((x for x in tuple(getattr(模型, "候補差", ())) if str(getattr(x, "候補ID", ""))==label),None)
-            if row is not None:
-                for 寄与 in tuple(getattr(row, "寄与", ())):
-                    if not str(getattr(寄与, "関係名", "")).startswith(("候補共同参照","候補共同再照合")):
-                        continue
-                    for 根拠 in tuple(getattr(寄与, "根拠", ())):
-                        text=str(根拠)
-                        for ID in 参照ID:
-                            if text.startswith("局所対応:"+ID+":") or text.startswith("最大局所対応:"+ID+":"):
-                                out.add(ID)
-        return frozenset(out)
-
-    def _選択観測経験を帰還(self, 結果: HDS実行結果, 観測要求群) -> bool:
-        from .HDS選択継承循環 import (
-            回答成果名, 現行結果成果名, 参照成果名, 参照取得診断成果名,
-        )
-        from .選択観測学習 import HDS観測経路鍵を構成, 参照観測経路鍵群
-        if not isinstance(結果, HDS実行結果) or 結果.終端 != HDS終端.採用:
-            return False
-        成果=結果.状態.成果辞書()
-        label=成果.get(回答成果名)
-        現在=成果.get(現行結果成果名)
-        参照群=成果.get(参照成果名, ())
-        if label is None or getattr(現在, "回答ラベル", None) != label or not isinstance(参照群, tuple):
-            return False
-        診断群=成果.get(参照取得診断成果名, ())
-        問合せ集合={
-            " ".join(str(getattr(x, "問合せ", "")).split()).casefold()
-            for x in tuple(診断群) if str(getattr(x, "問合せ", "")).strip()
-        }
-        試行=tuple(
-            x for x in tuple(観測要求群)
-            if " ".join(str(getattr(x, "外部検索表層", "")).split()).casefold() in 問合せ集合
-        )
-        if not 試行:
-            return False
-        関係判定=成果.get("HDS選択:目的関係判定")
-        寄与ID=self._選択寄与参照ID(現在, 関係判定, 参照群)
-        if not 寄与ID:
-            return False
-        成功鍵=set()
-        for 参照 in 参照群:
-            if str(getattr(参照, "識別子", "")) in 寄与ID:
-                成功鍵.update(参照観測経路鍵群(参照))
-        if not 成功鍵:
-            return False
-        成功=tuple(x for x in 試行 if HDS観測経路鍵を構成(x) in 成功鍵)
-        if not 成功:
-            return False
-        self._適応記憶.観測経路を記録(試行, 成功)
-        return True
-
     def 選択実行(self, 問合せ: str, 選択肢: Sequence[str], *, 初期参照=(), 初期参照診断=(), 参照供給器=None,
              計算実行器_=None, 模型核=None, 基礎能力核=None, 既存能力継承: bool = True,
              最大回復回数: int = 6, 拡張採用証明=None,
@@ -503,7 +294,7 @@ class HDS駆動コア:
         if self.HDSコンパイラ is None:
             raise ValueError("選択実行にはHDSコンパイラが必要")
         from .HDS構文化処理系列_v1_4 import HDSカーネル束, HDS意味専用計画器
-        from .参照 import 参照取得診断, 参照記録, 参照記録群を統合, 参照経験記憶を統合, 固定参照供給器, 参照全保持を統合
+        from .参照 import 参照取得診断, 参照記録, 参照記録群を統合, 参照経験記憶を統合, 固定参照供給器
         候補 = tuple(str(x) for x in 選択肢)
         if len(候補) < 2:
             raise ValueError("選択実行には2件以上の候補が必要")
@@ -540,7 +331,6 @@ class HDS駆動コア:
                 )
         問題IR = 問題束.意味IR
         入力束 = 問題束.コア入力
-        観測要求群 = self.選択観測要求を適応(tuple(問題束.参照観測要求))
         from .HDS選択継承循環 import (
             HDS選択継承供給, HDS選択継承設定, 参照成果名, 参照世代成果名,
             計算済み成果名, 参照記憶成果名, 参照取得診断成果名,
@@ -555,24 +345,13 @@ class HDS駆動コア:
                 固定参照供給器(self._継続参照記憶, 名称="HDS継続参照記憶"),
                 問題IR,
                 上限=32,
-                観測要求=観測要求群,
+                観測要求=tuple(問題束.参照観測要求),
             )
-        # 演算窓で未採用の参照も、入力を受理した時点で全保持する。
-        受理参照 = 参照全保持を統合(記憶参照, tuple(初期参照))
-        self._継続参照記憶 = 参照経験記憶を統合(self._継続参照記憶, 受理参照, 最大件数=None)
-        # 今回の実観測を先に読む。保持した全資料の削除ではない。
-        初期参照群 = 参照記録群を統合(tuple(初期参照), 記憶参照, 最大件数=64)
+        初期参照群 = 参照記録群を統合(記憶参照, tuple(初期参照), 最大件数=64)
 
-        # 既存の非退行契約を継承する。未解共参照は入力正本とshadowへ保持したまま、
-        # 選択回答が成立した場合だけ実行残差から分離する。未知残差の一般免除にはしない。
         入力残差非阻害対象 = tuple(
-            f"HDS残差:{項目.種別}:{項目.理由}"
-            for 項目 in 入力束.残差 if 項目.種別 == "未解共参照"
+            f"HDS残差:{項目.種別}:{項目.理由}" for 項目 in 入力束.残差 if 項目.種別 == "未解共参照"
         )
-        from .入力系.選択契約 import 選択入力を接続
-        選択接続 = 選択入力を接続(入力束)
-        if not 選択接続.外部読取可:
-            参照供給器 = None
         初期診断 = tuple(初期参照診断)
         if any(not isinstance(x, 参照取得診断) for x in 初期診断):
             raise TypeError("初期参照診断は参照取得診断tupleである必要がある")
@@ -584,10 +363,7 @@ class HDS駆動コア:
             既存能力継承=既存能力継承, 参照供給器=参照供給器, 計算実行器_=計算実行器_,
             設定=HDS選択継承設定(最大回復回数), 拡張採用証明=拡張採用証明,
             入力残差非阻害対象=入力残差非阻害対象,
-            意味変換契約=self.意味変換契約, 関係学習状態=self._関係学習状態,
-            参照観測要求_=観測要求群,
         )
-        供給.入力接続 = 選択接続
         結果 = self.実行(
             問合せ, 目的=("選択問題を閉包する",), 要求状態=(選択閉包状態,), 初期残差=tuple(初期選択残差),
             初期成果={
@@ -599,18 +375,12 @@ class HDS駆動コア:
                 関係観測消費成果名: (),
                 関係観測世代成果名: 0,
             },
-            カーネル正本=問題束, 評価対応=選択接続.条件,
-            成果対応=選択接続.成果対応,
-            追加作用供給器=(HDS作用供給器("HDS選択継承循環", 供給.構成, "v4", 入力不変保証=True),),
+            カーネル正本=問題束,
+            追加作用供給器=(HDS作用供給器("HDS選択継承循環", 供給.構成, "v4"),),
         )
-        # 選択入口も構造化関係入口と同じCore-owned学習状態へ帰還する。
-        # HOLD/FAILや採用前の候補から成功形成を持ち越さない。
-        self._選択学習提案を帰還(結果)
-        self._選択観測経験を帰還(結果, 観測要求群)
-        最終参照 = dict(結果.状態.成果).get(参照記憶成果名, 初期参照群)
+        最終参照 = 結果.状態.成果辞書().get(参照成果名, 初期参照群)
         if isinstance(最終参照, tuple) and all(isinstance(x, 参照記録) for x in 最終参照):
-            全観測 = getattr(参照供給器, "全観測記録", ()) if 参照供給器 is not None else ()
-            self._継続参照記憶 = 参照経験記憶を統合(self._継続参照記憶, (*最終参照, *全観測), 最大件数=None)
+            self._継続参照記憶 = 参照経験記憶を統合(self._継続参照記憶, 最終参照)
         return 結果
 
 __all__ = ["HDS駆動コア版", "HDS継承基準版", "HDS駆動コア"]

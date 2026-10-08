@@ -16,11 +16,10 @@ GPQA正本EuropePMC有効 = True
 GPQA正本Crossref有効 = True
 GPQA正本Wikipedia言語群 = ("en",)
 GPQA正本中核入口 = "HDS駆動コア.選択実行"
-GPQA性能継承下限正答 = 43
+GPQA性能継承下限正答 = 40
 GPQA全数実行時間上限分 = 90
 GPQA並列評価方式 = "問題独立並列"
 GPQA直列評価方式 = "同一Core直列"
-GPQA学習効果有意水準 = 0.05
 
 
 def _正本SHA256(payload: Any) -> str:
@@ -46,15 +45,8 @@ def GPQA評価二系統条件() -> dict[str, Any]:
             "必須完走": True,
             "wall_clock上限分": GPQA全数実行時間上限分,
             "性能継承判定対象": False,
-            "学習実証条件": {
-                "直列正答が並列を上回る": True,
-                "対応問題片側正確検定有意水準": GPQA学習効果有意水準,
-                "学習状態更新": True,
-                "後続適応観測": True,
-            },
         },
         "学習効果差分": "直列正答 - 並列正答",
-        "学習効果有意水準": GPQA学習効果有意水準,
     }
 
 

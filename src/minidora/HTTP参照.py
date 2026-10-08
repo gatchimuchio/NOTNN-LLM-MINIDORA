@@ -78,11 +78,6 @@ def _html_text(raw: object) -> str:
         return " ".join(str(raw or "").split())
 
 
-def _HTTP429エラー(value: object) -> bool:
-    text = str(value or "").casefold()
-    return "429" in text and ("too many requests" in text or "httperror" in text or "http error" in text)
-
-
 def _Wikipedia本文選択(
     *,
     query: str,
@@ -271,7 +266,6 @@ class Wikipedia参照供給器:
 
         records: list[参照記録] = []
         detail_errors: list[str] = []
-        detail_429停止 = False
         for row in pages:
             if not isinstance(row, Mapping):
                 continue
@@ -281,21 +275,8 @@ class Wikipedia参照供給器:
             description = str(row.get("description") or "").strip()
             excerpt = _html_text(row.get("excerpt"))
             self._error(None)
-            with self._cache_lock:
-                cached_detail = self._page_cache.get(key) if key else None
-            if cached_detail is not None:
-                detail = cached_detail
-                detail_error = None
-            elif detail_429停止:
-                # 同一search query内でdetail 429を観測した後は、残りdetail HTTPを増幅しない。
-                # search結果のtitle/description/excerptはそのまま縮退資料として保持する。
-                detail = None
-                detail_error = "HTTPError: HTTP Error 429: Too Many Requests (detail circuit open)"
-            else:
-                detail = self._page(key) if key else None
-                detail_error = self.最後のエラー
-                if _HTTP429エラー(detail_error):
-                    detail_429停止 = True
+            detail = self._page(key) if key else None
+            detail_error = self.最後のエラー
             if detail is None and detail_error:
                 detail_errors.append(f"{key}:{detail_error}")
             full_text = _html_text(detail.get("html")) if isinstance(detail, Mapping) else ""

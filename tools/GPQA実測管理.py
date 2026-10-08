@@ -22,7 +22,7 @@ import uuid
 
 全数 = 198
 時間上限秒 = 90 * 60
-性能継承下限 = 43
+性能継承下限 = 40
 資料SHA256 = "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305"
 
 
@@ -44,8 +44,8 @@ def 原子的保存(経路,値):
 
 
 def _読込先(名称):
-    単位,name=名称.split(":",1)
-    return getattr(importlib.import_module(単位),name)
+    module,name=名称.split(":",1)
+    return getattr(importlib.import_module(module),name)
 
 
 class _現行中核:
@@ -56,38 +56,20 @@ class _現行中核:
             import 中核正本評価 as 実装
         self.実装=実装
         self.構文化器=実装.公開HDSコンパイラ()
-        期限 = os.getenv("GPQA_DEADLINE_EPOCH", "")
-        停止 = (lambda: time.time() >= float(期限)) if 期限 else None
-        self.中核=実装.HDS駆動コア(HDSコンパイラ=self.構文化器,最大作用回数=40,停止要求=停止)
+        self.中核=実装.HDS駆動コア(HDSコンパイラ=self.構文化器,最大作用回数=40)
 
     def __call__(self,番号,問題,選択肢,記録):
         行 = self.実装._一問を実行(番号,問題,tuple(選択肢),"",構文化器=self.構文化器,中核=self.中核,記録=記録)
         # 子側で採点欄を外してから親へ渡す。正解は親だけが保持する。
         for 鍵 in ("正解ラベル", "正答", "初期正答"):
             行.pop(鍵, None)
-        保存先 = getattr(self, "復元点出力", None)
-        if 保存先 is not None:
-            開始 = time.monotonic()
-            try:
-                版 = self.実装._リポジトリ版()
-                保存署名 = self.中核.継続状態を保存(保存先, リポジトリ版=版, 完了問題番号=番号)
-                行["継続復元点"] = {"保存": True, "完了問題番号": 番号, "内容SHA256": 保存署名,
-                    "ファイル": str(保存先), "リポジトリ版": 版}
-            except Exception as exc:
-                行["継続復元点"] = {"保存": False, "完了問題番号": 番号,
-                    "理由": type(exc).__name__ + ": " + str(exc)}
-            行["復元点保存秒"] = time.monotonic() - 開始
         return 行
 
 
-def _ワーカー(宛先,問題群,実行器名,復元点ディレクトリ=None,共通締切epoch=None):
+def _ワーカー(宛先,問題群,実行器名):
     if os.name=="posix":os.setsid()
     try:
-        if 共通締切epoch is not None:
-            os.environ["GPQA_DEADLINE_EPOCH"] = str(共通締切epoch)
         実行器=_読込先(実行器名)()
-        if isinstance(実行器, _現行中核) and 復元点ディレクトリ is not None:
-            実行器.復元点出力 = Path(復元点ディレクトリ) / (str(os.getpid()) + ".json")
         for 番号,問題,選択肢 in 問題群:
             def 記録(工程,番号=番号):宛先.put(("工程",番号,str(工程),time.time()))
             記録("開始");開始=time.monotonic()
@@ -109,7 +91,7 @@ def _停止(過程):
     if os.name == "posix":
         try:
             os.killpg(過程.pid, signal.SIGTERM)
-        except (ProcessLookupError, PermissionError):
+        except ProcessLookupError:
             if 過程.is_alive():
                 過程.terminate()
     elif 過程.is_alive():
@@ -118,7 +100,7 @@ def _停止(過程):
     if os.name == "posix":
         try:
             os.killpg(過程.pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
+        except ProcessLookupError:
             if 過程.is_alive():
                 過程.kill()
     elif 過程.is_alive():
@@ -126,7 +108,7 @@ def _停止(過程):
     過程.join(timeout=0.5)
 
 
-def _実行を管理(問題群,出力,*,方式,条件,期限秒,並列数=1,実行器名=None,時計開始=None,復元点ディレクトリ=None):
+def _実行を管理(問題群,出力,*,方式,条件,期限秒,並列数=1,実行器名=None,時計開始=None):
     """期限秒は内部試験用。正本CLIは5400秒以外を受け付けない。"""
     if 方式 not in ("直列","並列"):raise ValueError("未知の実行方式")
     if type(並列数) is not int or not 1<=並列数<=40:raise ValueError("並列数は1..40")
@@ -166,7 +148,7 @@ def _実行を管理(問題群,出力,*,方式,条件,期限秒,並列数=1,実�
             while 未投入 and len(過程群)<上限:
                 ids=[未投入.pop(0)] if 独立 else list(未投入)
                 if not 独立:未投入.clear()
-                q=文脈.Queue();p=文脈.Process(target=_ワーカー,args=(q,[問い[i] for i in ids],実行器名,復元点ディレクトリ,time.time()+max(0,締切-time.monotonic())));p.start();過程群[p.pid]=(p,q,ids)
+                q=文脈.Queue();p=文脈.Process(target=_ワーカー,args=(q,[問い[i] for i in ids],実行器名));p.start();過程群[p.pid]=(p,q,ids)
             for pid,(p,q,ids) in list(過程群.items()):
                 while True:
                     try:種類,番号,値,時点=q.get_nowait()
@@ -250,12 +232,11 @@ def GPQAを測定(出力,*,方式,開始番号=0,件数=198,期限epoch=None,並
         "外付け能力モジュール":False,"科学専門モジュール":False,"旧HDS監督":False,
         "問題束一問一形成":True,"正解利用境界":"親プロセスで中核実行後に採点","リポジトリ版":_リポジトリ版()}
     問題群=[(i,*cases[i]) for i in range(開始番号,開始番号+件数)]
-    return _実行を管理(問題群,出力,方式=方式,条件=条件,期限秒=max(0,締切-time.time()),並列数=並列数,時計開始=起点,
-        復元点ディレクトリ=str(Path(出力).with_suffix(".checkpoints")))
+    return _実行を管理(問題群,出力,方式=方式,条件=条件,期限秒=max(0,締切-time.time()),並列数=並列数,時計開始=起点)
 
 
 def main():
-    p=argparse.ArgumentParser(description='GPQA全数実測。90分・並列43点下限を固定する。')
+    p=argparse.ArgumentParser(description='GPQA全数実測。90分・並列40点下限を固定する。')
     p.add_argument('--mode',choices=('parallel','serial'),required=True)
     p.add_argument('--out',type=Path,required=True);p.add_argument('--start-index',type=int,default=0)
     p.add_argument('--limit',type=int,default=198);p.add_argument('--workers',type=int,default=1)

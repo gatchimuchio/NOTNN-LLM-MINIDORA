@@ -58,9 +58,9 @@ class 計画契約試験(unittest.TestCase):
 
     def test_予算を迂回できない(self):
         spec = HDS作用仕様('回答', 追加状態=F(('回答済',)), 資源負荷=3)
-        結果 = 作用列を構成(F(), F(), F(('回答済',)), (spec,), 最大資源=2)
-        self.assertFalse(結果.成立)
-        self.assertTrue(結果.打切り)
+        result = 作用列を構成(F(), F(), F(('回答済',)), (spec,), 最大資源=2)
+        self.assertFalse(result.成立)
+        self.assertTrue(result.打切り)
 
 if __name__ == '__main__':
     unittest.main()
