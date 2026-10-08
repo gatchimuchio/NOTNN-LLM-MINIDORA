@@ -1,0 +1,62 @@
+name: MINIDORA GPQA 固定資料高速差分
+
+on:
+  push:
+    branches:
+      - audit/root-cause-replay-20261008
+    paths:
+      - ".benchmark/gpqa-fast-replay-trigger"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: audit
+      - uses: actions/checkout@v4
+        with:
+          ref: c00344dca245c91aea7cfb0387db6991818be0be
+          path: best42-source
+      - uses: actions/checkout@v4
+        with:
+          ref: 14b0c746fa2d09940580bab6befdb36bde6a352b
+          path: current-source
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: gatchimuchio/NOTNN-LLM-MINIDORA
+          run-id: 37415074083
+          pattern: gpqa-parallel-*
+          path: best42-evidence
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: gatchimuchio/NOTNN-LLM-MINIDORA
+          run-id: 37667516687
+          pattern: gpqa-dual-parallel-*
+          path: current38-evidence
+          merge-multiple: true
+      - name: 正誤反転12問を固定資料で四象限再評価
+        run: >-
+          python audit/tools/GPQA固定資料高速差分.py
+          --best-source best42-source
+          --current-source current-source
+          --best-evidence best42-evidence
+          --current-evidence current38-evidence
+          --out gpqa_fast_replay_audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: minidora-gpqa-fast-replay-audit
+          path: gpqa_fast_replay_audit.json
+          if-no-files-found: warn
