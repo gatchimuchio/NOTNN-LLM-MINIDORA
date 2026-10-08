@@ -61,7 +61,6 @@ def _checkpoint_references(root: Path):
                 row["観測経路履歴"] = history
                 row["旧版"] = []
                 normalized.append(row)
-            # shardは問題独立なので、同じ番号は一つだけ。重複時は資料数の多い方を保持する。
             if index not in out or len(normalized) > len(out[index]):
                 out[index] = normalized
         except Exception:
@@ -84,6 +83,7 @@ def _observed_rows(root: Path):
 
 
 def _load_cases(source: Path):
+    source = source.resolve()
     path = source / "tools" / "GPQA現行測定.py"
     spec = importlib.util.spec_from_file_location("gpqa_dataset_loader", path)
     module = importlib.util.module_from_spec(spec)
@@ -116,11 +116,15 @@ def _write_input(path, cases, refs, observed, evidence_set, revision):
 
 
 def _run_worker(source, worker, input_path, output_path):
+    source = source.resolve()
+    worker = worker.resolve()
+    input_path = input_path.resolve()
+    output_path = output_path.resolve()
     env = dict(os.environ)
     env["PYTHONPATH"] = str(source / "src")
     subprocess.run(
         [sys.executable, str(worker), "--input", str(input_path), "--output", str(output_path)],
-        cwd=source,
+        cwd=str(source),
         env=env,
         check=True,
     )
@@ -140,16 +144,22 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
 
-    best_refs = _checkpoint_references(args.best_evidence)
-    current_refs = _checkpoint_references(args.current_evidence)
+    best_source = args.best_source.resolve()
+    current_source = args.current_source.resolve()
+    best_evidence = args.best_evidence.resolve()
+    current_evidence = args.current_evidence.resolve()
+    out_path = args.out.resolve()
+
+    best_refs = _checkpoint_references(best_evidence)
+    current_refs = _checkpoint_references(current_evidence)
     missing_best = sorted(set(対象問題) - set(best_refs))
     missing_current = sorted(set(対象問題) - set(current_refs))
     if missing_best or missing_current:
         raise RuntimeError(f"checkpoint不足 best={missing_best} current={missing_current}")
 
-    best_observed = _observed_rows(args.best_evidence)
-    current_observed = _observed_rows(args.current_evidence)
-    cases = _load_cases(args.current_source)
+    best_observed = _observed_rows(best_evidence)
+    current_observed = _observed_rows(current_evidence)
+    cases = _load_cases(current_source)
     worker = Path(__file__).with_name("GPQA固定資料再生worker.py").resolve()
 
     with tempfile.TemporaryDirectory(prefix="gpqa-code-evidence-matrix-") as directory:
@@ -160,7 +170,7 @@ def main():
         _write_input(current_input, cases, current_refs, current_observed, "current38", "evidence-current38")
 
         combinations = {}
-        for code_name, source in (("best42-code", args.best_source), ("current-code", args.current_source)):
+        for code_name, source in (("best42-code", best_source), ("current-code", current_source)):
             for evidence_name, input_path in (("best42", best_input), ("current38", current_input)):
                 output = directory / f"{code_name}-{evidence_name}.json"
                 combinations[f"{code_name}|{evidence_name}"] = _run_worker(source, worker, input_path, output)
@@ -211,7 +221,7 @@ def main():
             != maps["current-code|current38"][("current38", i)]["生評価ラベル"]
         ],
     }
-    args.out.write_text(
+    out_path.write_text(
         json.dumps({"summary": summary, "details": details}, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
