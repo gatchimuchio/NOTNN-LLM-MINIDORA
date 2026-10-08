@@ -26,6 +26,15 @@ class _経験:
     反証: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class _経路経験:
+    作用ID: str
+    対象残差: tuple[str, ...]
+    対象未達状態: tuple[str, ...]
+    経験署名: str
+    支持: bool
+
+
 def _文脈(機会) -> _作用文脈:
     # 旧作用機会は作用定義ID/意味入力署名を持たないため、宣言済みの旧契約へ縮退する。
     作用ID = str(getattr(機会, "作用ID"))
@@ -69,24 +78,30 @@ class HDS適応記憶:
     最新の反証以後に再確認された安定効果だけを後続計画へ反映する。
     """
 
-    __slots__ = ("_経験列",)
+    __slots__ = ("_経験列", "_経路経験列")
 
     def __init__(self, 最大経験数: int = 256) -> None:
         if type(最大経験数) is not int or not 1 <= 最大経験数 <= 4096:
             raise ValueError("最大経験数は1..4096の整数が必要")
         self._経験列 = deque(maxlen=最大経験数)
+        self._経路経験列 = deque(maxlen=最大経験数)
 
     @property
     def 経験数(self) -> int:
         return len(self._経験列)
 
     @property
+    def 経路経験数(self) -> int:
+        return len(self._経路経験列)
+
+    @property
     def 状態署名(self) -> str:
         from ..コア.値 import 署名
-        return 署名(tuple(self._経験列))
+        return 署名((tuple(self._経験列), tuple(self._経路経験列)))
 
     def 初期化(self) -> None:
         self._経験列.clear()
+        self._経路経験列.clear()
 
     def 結果を受け取る(self, 機会, 結果, 状態差, 前状態=None) -> None:
         if str(機会.作用ID).startswith("内的/"):
@@ -131,6 +146,59 @@ class HDS適応記憶:
             追加残差.intersection_update(経験.追加残差)
         return 期待効果(frozenset(追加), frozenset(削除), frozenset(解消),
                       frozenset(追加残差), len(有効))
+
+    def 実行結果を受け取る(self, 実行結果) -> None:
+        """終端成否から、残差/未達状態ごとの作用経路を支持・反証として保持する。"""
+        終端 = getattr(getattr(実行結果, "終端", None), "value", getattr(実行結果, "終端", None))
+        状態 = getattr(実行結果, "状態", None)
+        閉包 = bool(getattr(状態, "閉包済み", False))
+        全体成功 = 終端 == "COMMIT" and 閉包
+        履歴 = tuple(getattr(実行結果, "履歴", ()))
+        経験署名 = str(getattr(履歴[0], "前状態署名", "")) if 履歴 else ""
+        if not 経験署名:
+            return
+        既存 = set(self._経路経験列)
+        for 記録 in 履歴:
+            作用ID = str(getattr(記録, "作用ID", ""))
+            if not 作用ID or 作用ID.startswith("内的/"):
+                continue
+            残差 = tuple(sorted(str(x) for x in getattr(記録, "対象残差", ()) if str(x)))
+            未達 = tuple(sorted(str(x) for x in getattr(記録, "対象未達状態", ()) if str(x)))
+            if not 残差 and not 未達:
+                continue
+            作用状態 = getattr(getattr(記録, "作用状態", None), "value", getattr(記録, "作用状態", None))
+            差 = getattr(記録, "状態差", None)
+            進展 = bool(
+                getattr(記録, "目的進展", False)
+                or getattr(記録, "進展根拠", ())
+                or getattr(差, "変化有無", False)
+            )
+            if 全体成功 and 作用状態 == "成立" and 進展:
+                支持 = True
+            elif 作用状態 != "成立" or (not 全体成功 and not 進展):
+                支持 = False
+            else:
+                continue
+            行 = _経路経験(作用ID, 残差, 未達, 経験署名, 支持)
+            if 行 not in 既存:
+                self._経路経験列.append(行)
+                既存.add(行)
+
+    def 作用経路得点(self, 状態, 機会) -> int:
+        """独立二経験以上で支持された同型経路だけを静的優先度より前へ置く。"""
+        残差 = tuple(sorted(str(x) for x in (状態.残差 & 機会.計画解消対象)))
+        未達 = tuple(sorted(str(x) for x in (状態.未達状態 & 機会.計画出力状態)))
+        if not 残差 and not 未達:
+            return 0
+        対象 = tuple(
+            x for x in self._経路経験列
+            if x.作用ID == str(機会.作用ID) and x.対象残差 == 残差 and x.対象未達状態 == 未達
+        )
+        支持 = {x.経験署名 for x in 対象 if x.支持 and x.経験署名}
+        反証 = {x.経験署名 for x in 対象 if not x.支持 and x.経験署名}
+        if len(支持) < 2 or len(支持) <= len(反証):
+            return 0
+        return len(支持) - len(反証)
 
     def 機会を補正(self, 機会):
         if str(機会.作用ID).startswith("内的/"):
