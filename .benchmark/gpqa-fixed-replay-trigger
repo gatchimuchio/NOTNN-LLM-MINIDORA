@@ -1,4 +1,4 @@
-run=gpqa-fixed-replay-root-cause-redo-20261008
+run=gpqa-fixed-replay-root-cause-redo-20261008-r2
 best_revision=c00344dca245c91aea7cfb0387db6991818be0be
 current_revision=14b0c746fa2d09940580bab6befdb36bde6a352b
 best_run=37415074083
