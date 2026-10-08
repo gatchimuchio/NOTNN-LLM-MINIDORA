@@ -428,6 +428,9 @@ class 標準HDS作用選択器:
     中間状態を作る作用も、他に直接進展する作用が無い場合は候補に残す。
     """
 
+    def __init__(self, 適応記憶=None) -> None:
+        self.適応記憶 = 適応記憶
+
     def 選択(
         self,
         状態: HDS実行状態,
@@ -451,10 +454,16 @@ class 標準HDS作用選択器:
                 直接被覆 / max(1, len(機会.計画解消対象) + len(機会.計画出力状態))
                 if 直接被覆 else 0.0
             )
+            学習得点 = (
+                int(self.適応記憶.作用経路得点(状態, 機会))
+                if self.適応記憶 is not None and hasattr(self.適応記憶, "作用経路得点")
+                else 0
+            )
             候補列.append((
                 直接被覆,
                 sum(識別対数(状態.仮説, ID) for ID in 機会.識別対象),
                 特異度,
+                学習得点,
                 float(機会.優先度),
                 max(0, int(機会.資源負荷)),
                 機会.作用ID,
@@ -462,7 +471,7 @@ class 標準HDS作用選択器:
             ))
         if not 候補列:
             return None
-        候補列.sort(key=lambda 行: (-行[0], -行[1], -行[2], -行[3], 行[4], 行[5]))
+        候補列.sort(key=lambda 行: (-行[0], -行[1], -行[2], -行[3], -行[4], 行[5], 行[6]))
         return 候補列[0][-1]
 
 
@@ -693,7 +702,7 @@ class HDS実行主体:
         文字列組(tuple(x.作用ID for x in self.作用群), "作用ID")
         if any(x.作用ID.startswith("内的/") for x in self.作用群):
             raise ValueError("内的/はコア内部作用の予約名前空間")
-        self.作用選択器 = 作用選択器 or 標準HDS作用選択器()
+        self.作用選択器 = 作用選択器 or 標準HDS作用選択器(self.適応記憶)
         self.最大作用回数 = 最大作用回数
         self.政策 = 政策 if 政策 is not None else HDS運用政策()
         if not isinstance(self.政策, HDS運用政策):
@@ -716,7 +725,9 @@ class HDS実行主体:
 
     def 実行(self, 初期状態: HDS実行状態) -> HDS実行結果:
         from .統合駆動_v2.循環 import 通常循環
-        return 通常循環(self, 初期状態)
+        結果 = 通常循環(self, 初期状態)
+        self.適応記憶.実行結果を受け取る(結果)
+        return 結果
 
     def 再開(self, 前回: HDS実行結果, 追加入力: HDS作用結果 | None = None) -> HDS実行結果:
         from .統合駆動_v2.循環 import 通常循環
@@ -732,7 +743,9 @@ class HDS実行主体:
             前回 = replace(前回, 入力履歴=前回.入力履歴 + (入力記録,),
                            計装=replace(前回.計装, 外部入力数=前回.計装.外部入力数 + 1,
                                         依存失効数=前回.計装.依存失効数 + len(差.失効対象)))
-        return 通常循環(self, 状態, 前回)
+        結果 = 通常循環(self, 状態, 前回)
+        self.適応記憶.実行結果を受け取る(結果)
+        return 結果
 
 
 __all__ = [
