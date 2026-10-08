@@ -1,5 +1,8 @@
-run=dual-gpqa-1790908114449
-purpose=現行MINIDORAの並列性能継承40/198下限と直列学習効果を同一revisionで測定
+run=parallel-gpqa-43-canonical-restore-20261008
+purpose=2026-10-02に43/198を出したe9d49f4 tree完全復帰版の能力継承再現
 parallel=問題独立並列
-serial=同一Core直列
+serial=off_until_parallel_43
 wall_clock_limit_minutes=90
+acceptance_floor=43
+source_tree=e9d49f4fd3cd75e29a58a134ad9201b80f265b9e
+source_revision=0b1bd156c2b4928730c7f199b4f4768a60ead156
