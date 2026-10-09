@@ -176,7 +176,9 @@ class HDS適応記憶:
             )
             if 全体成功 and 作用状態 == "成立" and 進展:
                 支持 = True
-            elif 作用状態 != "成立" or (not 全体成功 and not 進展):
+            elif not 全体成功 or 作用状態 != "成立":
+                # 中間で進展してもrun全体が閉じなければ、経路成功の支持にはしない。
+                # ARC2の反例監査と同じく、最終的に目的未達の経験を経路原理の反例へ戻す。
                 支持 = False
             else:
                 continue
