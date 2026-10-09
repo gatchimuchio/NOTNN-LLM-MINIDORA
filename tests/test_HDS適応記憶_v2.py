@@ -494,6 +494,7 @@ class HDS適応記憶試験(unittest.TestCase):
         ).実行(初期("三"))
         self.assertEqual(未学習.終端, HDS終端.保留)
         self.assertEqual(未学習.履歴[0].作用ID, "誤経路/呼出")
+        self.assertEqual(未学習.計装.学習計画補正数, 0)
 
         記憶 = HDS適応記憶()
         for 試行 in ("一", "二"):
@@ -507,6 +508,7 @@ class HDS適応記憶試験(unittest.TestCase):
         ).実行(初期("三"))
         self.assertEqual(学習済み.終端, HDS終端.採用)
         self.assertEqual(学習済み.履歴[0].作用ID, "成功経路/呼出")
+        self.assertEqual(学習済み.計装.学習計画補正数, 1)
 
 if __name__ == "__main__":
     unittest.main()
