@@ -96,6 +96,24 @@ class HDS適応記憶:
         return len(self._経路経験列)
 
     @property
+    def 経路状態集計(self) -> tuple[int, int, int]:
+        """(有効経路, 隔離経路, 未確定経路)。診断専用で選択状態を変更しない。"""
+        群 = {}
+        for x in self._経路経験列:
+            鍵 = (x.作用定義ID, x.対象残差, x.対象未達状態)
+            行 = 群.setdefault(鍵, [set(), set()])
+            行[0 if x.支持 else 1].add(x.経験署名)
+        有効 = 隔離 = 未確定 = 0
+        for 支持, 反証 in 群.values():
+            if len(支持) >= 2 and len(支持) > len(反証):
+                有効 += 1
+            elif len(反証) >= 2 and len(反証) > len(支持):
+                隔離 += 1
+            else:
+                未確定 += 1
+        return 有効, 隔離, 未確定
+
+    @property
     def 状態署名(self) -> str:
         from ..コア.値 import 署名
         return 署名((tuple(self._経験列), tuple(self._経路経験列)))
