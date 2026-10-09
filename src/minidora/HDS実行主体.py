@@ -455,16 +455,17 @@ class 標準HDS作用選択器:
                 直接被覆 / max(1, len(機会.計画解消対象) + len(機会.計画出力状態))
                 if 直接被覆 else 0.0
             )
-            学習得点 = (
-                int(self.適応記憶.作用経路得点(状態, 機会))
-                if self.適応記憶 is not None and hasattr(self.適応記憶, "作用経路得点")
-                else 0
+            学習得点, 学習経路長 = (
+                self.適応記憶.作用経路評価(状態, 機会)
+                if self.適応記憶 is not None and hasattr(self.適応記憶, "作用経路評価")
+                else (0, 0)
             )
             候補列.append((
                 直接被覆,
                 sum(識別対数(状態.仮説, ID) for ID in 機会.識別対象),
                 特異度,
-                学習得点,
+                int(学習得点),
+                int(学習経路長),
                 float(機会.優先度),
                 max(0, int(機会.資源負荷)),
                 機会.作用ID,
@@ -472,7 +473,11 @@ class 標準HDS作用選択器:
             ))
         if not 候補列:
             return None
-        候補列.sort(key=lambda 行: (-行[0], -行[1], -行[2], -行[3], -行[4], 行[5], 行[6]))
+        候補列.sort(key=lambda 行: (
+            -行[0], -行[1], -行[2], -行[3],
+            行[4] if 行[3] > 0 else 0,
+            -行[5], 行[6], 行[7],
+        ))
         return 候補列[0][-1]
 
 
