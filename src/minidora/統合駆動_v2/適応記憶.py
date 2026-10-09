@@ -202,13 +202,16 @@ class HDS適応記憶:
         )
         支持経験 = {x.経験署名 for x in 対象 if x.支持 and x.経験署名}
         反証経験 = {x.経験署名 for x in 対象 if not x.支持 and x.経験署名}
-        if len(支持経験) < 2 or len(支持経験) <= len(反証経験):
-            return 0, 0
-        最短 = min(
-            x.経路長 for x in 対象
-            if x.支持 and x.経験署名 in 支持経験
-        )
-        return len(支持経験) - len(反証経験), 最短
+        if len(支持経験) >= 2 and len(支持経験) > len(反証経験):
+            最短 = min(
+                x.経路長 for x in 対象
+                if x.支持 and x.経験署名 in 支持経験
+            )
+            return len(支持経験) - len(反証経験), 最短
+        if len(反証経験) >= 2 and len(反証経験) > len(支持経験):
+            # ARC2の反例隔離に対応する。経験は消さず、同型経路の次回優先度だけを下げる。
+            return len(支持経験) - len(反証経験), 0
+        return 0, 0
 
     def 作用経路得点(self, 状態, 機会) -> int:
         return self.作用経路評価(状態, 機会)[0]
