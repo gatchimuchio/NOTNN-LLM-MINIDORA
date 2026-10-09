@@ -164,6 +164,52 @@ class HDS適応記憶試験(unittest.TestCase):
         反証後 = 標準HDS作用選択器(記憶).選択(状態, (学習候補, 静的候補))
         self.assertEqual(反証後.作用ID, "静的高優先度")
 
+    def test_異なる呼出住所でも同じ作用定義の成功経路を継承する(self):
+        from types import SimpleNamespace
+
+        記憶 = HDS適応記憶()
+        差 = SimpleNamespace(変化有無=True)
+
+        for 作用ID, 経験署名 in (
+            ("案件一/探索/参照", "経験一"),
+            ("案件二/探索/参照", "経験二"),
+        ):
+            行 = SimpleNamespace(
+                作用ID=作用ID,
+                作用定義ID="運用能力/参照",
+                対象残差=("不足",),
+                対象未達状態=("完了",),
+                前状態署名=経験署名,
+                作用状態=HDS作用状態.成立,
+                目的進展=True,
+                進展根拠=("残差:不足",),
+                状態差=差,
+            )
+            記憶.実行結果を受け取る(SimpleNamespace(
+                終端=HDS終端.採用,
+                状態=SimpleNamespace(閉包済み=True),
+                履歴=(行,),
+            ))
+
+        状態 = HDS実行状態(
+            要求状態=frozenset({"完了"}),
+            残差=frozenset({"不足"}),
+        )
+        新しい呼出 = HDS作用機会(
+            "案件三/探索/参照", "入力三",
+            出力状態=frozenset({"完了"}),
+            解消対象=frozenset({"不足"}),
+            作用定義ID="運用能力/参照",
+        )
+        別能力 = HDS作用機会(
+            "案件三/探索/別能力", "入力三",
+            出力状態=frozenset({"完了"}),
+            解消対象=frozenset({"不足"}),
+            作用定義ID="運用能力/別能力",
+        )
+        self.assertEqual(記憶.作用経路得点(状態, 新しい呼出), 2)
+        self.assertEqual(記憶.作用経路得点(状態, 別能力), 0)
+
     def test_学習済み経路が通常循環の誤探索停止を回避する(self):
         from minidora.統合駆動_v2.計画 import HDS探索契約
 
