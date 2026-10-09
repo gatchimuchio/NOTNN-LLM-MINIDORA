@@ -33,6 +33,7 @@ class _経路経験:
     対象未達状態: tuple[str, ...]
     経験署名: str
     支持: bool
+    経路長: int
 
 
 def _文脈(機会) -> _作用文脈:
@@ -158,6 +159,7 @@ class HDS適応記憶:
         if not 経験署名:
             return
         既存 = set(self._経路経験列)
+        経路長 = sum(1 for x in 履歴 if not str(getattr(x, "作用ID", "")).startswith("内的/"))
         for 記録 in 履歴:
             作用ID = str(getattr(記録, "作用ID", ""))
             作用定義ID = str(getattr(記録, "作用定義ID", "") or 作用ID)
@@ -182,27 +184,34 @@ class HDS適応記憶:
                 支持 = False
             else:
                 continue
-            行 = _経路経験(作用定義ID, 残差, 未達, 経験署名, 支持)
+            行 = _経路経験(作用定義ID, 残差, 未達, 経験署名, 支持, max(1, 経路長))
             if 行 not in 既存:
                 self._経路経験列.append(行)
                 既存.add(行)
 
-    def 作用経路得点(self, 状態, 機会) -> int:
-        """独立二経験以上で支持された同型経路だけを静的優先度より前へ置く。"""
+    def 作用経路評価(self, 状態, 機会) -> tuple[int, int]:
+        """支持差と、支持された最短COMMIT経路長を返す。未成立は(0, 0)。"""
         残差 = tuple(sorted(str(x) for x in (状態.残差 & 機会.計画解消対象)))
         未達 = tuple(sorted(str(x) for x in (状態.未達状態 & 機会.計画出力状態)))
         if not 残差 and not 未達:
-            return 0
+            return 0, 0
         作用定義ID = str(getattr(機会, "作用定義ID", "") or 機会.作用ID)
         対象 = tuple(
             x for x in self._経路経験列
             if x.作用定義ID == 作用定義ID and x.対象残差 == 残差 and x.対象未達状態 == 未達
         )
-        支持 = {x.経験署名 for x in 対象 if x.支持 and x.経験署名}
-        反証 = {x.経験署名 for x in 対象 if not x.支持 and x.経験署名}
-        if len(支持) < 2 or len(支持) <= len(反証):
-            return 0
-        return len(支持) - len(反証)
+        支持経験 = {x.経験署名 for x in 対象 if x.支持 and x.経験署名}
+        反証経験 = {x.経験署名 for x in 対象 if not x.支持 and x.経験署名}
+        if len(支持経験) < 2 or len(支持経験) <= len(反証経験):
+            return 0, 0
+        最短 = min(
+            x.経路長 for x in 対象
+            if x.支持 and x.経験署名 in 支持経験
+        )
+        return len(支持経験) - len(反証経験), 最短
+
+    def 作用経路得点(self, 状態, 機会) -> int:
+        return self.作用経路評価(状態, 機会)[0]
 
     def 機会を補正(self, 機会):
         if str(機会.作用ID).startswith("内的/"):
