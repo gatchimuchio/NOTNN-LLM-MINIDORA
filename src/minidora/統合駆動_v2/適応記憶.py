@@ -28,7 +28,7 @@ class _経験:
 
 @dataclass(frozen=True, slots=True)
 class _経路経験:
-    作用ID: str
+    作用定義ID: str
     対象残差: tuple[str, ...]
     対象未達状態: tuple[str, ...]
     経験署名: str
@@ -160,6 +160,7 @@ class HDS適応記憶:
         既存 = set(self._経路経験列)
         for 記録 in 履歴:
             作用ID = str(getattr(記録, "作用ID", ""))
+            作用定義ID = str(getattr(記録, "作用定義ID", "") or 作用ID)
             if not 作用ID or 作用ID.startswith("内的/"):
                 continue
             残差 = tuple(sorted(str(x) for x in getattr(記録, "対象残差", ()) if str(x)))
@@ -179,7 +180,7 @@ class HDS適応記憶:
                 支持 = False
             else:
                 continue
-            行 = _経路経験(作用ID, 残差, 未達, 経験署名, 支持)
+            行 = _経路経験(作用定義ID, 残差, 未達, 経験署名, 支持)
             if 行 not in 既存:
                 self._経路経験列.append(行)
                 既存.add(行)
@@ -190,9 +191,10 @@ class HDS適応記憶:
         未達 = tuple(sorted(str(x) for x in (状態.未達状態 & 機会.計画出力状態)))
         if not 残差 and not 未達:
             return 0
+        作用定義ID = str(getattr(機会, "作用定義ID", "") or 機会.作用ID)
         対象 = tuple(
             x for x in self._経路経験列
-            if x.作用ID == str(機会.作用ID) and x.対象残差 == 残差 and x.対象未達状態 == 未達
+            if x.作用定義ID == 作用定義ID and x.対象残差 == 残差 and x.対象未達状態 == 未達
         )
         支持 = {x.経験署名 for x in 対象 if x.支持 and x.経験署名}
         反証 = {x.経験署名 for x in 対象 if not x.支持 and x.経験署名}
