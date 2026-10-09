@@ -78,6 +78,14 @@ class HDS駆動コア:
         return self._適応記憶.経験数
 
     @property
+    def 経路経験数(self) -> int:
+        return self._適応記憶.経路経験数
+
+    @property
+    def 経路学習状態件数(self) -> tuple[int, int, int]:
+        return self._適応記憶.経路状態集計
+
+    @property
     def 継続参照件数(self) -> int:
         return len(self._継続参照記憶)
 
