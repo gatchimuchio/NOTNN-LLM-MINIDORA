@@ -312,6 +312,78 @@ class HDS適応記憶試験(unittest.TestCase):
             "現在/短",
         )
 
+    def test_反例優勢の作用経路を隔離し別経路へ退避する(self):
+        from types import SimpleNamespace
+        from minidora.HDS実行主体 import 標準HDS作用選択器
+
+        記憶 = HDS適応記憶()
+        差 = SimpleNamespace(変化有無=True)
+        for 経験署名 in ("失敗一", "失敗二"):
+            行 = SimpleNamespace(
+                作用ID="失敗経路/呼出", 作用定義ID="能力/失敗経路",
+                対象残差=("不足",), 対象未達状態=("完了",),
+                前状態署名=経験署名, 作用状態=HDS作用状態.成立,
+                目的進展=True, 進展根拠=("残差:不足",), 状態差=差,
+            )
+            記憶.実行結果を受け取る(SimpleNamespace(
+                終端=HDS終端.保留,
+                状態=SimpleNamespace(閉包済み=False),
+                履歴=(行,),
+            ))
+
+        状態 = HDS実行状態(
+            要求状態=frozenset({"完了"}), 残差=frozenset({"不足"}),
+        )
+        失敗候補 = HDS作用機会(
+            "新規/失敗経路", "入力",
+            出力状態=frozenset({"完了"}), 解消対象=frozenset({"不足"}),
+            優先度=100.0, 作用定義ID="能力/失敗経路",
+        )
+        未学習候補 = HDS作用機会(
+            "新規/未学習経路", "入力",
+            出力状態=frozenset({"完了"}), 解消対象=frozenset({"不足"}),
+            優先度=0.0, 作用定義ID="能力/未学習経路",
+        )
+        self.assertEqual(記憶.作用経路評価(状態, 失敗候補), (-2, 0))
+        self.assertEqual(
+            標準HDS作用選択器(記憶).選択(状態, (失敗候補, 未学習候補)).作用ID,
+            "新規/未学習経路",
+        )
+
+    def test_隔離経路は新しい支持が反例を上回れば復帰する(self):
+        from types import SimpleNamespace
+
+        記憶 = HDS適応記憶()
+        差 = SimpleNamespace(変化有無=True)
+
+        def 経験を入れる(経験署名, 成功):
+            行 = SimpleNamespace(
+                作用ID="経路/呼出", 作用定義ID="能力/経路",
+                対象残差=("不足",), 対象未達状態=("完了",),
+                前状態署名=経験署名, 作用状態=HDS作用状態.成立,
+                目的進展=True, 進展根拠=("残差:不足",), 状態差=差,
+            )
+            記憶.実行結果を受け取る(SimpleNamespace(
+                終端=HDS終端.採用 if 成功 else HDS終端.保留,
+                状態=SimpleNamespace(閉包済み=成功),
+                履歴=(行,),
+            ))
+
+        for 経験署名 in ("失敗一", "失敗二"):
+            経験を入れる(経験署名, False)
+        for 経験署名 in ("成功一", "成功二", "成功三"):
+            経験を入れる(経験署名, True)
+
+        状態 = HDS実行状態(
+            要求状態=frozenset({"完了"}), 残差=frozenset({"不足"}),
+        )
+        機会 = HDS作用機会(
+            "別住所/経路", "新入力",
+            出力状態=frozenset({"完了"}), 解消対象=frozenset({"不足"}),
+            作用定義ID="能力/経路",
+        )
+        self.assertEqual(記憶.作用経路評価(状態, 機会), (1, 1))
+
     def test_学習済み経路が通常循環の誤探索停止を回避する(self):
         from minidora.統合駆動_v2.計画 import HDS探索契約
 
