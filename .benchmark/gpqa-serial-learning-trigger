@@ -1,10 +1,10 @@
-run=gpqa-serial-learning-workset-20261010-v3
-purpose=43点能力正本を保持した作用原理学習+認識作業集合の同一Core直列198問実測
-learning_revision=eb9e33f5d5f1a493cbe614adc9082a1a91a513b9
+run=gpqa-serial-learning-dynamic-plan-20261010-v4
+purpose=43点能力正本を保持した作用原理学習+動的計画補正+認識作業集合の同一Core直列198問実測
+learning_revision=1f781f4b78bf180363ce9df8540c0a7132e2395b
 baseline_parallel_revision=ed81f111b5f16d4c1fea6937997f046aae09bc86
 baseline_parallel_observed_score=40
 baseline_parallel_observed_answered=159
-features=作用定義一般化,未閉包反例隔離,再支持復帰,短経路優先,認識作業集合,学習状態計装
+features=作用定義一般化,未閉包反例隔離,再支持復帰,短経路優先,動的計画学習補正,認識作業集合,学習状態計装
 serial_state_carryover=true
 gold_learning=false
 wall_clock_limit_minutes=90
