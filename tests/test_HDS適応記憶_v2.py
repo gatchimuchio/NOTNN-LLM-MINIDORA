@@ -210,6 +210,53 @@ class HDS適応記憶試験(unittest.TestCase):
         self.assertEqual(記憶.作用経路得点(状態, 新しい呼出), 2)
         self.assertEqual(記憶.作用経路得点(状態, 別能力), 0)
 
+    def test_未閉包runの中間進展も経路反例として数える(self):
+        from types import SimpleNamespace
+
+        記憶 = HDS適応記憶()
+        差 = SimpleNamespace(変化有無=True)
+        for 経験署名 in ("成功一", "成功二"):
+            行 = SimpleNamespace(
+                作用ID="経験探索", 作用定義ID="運用能力/探索",
+                対象残差=("不足",), 対象未達状態=("完了",),
+                前状態署名=経験署名, 作用状態=HDS作用状態.成立,
+                目的進展=True, 進展根拠=("残差:不足",), 状態差=差,
+            )
+            記憶.実行結果を受け取る(SimpleNamespace(
+                終端=HDS終端.採用,
+                状態=SimpleNamespace(閉包済み=True),
+                履歴=(行,),
+            ))
+
+        失敗行 = SimpleNamespace(
+            作用ID="経験探索", 作用定義ID="運用能力/探索",
+            対象残差=("不足",), 対象未達状態=("完了",),
+            前状態署名="失敗一", 作用状態=HDS作用状態.成立,
+            目的進展=True, 進展根拠=("残差:不足",), 状態差=差,
+        )
+        記憶.実行結果を受け取る(SimpleNamespace(
+            終端=HDS終端.保留,
+            状態=SimpleNamespace(閉包済み=False),
+            履歴=(失敗行,),
+        ))
+        状態 = HDS実行状態(
+            要求状態=frozenset({"完了"}), 残差=frozenset({"不足"}),
+        )
+        機会 = HDS作用機会(
+            "別住所/探索", "新入力",
+            出力状態=frozenset({"完了"}), 解消対象=frozenset({"不足"}),
+            作用定義ID="運用能力/探索",
+        )
+        self.assertEqual(記憶.作用経路得点(状態, 機会), 1)
+
+        失敗行二 = SimpleNamespace(**{**失敗行.__dict__, "前状態署名": "失敗二"})
+        記憶.実行結果を受け取る(SimpleNamespace(
+            終端=HDS終端.保留,
+            状態=SimpleNamespace(閉包済み=False),
+            履歴=(失敗行二,),
+        ))
+        self.assertEqual(記憶.作用経路得点(状態, 機会), 0)
+
     def test_学習済み経路が通常循環の誤探索停止を回避する(self):
         from minidora.統合駆動_v2.計画 import HDS探索契約
 
