@@ -383,6 +383,7 @@ class HDS作用記録:
     対応座標: tuple[str, ...] = ()
     作用対応: object | None = None
     対応契約版: str = ""
+    作用定義ID: str = ""
 
 
 @dataclass(frozen=True, slots=True)
