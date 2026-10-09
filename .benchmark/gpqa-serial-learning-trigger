@@ -1,9 +1,10 @@
-run=gpqa-serial-action-path-learning-20261010
-purpose=43点能力正本を保持した作用経路学習追加版の同一Core直列198問実測
-capability_source_revision=c7b87bed3a828bbe83d5741bab89b35fd523a72a
-parallel_nonregression_revision=ed81f111b5f16d4c1fea6937997f046aae09bc86
-parallel_observed_score=40
-parallel_observed_answered=159
+run=gpqa-serial-action-principle-learning-20261010-v2
+purpose=43点能力正本を保持した作用原理学習の同一Core直列198問実測
+learning_revision=a7eba2bb0185f52070e2902f8087adeb3c496fa0
+baseline_parallel_revision=ed81f111b5f16d4c1fea6937997f046aae09bc86
+baseline_parallel_observed_score=40
+baseline_parallel_observed_answered=159
+features=作用定義一般化,未閉包反例隔離,再支持復帰,短経路優先,学習状態計装
 serial_state_carryover=true
 gold_learning=false
 wall_clock_limit_minutes=90
