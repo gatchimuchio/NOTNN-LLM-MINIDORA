@@ -257,6 +257,61 @@ class HDS適応記憶試験(unittest.TestCase):
         ))
         self.assertEqual(記憶.作用経路得点(状態, 機会), 0)
 
+    def test_同支持なら短く閉じた作用経路を優先する(self):
+        from types import SimpleNamespace
+        from minidora.HDS実行主体 import 標準HDS作用選択器
+
+        記憶 = HDS適応記憶()
+        差 = SimpleNamespace(変化有無=True)
+
+        def 成功経験(能力, 経験署名, 経路長):
+            対象 = SimpleNamespace(
+                作用ID=能力 + "/呼出",
+                作用定義ID=能力,
+                対象残差=("不足",), 対象未達状態=("完了",),
+                前状態署名=経験署名, 作用状態=HDS作用状態.成立,
+                目的進展=True, 進展根拠=("残差:不足",), 状態差=差,
+            )
+            補助 = tuple(
+                SimpleNamespace(
+                    作用ID=f"補助/{能力}/{i}", 作用定義ID=f"補助/{能力}/{i}",
+                    対象残差=(), 対象未達状態=(),
+                    前状態署名=経験署名, 作用状態=HDS作用状態.成立,
+                    目的進展=True, 進展根拠=("状態:中間",), 状態差=差,
+                )
+                for i in range(max(0, 経路長 - 1))
+            )
+            記憶.実行結果を受け取る(SimpleNamespace(
+                終端=HDS終端.採用,
+                状態=SimpleNamespace(閉包済み=True),
+                履歴=(対象, *補助),
+            ))
+
+        for 経験 in ("短一", "短二"):
+            成功経験("能力/短", 経験, 3)
+        for 経験 in ("長一", "長二"):
+            成功経験("能力/長", 経験, 15)
+
+        状態 = HDS実行状態(
+            要求状態=frozenset({"完了"}), 残差=frozenset({"不足"}),
+        )
+        短 = HDS作用機会(
+            "現在/短", "入力",
+            出力状態=frozenset({"完了"}), 解消対象=frozenset({"不足"}),
+            作用定義ID="能力/短",
+        )
+        長 = HDS作用機会(
+            "現在/長", "入力",
+            出力状態=frozenset({"完了"}), 解消対象=frozenset({"不足"}),
+            作用定義ID="能力/長",
+        )
+        self.assertEqual(記憶.作用経路評価(状態, 短), (2, 3))
+        self.assertEqual(記憶.作用経路評価(状態, 長), (2, 15))
+        self.assertEqual(
+            標準HDS作用選択器(記憶).選択(状態, (長, 短)).作用ID,
+            "現在/短",
+        )
+
     def test_学習済み経路が通常循環の誤探索停止を回避する(self):
         from minidora.統合駆動_v2.計画 import HDS探索契約
 
