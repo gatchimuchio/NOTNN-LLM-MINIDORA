@@ -44,7 +44,7 @@ Google Cloudの本人が許可したプロジェクトを実際に確認し、�
 | 主体 | 必要な範囲 |
 |---|---|
 | 実行SA | API権限なし。Cloud Runによるstdout/stderr採取はアプリのLogging API権限を要しない |
-| ビルドSA | 選択repositoryのArtifact Registry Writer、選択bucketのStorage Object Admin、ビルドログ用権限 |
+| ビルドSA | 選択repositoryのArtifact Registry Writer、選択bucketのStorage Object Admin＋Legacy Bucket Reader（Cloud Buildのbucketメタデータ読取）、ビルドログ用権限 |
 | 配備SA | Cloud Buildの作成・取得、選択bucketの送信、選択repositoryの読取、対象サービスの配備・IAM変更・検査・ログ読取 |
 | 配備SAのSA利用 | 明示した実行SAとビルドSAに対する`roles/iam.serviceAccountUser`だけ |
 | WIF主体 | 明示した配備SAへの`roles/iam.workloadIdentityUser`だけ。ID token発行権限を必要なSAに限定 |
