@@ -1,0 +1,5 @@
+# Cloud Run専用。通常のMINIDORAに外部依存を追加しない。
+google-adk==2.11.0
+# DockerでMINIDORA自身をネットワーク上のビルド依存解決なしで導入する。
+setuptools==80.10.2
+wheel==0.46.3

@@ -32,6 +32,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+cloud = ["google-adk==2.11.0"]
+
 [project.urls]
 Repository = "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA"
 "LLM Constitutive Specification" = "https://github.com/gatchimuchio/LLM-Constitutive-Specification"

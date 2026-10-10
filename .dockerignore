@@ -1,0 +1,19 @@
+# 許可対象だけをビルドコンテキストへ送る。
+**
+!src/
+!src/**
+!deploy/
+!deploy/Dockerfile
+!deploy/requirements-cloud.txt
+!pyproject.toml
+!README.md
+!LICENSE-APACHE-2.0
+**/__pycache__/
+**/*.pyc
+**/*.egg-info/
+gha-creds-*.json
+**/gha-creds-*.json
+.env*
+**/.env*
+**/*credentials*.json
+**/*service-account*.json
