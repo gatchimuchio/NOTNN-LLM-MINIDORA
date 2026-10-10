@@ -11,6 +11,7 @@
 - Cloud Run IAM認証を必須にし、アプリは`MINIDORA_CLOUD_HOSTS`と`MINIDORA_CLOUD_ORIGINS`を別途検査する。Origin・Host検査自体は本人認証ではない。ワイルドカードCORSを使わない。
 - 許可Hostは実測した`*.run.app`ホスト、許可Originはその`https://`生成元。初回は`bootstrap.invalid`を設定して実URLの要求を拒否し、サービスURLを取得してから更新する。Cloud Runの既定TCP起動検査を使う。
 - 外部読取は無効。API本文上限256,000バイト、チャット入口のレート制限、セッション数の既存上限を維持する。Cloud Run同時実行数1を設定する。
+- HTTPエラーを送信した後は書込側をhalf-closeし、未読入力を64KiBずつ、総量32MiB・絶対期限2秒まで破棄して接続を終了する。受付上限とは別の拒否処理であり、本文をJSONやHDSへ渡さない。未読本文を残した即時closeによる実機502を修正するための処理で、期限超過や切断までエラー応答配送を保証しない。根拠は[RFC 9112の接続終了](https://www.rfc-editor.org/rfc/rfc9112.html#section-9.6)と[Cloud RunのHTTP/1上限](https://docs.cloud.google.com/run/quotas)。
 - `min=0`、`max=1`、`min-instances=0`、`max-instances=1`、CPU 1、メモリ1Gi、要求上限60秒。メモリ値はADK依存を含む初期設定であり、実測した必要量としては扱わない。変更には理由と費用影響を記録する。
 - 会話と追跡台帳はメモリ内だけで、停止・再起動・新revision・インスタンス交換で失われる。永続化、再起動をまたぐ会話継続、複数インスタンス間同期は未成立。Cloud Loggingは実行証拠であり、会話の復元用台帳ではない。
 - 保存領域・Secret・サービスアカウントJSON鍵をコンテナへ渡さない。`.dockerignore`とCloud Build用の許可ファイル限定ステージで構築原料・評価データ・認証ファイルを送信対象から外す。

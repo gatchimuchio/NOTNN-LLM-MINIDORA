@@ -1,9 +1,10 @@
 """Cloud Run用HTTP境界と既存ローカル限定入口を実通信で検査する。"""
 from collections import deque
-from http.client import HTTPConnection
+from http.client import HTTPConnection, HTTPResponse
 from http.server import ThreadingHTTPServer
 import json
 import os
+import socket
 from threading import Lock, Thread
 from time import monotonic
 import unittest
@@ -74,6 +75,27 @@ class CloudRun入口試験(unittest.TestCase):
                 self.assertEqual(self.HTTPを呼ぶ("POST", "/api/chat", 内容)[0], 400)
         self.assertEqual(self.HTTPを呼ぶ("POST", "/api/chat", {"message": "2+3"},
                                        **{"Content-Type": "text/plain"})[0], 415)
+
+    def test_拒否応答後も未読の大きい本文を安全に破棄する(self):
+        本文 = b"x" * 1_048_576
+        with patch.object(self.サーバ.app, "応答") as 実行:
+            with socket.create_connection(("127.0.0.1", self.サーバ.server_port), timeout=5) as 接続:
+                ヘッダ = ("POST /api/chat HTTP/1.1\r\nHost: minidora.example.test\r\n"
+                         "Content-Type: application/json\r\nContent-Length: "
+                         + str(len(本文)) + "\r\n\r\n").encode("ascii")
+                接続.sendall(ヘッダ + 本文[:1])
+                接続.sendall(本文[1:])
+                with HTTPResponse(接続) as 応答:
+                    応答.begin()
+                    self.assertEqual(応答.status, 413)
+                    self.assertEqual(json.loads(応答.read())["error"], "invalid_body_size")
+            実行.assert_not_called()
+
+    def test_空TransferEncodingも拒否し製品を実行しない(self):
+        with patch.object(self.サーバ.app, "応答") as 実行:
+            self.assertEqual(self.HTTPを呼ぶ("POST", "/api/chat", {"message": "2+3"},
+                                           **{"Transfer-Encoding": ""})[0], 400)
+            実行.assert_not_called()
 
     def test_応答と監査を既存入口から取得する(self):
         応答 = self.HTTPを呼ぶ("POST", "/api/chat", {"message": "2+3", "session_id": "検査"})

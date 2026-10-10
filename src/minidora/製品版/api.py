@@ -1,6 +1,6 @@
 from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-import json, os, re, mimetypes
+import json, os, re, mimetypes, socket
 from collections import deque
 from threading import Lock
 from time import monotonic
@@ -37,6 +37,8 @@ def _json(handler: BaseHTTPRequestHandler, status: int, body: dict):
     if not getattr(handler.server, "同一生成元限定", False) and not getattr(handler.server, "CloudRun境界", False):
         handler.send_header("Access-Control-Allow-Origin", os.getenv("MINIDORA_CORS_ORIGIN","*"))
     handler.end_headers(); handler.wfile.write(raw)
+    if status >= 400:
+        handler._拒否接続を終了()
 
 class APIHandler(BaseHTTPRequestHandler):
     server_version = "MINIDORA-Product/1"
@@ -53,6 +55,25 @@ class APIHandler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):
         if os.getenv("MINIDORA_HTTP_LOG","1") != "0": super().log_message(fmt,*args)
+
+    def _拒否接続を終了(self):
+        """最終応答をhalf-closeで届け、未読入力によるTCP resetを避ける。"""
+        try:
+            self.wfile.flush()
+            self.connection.shutdown(socket.SHUT_WR)
+            # 受付上限は256,000バイトのまま。Cloud Run HTTP/1の最大量まで、
+            # 意味処理せず固定chunkで破棄し、絶対期限で遅延送信を打ち切る。
+            残量, 期限 = 32 * 1024 * 1024, monotonic() + 2
+            while 残量 > 0:
+                残時間 = 期限 - monotonic()
+                if 残時間 <= 0: break
+                self.connection.settimeout(残時間)
+                塊 = self.rfile.read1(min(65_536, 残量))
+                if not 塊: break
+                残量 -= len(塊)
+        except OSError:
+            # 切断・期限到達は接続終了。要求の採用や次要求の解釈は行わない。
+            pass
 
     def _入口許可(self):
         """HTTPのHost/Origin境界。Cloud Runの利用者認証はプラットフォーム側で強制する。"""
@@ -112,7 +133,7 @@ class APIHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self._入口許可(): return
         if urlparse(self.path).path != "/api/chat": return _json(self,404,{"error":"not_found"})
-        if self.headers.get("Transfer-Encoding") or len(self.headers.get_all("Content-Length", [])) != 1:
+        if self.headers.get_all("Transfer-Encoding", []) or len(self.headers.get_all("Content-Length", [])) != 1:
             return _json(self,400,{"error":"invalid_content_length"})
         if getattr(self.server, "CloudRun境界", False):
             if self.headers.get_content_type() != "application/json":
