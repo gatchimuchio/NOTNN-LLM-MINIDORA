@@ -4,10 +4,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.message import Message
+from email.utils import parsedate_to_datetime
 from hashlib import sha256
 from html.parser import HTMLParser
 from http.client import HTTPSConnection
 import ipaddress
+import json
 import math
 import re
 import socket
@@ -64,7 +66,7 @@ def _公開アドレス(host: str) -> str:
 
 
 class _本文抽出(HTMLParser):
-    _除外 = {"head", "script", "style", "noscript", "template", "svg", "canvas", "table"}
+    _除外 = {"head", "script", "style", "noscript", "template", "svg", "canvas", "table", "rp"}
     _非文字 = {"img", "iframe", "object", "embed", "audio", "video"}
     _区切 = {"p", "div", "section", "article", "main", "h1", "h2", "h3", "h4", "li", "ul", "ol", "pre", "blockquote", "br", "hr"}
     _空要素 = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
@@ -76,8 +78,33 @@ class _本文抽出(HTMLParser):
         self.断片: list[str] = []
         self.題名: list[str] = []
         self._題名内 = False
+        self._ルビ深さ = 0
+        self._注記深さ = 0
+        self._零ルビ開始: int | None = None
+
+    @staticmethod
+    def _零サイズルビ(属性):
+        # CSS全体を推定しない。単一の明示font-sizeだけを扱い、上書きは保全する。
+        形式 = [値 for 鍵, 値 in 属性 if 鍵 == "style"]
+        if len(形式) != 1 or 形式[0] is None:
+            return False
+        宣言 = [項.split(":", 1) for 項 in 形式[0].split(";") if ":" in 項]
+        字体 = [値.strip().lower() for 鍵, 値 in 宣言 if 鍵.strip().lower() == "font-size"]
+        return (len(字体) == 1 and re.fullmatch(r"0px(?:\s*!important)?", 字体[0]) is not None
+                and not any(鍵.strip().lower() in ("font", "all") for 鍵, _ in 宣言))
 
     def handle_starttag(self, tag, attrs):
+        # 子構造は文字サイズ等を上書きし得る。注記全体を通常の原文字として保全する。
+        self._零ルビ開始 = None
+        if tag == "ruby":
+            self._ルビ深さ += 1
+        零注記 = (tag == "rt" and self._ルビ深さ > 0 and self._注記深さ == 0
+                  and not self.抑止 and self._零サイズルビ(attrs))
+        if tag == "rt":
+            self._注記深さ += 1
+        if 零注記:
+            # 単純な文字注記の閉鎖を観測するまで保存し、未閉鎖なら原文を残す。
+            self._零ルビ開始 = len(self.断片)
         if tag in self._非文字:
             # 明示した空alt画像以外を、意味的に無関係とは決め付けない。
             if tag != "img" or dict(attrs).get("alt") != "":
@@ -97,6 +124,15 @@ class _本文抽出(HTMLParser):
         self.handle_endtag(tag)
 
     def handle_endtag(self, tag):
+        if self._零ルビ開始 is not None:
+            if tag == "rt":
+                del self.断片[self._零ルビ開始:]
+                self.除外.add("rt")
+            self._零ルビ開始 = None
+        if tag == "rt" and self._注記深さ:
+            self._注記深さ -= 1
+        if tag == "ruby" and self._ルビ深さ:
+            self._ルビ深さ -= 1
         if tag == "title":
             self._題名内 = False
         if self.抑止:
@@ -175,6 +211,9 @@ def 本文を復号(要求URL: str, 経路: tuple[str, ...], headers: dict[str, 
 class 公開本文取得器:
     """公開HTTPS専用・読取専用。DNS待ちの強制中断やブラウザ描画は提供しない。"""
 
+    _受入形式 = "text/html, text/plain, text/markdown"
+    _利用者識別 = "MINIDORA/knowledge-retrieval-0.1"
+
     def __init__(self, *, timeout: float = 8.0, 最大バイト数: int = 500_000,
                  最大転送数: int = 3, 許可ホスト: tuple[str, ...] = ()):
         if type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 60:
@@ -204,8 +243,8 @@ class 公開本文取得器:
             conn.sock = tls_socket
             u = urlsplit(url)
             conn.request("GET", u.path + ("?" + u.query if u.query else ""), headers={
-                "User-Agent": "MINIDORA/knowledge-retrieval-0.1",
-                "Accept": "text/html, text/plain, text/markdown",
+                "User-Agent": self._利用者識別,
+                "Accept": self._受入形式,
                 "Accept-Encoding": "identity", "Connection": "close"})
             with conn.getresponse() as response:
                 headers = {k.lower(): v for k, v in response.getheaders()}
@@ -236,14 +275,20 @@ class 公開本文取得器:
             conn.close()
             raw_socket.close()
 
-    def 取得(self, url: str) -> 取得本文:
+    def _転送を取得(self, url: str, *, 同一ホスト限定: bool = False,
+                  許可経路: tuple[str, ...] = ()) -> tuple[str, tuple[str, ...], dict[str, str], bytes]:
         first = current = 公開URL(url)
+        初期ホスト = urlsplit(first).hostname
         経路 = []
         for _ in range(self.最大転送数 + 1):
             current = 公開URL(current)
             host = urlsplit(current).hostname
             if self.許可ホスト and host not in self.許可ホスト:
                 raise 本文取得失敗("許可ホスト外")
+            if 同一ホスト限定 and host != 初期ホスト:
+                raise 本文取得失敗("別ホストへの転送禁止")
+            if 許可経路 and urlsplit(current).path not in 許可経路:
+                raise 本文取得失敗("許可経路外")
             if current in 経路:
                 raise 本文取得失敗("転送循環")
             経路.append(current)
@@ -255,8 +300,112 @@ class 公開本文取得器:
                 current = urljoin(current, target)
                 continue
             if status != 200:
-                raise 本文取得失敗(f"HTTP状態:{status}")
+                self._状態失敗(status, headers)
             if len(資料) > self.最大バイト数:
                 raise 本文取得失敗("本文サイズ上限")
-            return 本文を復号(first, tuple(経路), headers, 資料)
+            return first, tuple(経路), headers, 資料
         raise 本文取得失敗("転送回数上限")
+
+    def _状態失敗(self, status: int, headers: dict[str, str]) -> None:
+        raise 本文取得失敗(f"HTTP状態:{status}")
+
+    def 取得(self, url: str) -> 取得本文:
+        first, 経路, headers, 資料 = self._転送を取得(url)
+        return 本文を復号(first, 経路, headers, 資料)
+
+
+@dataclass(frozen=True, slots=True)
+class 取得JSON:
+    要求URL: str
+    最終URL: str
+    値: dict
+    取得時刻: str
+    内容種別: str
+    転送バイト数: int
+    転送SHA256: str
+    経路: tuple[str, ...]
+
+
+class JSON待機要求(本文取得失敗):
+    def __init__(self, 待機秒: float):
+        super().__init__("JSON取得の再試行待機中")
+        self.待機秒 = 待機秒
+
+
+class 公開JSON取得器(公開本文取得器):
+    """許可した公開ホスト・経路のJSONだけ読む。記事本文の取得成功とは別契約。"""
+
+    _受入形式 = "application/json"
+    _利用者識別 = "MINIDORA/knowledge-retrieval-0.1 (+https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA)"
+
+    def __init__(self, *, 許可ホスト: tuple[str, ...], 許可経路: tuple[str, ...],
+                 timeout: float = 8.0, 最大バイト数: int = 2_000_000, 最大転送数: int = 3):
+        super().__init__(timeout=timeout, 最大バイト数=最大バイト数,
+                         最大転送数=最大転送数, 許可ホスト=許可ホスト)
+        if not self.許可ホスト or type(許可経路) is not tuple or not 許可経路:
+            raise ValueError("JSONには許可ホストと経路が必要")
+        if any(type(path) is not str or not path.startswith("/")
+               or urlsplit(path).path != path or re.search(r"[\s\\]", path) for path in 許可経路):
+            raise ValueError("JSON許可経路不正")
+        self.許可経路 = 許可経路
+        self._待機期限 = 0.0
+
+    def _状態失敗(self, status: int, headers: dict[str, str]) -> None:
+        if status == 429 or status == 503 and "retry-after" in headers:
+            指示 = headers.get("retry-after", "")
+            待機秒 = 60.0
+            if 指示.isdecimal():
+                # 桁数を限定して変換する。過大な待機指示は自動再試行を停止する。
+                待機秒 = max(1.0, float(指示)) if len(指示) <= 12 else math.inf
+            elif 指示:
+                try:
+                    日時 = parsedate_to_datetime(指示)
+                    if 日時.tzinfo is not None:
+                        待機秒 = max(1.0, (日時 - datetime.now(timezone.utc)).total_seconds())
+                except (ValueError, OverflowError):
+                    pass
+            self._待機期限 = max(self._待機期限, time.monotonic() + 待機秒)
+            raise JSON待機要求(待機秒)
+        super()._状態失敗(status, headers)
+
+    def 取得(self, url: str) -> 取得JSON:
+        if time.monotonic() < self._待機期限:
+            raise JSON待機要求(self._待機期限 - time.monotonic())
+        first, 経路, headers, raw = self._転送を取得(
+            url, 同一ホスト限定=True, 許可経路=self.許可経路)
+        msg = Message()
+        msg["content-type"] = headers.get("content-type", "application/octet-stream")
+        if msg.get_content_type() != "application/json":
+            raise 本文取得失敗("JSON内容種別不正")
+        if headers.get("content-encoding", "identity").lower() not in ("", "identity"):
+            raise 本文取得失敗("圧縮応答は未対応")
+        if (msg.get_content_charset() or "utf-8").lower().replace("_", "-") != "utf-8":
+            raise 本文取得失敗("JSON文字コード不正")
+
+        def 重複を拒否(rows):
+            out = {}
+            for key, value in rows:
+                if key in out:
+                    raise ValueError("JSON重複キー")
+                out[key] = value
+            return out
+
+        def 非有限を拒否(value):
+            raise ValueError("JSON非有限数")
+
+        def 実数を検査(value):
+            number = float(value)
+            if not math.isfinite(number):
+                raise ValueError("JSON非有限数")
+            return number
+
+        try:
+            value = json.loads(raw.decode("utf-8", errors="strict"),
+                               object_pairs_hook=重複を拒否, parse_constant=非有限を拒否,
+                               parse_float=実数を検査)
+            if type(value) is not dict:
+                raise ValueError("JSON最上位objectが必要")
+        except (ValueError, UnicodeError, RecursionError) as exc:
+            raise 本文取得失敗("JSON復号失敗") from exc
+        return 取得JSON(first, 経路[-1], value, datetime.now(timezone.utc).isoformat(),
+                        "application/json", len(raw), sha256(raw).hexdigest(), 経路)

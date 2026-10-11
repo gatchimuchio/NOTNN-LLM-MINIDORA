@@ -119,7 +119,7 @@ class 知識取得器:
 
     def 実行(self, 要求: 知識取得要求, *, 外部読取許可: bool = False,
              停止要求: Callable[[], bool] | None = None) -> 能力結果:
-        traces, documents, passages, refs = [], [], [], []
+        traces, documents, passages, refs, 検索来歴 = [], [], [], [], []
         covered: set[str] = set()
         attempts = 0
 
@@ -129,6 +129,8 @@ class 知識取得器:
                     "不足語": [w for w in 要求.必要語 if w not in covered],
                     "資料": documents, "抜粋": passages, "試行": traces,
                     "本文取得数": attempts, "資料数": len(refs)}
+            if 検索来歴:
+                資料["検索来歴"] = 検索来歴
             encoded = json.dumps(資料, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8")
             if len(encoded) + sum(len(r.本文.encode("utf-8")) for r in refs) > 1_000_000:
                 return 能力結果(False, "", 保留理由="取得記録サイズ上限")
@@ -160,7 +162,18 @@ class 知識取得器:
                 tried_queries.add(query)
                 traces.append({"作用": "検索", "検索語": query, "回": round_no + 1})
                 try:
-                    candidates = self.検索.検索(query, 要求.最大候補数)
+                    来歴検索 = getattr(self.検索, "検索来歴付き", None)
+                    if callable(来歴検索):
+                        candidates, 来歴 = 来歴検索(query, 要求.最大候補数)
+                        if type(来歴) is not tuple or len(来歴) > 10 or any(type(row) is not dict for row in 来歴):
+                            raise ValueError("検索来歴型不正")
+                        encoded = json.dumps(来歴, ensure_ascii=False, allow_nan=False)
+                        if len(encoded.encode("utf-8")) > 64_000:
+                            raise ValueError("検索来歴サイズ上限")
+                        検索来歴.append({"検索語": query, "回": round_no + 1,
+                                        "取得": json.loads(encoded)})
+                    else:
+                        candidates = self.検索.検索(query, 要求.最大候補数)
                     if type(candidates) is not tuple:
                         raise ValueError("検索結果型不正")
                 except Exception as exc:

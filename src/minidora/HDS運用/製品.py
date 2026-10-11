@@ -8,14 +8,20 @@ from .値 import 運用版, 文字を検査
 
 
 class HDS製品ミニドラ:
-    def __init__(self, *, 外部読取許可=False, 取得器=None, 監査台帳_=None, 最大セッション数=64, 手順形成=True):
+    def __init__(self, *, 外部読取許可=False, 取得器=None, 監査台帳_=None, 最大セッション数=64, 手順形成=True, 基本チャット=False):
         if type(外部読取許可) is not bool or type(手順形成) is not bool:
             raise TypeError("外部読取許可はbool")
         if type(最大セッション数) is not int or not 1 <= 最大セッション数 <= 256:
             raise ValueError("セッション数上限")
+        if type(基本チャット) is not bool:
+            raise TypeError("基本チャット設定はbool")
+        self.要求単位外部読取 = 基本チャット
+        if 基本チャット and 取得器 is None:
+            from ..製品版.検索 import Wikipedia知識取得器
+            取得器 = Wikipedia知識取得器()
         self.監査台帳 = 監査台帳_ if 監査台帳_ is not None else 監査台帳()
         self._形成 = 手順形成
-        self._許可, self._取得器, self._上限 = 外部読取許可, 取得器, 最大セッション数
+        self._許可, self._取得器, self._上限 = 外部読取許可 or 基本チャット, 取得器, 最大セッション数
         self._会話, self._前監査 = {}, {}
         self._ロック = RLock()
         self._会話ロック = {}
@@ -38,12 +44,18 @@ class HDS製品ミニドラ:
                 self._会話ロック[ID] = RLock()
             return self._会話[ID]
 
-    def 応答(self, 入力文, *, セッションID="default"):
+    def 応答(self, 入力文, *, セッションID="default", 外部読取許可=None):
+        if 外部読取許可 is not None and type(外部読取許可) is not bool:
+            raise TypeError("要求の外部読取許可はbool")
+        許可 = (False if 外部読取許可 is None else 外部読取許可) if self.要求単位外部読取 else self._許可
+        if not self.要求単位外部読取 and 外部読取許可 is not None:
+            raise ValueError("要求単位の外部読取には基本チャット設定が必要です")
         session = self.セッション(セッションID)
         with self._会話ロック[セッションID]:
             audit = self.監査台帳.開始(入力文, セッションID, self._前監査.get(セッションID, ""))
             audit.経路設定("HDS通常運用")
-            結果 = session.応答(入力文, 外部読取許可=self._許可)
+            audit.記録("要求条件", "外部読取", "要求許可-v1", {"許可": 許可}, {"要求単位": self.要求単位外部読取})
+            結果 = session.応答(入力文, 外部読取許可=許可)
             for row in (結果.追跡 or {}).get("作用", ()):
                 audit.記録("HDS作用", row["作用ID"], 運用版,
                     {"署名": row["作用入力署名"]},

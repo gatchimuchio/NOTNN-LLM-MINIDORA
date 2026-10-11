@@ -122,7 +122,7 @@ class APIHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/" or path.startswith("/static/"): return self._static(path)
         if path == "/health": return _json(self,200,{"ok":True,"service":"MINIDORA Product","api_version":API版})
-        if path == "/api/capabilities": return _json(self,200,{"capabilities":list(self.app.能力一覧())})
+        if path == "/api/capabilities": return _json(self,200,{"capabilities":list(self.app.能力一覧()), "request_external_read":bool(getattr(self.app, "要求単位外部読取", False))})
         m = re.fullmatch(r"/api/trace/([a-f0-9]{32})", path)
         if m:
             r = self.app.監査台帳.取得(m.group(1))
@@ -157,7 +157,12 @@ class APIHandler(BaseHTTPRequestHandler):
         if not message: return _json(self,400,{"error":"message_required"})
         if len(session) > 128 or (getattr(self.server, "CloudRun境界", False) and len(message) > 8192):
             return _json(self,400,{"error":"input_limit"})
-        try: response = self.app.応答(message, セッションID=session)
+        条件 = {"セッションID": session}
+        if "external_read" in payload:
+            if type(payload["external_read"]) is not bool or not getattr(self.app, "要求単位外部読取", False):
+                return _json(self,400,{"error":"invalid_external_read_permission"})
+            条件["外部読取許可"] = payload["external_read"]
+        try: response = self.app.応答(message, **条件)
         except (ValueError, TypeError): return _json(self,400,{"error":"invalid_input"})
         except Exception:
             self.log_error("製品実行に失敗しました")

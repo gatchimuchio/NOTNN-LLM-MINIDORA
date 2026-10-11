@@ -27,7 +27,8 @@
             <textarea id="input" rows="1" placeholder="MINIDORAにメッセージを送る" autofocus></textarea>
             <button id="send" type="submit">送信</button>
           </form>
-          <div class="hint">例: 「今日のニュースは？」→「3行で要約して」 / 「(12+8)*3」</div>
+          <label id="externalPermission" class="hint hidden"><input id="externalRead" type="checkbox" /> この質問で公開資料を検索する（Wikipedia）</label>
+          <div class="hint">説明・比較・提示した文章の要約を依頼できます。</div>
         </div>
       </section>
       <aside class="trace-panel">

@@ -9,4 +9,4 @@ RUN python -m pip install --no-cache-dir --no-deps --no-build-isolation . \
 USER 10001
 ENV PORT=8080 PYTHONUNBUFFERED=1 PYTHONUTF8=1 PYTHONDONTWRITEBYTECODE=1
 EXPOSE 8080
-CMD ["python", "-m", "minidora.製品版", "--HDS", "--ADK", "--CloudRun", "--serve"]
+CMD ["python", "-m", "minidora.製品版", "--HDS", "--ADK", "--基本チャット", "--CloudRun", "--serve"]

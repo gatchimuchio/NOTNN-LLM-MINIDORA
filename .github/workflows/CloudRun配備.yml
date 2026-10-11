@@ -157,7 +157,7 @@ jobs:
           set -euo pipefail
           gcloud run deploy "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
             --image="$CLOUD_RUN_IMAGE" --service-account="$GCP_RUNTIME_SERVICE_ACCOUNT" \
-            --command=python --args="-m,minidora.製品版,--HDS,--ADK,--CloudRun,--serve" \
+            --command=python --args="-m,minidora.製品版,--HDS,--ADK,--基本チャット,--CloudRun,--serve" \
             --no-allow-unauthenticated --invoker-iam-check --ingress=all \
             --min=0 --max=1 --min-instances=0 --max-instances=1 --concurrency=1 \
             --cpu=1 --memory=1Gi --timeout=60 --port=8080 --no-session-affinity \

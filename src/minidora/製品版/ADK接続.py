@@ -49,7 +49,11 @@ class ADK製品ミニドラ:
     def 能力一覧(self):
         return self._製品.能力一覧()
 
-    def 応答(self, 入力文, *, セッションID="default") -> 製品応答:
+    @property
+    def 要求単位外部読取(self):
+        return bool(getattr(self._製品, "要求単位外部読取", False))
+
+    def 応答(self, 入力文, *, セッションID="default", 外部読取許可=None) -> 製品応答:
         """同期CLI/HTTP入口。非同期呼出元は応答非同期を使用する。"""
         try:
             asyncio.get_running_loop()
@@ -57,11 +61,13 @@ class ADK製品ミニドラ:
             pass
         else:
             raise RuntimeError("実行中の非同期ループでは応答非同期を使用してください")
-        return asyncio.run(self.応答非同期(入力文, セッションID=セッションID))
+        return asyncio.run(self.応答非同期(入力文, セッションID=セッションID, 外部読取許可=外部読取許可))
 
-    async def 応答非同期(self, 入力文, *, セッションID="default") -> 製品応答:
+    async def 応答非同期(self, 入力文, *, セッションID="default", 外部読取許可=None) -> 製品応答:
         # 外部形式への直列化だけを担当し、入力の意味判断はHDSに委ねる。
-        配送文 = json.dumps({"入力文": 入力文, "セッションID": セッションID}, ensure_ascii=False)
+        if 外部読取許可 is not None and type(外部読取許可) is not bool:
+            raise TypeError("外部読取許可はbool")
+        配送文 = json.dumps({"入力文": 入力文, "セッションID": セッションID, "外部読取許可": 外部読取許可}, ensure_ascii=False)
         製品結果 = []
 
         def HDSを駆動(node_input):
@@ -69,7 +75,10 @@ class ADK製品ミニドラ:
             if len(断片) != 1 or 断片[0].text is None:
                 raise ValueError("ADK入力は単一のテキスト配送文が必要です")
             配送 = json.loads(断片[0].text)
-            結果 = self._製品.応答(配送["入力文"], セッションID=配送["セッションID"])
+            条件 = {"セッションID": 配送["セッションID"]}
+            if 配送["外部読取許可"] is not None:
+                条件["外部読取許可"] = 配送["外部読取許可"]
+            結果 = self._製品.応答(配送["入力文"], **条件)
             if not isinstance(結果, 製品応答):
                 raise TypeError("HDS製品応答の型が不正です")
             製品結果.append(結果)

@@ -12,6 +12,7 @@ def main() -> int:
     p.add_argument("--HDS", action="store_true", help="HDS単一主体の全体運用を利用")
     p.add_argument("--ADK", action="store_true", help="ADK 2.xの実行境界から既存HDSを駆動")
     p.add_argument("--CloudRun", action="store_true", help="IAM保護されたCloud Run用のHTTP入口")
+    p.add_argument("--基本チャット", action="store_true", help="HDSの会話要求と要求ごとの公開資料検索許可を利用")
     p.add_argument("--汎用", action="store_true", help="目的・複数資料・確認継続の会話入口を利用")
     p.add_argument("--外部読取", action="store_true", help="汎用入口で要求された公開資料取得を許可")
     p.add_argument("--session", default="cli")
@@ -23,7 +24,9 @@ def main() -> int:
         p.error("--ADKは--HDSと共に指定してください")
     if a.CloudRun and not (a.HDS and a.ADK and a.serve):
         p.error("--CloudRunは--HDS --ADK --serveと共に指定してください")
-    if a.CloudRun and a.外部読取:
+    if a.基本チャット and not a.HDS:
+        p.error("--基本チャットは--HDSと共に指定してください")
+    if a.CloudRun and a.外部読取 and not a.基本チャット:
         p.error("Cloud Run検証環境では外部読取を許可しません")
     if a.汎用 or a.HDS:
         for stream in (sys.stdin,sys.stdout,sys.stderr):
@@ -34,7 +37,7 @@ def main() -> int:
         p.error("--外部読取は--HDS又は--汎用と共に指定してください")
     if a.HDS:
         from ..HDS運用.製品 import HDS製品ミニドラ
-        app = HDS製品ミニドラ(外部読取許可=a.外部読取, 監査台帳_=audit)
+        app = HDS製品ミニドラ(外部読取許可=a.外部読取, 監査台帳_=audit, 基本チャット=a.基本チャット)
     else:
         app = 製品ミニドラ(基礎ミニドラ=None if a.汎用 else 標準ミニドラ(), 監査台帳_=audit,
                           汎用会話=a.汎用, 汎用外部読取許可=a.外部読取)
@@ -47,7 +50,10 @@ def main() -> int:
         else: serve(app)
         return 0
     if a.message:
-        r=app.応答(" ".join(a.message), セッションID=a.session)
+        条件 = {"セッションID": a.session}
+        if a.基本チャット:
+            条件["外部読取許可"] = a.外部読取
+        r=app.応答(" ".join(a.message), **条件)
         print(r.本文); print(f"trace_id={r.追跡ID}\ntrace_hash={r.監査ハッシュ}")
         return 2 if a.HDS and r.状態 != "APPROVE" else 0
     print("MINIDORA Product Chat / exit で終了")
@@ -59,5 +65,8 @@ def main() -> int:
             print("標準入力はUTF-8で指定してください。", file=sys.stderr)
             return 2
         if text.casefold() in {"exit","quit"}: return 0
-        r=app.応答(text,セッションID=a.session); print(r.本文); print(f"[trace:{r.追跡ID}]")
+        条件 = {"セッションID": a.session}
+        if a.基本チャット:
+            条件["外部読取許可"] = a.外部読取
+        r=app.応答(text, **条件); print(r.本文); print(f"[trace:{r.追跡ID}]")
 if __name__ == "__main__": raise SystemExit(main())

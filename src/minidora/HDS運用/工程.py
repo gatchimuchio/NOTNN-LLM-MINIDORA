@@ -366,6 +366,8 @@ class 工程供給:
                         return False
                 else:
                     return False
+                if 構造["要求"]["版"] == "HDS一般会話要求-v2":
+                    return self._会話根拠を検証(構造, packet, values, current_key)
                 if 構造["要求"]["範囲"] == "公開取得":
                     return 構造["取得記録"] is not None
                 if 構造["要求"]["範囲"] == "全資料" and set(構造["資料群"]) != set(values["運用入力"]["資料"]):
@@ -377,3 +379,62 @@ class 工程供給:
             return answer.成立 and (回答記録整合(answer) or 改善回答を検査(answer.データ))
         except (ValueError, TypeError, KeyError):
             return False
+
+    @staticmethod
+    def _会話根拠を検証(構造, 包, 値, 計画鍵):
+        """今回の実入力又は有効な採用原本に根拠を束縛する。登録資料へ偽装しない。"""
+        from .一般接続 import 取得資料を復元
+        入力, 要求 = 値["運用入力"], 構造["要求"]
+        if 包["解釈"].get("方式") == "一般再表現":
+            if not 入力["前回有効"] or 入力["前回結果"] is None:
+                return False
+            前回 = 結果を復元(入力["前回結果"])
+            return 資料文章を検査(前回) and 構造 == 前回.データ["構造"]
+        素材 = {名: 結果を復元(項) for 名, 項 in 包["資料"].items()}
+        束縛 = 素材["一般:束縛"].データ
+        if set(束縛) != {"元要求印", "実範囲", "資料名"} or 束縛["元要求印"] != 指紋(要求):
+            return False
+        名前 = 束縛["資料名"]
+        if type(名前) is not list or len(名前) != len(set(名前)):
+            return False
+        if 束縛["実範囲"] == "公開取得":
+            if not 入力["外部許可"] or not 包["外部許可"] or 名前:
+                return False
+            計画 = 計画を復元(包["計画"])
+            取得工程 = [工程 for 工程 in 計画.工程 if 工程.能力候補 == ("知識取得",)]
+            if not 1 <= len(取得工程) <= 4:
+                return False
+            原資料, 記録 = {}, []
+            for 工程 in 取得工程:
+                成果 = 結果を復元(値[_工程鍵(計画鍵, 工程.識別子)])
+                for 名, 資料 in 取得資料を復元(成果).items():
+                    if 名 in 原資料 and 原資料[名] != 資料:
+                        return False
+                    原資料[名] = 資料
+                # 知識取得の実型tupleは保存時に復元される。選択能力が保持する
+                # 交換形へ同じ正準化を施し、内容差と容器型差を区別する。
+                記録.append(正準(成果.データ))
+            return (構造["取得記録"] == 記録 and 構造["資料順"] == list(原資料)
+                    and set(構造["資料群"]) == set(原資料)
+                    and all(行["資料"] == 結果を保存(原資料[名]) for 名, 行 in 構造["資料群"].items()))
+        if not 1 <= len(名前) <= 16 or 構造["資料順"] != 名前 or set(構造["資料群"]) != set(名前):
+            return False
+        原資料 = {名: 結果を保存(素材["一般:資料:" + str(番号)]) for 番号, 名 in enumerate(名前)}
+        if any(構造["資料群"][名]["資料"] != 原資料[名] for 名 in 名前):
+            return False
+        if 束縛["実範囲"] == "提示本文":
+            return 名前 == ["提示本文"] and 要求["提示本文"] == 素材["一般:資料:0"].本文 and 構造["取得記録"] is None
+        if 束縛["実範囲"] == "前回実資料":
+            if not 入力["前回有効"] or 入力["前回結果"] is None or not (包["解釈"].get("継承") or 包["解釈"].get("根拠継承")):
+                return False
+            前回 = 結果を復元(入力["前回結果"])
+            if not 資料文章を検査(前回):
+                return False
+            旧資料 = 前回.データ["構造"]["資料群"]
+            return (all(名 in 旧資料 and 原資料[名] == 旧資料[名]["資料"] for 名 in 名前)
+                    and 構造["取得記録"] == 前回.データ["構造"]["取得記録"])
+        if 束縛["実範囲"] not in ("指定資料", "全資料", "会話資料") or 構造["取得記録"] is not None:
+            return False
+        if 束縛["実範囲"] == "全資料" and set(名前) != set(入力["資料"]):
+            return False
+        return all(名 in 入力["資料"] and 原資料[名] == 入力["資料"][名]["結果"] for 名 in 名前)

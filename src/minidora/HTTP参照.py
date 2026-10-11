@@ -189,6 +189,8 @@ class OpenAlex参照供給器:
 
 class Wikipedia参照供給器:
     並列安全 = False
+    # 限定アダプターだけが候補検索を選ぶ。従来の本文参照の挙動は変えない。
+    候補のみ = False
 
     def __init__(self, *, 言語: str = "en", timeout: float = 12.0, user_agent: str = "MINIDORA/0.4 (Wikipedia reference provider)", JSON取得: JSON取得器 | None = None, 最大本文文字数: int = 12000) -> None:
         言語 = str(言語).strip().casefold()
@@ -275,7 +277,7 @@ class Wikipedia参照供給器:
             description = str(row.get("description") or "").strip()
             excerpt = _html_text(row.get("excerpt"))
             self._error(None)
-            detail = self._page(key) if key else None
+            detail = self._page(key) if key and not self.候補のみ else None
             detail_error = self.最後のエラー
             if detail is None and detail_error:
                 detail_errors.append(f"{key}:{detail_error}")
@@ -288,7 +290,7 @@ class Wikipedia参照供給器:
                 full_text=full_text,
                 limit=self.最大本文文字数,
             )
-            if not content:
+            if not content and not self.候補のみ:
                 continue
             情報源_url = f"https://{self.言語}.wikipedia.org/wiki/{quote(key.replace(' ', '_'), safe='')}"
             条件 = (("wikipedia_detail", "degraded"),) if detail is None and detail_error else ()

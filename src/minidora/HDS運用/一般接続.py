@@ -52,7 +52,8 @@ class 一般資料能力:
         群, 設定 = 文脈.補助.get("合成入力"), 文脈.補助.get("合成設定", {})
         if type(群) not in (list, tuple) or not 1 <= len(群) <= 16 or type(設定) is not dict:
             raise ValueError("資料文章の入力数・設定が不正")
-        if _個数[self.名前] is not None and len(群) != _個数[self.名前]:
+        多取得 = self.名前 == "取得資料意味選択" and 設定.get("版") == "HDS一般会話要求-v2" and 1 <= len(群) <= 4
+        if not 多取得 and _個数[self.名前] is not None and len(群) != _個数[self.名前]:
             raise ValueError("資料文章の入力数不一致")
         if self.名前 not in ("資料意味選択", "取得資料意味選択", "資料文章再表現") and 設定:
             raise ValueError("資料文章作用に未知の設定")
@@ -73,11 +74,25 @@ class 一般資料能力:
             値, 設定 = self._入力(文脈)
             参照 = _参照結合(参照 for 項 in 値 for 参照 in 項.参照)
             if self.名前 == "資料意味選択":
-                if set(設定) != {"要求", "資料名"} or len(設定["資料名"]) != len(値) or len(set(設定["資料名"])) != len(値):
+                欄 = {"要求", "資料名"}
+                if 設定.get("要求", {}).get("版") == "HDS一般会話要求-v2" and "取得記録" in 設定:
+                    欄.add("取得記録")
+                if set(設定) != 欄 or len(設定["資料名"]) != len(値) or len(set(設定["資料名"])) != len(値):
                     raise ValueError("資料の名前・入力対応不一致")
-                成果 = 資料意味を選ぶ(dict(zip(設定["資料名"], 値)), 設定["要求"])
+                成果 = 資料意味を選ぶ(dict(zip(設定["資料名"], 値)), 設定["要求"], 取得記録=設定.get("取得記録"))
             elif self.名前 == "取得資料意味選択":
-                成果 = 資料意味を選ぶ(取得資料を復元(値[0]), 設定, 取得記録=正準(値[0].データ))
+                if 設定.get("版") == "HDS一般会話要求-v2":
+                    資料 = {}
+                    for 項 in 値:
+                        if any(語 not in 設定["主題"] + 設定["比較対象"] for 語 in 項.データ["要求"]["必要語"]):
+                            raise ValueError("初回の取得要求と問いの対象が不一致")
+                        for 名, 原資料 in 取得資料を復元(項).items():
+                            if 名 in 資料 and 資料[名] != 原資料:
+                                raise ValueError("複数取得の原資料が競合")
+                            資料[名] = 原資料
+                    成果 = 資料意味を選ぶ(資料, 設定, 取得記録=[正準(項.データ) for 項 in 値])
+                else:
+                    成果 = 資料意味を選ぶ(取得資料を復元(値[0]), 設定, 取得記録=正準(値[0].データ))
             elif self.名前 == "資料内容構成":
                 成果 = 内容仕様を構成(値[0].データ)
             elif self.名前 == "資料文章照合":

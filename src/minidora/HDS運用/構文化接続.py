@@ -66,9 +66,9 @@ def 局所接続を構成(ir):
 
 
 class 運用構文化器:
-    def コンパイル(self, text):
+    def コンパイル(self, text, *, 文脈=None):
         構文化器 = 公開HDSコンパイラ()
-        束 = 構文化器.コンパイル束(text)
+        束 = 構文化器.コンパイル束(text, 文脈=文脈)
         self.コア入力 = 束.正本
         self.原IR = 束.意味IR
         local, self.責任対応 = 局所接続を構成(self.原IR)

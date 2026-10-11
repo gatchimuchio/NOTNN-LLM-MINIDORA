@@ -2,6 +2,7 @@
 from __future__ import annotations
 from copy import deepcopy
 from dataclasses import asdict
+from hashlib import sha256
 import re
 import unicodedata
 from ..製品版.型 import 能力結果
@@ -9,6 +10,8 @@ from .一般依頼 import 一般要求を検査
 from .値 import 正準, 指紋, 結果を保存, 結果を復元
 
 意味資料版 = "HDS資料意味選択-v1"
+会話意味資料版 = "HDS資料意味選択-v2"
+会話引用診断版 = "HDS会話原本引用診断-v1"
 _条件 = re.compile(r'ただし|但し|除く|除外|例外|限り|場合|条件|時点|現在|以前|以後|以降|まで|未確認|不明|保証|可能性|推定|仮定|共通|適用|注意|誤り|虚構|引用|否定|しない|ではない|禁止|異なる|無効')
 _別名 = re.compile(r'(?:「(?P<左引用>[^「」\n]{1,80})」|(?P<左>[^。\n「」]{1,80}?))は(?:「(?P<右引用>[^「」\n]{1,80})」|(?P<右>[^。\n「」]{1,80}?))とも(?:呼ぶ|呼ばれる|いう|言う)[。\n]')
 
@@ -17,17 +20,26 @@ def _正規化(文):
     return unicodedata.normalize("NFKC", 文).casefold()
 
 
-def 資料を区分(本文):
+def 資料を区分(本文, *, 会話本文=False):
     """空行を含む節の原文を保持。見出しは局所ATX構文として扱う。"""
+    if type(会話本文) is not bool:
+        raise ValueError("会話本文の指定は真偽値です")
     if type(本文) is not str or not 本文.strip() or len(本文) > 100000:
         raise ValueError("資料本文は1〜100000文字です")
     本文.encode("utf-8")
-    if any(unicodedata.category(字) in ("Cf", "Cs", "Zl", "Zp") or
+    # MathML由来の関数適用作用素は意味を持つ。新しい会話資料だけで
+    # 原字を保持して受け入れ、既保存v1資料の拒否境界は変更しない。
+    if any((unicodedata.category(字) in ("Cf", "Cs", "Zl", "Zp") and
+            not (会話本文 and 字 == "\u2061")) or
            unicodedata.category(字) == "Cc" and 字 not in '\t\n\r' for 字 in 本文):
         raise ValueError("未対応制御文字を削除せず保留")
     節群, 階層, 開始, 位置 = [], [], 0, 0
     現階層, 引用, 囲い = [], [], None
     括弧 = {"「": "」", "『": "』", "（": "）"}
+    if 会話本文:
+        # 表示上の半角・全角混在を同じ丸括弧種として検査する。
+        # 原文やその座標を正規化・置換しない。
+        括弧["("] = ")"
     for 行 in 本文.splitlines(keepends=True):
         枠 = re.fullmatch(r"[ ]{0,3}(`{3,}|~{3,})[^\r\n]*\r?\n?", 行)
         if 枠 and not 引用:
@@ -45,7 +57,8 @@ def 資料を区分(本文):
             if 字 in 括弧:
                 引用.append(括弧[字])
             elif 字 in 括弧.values():
-                if not 引用 or 引用.pop() != 字:
+                期待 = 引用.pop() if 引用 else None
+                if 期待 != 字 and not (会話本文 and 期待 in (")", "）") and 字 in (")", "）")):
                     raise ValueError("資料の引用境界が不整合です")
         見出し = None if 引用中 else re.fullmatch(r'(#{1,6})[ \t]+([^\r\n]+)\r?\n?', 行)
         if 見出し:
@@ -63,6 +76,72 @@ def 資料を区分(本文):
     if not 1 <= len(節群) <= 128:
         raise ValueError("資料の節数は1〜128です")
     return 節群
+
+
+def _会話原本を区分(本文):
+    """原本を直さず、孤立閉じの診断だけを会話資料へ同伴する。採否は行わない。"""
+    try:
+        return {"節": 資料を区分(本文, 会話本文=True)}
+    except ValueError as 不整合:
+        if str(不整合) != "資料の引用境界が不整合です":
+            raise
+        厳密理由 = str(不整合)
+
+    開閉 = {"「": "」", "『": "』", "（": ")", "(": ")"}
+    引用, 囲い, 位置, 診断 = [], None, 0, []
+    節群, 階層, 現階層, 開始 = [], [], [], 0
+    for 行 in 本文.splitlines(keepends=True):
+        枠 = re.fullmatch(r"[ ]{0,3}(`{3,}|~{3,})[^\r\n]*\r?\n?", 行)
+        if 枠 and not 引用:
+            if 囲い is None:
+                囲い = 枠[1]
+            elif 枠[1][0] == 囲い[0] and len(枠[1]) >= len(囲い):
+                囲い = None
+            位置 += len(行)
+            continue
+        if 囲い is not None:
+            位置 += len(行)
+            continue
+        引用中 = bool(引用)
+        for 列, 字 in enumerate(行):
+            if 字 in 開閉:
+                引用.append(開閉[字])
+            elif 字 in ("」", "』", ")", "）"):
+                比較 = ")" if 字 in (")", "）") else 字
+                if not 引用:
+                    診断.append({"種別": "孤立閉じ", "文字位置": 位置 + 列,
+                                 "開始": 位置, "終了": 位置 + len(行), "原文": 行,
+                                 "理由": "原資料に対応する開き引用を確認できない閉じ文字があります。",
+                                 "作用域": "未確定。別記載への不適用を認定しない。",
+                                 "必要資料": "この行の対応する開き引用・引用範囲、および定義への適用又は撤回の有無を確認できる原資料が必要です。"})
+                elif 引用[-1] == 比較:
+                    引用.pop()
+                else:
+                    # 内部不一致の引用状態を初期化し、後続を独立記載にしない。
+                    raise ValueError("資料の引用内部が不整合です。原文を切断せず保留")
+        見出し = None if 引用中 else re.fullmatch(r'(#{1,6})[ \t]+([^\r\n]+)\r?\n?', 行)
+        if 見出し:
+            if 位置 > 開始 and 本文[開始:位置].strip():
+                節群.append({"開始": 開始, "終了": 位置, "階層": deepcopy(現階層)})
+            深さ = len(見出し[1])
+            階層 = [項 for 項 in 階層 if 項["深さ"] < 深さ]
+            階層.append({"深さ": 深さ, "開始": 位置, "終了": 位置 + len(行), "見出し": 見出し[2]})
+            開始, 現階層 = 位置, deepcopy(階層)
+        位置 += len(行)
+    if 引用 or 囲い is not None:
+        raise ValueError("閉じていない引用・コード領域を切断せず保留")
+    if not 診断:
+        raise ValueError("引用不整合を原本の孤立閉じへ対応できません")
+    if len(診断) > 64 or sum(len(項["原文"].encode("utf-8")) for 項 in 診断) > 32768:
+        raise ValueError("原文を切断しない引用診断同伴上限")
+    if 位置 > 開始 and 本文[開始:位置].strip():
+        節群.append({"開始": 開始, "終了": 位置, "階層": 現階層})
+    if not 1 <= len(節群) <= 128:
+        raise ValueError("資料の節数は1〜128です")
+    return {"節": 節群, "全体構文診断": {
+        "版": 会話引用診断版, "本文SHA256": sha256(本文.encode("utf-8")).hexdigest(),
+        "厳密検査失敗": 厳密理由, "診断": 診断,
+        "境界": "原文字・行・位置を保存。命題採用、HTML脚注依存、条件不適用、真偽は判定しない。"}}
 
 
 def _語展開(主題, 本文):
@@ -94,6 +173,8 @@ def _語展開(主題, 本文):
 
 def 資料意味を選ぶ(資料, 要求, *, 取得記録=None):
     要求 = 一般要求を検査(要求)
+    if 要求["版"] == "HDS一般会話要求-v2":
+        return _会話資料を選ぶ(資料, 要求, 取得記録=取得記録)
     if type(資料) is not dict or not 1 <= len(資料) <= 16:
         raise ValueError("一般文章の資料数は1〜16です")
     if sum(len(項.本文) for 項 in 資料.values()) > 200000:
@@ -155,13 +236,65 @@ def 資料意味を選ぶ(資料, 要求, *, 取得記録=None):
     return 正準(構造)
 
 
+def _会話資料を選ぶ(資料, 要求, *, 取得記録=None):
+    if type(資料) is not dict or not 1 <= len(資料) <= 16:
+        raise ValueError("会話資料数は1〜16です")
+    if any(type(名) is not str or not 名.strip() or len(名) > 256 or not isinstance(項, 能力結果) or not 項.成立 for 名, 項 in 資料.items()):
+        raise ValueError("会話資料の名前・成立状態不正")
+    if sum(len(項.本文) for 項 in 資料.values()) > 200000:
+        raise ValueError("会話資料総量上限")
+    順序 = list(資料)
+    if 要求["範囲"] == "指定資料" and 順序 != 要求["対象"]:
+        raise ValueError("明示資料の要求順序と実資料が不一致")
+    if 要求["提示本文"] and (取得記録 is not None or len(資料) != 1 or next(iter(資料.values())).本文 != 要求["提示本文"]):
+        raise ValueError("提示本文の原本対応が不一致")
+    if 取得記録 is not None:
+        from .一般接続 import 取得資料を復元
+        if type(取得記録) is not list or not 1 <= len(取得記録) <= 4:
+            raise ValueError("会話の取得記録は1〜4件です")
+        復元資料 = {}
+        for 記録 in 取得記録:
+            参照ID = {行["参照ID"] for 行 in 記録["資料"]}
+            参照群 = tuple(r for 項 in 資料.values() for r in 項.参照 if r.識別子 in 参照ID)
+            # 複数取得で同一原資料が現れても、参照本文の改変を許さない。
+            参照対応 = {}
+            for 参照 in 参照群:
+                if 参照.識別子 in 参照対応 and 参照対応[参照.識別子] != 参照:
+                    raise ValueError("同一参照IDの原本が競合")
+                参照対応[参照.識別子] = 参照
+            群 = 取得資料を復元(能力結果(True, "", 参照=tuple(参照対応.values()), データ=記録))
+            必要語 = 記録["要求"]["必要語"]
+            if not 必要語:
+                raise ValueError("取得要求の原対象が欠落しています")
+            for 名, 項 in 群.items():
+                if 名 in 復元資料 and 結果を保存(復元資料[名]) != 結果を保存(項):
+                    raise ValueError("複数取得の同名資料が競合")
+                復元資料[名] = 項
+        if set(資料) != set(復元資料) or any(結果を保存(資料[名]) != 結果を保存(復元資料[名]) for 名 in 資料):
+            raise ValueError("会話の取得原本・実資料が不一致")
+    elif 要求["範囲"] == "公開取得":
+        raise ValueError("公開取得の実記録が必要です")
+    記録, 被覆 = {}, []
+    for 名, 項 in 資料.items():
+        区分 = _会話原本を区分(項.本文)
+        節 = 区分["節"]
+        記録[名] = {"資料": 結果を保存(項), **区分, "選択": list(range(len(節))), "未選択": []}
+        for 主題 in 要求["主題"] + 要求["比較対象"]:
+            被覆.append({"資料": 名, "主題": 主題, "記載一致": _正規化(主題) in _正規化(項.本文)})
+    return 正準({"版": 会話意味資料版, "要求": 要求, "資料群": 記録, "資料順": 順序,
+                 "被覆": 被覆, "取得記録": 正準(取得記録) if 取得記録 is not None else None,
+                 "境界": "原資料を保持し、要求された意味作用は内容構成で検査する。記載一致だけで理由・比較・事実性を採用しない"})
+
+
 def 意味資料を検査(構造):
     try:
-        if type(構造) is not dict or 構造.get("版") != 意味資料版:
+        if type(構造) is not dict or 構造.get("版") not in (意味資料版, 会話意味資料版):
             return False
         群 = {名: 結果を復元(値["資料"]) for 名, 値 in 構造["資料群"].items()}
         # JSON正準化は辞書順を並べ替えるため要求順で復元する。
-        if 構造["要求"]["範囲"] == "指定資料":
+        if 構造["版"] == 会話意味資料版:
+            群 = {名: 群[名] for 名 in 構造["資料順"]}
+        elif 構造["要求"]["範囲"] == "指定資料":
             群 = {名: 群[名] for 名 in 構造["要求"]["対象"]}
         return 指紋(構造) == 指紋(資料意味を選ぶ(群, 構造["要求"], 取得記録=構造["取得記録"]))
     except (ValueError, TypeError, KeyError, AttributeError, RecursionError):

@@ -38,6 +38,7 @@ from .HDS言語関係 import HDS英語基底関係射影
 from .HDS言語範囲 import HDS英語関係範囲射影
 from .HDS言語意味橋渡し import HDS英日意味射影
 from .HDS意味主題射影 import HDS問い主題射影
+from .HDS会話意味射影 import HDS会話意味を射影, 会話制御文を分ける
 from .意味字句 import 意味語
 from .言語 import 言語計画
 from .言語基底 import 言語基底P, 標準言語基底P
@@ -80,7 +81,8 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
     def _入力言語(self, text: str) -> str:
         return self.言語基底P.入力言語判定(text)
 
-    def _完成(self, base: HDSIR, *, HDS履歴: tuple[HDSIR, ...] = ()) -> HDS構文化器成果:
+    def _完成(self, base: HDSIR, *, HDS履歴: tuple[HDSIR, ...] = (), 文脈: HDS文脈 | None = None) -> HDS構文化器成果:
+        base = HDS会話意味を射影(base, 文脈=文脈)
         base = HDS英日意味射影(base)
         base = HDS英語基底関係射影(base, self.言語基底P)
         base = HDS英語AND展開(base)
@@ -121,15 +123,18 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
         HDS履歴: tuple[HDSIR, ...] = (),
         文脈: HDS文脈 | None = None,
     ) -> tuple[HDSIR, 言語計画]:
-        normalized = self._正規化(str(入力))
+        制御文, 提示本文, _ = 会話制御文を分ける(str(入力))
+        normalized = self._正規化(制御文)
         文脈_focus = getattr(文脈, "現在焦点", None) if 文脈 is not None else 前回結果
         plan = self._計算計画器.計画(normalized, 文脈参照=文脈_focus)
         base = self._意味基礎.コンパイル(
-            入力,
+            制御文,
             前回結果=前回結果,
             HDS履歴=HDS履歴,
             文脈=文脈,
         )
+        if 提示本文:
+            base = replace(base, 原文=str(入力), 正規化文=normalized)
         return HDS意味IR化(base, plan), plan
 
     def _意味束(
@@ -147,7 +152,7 @@ class 公開HDSコンパイラ(_基礎HDSコンパイラ):
             HDS履歴=HDS履歴,
             文脈=文脈,
         )
-        detailed = self._完成(意味_base, HDS履歴=HDS履歴)
+        detailed = self._完成(意味_base, HDS履歴=HDS履歴, 文脈=文脈)
         意味_ir = replace(detailed.IR, 手順=None, 初期状態={})
         detailed = replace(detailed, IR=意味_ir)
         コア入力 = HDSコア入力へ(意味_ir)

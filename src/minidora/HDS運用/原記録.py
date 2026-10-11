@@ -1,32 +1,120 @@
 """HDS採用前に原記録更新候補を構成する。原文と失効履歴を削除しない。"""
 from __future__ import annotations
+import base64
+import binascii
 from copy import deepcopy
+from hashlib import sha256
 import json
+import zlib
 from ..長文脈管理 import 長文脈庫, 文脈登録
+from ..監査改善会話解釈 import JSONを厳格に読む
 from ..製品版.型 import 能力結果
 from .値 import 指紋, 正準, 結果を保存, 結果を復元
 
-原記録接続版 = "HDS運用原記録-v1"
+原記録接続版 = "HDS運用原記録-v2"
+_旧接続版 = "HDS運用原記録-v1"
+_可逆保存版 = "HDS原記録可逆保存-v1"
+_圧縮境界 = 500_000
+_復号上限 = 16_000_000
+
+
+def _正準バイト(値):
+    return json.dumps(値, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+
+
+def _結果を符号化(結果):
+    原 = 結果を保存(結果)
+    本文 = _正準バイト(原)
+    if len(本文) <= _圧縮境界:
+        return 原
+    if len(本文) > _復号上限:
+        raise ValueError("原記録成果の復号サイズ上限")
+    符号 = {"版": _可逆保存版, "符号化": "zlib+base64", "原バイト数": len(本文),
+            "原SHA256": sha256(本文).hexdigest(),
+            "符号列": base64.b64encode(zlib.compress(本文, level=9)).decode("ascii")}
+    # 不圧縮材料を符号化の付加量で従来の記録上限へ到達させない。
+    return 符号 if len(_正準バイト(符号)) < len(本文) else 原
+
+
+def _符号の元長(符号):
+    if (type(符号) is not dict or set(符号) != {"版", "符号化", "原バイト数", "原SHA256", "符号列"}
+            or 符号["版"] != _可逆保存版 or 符号["符号化"] != "zlib+base64"
+            or type(符号["原バイト数"]) is not int or not _圧縮境界 < 符号["原バイト数"] <= _復号上限
+            or type(符号["原SHA256"]) is not str or len(符号["原SHA256"]) != 64
+            or any(字 not in "0123456789abcdef" for 字 in 符号["原SHA256"])
+            or type(符号["符号列"]) is not str or len(符号["符号列"]) > 1_000_000):
+        raise ValueError("原記録成果の可逆保存形式不正")
+    return 符号["原バイト数"]
+
+
+def 原記録成果を復元(記録):
+    """旧成果はそのまま読み、新しい符号表現だけを原交換値へ戻す。"""
+    値 = 記録["内容"]["データ"].get("運用結果")
+    if type(値) is not dict or "版" not in 値:
+        return deepcopy(値)
+    元長 = _符号の元長(値)
+    try:
+        圧縮 = base64.b64decode(値["符号列"], validate=True)
+        if base64.b64encode(圧縮).decode("ascii") != 値["符号列"]:
+            raise ValueError("原記録成果の符号列が非正準")
+        復号器 = zlib.decompressobj()
+        本文 = 復号器.decompress(圧縮, 元長 + 1)
+    except (binascii.Error, zlib.error, UnicodeError) as 例外:
+        raise ValueError("原記録成果の符号列不正") from 例外
+    if (len(本文) != 元長 or not 復号器.eof or 復号器.unused_data or 復号器.unconsumed_tail
+            or sha256(本文).hexdigest() != 値["原SHA256"]):
+        raise ValueError("原記録成果の復号長・終端・余剰・本文印不一致")
+    原 = JSONを厳格に読む(本文.decode("utf-8"), 最大バイト数=_復号上限)
+    if _正準バイト(原) != 本文:
+        raise ValueError("原記録成果の交換JSONが非正準")
+    結果 = 結果を復元(原)
+    外側 = 記録["内容"]
+    if (記録["種別"] != "成果" or not 結果.成立 or 外側["成立"] is not True
+            or 原["内容"]["本文"] != 外側["本文"] or 原["内容"]["参照"] != 外側["参照"]):
+        raise ValueError("原記録成果と外側の成立・本文・参照が不一致")
+    return 原
+
+
+def _保存容量を検査(保存物):
+    """符号化で従来の原記録保存容量を増やさず、失効した成果も計数する。"""
+    庫 = 保存物["庫"]
+    使用量 = len(_正準バイト(庫))
+    上限 = 庫["上限"][1]
+    for 事象 in 庫["履歴"]:
+        for 行 in 事象["追加"]:
+            符号 = 行["内容"]["データ"].get("運用結果")
+            if type(符号) is not dict or "版" not in 符号:
+                continue
+            if 保存物["版"] != 原記録接続版:
+                raise ValueError("旧原記録版に新しい可逆成果を混入しない")
+            使用量 += _符号の元長(符号) - len(_正準バイト(符号))
+            if 使用量 > 上限:
+                raise ValueError("原記録の復号後保存サイズ上限。更新を確定しない")
+            原記録成果を復元(行)
+    if 使用量 > 上限:
+        raise ValueError("原記録の復号後保存サイズ上限。更新を確定しない")
 
 
 class 運用原記録:
     def __init__(self, セッションID):
         self.ID = セッションID
+        self.版 = 原記録接続版
         self.庫 = 長文脈庫(セッションID)
         self.資料対応 = {}
         self.連番 = 0
 
     def 保存(self):
-        return {"版": 原記録接続版, "資料対応": deepcopy(self.資料対応),
+        return {"版": self.版, "資料対応": deepcopy(self.資料対応),
                 "連番": self.連番, "庫": json.loads(self.庫.保存文字列())}
 
     @classmethod
     def 復元(cls, 保存物, セッションID):
         if (type(保存物) is not dict or set(保存物) != {"版", "資料対応", "連番", "庫"}
-                or 保存物["版"] != 原記録接続版 or type(保存物["資料対応"]) is not dict
+                or 保存物["版"] not in (_旧接続版, 原記録接続版) or type(保存物["資料対応"]) is not dict
                 or type(保存物["連番"]) is not int or not 0 <= 保存物["連番"] <= 16384):
             raise ValueError("運用原記録の形式不正")
         個体 = cls(セッションID)
+        個体.版 = 保存物["版"]
         個体.庫 = 長文脈庫.復元(json.dumps(保存物["庫"], ensure_ascii=False, allow_nan=False))
         if 個体.庫.起点().セッションID != セッションID:
             raise ValueError("原記録の所有セッションが不一致")
@@ -35,6 +123,7 @@ class 運用原記録:
         for 識別子 in 個体.資料対応.values():
             if not 個体.庫.原記録(識別子)["現行"]:
                 raise ValueError("現行資料が旧原記録を参照")
+        _保存容量を検査(保存物)
         return 個体
 
     def 資料を照合(self, 資料):
@@ -87,9 +176,12 @@ class 運用原記録:
                 if 名前 not in 入力["資料"] or 入力["資料"][名前]["版"] != 版:
                     raise ValueError("成果の依存資料が不一致")
             内容 = 能力結果(True, 回答.本文, 参照=回答.参照,
-                          データ={"運用結果": 結果を保存(回答), "原要求": 入力["原文"],
+                          データ={"運用結果": _結果を符号化(回答), "原要求": 入力["原文"],
                                   "依存版": 正準(依存), "知識範囲": 知識範囲, "事実認定": False,
                                   **({"全資料範囲": True} if 全資料範囲 else {})})
             候補.庫.更新(候補.庫.起点(), (文脈登録(識別子, 内容, "成果",
                         tuple(候補.資料対応[名前] for 名前 in sorted(依存))),))
+        # 旧履歴を再封緘・再圧縮せず、実更新から新しい保存契約を明示する。
+        候補.版 = 原記録接続版
+        _保存容量を検査(候補.保存())
         return 候補

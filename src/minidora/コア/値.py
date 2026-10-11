@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import fields, is_dataclass
 from enum import Enum
+from functools import lru_cache
 from hashlib import sha256
 import json
 import math
@@ -30,6 +31,19 @@ def 文字列組(値: object, 名称: str = "要素", *, 一意: bool = True) ->
         raise ValueError(f"{名称}に重複がある")
 
 
+@lru_cache(maxsize=2048)
+def _文字列キーJSON(鍵: str) -> str:
+    """短い不変文字列の並び順表現だけを再利用する。状態・本文は保存しない。"""
+    return json.dumps(鍵, ensure_ascii=False, sort_keys=True)
+
+
+def _写像キー順序(組: list[object]) -> str:
+    鍵 = 組[0]
+    if type(鍵) is str and len(鍵) <= 256:
+        return _文字列キーJSON(鍵)
+    return json.dumps(鍵, ensure_ascii=False, sort_keys=True)
+
+
 def 正規化(値: object, _経路: frozenset[int] = frozenset()) -> object:
     """型と欠落を区別する正準表現。循環参照と未契約型は拒否する。
 
@@ -51,7 +65,7 @@ def 正規化(値: object, _経路: frozenset[int] = frozenset()) -> object:
     経路 = _経路 | {id(値)}
     if isinstance(値, Mapping):
         組 = [[正規化(k, 経路), 正規化(v, 経路)] for k, v in 値.items()]
-        return {"写像": sorted(組, key=lambda x: json.dumps(x[0], ensure_ascii=False, sort_keys=True))}
+        return {"写像": sorted(組, key=_写像キー順序)}
     if isinstance(値, (tuple, list)):
         return {"組" if isinstance(値, tuple) else "列": [正規化(v, 経路) for v in 値]}
     if isinstance(値, (set, frozenset)):

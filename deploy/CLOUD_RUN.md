@@ -7,10 +7,10 @@
 ## 1. 実行境界
 
 - `deploy/Dockerfile`はPython 3.13、ハッシュ付き固定依存、非rootユーザー、単一Pythonプロセスで既存UIを配布する。
-- 起動は`python -m minidora.製品版 --HDS --ADK --CloudRun --serve`。`PORT`で`0.0.0.0`へバインドする。
+- 起動は`python -m minidora.製品版 --HDS --ADK --基本チャット --CloudRun --serve`。`PORT`で`0.0.0.0`へバインドする。従来の基本チャット指定なしの入口も維持する。
 - Cloud Run IAM認証を必須にし、アプリは`MINIDORA_CLOUD_HOSTS`と`MINIDORA_CLOUD_ORIGINS`を別途検査する。Origin・Host検査自体は本人認証ではない。ワイルドカードCORSを使わない。
 - 許可Hostは実測した`*.run.app`ホスト、許可Originはその`https://`生成元。初回は`bootstrap.invalid`を設定して実URLの要求を拒否し、サービスURLを取得してから更新する。Cloud Runの既定TCP起動検査を使う。
-- 外部読取は無効。API本文上限256,000バイト、チャット入口のレート制限、セッション数の既存上限を維持する。Cloud Run同時実行数1を設定する。
+- 外部読取は各要求で既定無効。基本チャットではUIの「この質問で公開資料を検索する（Wikipedia）」、またはAPIの`external_read: true`をその要求に限って明示した場合、Wikipediaの日本語・英語記事を読取専用で検索・取得する。許可は次の要求へ継承しない。公開URL・DNS・転送先・容量・時間を検査し、記事は資料として扱う。既取得の採用済み原資料は同じ会話の追質問に利用できる。API本文上限256,000バイト、チャット入口のレート制限、セッション数の既存上限を維持する。Cloud Run同時実行数1を設定する。
 - HTTPエラーを送信した後は書込側をhalf-closeし、未読入力を64KiBずつ、総量32MiB・絶対期限2秒まで破棄して接続を終了する。受付上限とは別の拒否処理であり、本文をJSONやHDSへ渡さない。未読本文を残した即時closeによる実機502を修正するための処理で、期限超過や切断までエラー応答配送を保証しない。根拠は[RFC 9112の接続終了](https://www.rfc-editor.org/rfc/rfc9112.html#section-9.6)と[Cloud RunのHTTP/1上限](https://docs.cloud.google.com/run/quotas)。
 - `min=0`、`max=1`、`min-instances=0`、`max-instances=1`、CPU 1、メモリ1Gi、要求上限60秒。メモリ値はADK依存を含む初期設定であり、実測した必要量としては扱わない。変更には理由と費用影響を記録する。
 - 会話と追跡台帳はメモリ内だけで、停止・再起動・新revision・インスタンス交換で失われる。永続化、再起動をまたぐ会話継続、複数インスタンス間同期は未成立。Cloud Loggingは実行証拠であり、会話の復元用台帳ではない。

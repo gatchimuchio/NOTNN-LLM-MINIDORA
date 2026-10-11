@@ -5,6 +5,7 @@ from dataclasses import asdict, replace
 from enum import Enum
 import re
 from .構文化接続 import 運用構文化器
+from ..HDS適合器 import HDS文脈
 from ..HDS目的射影 import HDSから目的要求, _HDS照合
 from ..会話解釈 import 会話を解釈, HDS会話を照合
 from ..会話意味 import 会話要求, 比較対象, 意味目的
@@ -74,8 +75,13 @@ def 依頼を解釈(入力):
     if 入力.get("明示合成") is not None:
         return {"方式": "明示合成", "合成": 入力["明示合成"], "原文": raw}
     構文化器 = 運用構文化器()
-    ir = 構文化器.コンパイル(raw)
+    文脈目的 = 入力.get("保留目的") or 入力.get("前回目的")
+    文脈 = HDS文脈(現在焦点=文脈目的,
+                   記憶引用=tuple(入力.get("前回依存", {})),
+                   直前採否="採用" if 入力.get("前回有効") else None)
+    ir = 構文化器.コンパイル(raw, 文脈=文脈)
     saved = {"全文": 構造を保存(構文化器.原IR), "局所作用ビュー": 構造を保存(ir),
+             "コア入力": 構造を保存(構文化器.コア入力),
              "責任対応": 構造を保存(構文化器.責任対応)}
     from .数量依頼 import 数量依頼を読む
     数量要求 = 数量依頼を読む(入力)
@@ -133,7 +139,7 @@ def 依頼を解釈(入力):
     if 関係要求 is not None:
         return {**関係要求, "HDS": saved}
     from .一般依頼 import 一般依頼を読む
-    一般要求 = 一般依頼を読む(入力)
+    一般要求 = 一般依頼を読む(入力, 意味IR=ir)
     if 一般要求 is not None:
         return {**一般要求, "HDS": saved}
     request = 会話を解釈(raw, tuple(入力["資料"]))
