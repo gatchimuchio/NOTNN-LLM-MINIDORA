@@ -11,6 +11,13 @@ from minidora.HDS運用.値 import 結果を保存
 
 
 class 会話意味契約試験(unittest.TestCase):
+    def test_疑問の終助詞を述部や否定方向へ混入しない(self):
+        for 述部, 方向 in (("作動しない", "否定"), ("少ない", "肯定"), ("危ない", "肯定")):
+            with self.subTest(述部=述部):
+                _, 読解 = self.読む("なぜ装置ネリスは" + 述部 + "の？")
+                self.assertEqual(読解["要求"]["関係焦点"], [述部])
+                self.assertEqual(読解["要求"]["肯否"], 方向)
+
     def 読む(self, 文, 前=None, *, 有効=True):
         束 = 公開HDSコンパイラ().コンパイル束(文, 文脈=HDS文脈(現在焦点=前))
         return 束, 一般依頼を読む({"原文": 文, "前回目的": 前, "前回有効": 有効}, 意味IR=束.意味IR)
@@ -251,12 +258,12 @@ class 会話意味契約試験(unittest.TestCase):
         self.assertEqual(素材["一般:要求"].データ, 元)
         self.assertEqual(読解["要求"], 元)
 
-    def test_定義という問い種別を世界主題の検索語へ混ぜない(self):
+    def test_定義の要求を検索へ渡して主題と原要求を保持(self):
         for 名 in ("未観測素材甲", "未知機構乙", "おとぎ話", "試験概念丙"):
             _, 読解 = self.読む(名 + "とは何ですか？")
             元 = deepcopy(読解["要求"])
             _, 素材, _ = 一般計画を作る(読解, {"原文": 読解["原文"], "資料": {}, "外部許可": True})
-            self.assertEqual(素材["一般:取得設定:0"].データ["検索語"], 名)
+            self.assertEqual(素材["一般:取得設定:0"].データ["検索語"], 名 + " 定義")
             self.assertEqual(素材["一般:取得設定:0"].データ["必要語"], [名])
             self.assertEqual(読解["要求"], 元)
             self.assertEqual(元["関係焦点"], ["定義"])

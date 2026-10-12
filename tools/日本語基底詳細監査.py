@@ -32,7 +32,8 @@ import re
     "do_GET", "do_POST", "log_message",
 }
 外部略号 = {"HDS", "K3", "GPQA", "HTTP", "JSON", "SHA", "URL", "CSV", "IR", "ABI", "CLI", "PMC"}
-外部固定文字列 = {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
+外部固定文字列 = {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS",
+              "MINIDORA_RETRIEVAL_POLICY"}  # 配備・CLIが共有する固定環境変数名
 
 
 def 互換入口か(対象: Path) -> bool:
@@ -159,11 +160,44 @@ def 識別子監査(誤り: list[str]) -> None:
                         if isinstance(鍵, ast.Constant) and 鍵.value == "source_url":
                             外部対訳鍵.add(id(鍵))
 
+        # 固定APIのJSON交換箇所に限る。内部辞書や同名の任意関数には適用しない。
+        # OAuth: RFC 6749 / google-auth固定版。Search: Discovery Engine SearchResponse。
+        Google交換箇所 = {
+            "src/minidora/製品版/Google認証.py": {
+                ("_当回認証Request", "_応答を限定"): {"access_token", "token_type"}},
+            "tests/test_Google認証.py": {
+                ("_サーバ", "_処理"): {"access_token", "token_type", "derivedStructData"},
+                ("Google認証契約試験", "local_user"): {"refresh_token", "token_uri", "token"}},
+            "tests/test_GoogleCloud検索.py": {
+                ("_検索サーバ", "do_POST"): {"derivedStructData", "summary", "summaryText", "nextPageToken"}},
+        }.get(相対, {})
+        外部固定代入 = set()
+        for 型 in 木.body:
+            if not isinstance(型, ast.ClassDef):
+                continue
+            for 関数 in 型.body:
+                if (相対 == "src/minidora/製品版/Google認証.py" and 型.name == "_認証応答"
+                        and isinstance(関数, ast.AnnAssign) and isinstance(関数.target, ast.Name)
+                        and 関数.target.id == "data" and isinstance(関数.annotation, ast.Name)
+                        and 関数.annotation.id == "bytes"):
+                    # google.auth.transport.Response の固定属性。
+                    外部固定代入.add((関数.target.lineno, "data", "代入識別子"))
+                if not isinstance(関数, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                固定鍵 = Google交換箇所.get((型.name, 関数.name), set())
+                for 辞書 in ast.walk(関数):
+                    if isinstance(辞書, ast.Dict):
+                        for 鍵節 in 辞書.keys:
+                            if isinstance(鍵節, ast.Constant) and 鍵節.value in 固定鍵:
+                                外部対訳鍵.add(id(鍵節))
+
         検査済み: set[tuple[int, str, str]] = set()
         def 検査(名前: str, 行: int, 種別: str) -> None:
             if not 名前 or 名前 in 外部固定識別子:
                 return
             if 種別 == "定義識別子" and (行, 名前) in 外部定義:
+                return
+            if (行, 名前, 種別) in 外部固定代入:
                 return
             if 名前.startswith("__") and 名前.endswith("__"):
                 return

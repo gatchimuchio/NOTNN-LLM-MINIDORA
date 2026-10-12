@@ -116,7 +116,7 @@ def main():
             ヘッダ["Content-Type"] = "application/json"
         要求 = Request(URL + 経路, data=本体, headers=ヘッダ)
         try:
-            with 開く.open(要求, timeout=60) as 応答:
+            with 開く.open(要求, timeout=360) as 応答:
                 状態, 型, 実体 = 応答.status, 応答.headers.get("Content-Type", ""), 応答.read(1_000_001)
         except HTTPError as 例外:
             状態, 型, 実体 = 例外.code, 例外.headers.get("Content-Type", ""), 例外.read(1_000_001)

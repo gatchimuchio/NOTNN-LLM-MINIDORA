@@ -26,6 +26,18 @@ def 道具を読む(名前: str):
 
 
 class 日本語基底境界試験(unittest.TestCase):
+    def test_Google固定外部名は指定したAPI交換箇所だけ許す(self):
+        接続器 = 'class _当回認証Request:\n def _応答を限定(self):\n  return {"access_token": "fixture", "token_type": "Bearer"}\n'
+        経路 = "src/minidora/製品版/Google認証.py"
+        self.assertEqual(self.監査する(接続器, 経路), [])
+        self.assertTrue(self.監査する(接続器.replace("_応答を限定", "内部辞書"), 経路))
+        self.assertTrue(self.監査する(接続器, "src/minidora/試験.py"))
+        属性 = 'class _認証応答:\n data: bytes\n'
+        self.assertEqual(self.監査する(属性, 経路), [])
+        self.assertTrue(self.監査する(属性.replace("_認証応答", "内部応答"), 経路))
+        self.assertTrue(self.監査する(属性.replace("bytes", "str"), 経路))
+        self.assertTrue(self.監査する(属性 + ' def 内部辞書(self):\n  data = 1\n', 経路))
+
     def 監査する(self, 内容: str, 経路: str = "src/minidora/試験.py") -> list[str]:
         監査器 = 道具を読む("日本語基底詳細監査")
         with tempfile.TemporaryDirectory() as 一時:

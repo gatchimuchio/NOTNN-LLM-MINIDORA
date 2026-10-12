@@ -59,9 +59,13 @@ def 取得本文を資料化(value):
     d = dict(value.データ)
     required = {'版', '状態', '意味的事実検証', '要求', '不足語', '資料', '抜粋',
                 '試行', '本文取得数', '資料数', '記録SHA256'}
-    if (set(d) != required or any(type(d[k]) is not list for k in ('資料', '抜粋', '不足語', '試行'))
+    if (not required <= set(d) or set(d) - required - {'継続束', '資源制御', '検索来歴'}
+            or any(type(d[k]) is not list for k in ('資料', '抜粋', '不足語', '試行'))
             or type(d['資料数']) is not int or type(d['本文取得数']) is not int):
         raise ValueError('外部取得記録の欄・型不正')
+    if '継続束' in d:
+        from .知識取得継続 import 継続束を読む
+        継続束を読む(value)
     seal = d.pop('記録SHA256')
     expected = sha256(json.dumps(d, ensure_ascii=False, sort_keys=True, allow_nan=False).encode()).hexdigest()
     if seal != expected or d['版'] != 知識取得版 or d['状態'] != '合格' or d['不足語']:

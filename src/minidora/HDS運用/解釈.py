@@ -59,6 +59,27 @@ def 型付き要求を復元(raw):
     return 汎用要求IR(**d).固定複製()
 
 
+def _会話焦点を構成(目的, *, 前採用会話=None, 前命令候補=None):
+    """前採用の意味役割を供与し、過去HDSの再帰複製は実庫へ任せる。
+
+    元目的のHDS全文・手順は保存目的と原記録へ保全する。今回のCompiler
+    には原依頼、契約包と呼出元が再発行した参照証明だけを渡す。
+    """
+    if type(目的) is dict and 目的.get("方式") == "一般会話目的束":
+        焦点 = {"方式": 目的["方式"], "原文": 目的["原文"],
+              "要求": deepcopy(目的["要求"])}
+    else:
+        焦点 = deepcopy(目的)
+    if 前採用会話 is not None or 前命令候補 is not None:
+        if type(焦点) is not dict:
+            raise ValueError("会話焦点に対応する目的がありません")
+        if 前採用会話 is not None:
+            焦点["前採用会話"] = deepcopy(前採用会話)
+        if 前命令候補 is not None:
+            焦点["前命令候補"] = deepcopy(前命令候補)
+    return 焦点
+
+
 def 依頼を解釈(入力):
     raw = 入力["原文"]
     if 入力.get("文脈要求") is not None:
@@ -76,6 +97,10 @@ def 依頼を解釈(入力):
         return {"方式": "明示合成", "合成": 入力["明示合成"], "原文": raw}
     構文化器 = 運用構文化器()
     文脈目的 = 入力.get("保留目的") or 入力.get("前回目的")
+    前採用 = 入力.get("前採用会話")
+    有効前採用 = (前採用 if 入力.get("前回有効") and 文脈目的 == 入力.get("前回目的") else None)
+    文脈目的 = _会話焦点を構成(文脈目的, 前採用会話=有効前採用,
+                            前命令候補=入力.get("前命令候補"))
     文脈 = HDS文脈(現在焦点=文脈目的,
                    記憶引用=tuple(入力.get("前回依存", {})),
                    直前採否="採用" if 入力.get("前回有効") else None)
@@ -100,7 +125,8 @@ def 依頼を解釈(入力):
         old = 入力.get("保留目的") or 入力.get("前回目的")
         if old is None:
             raise ValueError("再開する目的がない")
-        return {"方式": "継続", "目的": old, "原文": raw, "HDS": saved}
+        if old.get("方式") != "一般会話目的束":
+            return {"方式": "継続", "目的": old, "原文": raw, "HDS": saved}
     science = re.fullmatch(r'資料「([^「」]+)」の問題を解いて[。？?]?', raw.strip())
     if science:
         return {"方式": "科学目的", "資料": science[1], "原文": raw, "HDS": saved}
@@ -135,11 +161,19 @@ def 依頼を解釈(入力):
             return old
         return {"方式": "資料検討", "依頼": improved, "原文": raw, "HDS": saved}
     from .関係依頼 import 関係依頼を読む
-    関係要求 = 関係依頼を読む(入力)
+    from ..HDS会話意味射影 import 会話未読解
+    try:
+        関係要求 = 関係依頼を読む(入力, 意味IR=ir)
+    except 会話未読解 as 例外:
+        return {"方式": "会話確認", "原文": raw, "診断": deepcopy(例外.診断), "HDS": saved}
     if 関係要求 is not None:
         return {**関係要求, "HDS": saved}
     from .一般依頼 import 一般依頼を読む
-    一般要求 = 一般依頼を読む(入力, 意味IR=ir)
+    from ..HDS会話意味射影 import 会話未読解
+    try:
+        一般要求 = 一般依頼を読む(入力, 意味IR=ir)
+    except 会話未読解 as 例外:
+        return {"方式": "会話確認", "原文": raw, "診断": deepcopy(例外.診断), "HDS": saved}
     if 一般要求 is not None:
         return {**一般要求, "HDS": saved}
     request = 会話を解釈(raw, tuple(入力["資料"]))
@@ -212,6 +246,48 @@ def _数量目的(request, materials):
 def 計画を構成(解釈, 入力, 目録, *, 禁止=()):
     """依頼から計画を構成するだけ。計画中に能力本体を実行しない。"""
     mode = 解釈["方式"]
+    if mode == "会話確認":
+        from ..HDS会話意味射影 import 会話未読解, 会話残差を読む
+        from ..HDS再生 import HDSIR復元
+        from .構文化接続 import 局所接続を構成
+        if set(解釈) != {"方式", "原文", "診断", "HDS"} or 解釈["原文"] != 入力["原文"]:
+            raise ValueError("会話確認の実原文又は欄が不一致です")
+        保存 = 解釈["HDS"]
+        if (type(保存) is not dict or set(保存) != {"全文", "局所作用ビュー", "コア入力", "責任対応"}
+                or type(保存["全文"]) is not dict or type(保存["局所作用ビュー"]) is not dict
+                or 保存["全文"].get("手順") is not None):
+            raise ValueError("会話確認の保存HDS欄又は再生対応が不正です")
+        再 = HDSIR復元(保存["全文"])
+        # 再生器の省略時既定や型変換を、未読解の保存契約へ持ち込まない。
+        if 指紋(構造を保存(再)) != 指紋(保存["全文"]) or 再.原文 != 解釈["原文"]:
+            raise ValueError("会話確認のHDS全文が保存時の型・欄・原文と完全同値ではありません")
+        局所, 責任 = 局所接続を構成(再)
+        原IR = 構造を保存(局所)
+        if (指紋(原IR) != 指紋(保存["局所作用ビュー"])
+                or 指紋(構造を保存(責任)) != 指紋(保存["責任対応"])):
+            raise ValueError("会話確認の局所作用ビュー又は責任対応がHDS全文と不一致です")
+        原診断 = 会話残差を読む(局所)
+        if 原IR["原文"] != 解釈["原文"] or type(解釈["診断"]) is not list or not 解釈["診断"]:
+            raise ValueError("会話確認の原IR又は診断が不正です")
+        原残差 = {項["残差ID"]: 項 for 項 in 原IR["残差"] if 項["種別"] == "会話未消費"}
+        if (len(原残差) != len(解釈["診断"])
+                or set(原残差) != {項["残差ID"] for 項 in 解釈["診断"]}):
+            raise ValueError("会話確認の残差被覆が不一致です")
+        for 項 in 解釈["診断"]:
+            if set(項) != {"残差ID", "種別", "原文", "原文範囲", "理由", "影響座標", "解消条件"}:
+                raise ValueError("会話確認の診断欄が不正です")
+            元 = 原残差[項["残差ID"]]
+            if any(項[名] != 元[名] for 名 in ("種別", "原文", "理由", "影響座標", "解消条件")):
+                raise ValueError("会話確認の診断と原残差が不一致です")
+            if type(項["原文範囲"]) is not list or not 項["原文範囲"]:
+                raise ValueError("会話確認の原文範囲が空又は不正です")
+            for 始, 終 in 項["原文範囲"]:
+                if (type(始) is not int or type(終) is not int or not 0 <= 始 < 終 <= len(解釈["原文"])
+                        or 解釈["原文"][始:終] != 項["原文"]):
+                    raise ValueError("会話確認の原文範囲が不一致です")
+        if 指紋(解釈["診断"]) != 指紋(原診断):
+            raise ValueError("会話確認の診断がHDS全文の制御範囲・残差構造と不一致です")
+        raise 会話未読解(解釈["診断"])
     if mode == "継続":
         return 計画を構成(解釈["目的"], 入力, 目録, 禁止=禁止)
     sources = {k: 結果を復元(v["結果"]) for k, v in 入力["資料"].items()}
@@ -225,11 +301,11 @@ def 計画を構成(解釈, 入力, 目録, *, 禁止=()):
         from .数量依頼 import 数量計画を作る
         plan, materials, kind = 数量計画を作る(解釈, 入力)
         coverage = []
-    elif mode in ("関係資料", "関係再表現"):
+    elif mode in ("関係資料", "関係再表現", "関係検討"):
         from .関係依頼 import 関係計画を作る
         plan, materials, kind = 関係計画を作る(解釈, 入力)
         coverage = []
-    elif mode in ("一般資料", "一般再表現"):
+    elif mode in ("一般資料", "一般再表現", "一般会話目的束"):
         from .一般依頼 import 一般計画を作る
         plan, materials, kind = 一般計画を作る(解釈, 入力)
         coverage = []

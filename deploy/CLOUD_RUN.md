@@ -4,17 +4,32 @@
 
 この文書は再現手順である。配備・実機受入の成立は、実際のCloud Run URLに対する`tools/CloudRun受入.py`の証拠と配備記録で判断する。ローカル成功だけでは第1工程完了にならない。
 
+新Cloud Run基本チャットの起動は、`製品版/Google起動構成.py`で固定したGoogle Cloud通常Search・ADC・GCS送信予算を、既存HDSの取得器へ注入する。設定不足・不正・Cloud依存不足は配信前に停止する。構成時には認証・DNS・Search・保存通信を行わず、管理者の`off`でも固定設定検査は省略しない。基本チャットなしの旧Cloud入口とローカル既定のWikipedia取得器は維持する。Google起動接続の局所検査は実Cloud受入とは別である。ADC接続器は`google-auth==2.61.0`を直接固定し、Cloud Runの明示SA又は明示した`authorized_user`ファイルだけを扱う。認証のHTTP開始・受信本文も当回の共有取得制御へ計上し、検索接続前に認証を済ませる。SDKの背景通信を残さないため、固定版の内部API `_set_blocking_regional_access_boundary_lookup()` に依存して境界照会を当回内で実行する。SDK更新時にはこの依存を再確認する。トークン成功応答はBearer型と有限な1〜86,400秒の有効時間を受け付ける。未知ADC・metadataのmTLS/Agent Identity経路は対応外として停止し、公開URLの私有IP拒否は維持する。同期DNSとSDK内の待機を含む厳密な実行時間上限、再起動をまたぐ総費用制限、Google実機認証・Search・一般Web回答の受入は別途必要である。
+
+累積検索送信の候補実装は`製品版/検索送信予算.py`である。通常Search供給器は、同じproject/appに束縛した`GCS検索送信予算`を必須とする。管理者の固定設定には予算ID・開始/終了UTC・累積上限（最大1,000）・保存先を含める。設定全体のSHA256と予約数を一つのGCSオブジェクトへ保存し、metadata GET→世代条件付き本文GET→同じ世代条件付きPOSTの成功を確認してから、当回のURL・本文SHA・共有制御に束縛した一回許可を発行する。[GCS条件付き要求](https://docs.cloud.google.com/storage/docs/request-preconditions)に沿って412だけを総2試行で再処理し、他の失敗・結果不明では検索許可を発行しない。確定枠は検索失敗時にも返却せず、コピーによる再送や再起動後の旧許可復元も認めない。保存通信とSearchの要求直前に当回制御と期間を再確認する。
+
+予算保存先はprivate・uniform accessの専用bucketとし、Buildのsource/log保存と分離する。runtimeの権限は固定objectへのget/create/deleteだけに限定する。初期内容は設定の`保存内容(0)`で構成し、管理者が`ifGenerationMatch=0`による初回作成だけを行う。runtimeは欠損を自動初期化せず、破損・設定不一致・期限・上限で停止する。配備、再実行、日付変更でカウンタをresetせず、清掃/lifecycleの削除対象からも期間中は除外する。運用者による有効な過去値への書戻しを単一CASだけで検出する保証はない。
+
+この予約は検索送信数の上限であり、GCS操作・認証・起動・補助HTTP・ログ・保存・転送を含む総請求額の上限ではない。配備候補はBuildを600秒、Runを1CPU/2Gi・要求単位CPU・起動CPU増強なし・min0/max1/concurrency1・要求300秒とし、実観測で照合する。既存クレジット内の有限な実行計画では、最初の小さい配備/検索単位から実SKU・費用・クレジット適用を確認する。保存費用は期限拒否だけでは止まらず、soft-deleteの保持期間を含めた期限前の対象清掃が必要である。Google通常Searchの資源と公開サイト範囲の管理者構成は、実検索・本文取得・HDS内容品質・新Cloud Run受入とは分けて検査する。通常Search資源と予算の初期保存は管理者経路で構成済みで、本人認証を使った開発時の検索・本文取得は確認した。実行SAによる認証・予算更新・一般Web回答、新Cloud配備は未受入であり、管理者経路や局所試験をCloud実機受入へ読み替えない。
+
+検索外送の前には、検索語・必要語に含まれる既知のメール・電話・秘密値形式、人名候補、当回と過去会話で明示された保護値を検査する。停止時は認証・予算予約・Searchを始めない。原入力とHDSの意味処理は保持し、製品応答・参照・監査に安全な公開表現を別途作る。監査はv2で封印し、Cloud入口は旧v1監査の提供を拒否する。未知形式の個人情報を完全に判定する保証はなく、局所検査を一般会話品質・実Cloudの受入へ読み替えない。
+
 ## 1. 実行境界
 
 - `deploy/Dockerfile`はPython 3.13、ハッシュ付き固定依存、非rootユーザー、単一Pythonプロセスで既存UIを配布する。
 - 起動は`python -m minidora.製品版 --HDS --ADK --基本チャット --CloudRun --serve`。`PORT`で`0.0.0.0`へバインドする。従来の基本チャット指定なしの入口も維持する。
 - Cloud Run IAM認証を必須にし、アプリは`MINIDORA_CLOUD_HOSTS`と`MINIDORA_CLOUD_ORIGINS`を別途検査する。Origin・Host検査自体は本人認証ではない。ワイルドカードCORSを使わない。
 - 許可Hostは実測した`*.run.app`ホスト、許可Originはその`https://`生成元。初回は`bootstrap.invalid`を設定して実URLの要求を拒否し、サービスURLを取得してから更新する。Cloud Runの既定TCP起動検査を使う。
-- 外部読取は各要求で既定無効。基本チャットではUIの「この質問で公開資料を検索する（Wikipedia）」、またはAPIの`external_read: true`をその要求に限って明示した場合、Wikipediaの日本語・英語記事を読取専用で検索・取得する。許可は次の要求へ継承しない。公開URL・DNS・転送先・容量・時間を検査し、記事は資料として扱う。既取得の採用済み原資料は同じ会話の追質問に利用できる。API本文上限256,000バイト、チャット入口のレート制限、セッション数の既存上限を維持する。Cloud Run同時実行数1を設定する。
+- 基本チャットの管理者方針は`MINIDORA_RETRIEVAL_POLICY=auto|off`。`--基本チャット`を明示した場合の未設定は`auto`で、公開取得の必要性は既存HDSが判断する。通常HDSの従来の外部読取設定は維持する。基本チャットのAPIでは`external_read`省略は管理者方針に従い、`false`は今回だけ取得禁止、`true`も管理者の`off`を越えない。UIは自動検索の説明と任意の「この質問では外部検索しない」を表示し、CLIでは`--検索しない`で同じ禁止を指定できる。禁止は次の質問へ継承しない。`/api/capabilities`の`公開取得方針`は基本チャットで`auto`又は`off`、通常入口で`null`を返す。ADKはこれらを同じHDSへ配送する。
+- ローカル既定の取得器はWikipediaの日本語・英語記事で、新Cloud基本チャットは固定Google構成を要求する。非Wikipediaの自律検索の実通信による全受入、Cloud Runでの新しい基本チャット受入は未成立。設定値の変更だけを一般Web検索の成立として扱わない。公開URL・DNS・転送先・容量・時間を検査し、記事は資料として扱う。既取得の採用済み原資料は同じ会話の追質問に利用できる。API本文上限256,000バイト、チャット入口のレート制限、セッション数の既存上限を維持する。Cloud Run同時実行数1を設定する。
 - HTTPエラーを送信した後は書込側をhalf-closeし、未読入力を64KiBずつ、総量32MiB・絶対期限2秒まで破棄して接続を終了する。受付上限とは別の拒否処理であり、本文をJSONやHDSへ渡さない。未読本文を残した即時closeによる実機502を修正するための処理で、期限超過や切断までエラー応答配送を保証しない。根拠は[RFC 9112の接続終了](https://www.rfc-editor.org/rfc/rfc9112.html#section-9.6)と[Cloud RunのHTTP/1上限](https://docs.cloud.google.com/run/quotas)。
-- `min=0`、`max=1`、`min-instances=0`、`max-instances=1`、CPU 1、メモリ1Gi、要求上限60秒。メモリ値はADK依存を含む初期設定であり、実測した必要量としては扱わない。変更には理由と費用影響を記録する。
+- `min=0`、`max=1`、`min-instances=0`、`max-instances=1`、CPU 1、新MVP候補のメモリ2Gi、要求上限300秒、受入クライアントのソケット待機上限360秒。配備後の実観測も2Gi・300秒と照合する。旧実機の開始境界はCPU 1・メモリ1Gi・要求上限60秒として別に保全する。2Giは新候補の資源設定であり、Cloudで実測した必要量としては扱わない。変更には理由と費用影響を記録する。
 - 会話と追跡台帳はメモリ内だけで、停止・再起動・新revision・インスタンス交換で失われる。永続化、再起動をまたぐ会話継続、複数インスタンス間同期は未成立。Cloud Loggingは実行証拠であり、会話の復元用台帳ではない。
 - 保存領域・Secret・サービスアカウントJSON鍵をコンテナへ渡さない。`.dockerignore`とCloud Build用の許可ファイル限定ステージで構築原料・評価データ・認証ファイルを送信対象から外す。
+
+要求上限を60秒から300秒へ延ばす理由は、一般HDSの複数目的を含む初回要求を60秒で切断しないための有限な待機枠を用意することである。開発時の218秒は通常応答と保存復元の合計で、Cloud Runの所要時間は未測定。cProfileの計装時間を上限の根拠にはしない。300秒での基本チャットMVPのCloud受入は未実測であり、T05の元の能力・品質ゲートが成立した後に同じCPU・メモリ構成で実測する。時間設定の変更で能力や性能の合否を読み替えない。
+
+新MVP候補のメモリを1Giから2Giへ増やす理由は、Windowsで保存済み成果の同源検査を1回行った開発観測で、ピーク作業セット1,029,693,440バイト（982MiB）、ピークコミット1,180,835,840バイト（1126MiB）となり、1Giに対する余裕を確認できなかったためである。Windowsの値をCloudのRSS・cgroup使用量やADK全経路の使用量へ読み替えず、2Giでの十分性も未確認とする。[Cloud Runのメモリ仕様](https://docs.cloud.google.com/run/docs/configuring/services/memory-limits)では1vCPUで最大4Giまで設定でき、割当上限を超えたインスタンスは終了する。新候補の2Giで実測する前に、同じ公開固定版によるT05の全品質ゲート成立を必要とする。メモリ設定を理由に品質基準、採否、入力又は保持条件を緩和しない。
 
 ## 2. 本人が確定する対象
 
@@ -27,14 +42,27 @@ Google Cloudの本人が許可したプロジェクトを実際に確認し、�
 | `CLOUD_RUN_SERVICE` | MINIDORA専用のCloud Runサービス名 |
 | `GCP_ARTIFACT_REPOSITORY` | 同regionにあるDOCKER形式のArtifact Registry repository名 |
 | `GCP_BUILD_BUCKET` | 同projectのCloud Build専用既存bucketの`gs://` URL |
-| `GCP_RUNTIME_SERVICE_ACCOUNT` | 権限を付与しない専用実行SAのemail |
+| `GCP_RUNTIME_SERVICE_ACCOUNT` | 旧入口はAPI権限なし、新基本チャットは期限付き通常Searchと固定予算objectだけの専用実行SA |
 | `GCP_BUILD_SERVICE_ACCOUNT` | 専用ビルドSAのemail |
 | `GCP_DEPLOY_SERVICE_ACCOUNT` | 専用配備・検査SAのemail |
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/.../locations/global/workloadIdentityPools/.../providers/...` |
 
-実行・ビルド・配備SAは分離する。実行SAにはGoogle Cloud APIを呼ぶ権限を与えない。組織・folderからの継承権限も設定者が確認する。ワークフローはprojectと対象サービスへの直接付与、公開IAM、課金、API、repository形式を検査し、異常時は停止する。
+実行・ビルド・配備SAは分離する。旧入口の実行SAはAPI権限なしを維持する。新基本チャットは通常Searchの`discoveryengine.servingConfigs.search`とquota projectの`serviceusage.services.use`だけをprojectの期限付きcustom roleで認め、固定予算objectのget/create/deleteだけを別bucketの条件付きcustom roleで認める。組織・folderからの継承権限も設定者が確認する。ワークフローはprojectと対象サービスへの直接付与、公開IAM、課金、固定予算bucketの条件付き付与、custom roleの実権限、API、repository形式を検査し、異常時は停止する。
 
-必要APIは`run.googleapis.com`、`artifactregistry.googleapis.com`、`cloudbuild.googleapis.com`、`iamcredentials.googleapis.com`、`sts.googleapis.com`。本人によるログイン・課金アカウントの開設や同意・project選択が必要な場合は代理完了と扱わない。
+必要APIは`run.googleapis.com`、`artifactregistry.googleapis.com`、`cloudbuild.googleapis.com`、`iamcredentials.googleapis.com`、`sts.googleapis.com`、`discoveryengine.googleapis.com`、`storage.googleapis.com`。本人によるログイン・課金アカウントの開設や同意・project選択が必要な場合は代理完了と扱わない。
+
+新Cloud基本チャットの起動には次の環境変数もすべて必要である。値は起動時に固定し、要求本文やセッションから受け取らない。Cloudでは実行SAだけを使い、ADC自動探索や利用者ファイルへ迂回しない。
+
+| 環境変数 | 契約 |
+|---|---|
+| `MINIDORA_GOOGLE_PROJECT_ID` / `MINIDORA_GOOGLE_SEARCH_APP_ID` | 固定projectとglobalの通常検索app |
+| `MINIDORA_GOOGLE_RUNTIME_SERVICE_ACCOUNT` | 同じprojectの明示実行SA |
+| `MINIDORA_GOOGLE_PUBLIC_HOSTS` | 完全ホスト名のカンマ区切り。空白・重複・単一ラベル・ワイルドカード不可 |
+| `MINIDORA_GOOGLE_BUDGET_ID` / `MINIDORA_GOOGLE_BUDGET_BUCKET` / `MINIDORA_GOOGLE_BUDGET_OBJECT` | 一つの固定保存先と予算ID |
+| `MINIDORA_GOOGLE_BUDGET_START_UTC` / `MINIDORA_GOOGLE_BUDGET_END_UTC` | 秒単位の`YYYY-MM-DDTHH:MM:SSZ`、開始より終了が後 |
+| `MINIDORA_GOOGLE_BUDGET_LIMIT` | 1〜1,000の正規整数表記 |
+
+これらとHost/Originを構造化envファイルで配備へ渡す。初回配備、実URLへの更新、受入用の再起動で固定設定を保持し、実env・予算設定SHAと要求した値を照合する。固定値は`deploy/Google取得固定設定.json`に置く。本人が確定した`minidora-507702 / asia-northeast1`と実行SAの一致を配備前に検査し、カンマを含む公開ホスト設定も[envファイル](https://docs.cloud.google.com/run/docs/configuring/services/environment-variables)でそのまま渡す。`tools/CloudRun配備設定.py`は初回・交換後それぞれの実describe、IAM、Ready世代、起動引数、資源、env、予算設定SHAを照合する。予算の初期化・resetは行わない。
 
 ## 3. IAMとWIF
 
@@ -44,14 +72,14 @@ Google Cloudの本人が許可したプロジェクトを実際に確認し、�
 
 | 主体 | 必要な範囲 |
 |---|---|
-| 実行SA | API権限なし。Cloud Runによるstdout/stderr採取はアプリのLogging API権限を要しない |
+| 実行SA | 旧入口はAPI権限なし。新基本チャットは期限付き通常Searchと固定予算objectだけ。stdout/stderr採取はアプリのLogging API権限を要しない |
 | ビルドSA | 選択repositoryのArtifact Registry Writer、選択bucketのStorage Object Admin＋Legacy Bucket Reader（Cloud Buildのbucketメタデータ読取）、ビルドログ用権限 |
 | 配備SA | Cloud Buildの作成・取得、選択bucketの送信、選択repositoryの読取、対象サービスの配備・IAM変更・検査・ログ読取 |
 | 配備SAのSA利用 | 明示した実行SAとビルドSAに対する`roles/iam.serviceAccountUser`だけ |
 | WIF主体 | 明示した配備SAへの`roles/iam.workloadIdentityUser`だけ。ID token発行権限を必要なSAに限定 |
 | 検証呼出し | 対象サービスの`roles/run.invoker`を配備SAに付与。`allUsers` / `allAuthenticatedUsers`には付与しない |
 
-新規サービスを作る配備権限はprojectで必要になるため、専用projectまたは必要permissionだけのcustom roleを使う。`roles/run.admin`等の既定roleを使う場合も対象projectに限定し、作成後に対象サービスへの範囲縮小を検討する。監査にはproject IAM読取、課金状態読取、API一覧読取が必要。実行SA・組織ポリシーの変更権限は配備ワークフローへ付与しない。
+新規サービスを作る配備権限はprojectで必要になるため、専用projectまたは必要permissionだけのcustom roleを使う。`roles/run.admin`等の既定roleを使う場合も対象projectに限定し、作成後に対象サービスへの範囲縮小を検討する。監査にはproject・service・予算bucketのIAM読取、custom roleの定義読取、課金状態読取、API一覧読取が必要。実行SA・組織ポリシーの変更権限は配備ワークフローへ付与しない。
 
 初期構築は[WIF公式手順](https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines)と[Cloud Run認証](https://docs.cloud.google.com/run/docs/authenticating/service-to-service)に従う。認証に失敗したら条件や対象の誤りを確認し、JSON鍵や全公開へ迂回しない。
 
@@ -70,6 +98,8 @@ GitHub APIで`main`へ反映後、`.github/workflows/CloudRun配備.yml`を`main
 7. Cloud LoggingとHTTP証拠を14日保持のartifactへ保存する。生成物をdefault treeへ追加しない。
 
 Cloud Build、Artifact Registry、送信bucket、Logging、Cloud Runの課金は別に発生し得る。min 0 / max 1は費用抑制策であり金額の上限ではない。予算通知は必要に応じ本人の課金設定で追加する。常時起動・高負荷・複数instanceへ変更する前に実測と費用を再評価する。
+
+HTTP応答を待つ枠を60秒から300秒へ延ばすことで、要求中のCPU・メモリ利用と費用を増やし得る。新候補の割当メモリを1Giから2Giにするため、同じ課金対象の稼働時間ならメモリのGiB秒は増加する。[Cloud Runの料金](https://cloud.google.com/run/pricing)はメモリ、CPU、要求などの利用量と課金設定によるため、総費用が2倍になるとは断定しない。CPU 1・min 0 / max 1・同時実行数1、IAM・権限・料金方式はこの変更では維持する。HTTPの時間上限はアプリ内部の処理停止や金額上限を保証しない。実機受入では固定SHA・revision・imageと2Gi・300秒設定、実HTTP所要時間、メモリ観測、本文・採否・ADK通過・監査・ログを対応させ、時間切れや不成立をPASSへ変更せず記録する。
 
 ## 5. ローカルと実機の受入
 

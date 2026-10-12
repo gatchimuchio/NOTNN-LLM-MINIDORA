@@ -32,6 +32,7 @@ jobs:
       GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       PYTHONUTF8: '1'
+      PYTHONPATH: src
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,7 +44,9 @@ jobs:
       - name: 明示設定を検査
         run: |
           python - <<'PY'
-          import os, re
+          import json, os, re
+          from pathlib import Path
+          from tools.CloudRun配備設定 import 固定を検査, 実行環境
           patterns = {
             'GCP_PROJECT_ID': r'[a-z][a-z0-9-]{4,28}[a-z0-9]',
             'GCP_REGION': r'[a-z]+(?:-[a-z]+)+[0-9]',
@@ -62,6 +65,11 @@ jobs:
             raise SystemExit('実行・ビルド・配備SAは分離する')
           if any(not re.fullmatch(r'[a-z][a-z0-9-]{4,28}[a-z0-9]@' + re.escape(project) + r'\.iam\.gserviceaccount\.com', account) for account in accounts):
             raise SystemExit('同一の明示プロジェクトに属するSAが必要')
+          fixed = json.loads(Path('deploy/Google取得固定設定.json').read_text(encoding='utf-8'))
+          budget = 固定を検査(fixed, project, os.environ['GCP_REGION'], accounts[0])
+          budget.期間を確認()
+          Path(os.environ['RUNNER_TEMP'], 'minidora-runtime-env.json').write_text(
+            json.dumps(実行環境(fixed), ensure_ascii=False), encoding='utf-8')
           PY
       - id: auth
         uses: google-github-actions/auth@v3
@@ -80,6 +88,10 @@ jobs:
           gcloud billing projects describe "$GCP_PROJECT_ID" --format=json > "$RUNNER_TEMP/billing.json"
           gcloud services list --project="$GCP_PROJECT_ID" --enabled --format=json > "$RUNNER_TEMP/apis.json"
           gcloud projects get-iam-policy "$GCP_PROJECT_ID" --format=json > "$RUNNER_TEMP/project-iam.json"
+          gcloud iam roles describe minidoraNormalSearch --project="$GCP_PROJECT_ID" --format=json > "$RUNNER_TEMP/search-role.json"
+          gcloud iam roles describe minidoraSearchBudget --project="$GCP_PROJECT_ID" --format=json > "$RUNNER_TEMP/budget-role.json"
+          budget_bucket="$(python -c 'import json; print(json.load(open("deploy/Google取得固定設定.json"))["MINIDORA_GOOGLE_BUDGET_BUCKET"])')"
+          gcloud storage buckets get-iam-policy "gs://$budget_bucket" --format=json > "$RUNNER_TEMP/budget-iam.json"
           for account in "$GCP_RUNTIME_SERVICE_ACCOUNT" "$GCP_BUILD_SERVICE_ACCOUNT"; do
             gcloud iam service-accounts describe "$account" --project="$GCP_PROJECT_ID" --format='value(email)'
           done
@@ -97,7 +109,7 @@ jobs:
           if read('project.json')['projectId'] != os.environ['GCP_PROJECT_ID'] or not read('billing.json').get('billingEnabled'):
             raise SystemExit('指定プロジェクト又は課金が未成立')
           enabled = {row['config']['name'] for row in read('apis.json')}
-          required = {'run.googleapis.com', 'artifactregistry.googleapis.com', 'cloudbuild.googleapis.com', 'iamcredentials.googleapis.com', 'sts.googleapis.com'}
+          required = {'run.googleapis.com', 'artifactregistry.googleapis.com', 'cloudbuild.googleapis.com', 'iamcredentials.googleapis.com', 'sts.googleapis.com', 'discoveryengine.googleapis.com', 'storage.googleapis.com'}
           if not required <= enabled:
             raise SystemExit('必要APIが未有効: ' + ','.join(sorted(required - enabled)))
           if read('artifact-repository.json').get('format') != 'DOCKER':
@@ -115,15 +127,11 @@ jobs:
               'run.googleapis.com/cloudsql-instances', 'run.googleapis.com/vpc-access-egress')
             if any(annotations.get(name) for name in network):
               raise SystemExit('既存サービスのnetwork又はCloud SQL接続を明示監査してから配備')
-          runtime = 'serviceAccount:' + os.environ['GCP_RUNTIME_SERVICE_ACCOUNT']
-          for name in ('project-iam.json', 'service-iam.json'):
-            if not (root / name).exists(): continue
-            for row in read(name).get('bindings', []):
-              members = set(row.get('members', []))
-              if members & {'allUsers', 'allAuthenticatedUsers'}:
-                raise SystemExit('公開又は全認証者のIAM付与を解消してから配備: ' + name)
-              if runtime in members:
-                raise SystemExit('実行SAの権限付与を解消してから配備: ' + name)
+          from tools.CloudRun配備設定 import 限定IAMを検査
+          fixed = json.loads(Path('deploy/Google取得固定設定.json').read_text(encoding='utf-8'))
+          限定IAMを検査(fixed, read('project-iam.json'),
+            read('service-iam.json') if (root / 'service-iam.json').exists() else {},
+            read('budget-iam.json'), read('search-role.json'), read('budget-role.json'))
           PY
       - name: 許可ファイルだけをCloud Buildへ送信
         run: |
@@ -139,7 +147,7 @@ jobs:
           gcloud builds submit "$stage" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
             --tag="$image" --service-account="projects/$GCP_PROJECT_ID/serviceAccounts/$GCP_BUILD_SERVICE_ACCOUNT" \
             --gcs-source-staging-dir="$GCP_BUILD_BUCKET/source" --gcs-log-dir="$GCP_BUILD_BUCKET/logs" \
-            --timeout=1200 --format=json > cloud-evidence/build.json
+            --timeout=600 --format=json > cloud-evidence/build.json
           IMAGE_TAG="$image" python - <<'PY'
           import json, os, re
           from pathlib import Path
@@ -160,23 +168,20 @@ jobs:
             --command=python --args="-m,minidora.製品版,--HDS,--ADK,--基本チャット,--CloudRun,--serve" \
             --no-allow-unauthenticated --invoker-iam-check --ingress=all \
             --min=0 --max=1 --min-instances=0 --max-instances=1 --concurrency=1 \
-            --cpu=1 --memory=1Gi --timeout=60 --port=8080 --no-session-affinity \
-            --set-env-vars="MINIDORA_CLOUD_HOSTS=bootstrap.invalid,MINIDORA_CLOUD_ORIGINS=https://bootstrap.invalid" \
+            --cpu=1 --memory=2Gi --timeout=300 --port=8080 --no-session-affinity --no-cpu-boost --cpu-throttling \
+            --env-vars-file="$RUNNER_TEMP/minidora-runtime-env.json" \
             --labels="minidora-source=$GITHUB_SHA" --quiet
           url="$(gcloud run services describe "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format='value(status.url)')"
           CLOUD_RUN_URL="$url" python - <<'PY'
-          import os, re
-          from urllib.parse import urlsplit
-          url = urlsplit(os.environ['CLOUD_RUN_URL'])
-          if (url.scheme != 'https' or url.username or url.password or url.port is not None
-              or url.path or url.query or url.fragment or not url.hostname
-              or not url.hostname.endswith('.run.app')
-              or any(not re.fullmatch(r'(?!-)[a-z0-9-]{1,63}(?<!-)', label) for label in url.hostname.split('.'))):
-            raise SystemExit('実Cloud Run URLを取得できない')
+          import json, os
+          from pathlib import Path
+          from tools.CloudRun配備設定 import 実行環境
+          fixed = json.loads(Path('deploy/Google取得固定設定.json').read_text(encoding='utf-8'))
+          Path(os.environ['RUNNER_TEMP'], 'minidora-runtime-env.json').write_text(
+            json.dumps(実行環境(fixed, os.environ['CLOUD_RUN_URL']), ensure_ascii=False), encoding='utf-8')
           PY
-          host="${url#https://}"
           gcloud run services update "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
-            --set-env-vars="MINIDORA_CLOUD_HOSTS=$host,MINIDORA_CLOUD_ORIGINS=$url" --quiet
+            --env-vars-file="$RUNNER_TEMP/minidora-runtime-env.json" --quiet
           gcloud run services update-traffic "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --to-latest --quiet
           gcloud run services add-iam-policy-binding "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
             --member="serviceAccount:$GCP_DEPLOY_SERVICE_ACCOUNT" --role=roles/run.invoker --quiet > /dev/null
@@ -187,48 +192,9 @@ jobs:
           set -euo pipefail
           gcloud run services describe "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$RUNNER_TEMP/service.json"
           gcloud run services get-iam-policy "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$RUNNER_TEMP/service-iam.json"
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          root = Path(os.environ['RUNNER_TEMP'])
-          service = json.loads((root / 'service.json').read_text())
-          policy = json.loads((root / 'service-iam.json').read_text())
-          revision = service['status']['latestReadyRevisionName']
-          active = [row for row in service['status']['traffic'] if row.get('percent', 0)]
-          if len(active) != 1 or active[0]['revisionName'] != revision or active[0]['percent'] != 100:
-            raise SystemExit('検査対象revisionへの100% trafficが未成立')
-          annotations = service['metadata'].get('annotations', {})
-          if annotations.get('run.googleapis.com/invoker-iam-disabled') == 'true':
-            raise SystemExit('IAM認証が無効')
-          if any(set(row.get('members', [])) & {'allUsers', 'allAuthenticatedUsers'} for row in policy.get('bindings', [])):
-            raise SystemExit('IAMに公開権限が残存')
-          template = service['spec']['template']
-          spec = template['spec']
-          revision_annotations = template.get('metadata', {}).get('annotations', {})
-          container = spec['containers'][0]
-          requested = {'min': 0, 'max': 1, 'concurrency': 1}
-          observed = {'min': int(annotations.get('run.googleapis.com/minScale', '0')),
-            'max': int(annotations.get('run.googleapis.com/maxScale', '0')),
-            'concurrency': int(spec.get('containerConcurrency', 0))}
-          if observed != requested or int(revision_annotations.get('autoscaling.knative.dev/minScale', '0')) != 0 or int(revision_annotations.get('autoscaling.knative.dev/maxScale', '0')) != 1:
-            raise SystemExit('サービス又はrevisionのinstance/concurrency境界が要求と不一致')
-          if spec.get('serviceAccountName') != os.environ['GCP_RUNTIME_SERVICE_ACCOUNT'] or container['image'] != os.environ['CLOUD_RUN_IMAGE']:
-            raise SystemExit('実行SA又はimage digestが要求と不一致')
-          limits = container.get('resources', {}).get('limits', {})
-          if spec.get('timeoutSeconds') != 60 or limits.get('memory') not in ('1Gi', '1024Mi') or limits.get('cpu') not in ('1', '1000m'):
-            raise SystemExit('要求timeout又はCPU/memory境界が要求と不一致')
-          env = {row['name']: row.get('value') for row in container.get('env', [])}
-          if env.get('MINIDORA_CLOUD_HOSTS') != service['status']['url'].removeprefix('https://') or env.get('MINIDORA_CLOUD_ORIGINS') != service['status']['url']:
-            raise SystemExit('実URLと許可Host/Originが不一致')
-          if spec.get('volumes') or container.get('volumeMounts') or any(row.get('valueFrom') for row in container.get('env', [])):
-            raise SystemExit('配備後に未承認volume又はSecret参照が残存')
-          value = {'サービス': os.environ['CLOUD_RUN_SERVICE'], 'リージョン': os.environ['GCP_REGION'],
-            'リビジョン': revision, 'URL': service['status']['url'], '実装SHA': os.environ['GITHUB_SHA'],
-            '認証必須': True, 'イメージ': container['image'],
-            '実行SA': spec['serviceAccountName'], **observed,
-            '要求timeout秒': spec['timeoutSeconds'], 'memory': limits['memory'], 'CPU': limits['cpu']}
-          Path('cloud-evidence/deployment.json').write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
-          PY
+          python tools/CloudRun配備設定.py --サービス記録 "$RUNNER_TEMP/service.json" --IAM記録 "$RUNNER_TEMP/service-iam.json" \
+            --名前 "$CLOUD_RUN_SERVICE" --リージョン "$GCP_REGION" --実装SHA "$GITHUB_SHA" \
+            --イメージ "$CLOUD_RUN_IMAGE" --実行SA "$GCP_RUNTIME_SERVICE_ACCOUNT" --出力 cloud-evidence/deployment.json
       - id: invocation
         uses: google-github-actions/auth@v3
         with:
@@ -250,18 +216,11 @@ jobs:
             --update-env-vars="MINIDORA_ACCEPTANCE_RESTART=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --quiet
           gcloud run services update-traffic "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --to-latest --quiet
           gcloud run services describe "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$RUNNER_TEMP/restarted-service.json"
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          service = json.loads((Path(os.environ['RUNNER_TEMP']) / 'restarted-service.json').read_text())
-          value = json.loads(Path('cloud-evidence/deployment.json').read_text())
-          revision = service['status']['latestReadyRevisionName']
-          active = [row for row in service['status']['traffic'] if row.get('percent', 0)]
-          if revision == value['リビジョン'] or len(active) != 1 or active[0]['revisionName'] != revision or active[0]['percent'] != 100:
-            raise SystemExit('交換後revisionへの100% trafficが未成立')
-          value['リビジョン'] = revision
-          Path('cloud-evidence/restarted-deployment.json').write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
-          PY
+          gcloud run services get-iam-policy "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$RUNNER_TEMP/restarted-service-iam.json"
+          python tools/CloudRun配備設定.py --サービス記録 "$RUNNER_TEMP/restarted-service.json" --IAM記録 "$RUNNER_TEMP/restarted-service-iam.json" \
+            --名前 "$CLOUD_RUN_SERVICE" --リージョン "$GCP_REGION" --実装SHA "$GITHUB_SHA" \
+            --イメージ "$CLOUD_RUN_IMAGE" --実行SA "$GCP_RUNTIME_SERVICE_ACCOUNT" \
+            --交換前 cloud-evidence/deployment.json --出力 cloud-evidence/restarted-deployment.json
       - id: restarted_invocation
         if: inputs.restart_acceptance
         uses: google-github-actions/auth@v3

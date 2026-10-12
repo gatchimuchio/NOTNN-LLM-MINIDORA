@@ -105,6 +105,14 @@ class CloudRun入口試験(unittest.TestCase):
         追跡 = self.HTTPを呼ぶ(道="/api/trace/" + 本文["追跡_id"])
         self.assertTrue(json.loads(追跡[2])["valid"])
 
+    def test_Cloudは旧監査の原値を返さず原記録も変換しない(self):
+        旧 = self.サーバ.app.監査台帳.開始("user@example.test", "旧境界").確定("旧原値", "SUSPEND")
+        応答 = self.HTTPを呼ぶ(道="/api/trace/" + 旧.追跡ID)
+        self.assertEqual(応答[0], 409)
+        self.assertNotIn(b"user@example.test", 応答[2])
+        self.assertEqual(self.サーバ.app.監査台帳.取得(旧.追跡ID).入力文, "user@example.test")
+        self.assertTrue(self.サーバ.app.監査台帳.検証(旧.追跡ID))
+
     def test_要求頻度を制限して期限後に解除する(self):
         self.サーバ.受付時刻.extend([monotonic()] * 30)
         self.assertEqual(self.HTTPを呼ぶ("POST", "/api/chat", {"message": "2+3"})[0], 429)

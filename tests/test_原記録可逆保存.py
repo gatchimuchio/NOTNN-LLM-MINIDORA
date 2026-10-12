@@ -99,7 +99,7 @@ class 可逆保存試験(unittest.TestCase):
         self.assertEqual(原記録成果を復元(行), 元)
 
     def test_旧v1は無更新の保存と履歴を変えず実同期からv2(self):
-        原 = 同期(運用原記録("旧開発"), 能力結果(True, "旧成果")).保存()
+        原 = 同期(運用原記録("旧開発", 保存版="HDS運用原記録-v2"), 能力結果(True, "旧成果")).保存()
         原["版"] = "HDS運用原記録-v1"
         復元 = 運用原記録.復元(deepcopy(原), "旧開発")
         self.assertEqual(正準バイト(復元.保存()), 正準バイト(原))
@@ -107,7 +107,7 @@ class 可逆保存試験(unittest.TestCase):
         self.assertEqual(新["版"], "HDS運用原記録-v2")
         self.assertEqual(新["庫"]["履歴"][:-1], 原["庫"]["履歴"])
         self.assertEqual(復元.保存(), 原)
-        混入 = self.同期済.保存()
+        混入 = 同期(運用原記録("可逆開発", 保存版="HDS運用原記録-v2"), self.元).保存()
         混入["版"] = "HDS運用原記録-v1"
         with self.assertRaisesRegex(ValueError, "旧原記録版"):
             運用原記録.復元(混入, "可逆開発")

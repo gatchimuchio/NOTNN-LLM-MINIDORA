@@ -13,6 +13,9 @@ class 能力文脈:
     直前参照: tuple[参照資料, ...] = ()
     履歴: tuple[tuple[str, str], ...] = ()
     補助: dict[str, Any] | None = None
+    # 当回だけの実行制御。意味入力・保存・合成指紋には含めない。
+    停止要求: Any = None
+    取得制御: Any = None
 
 class 能力モジュール(Protocol):
     名前: str

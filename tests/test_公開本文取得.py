@@ -1,5 +1,6 @@
 """公開URL・DNS固定・本文抽出の契約試験。公開インターネットへのLIVE試験ではない。"""
 from hashlib import sha256
+from http.client import HTTPSConnection
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import socket
 import ssl
@@ -87,6 +88,20 @@ class 公開本文契約試験(unittest.TestCase):
         for mime, raw in (("text/plain; charset=utf-8", b"\xff"), ("text/plain; charset=base64", b"a")):
             with self.subTest(mime=mime), self.assertRaises(ValueError):
                 parse(raw, mime)
+
+    def test_UTF8明示でも先頭標識だけを復号して転送印と内部原字を保つ(self):
+        for mime, meta in (("text/html; charset=utf-8", ""),
+                           ("text/html", '<meta charset="UTF-8">')):
+            with self.subTest(mime=mime):
+                raw = b"\xef\xbb\xbf" + (meta + "<p>原本文\ufeff内部</p>").encode()
+                doc = parse(raw, mime)
+                self.assertEqual(doc.本文, "原本文\ufeff内部")
+                self.assertEqual(doc.文字コード, "utf-8-sig")
+                self.assertEqual(doc.転送バイト数, len(raw))
+                self.assertEqual(doc.転送SHA256, sha256(raw).hexdigest())
+                self.assertEqual(doc.本文SHA256, sha256(doc.本文.encode()).hexdigest())
+        with self.assertRaises(ValueError):
+            parse(b"\xef\xbb\xbftext", "text/plain; charset=ascii")
 
     def test_未知MIMEや圧縮を成功にしない(self):
         for headers in ({"content-type": "application/pdf"}, {"content-type": "image/png"},
@@ -182,17 +197,24 @@ class 本文HTTP配線試験(unittest.TestCase):
         cls.server.server_close()
         cls.thread.join(timeout=2)
 
-    def fetch(self, path="/", size=500_000):
+    def fetch(self, path="/", size=500_000, *, 取得制御=None):
         original = socket.create_connection
+        original_request = HTTPSConnection.request
         ctx = MagicMock()
         ctx.wrap_socket.side_effect = lambda sock, server_hostname: sock
         def connect(address, timeout):
             self.assertEqual(address, ("8.8.8.8", 443))
             return original(self.server.server_address, timeout=timeout)
+        def request(conn, method, target, body=None, headers=None, *, encode_chunked=False):
+            # 偽TLSの局所TCPだけに適用。HTML挿入proxyで試験の宣言長を失わない。
+            return original_request(conn, method, target, body=body,
+                                    headers={**(headers or {}), "Host": "127.0.0.1"},
+                                    encode_chunked=encode_chunked)
         with patch("minidora.公開本文取得._公開アドレス", return_value="8.8.8.8"), \
              patch("minidora.公開本文取得.socket.create_connection", side_effect=connect), \
-             patch('minidora.公開本文取得.ssl.create_default_context', return_value=ctx):
-            結果 = 公開本文取得器(timeout=2, 最大バイト数=size).取得("https://example.test" + path)
+             patch('minidora.公開本文取得.ssl.create_default_context', return_value=ctx), \
+             patch.object(HTTPSConnection, "request", request):
+            結果 = 公開本文取得器(timeout=2, 最大バイト数=size, 取得制御=取得制御).取得("https://example.test" + path)
             self.assertEqual(ctx.wrap_socket.call_args.kwargs["server_hostname"], "example.test")
             return 結果
 

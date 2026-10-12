@@ -112,6 +112,12 @@ class Wikipedia検索供給器:
         self._排他 = Lock()
         self._通信: list[dict] = []
 
+    def 制御を束縛(self, 制御):
+        # 各参照供給器のcallbackは新しいselfへ束縛する。
+        obj = Wikipedia検索供給器(timeout=self._取得器.timeout)
+        obj._取得器 = self._取得器.制御を束縛(制御)
+        return obj
+
     def _JSONを取得(self, url: str, headers, timeout: float) -> dict:
         from dataclasses import asdict
         from ..公開本文取得 import JSON待機要求

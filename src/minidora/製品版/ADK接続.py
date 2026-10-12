@@ -53,6 +53,10 @@ class ADK製品ミニドラ:
     def 要求単位外部読取(self):
         return bool(getattr(self._製品, "要求単位外部読取", False))
 
+    @property
+    def 公開取得方針(self):
+        return getattr(self._製品, "公開取得方針", None)
+
     def 応答(self, 入力文, *, セッションID="default", 外部読取許可=None) -> 製品応答:
         """同期CLI/HTTP入口。非同期呼出元は応答非同期を使用する。"""
         try:

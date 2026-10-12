@@ -4,7 +4,7 @@
 
 ## 前提と初回準備
 
-Windows版Python 3.13、Python Launcher (`py`)、PowerShell 7 (`pwsh`)、Git for Windowsを使う。通常の開発・単体試験にはGPU、WSL、Docker、追加の実行時Python依存は不要。
+Windows版Python 3.13、Python Launcher (`py`)、PowerShell 7 (`pwsh`)、Git for Windowsを使う。通常の開発・単体試験にはGPU、WSL、Dockerは不要。会話の字句観測には、`pyproject.toml`で固定したSudachiPy 0.6.11とSudachiDict-core 20260723を使用し、`pip install -e .`で導入する。初回導入ではこれらの公開配布物を取得するネットワーク接続が必要になる。
 
 リポジトリ直下で実行する。
 

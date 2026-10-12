@@ -8,15 +8,22 @@ from ..命題推論 import 命題推論器, 推論上限
 from ..導出説明 import 導出説明を構成
 from ..製品版.型 import 能力結果
 from .値 import 正準, 指紋, 結果を保存, 結果を復元
-from .関係言語 import 関係文を読む, 例外節を読む
+from .関係言語 import 関係文を読む, 例外節を読む, 材料局所役割を読む
 from .一般接続 import 取得資料を復元
 
 関係要求版 = "HDS関係説明要求-v2"
 関係読解版 = "HDS関係読解-v2"
+主張採用要求版 = "HDS主張採用検討要求-v1"
+主張採用読解版 = "HDS主張採用読解-v2"
 _形式 = ("箇条書き", "文章", "引用")
 
 
 def 関係要求を検査(要求):
+    if type(要求) is dict and 要求.get("版") == "HDS資料条件変更要求-v2":
+        from .資料条件変更 import 資料条件変更要求を検査
+        return 資料条件変更要求を検査(要求)
+    if type(要求) is dict and 要求.get("版") == 主張採用要求版:
+        return 主張採用要求を検査(要求)
     if type(要求) is dict and 要求.get("版") == "HDS資料横断要求-v1":
         from .資料横断 import 横断要求を検査
         return 横断要求を検査(要求)
@@ -53,12 +60,19 @@ def 関係調査要求(要求):
     return 結果
 
 
-def _一資料(名前, 資料, 問い, *, 宣言範囲=(), 採用保持=False):
+def _一資料記載を読む(名前, 資料, *, 宣言範囲=()):
+    """既存の原記載・例外読解。問いの命題化や判定は行わない。"""
     if not isinstance(資料, 能力結果) or not 資料.成立 or not 0 < len(資料.本文) <= 16000:
         raise ValueError("関係読解の資料型・成立・文字上限")
     区間 = list(構成句を分ける(資料.本文))
     if len(区間) > 64:
         raise ValueError("関係資料の記載数上限")
+    if (type(宣言範囲) not in (tuple, list)
+            or any(type(項) not in (tuple, list) or len(項) != 2
+                   or any(type(値) is not int for 値 in 項) or tuple(項) not in 区間 for 項 in 宣言範囲)
+            or len({tuple(項) for 項 in 宣言範囲}) != len(宣言範囲)):
+        raise ValueError("関係資料の宣言範囲は一意の原構成句区間が必要")
+    宣言範囲 = tuple(tuple(項) for 項 in 宣言範囲)
     記載, 読解, 残差 = [], [], []
     先行 = None
     保留 = None
@@ -177,15 +191,119 @@ def _一資料(名前, 資料, 問い, *, 宣言範囲=(), 採用保持=False):
             残す(開始, 終了, str(例外))
     保留を採る()
 
-    採用 = tuple(記載)
-    判定, 説明, 不足 = 記載を判定(採用, 問い)
     状態 = "限定作用域の一部確認待ち" if 限定隔離 else "部分解釈" if 残差 else "対応文法内の解釈成立"
-    結果 = {"資料": 結果を保存(資料), "読解": 読解, "残差": 残差,
-            "限定隔離": 限定隔離, "判定": 判定, "説明": 説明, "不足候補": 不足,
-            "解釈状態": 状態}
+    return {"資料": 結果を保存(資料), "読解": 読解, "残差": 残差, "限定隔離": 限定隔離,
+            "解釈状態": 状態, "採用記載": [asdict(項) for 項 in 記載],
+            "宣言範囲": [list(項) for 項 in 宣言範囲]}
+
+
+def _採用を復元(群):
+    return tuple(命題記載(項["識別子"], 命題を復元(項["式"], 内部許可=True), 項["資料"],
+                       項["原文"], tuple(項["範囲"])) for 項 in 群)
+
+
+def _一資料(名前, 資料, 問い, *, 宣言範囲=(), 採用保持=False):
+    元 = _一資料記載を読む(名前, 資料, 宣言範囲=宣言範囲)
+    判定, 説明, 不足 = 記載を判定(_採用を復元(元["採用記載"]), 問い)
+    結果 = {名: 元[名] for 名 in ("資料", "読解", "残差", "限定隔離", "解釈状態")}
+    結果.update(判定=判定, 説明=説明, 不足候補=不足)
     if 採用保持:
-        結果["採用記載"] = [asdict(項) for 項 in 採用]
+        結果["採用記載"] = 元["採用記載"]
     return 結果
+
+
+def 主張採用要求を検査(要求):
+    """原HDSへの拘束を保持するshape検査。原Pの命題成立を要求しない。"""
+    欄 = {"版", "対象", "範囲", "問い", "形式", "不足調査", "最大文字数", "原主張"}
+    if type(要求) is not dict or set(要求) != 欄 or 要求["版"] != 主張採用要求版:
+        raise ValueError("主張採用要求の型・欄・版不一致")
+    名 = 要求["対象"]
+    if (type(名) is not list or not 1 <= len(名) <= 8 or len(set(名)) != len(名)
+            or any(type(項) is not str or not 項.strip() or len(項) > 128 for 項 in 名)
+            or 要求["範囲"] != "指定資料" or 要求["不足調査"] is not False
+            or 要求["形式"] not in _形式 or type(要求["最大文字数"]) is not int
+            or not 100 <= 要求["最大文字数"] <= 24000
+            or type(要求["問い"]) is not str or not 0 < len(要求["問い"]) <= 16000):
+        raise ValueError("主張採用要求の資料・形式・予算・原Pが不正")
+    元 = 要求["原主張"]
+    原欄 = {"所有セッション", "原文", "目的ID", "文節ID", "行為", "行為座標ID", "行為範囲", "行為原文",
+          "主張", "資料", "契約印", "意味IR印", "HDS残差"}
+    if (type(元) is not dict or set(元) != 原欄 or 元["行為"] not in ("支持確認", "断定要求", "保証要求")
+            or any(type(元[項]) is not str or not 元[項] for 項 in
+                   ("所有セッション", "原文", "目的ID", "文節ID", "行為座標ID", "行為原文"))
+            or any(type(元[項]) is not str or len(元[項]) != 64
+                   or any(字 not in "0123456789abcdef" for 字 in 元[項]) for 項 in ("契約印", "意味IR印"))
+            or type(元["HDS残差"]) is not list):
+        raise ValueError("主張採用要求の原HDS由来が不正")
+    def 原区間(範囲, 本文):
+        return (type(範囲) is list and len(範囲) == 2 and all(type(値) is int for 値 in 範囲)
+                and 0 <= 範囲[0] < 範囲[1] <= len(元["原文"]) and 元["原文"][slice(*範囲)] == 本文)
+    主張 = 元["主張"]
+    if (type(主張) is not dict or set(主張) != {"座標ID", "原文範囲", "本文"}
+            or type(主張["座標ID"]) is not str or not 主張["座標ID"] or 主張["本文"] != 要求["問い"]
+            or not 原区間(主張["原文範囲"], 主張["本文"])
+            or not 原区間(元["行為範囲"], 元["行為原文"])):
+        raise ValueError("主張採用要求の原行為・原P区間不一致")
+    資料 = 元["資料"]
+    if type(資料) is not dict or set(資料) != {"方式", "対象", "区分ID", "原文範囲", "本文"}:
+        raise ValueError("主張採用要求の資料由来欄不一致")
+    if 資料["方式"] == "提示原文":
+        if (名 != ["提示本文"] or 資料["対象"] != [] or type(資料["区分ID"]) is not str
+                or not 資料["区分ID"] or not 原区間(資料["原文範囲"], 資料["本文"])):
+            raise ValueError("主張採用要求の提示原資料区間不一致")
+    elif 資料["方式"] == "登録資料":
+        if 資料["対象"] != 名 or 資料["区分ID"] is not None or 資料["原文範囲"] is not None or 資料["本文"] != "":
+            raise ValueError("主張採用要求の登録原資料対応不一致")
+    else:
+        raise ValueError("主張採用要求の資料方式不正")
+    return 正準(要求)
+
+
+def 主張採用を読む(資料群, 要求):
+    要求 = 主張採用要求を検査(要求)
+    if (type(資料群) is not dict or set(資料群) != set(要求["対象"])
+            or any(not isinstance(値, 能力結果) or not 値.成立 or type(値.本文) is not str for 値 in 資料群.values())
+            or sum(len(値.本文) for 値 in 資料群.values()) > 32000):
+        raise ValueError("主張採用の資料対応・結果型・合計文字数不正")
+    if (要求["原主張"]["資料"]["方式"] == "提示原文"
+            and 資料群["提示本文"].本文 != 要求["原主張"]["資料"]["本文"]):
+        raise ValueError("主張採用の実提示本文が原材料と不一致")
+    P = 要求["原主張"]["主張"]
+    try:
+        問い, _, 変換 = 関係文を読む(要求["問い"])
+        if 要求["原主張"]["HDS残差"]:
+            raise ValueError("原HDS残差の原主張への影響が未確認")
+        P読解 = {"状態": "全文型成立", "式": 問い.辞書(), "変換": list(変換), "原主張": P,
+                "診断": [], "未型範囲": []}
+    except ValueError as 例外:
+        問い = None
+        P読解 = {"状態": "未型・判定未実施", "式": None, "変換": [], "原主張": P, "診断": [str(例外)],
+                "未型範囲": [{"種別": 種, "範囲": P["原文範囲"], "状態": "個別対応未確定"}
+                            for 種 in ("対象", "条件", "期間", "量化")]}
+    群 = {名: _一資料記載を読む(名, 値) for 名, 値 in sorted(資料群.items())}
+    for 行 in 群.values():
+        # 命題に採用できない原記載も、局所役割と未読を別欄で保持する。
+        # 後続例外で隔離された型をこの経路から再採用しない。
+        局所 = []
+        for 番号, 残差 in enumerate(行["残差"]):
+            if any(語 in 残差["理由"] for 語 in ("例外", "限定作用域", "留保")):
+                continue
+            if (番号 + 1 < len(行["残差"])
+                    and 行["残差"][番号 + 1]["原文"].lstrip().startswith(("ただし", "例外"))):
+                continue
+            局所.append(材料局所役割を読む(残差["原文"], 起点=残差["範囲"][0]))
+        行["材料局所読解"] = 局所
+        if 問い is None:
+            行.update(判定=None, 説明=None, 不足候補=[], 支持状態="P未型のため判定未実施")
+        else:
+            判定, 説明, 不足 = 記載を判定(_採用を復元(行["採用記載"]), 問い)
+            行.update(判定=判定, 説明=説明, 不足候補=不足, 支持状態="読めた記載内の判定")
+    行為 = 要求["原主張"]["行為"]
+    return 正準({"版": 主張採用読解版, "要求": 要求, "P読解": P読解, "資料群": 群,
+                 "公開資料群": {}, "取得": None, "取得状態": "未要求",
+                 "行為検討": {"要求行為": 行為, "要求行為実行": False,
+                     "説明範囲": "資料内の記載支持と原主張の読解状態", "世界断定": "未認定", "保証": "未認定"},
+                 "境界": "原要求行為を保持して資料の記載を検討する。記載の支持は世界の断定・保証ではなく、原P未型は材料の反証や世界の偽を意味しない。"})
 
 
 def 記載を判定(採用, 問い):
@@ -218,6 +336,15 @@ def 不足調査が必要(構造):
 
 
 def 関係資料を読む(資料群, 要求, *, 取得=None):
+    if type(要求) is dict and 要求.get("版") == "HDS資料条件変更要求-v2":
+        if 取得 is not None:
+            raise ValueError("資料条件変更の外部取得は未接続")
+        from .資料条件変更 import 資料条件変更を読む
+        return 資料条件変更を読む(資料群, 要求)
+    if type(要求) is dict and 要求.get("版") == 主張採用要求版:
+        if 取得 is not None:
+            raise ValueError("主張採用の外部取得は未接続")
+        return 主張採用を読む(資料群, 要求)
     要求 = 関係要求を検査(要求)
     if (type(資料群) is not dict or not 1 <= len(資料群) <= 8
             or any(type(名) is not str or not 名 or len(名) > 128 for 名 in 資料群)):
@@ -265,7 +392,7 @@ def 関係資料を読む(資料群, 要求, *, 取得=None):
 
 def 関係資料を検査(構造):
     try:
-        if type(構造) is not dict or 構造.get("版") != 関係読解版:
+        if type(構造) is not dict or 構造.get("版") not in (関係読解版, 主張採用読解版, "HDS資料条件変更読解-v1"):
             return False
         再 = 関係資料を読む({名: 結果を復元(行["資料"]) for 名, 行 in 構造["資料群"].items()},
                         構造["要求"], 取得=None if 構造["取得"] is None else 結果を復元(構造["取得"]))

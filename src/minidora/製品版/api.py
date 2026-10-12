@@ -122,11 +122,15 @@ class APIHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/" or path.startswith("/static/"): return self._static(path)
         if path == "/health": return _json(self,200,{"ok":True,"service":"MINIDORA Product","api_version":API版})
-        if path == "/api/capabilities": return _json(self,200,{"capabilities":list(self.app.能力一覧()), "request_external_read":bool(getattr(self.app, "要求単位外部読取", False))})
+        if path == "/api/capabilities": return _json(self,200,{"capabilities":list(self.app.能力一覧()), "request_external_read":bool(getattr(self.app, "要求単位外部読取", False)), "公開取得方針":getattr(self.app, "公開取得方針", None)})
         m = re.fullmatch(r"/api/trace/([a-f0-9]{32})", path)
         if m:
             r = self.app.監査台帳.取得(m.group(1))
             if not r: return _json(self,404,{"error":'追跡_not_found'})
+            if getattr(self.server, "CloudRun境界", False):
+                from .監査 import 安全監査仕様版
+                if getattr(r, "仕様版", None) != 安全監査仕様版:
+                    return _json(self,409,{"error":"安全表現のない旧監査は公開できません"})
             return _json(self,200,{'追跡':r.辞書化(),"valid":self.app.監査台帳.検証(m.group(1))})
         return _json(self,404,{"error":"not_found"})
 

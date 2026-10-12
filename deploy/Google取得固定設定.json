@@ -1,0 +1,13 @@
+{
+  "MINIDORA_GOOGLE_PROJECT_ID": "minidora-507702",
+  "MINIDORA_GOOGLE_SEARCH_APP_ID": "minidora-public-web",
+  "MINIDORA_GOOGLE_RUNTIME_SERVICE_ACCOUNT": "minidora-adk-verify-runtime@minidora-507702.iam.gserviceaccount.com",
+  "MINIDORA_GOOGLE_PUBLIC_HOSTS": "www.mext.go.jp,www.mhlw.go.jp,www.env.go.jp,www.stat.go.jp",
+  "MINIDORA_GOOGLE_BUDGET_ID": "minidora-search-20261013",
+  "MINIDORA_GOOGLE_BUDGET_BUCKET": "minidora-507702-minidora-search-budget",
+  "MINIDORA_GOOGLE_BUDGET_OBJECT": "budget/search-20261013.json",
+  "MINIDORA_GOOGLE_BUDGET_START_UTC": "2026-10-12T00:00:00Z",
+  "MINIDORA_GOOGLE_BUDGET_END_UTC": "2026-12-02T00:00:00Z",
+  "MINIDORA_GOOGLE_BUDGET_LIMIT": "1000",
+  "MINIDORA_RETRIEVAL_POLICY": "auto"
+}

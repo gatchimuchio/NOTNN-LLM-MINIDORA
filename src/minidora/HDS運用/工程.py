@@ -14,12 +14,40 @@ from ..監査改善接続 import 改善回答を検査
 from ..実行回復 import 回復方針を決定, 失敗を分類
 from ..コア.内容計画 import 内容計画を構成, 内容計画を検査, 内容計画を表現
 from .値 import 指紋, 正準, 結果を保存, 結果を復元, 計画を復元, 運用版
-from .解釈 import 計画を構成
+from .解釈 import 計画を構成, 構造を保存
 from .数量生成 import 数量回答を検査
 from .内容構成 import 資料文章を検査
 from .関係内容 import 関係回答を検査
 
 計画接頭辞 = "運用計画:"
+
+
+def _会話束HDS対応を検査(解釈, 包, 所有セッション, *, 前採用包=None, 文脈証明=(),
+                 前命令包=None, 命令証明=()):
+    """保存した実Compiler全文と局所包を照合。実採用所有は呼出元責任。"""
+    from ..HDS再生 import HDSIR復元
+    from ..HDS会話契約 import 会話契約を検査
+    if (type(解釈) is not dict or 解釈.get("方式") != "一般会話目的束"
+            or type(解釈.get("原文")) is not str or 指紋(解釈.get("要求")) != 指紋(包)
+            or type(解釈.get("HDS")) is not dict
+            or type(解釈["HDS"].get("全文")) is not dict):
+        raise ValueError("会話束の原解釈・契約・HDS全文対応が不一致です")
+    if (指紋(解釈.get("前採用包")) != 指紋(前採用包)
+            or 指紋(解釈.get("文脈証明", [])) != 指紋(list(文脈証明))
+            or 指紋(解釈.get("前命令包")) != 指紋(前命令包)
+            or 指紋(解釈.get("命令証明", [])) != 指紋(list(命令証明))):
+        raise ValueError("会話束の保存文脈と独立に供給した採用文脈が不一致です")
+    保存全文 = 解釈["HDS"]["全文"]
+    if 保存全文.get("手順") is not None:
+        raise ValueError("会話束の手順付きHDS全文の再構成は未接続です")
+    再 = HDSIR復元(保存全文)
+    # 再生器の省略時既定・str/bool coercionを、この保存契約へ持ち込まない。
+    if 指紋(構造を保存(再)) != 指紋(保存全文) or 再.原文 != 解釈["原文"]:
+        raise ValueError("会話束のHDS全文が保存時の型・欄・原文と完全同値ではありません")
+    会話契約を検査(包, 所有セッション=所有セッション,
+               期待原文=解釈["原文"], 意味IR=再,
+               文脈証明=文脈証明, 命令証明=命令証明)
+    return 再
 
 
 def 現行計画(状態):
@@ -110,10 +138,17 @@ def _局所変更を検査(old, new, policy):
 
 
 class 工程供給:
-    def __init__(self, 目録, *, 最大回復=4, 最大結果バイト=2_000_000):
+    def __init__(self, 目録, *, 最大回復=4, 最大結果バイト=2_000_000, 停止要求=None, 取得制御=None):
         self.目録 = 目録
         self.最大回復 = 最大回復
         self.最大結果バイト = 最大結果バイト
+        if 停止要求 is not None and not callable(停止要求):
+            raise TypeError("工程の停止要求はcallable")
+        self.停止要求 = 停止要求
+        from ..取得実行制御 import 共有取得制御
+        if 取得制御 is not None and not isinstance(取得制御, 共有取得制御):
+            raise TypeError("工程の取得制御の型不正")
+        self.取得制御 = 取得制御
 
     def _文脈(self, 状態, plan_key, packet, step):
         values = dict(状態.成果)
@@ -128,7 +163,8 @@ class 工程供給:
         auxiliary = {"合成入力": tuple({"参照": asdict(ref), "結果": _結果辞書(value)} for ref, value in sources),
                      "合成設定": deepcopy(materials[step.設定参照].データ) if step.設定参照 else {}}
         return 能力文脈(materials[step.指示参照].本文, values["運用入力"]["セッションID"],
-                        "\n\n".join(value.本文 for _, value in sources), references, (), auxiliary)
+                        "\n\n".join(value.本文 for _, value in sources), references, (), auxiliary,
+                        停止要求=self.停止要求, 取得制御=self.取得制御)
 
     def __call__(self, 状態):
         self.目録.照合()
@@ -202,6 +238,9 @@ class 工程供給:
                                 追加状態=frozenset({_済(plan_key, st.識別子)}),
                                 成果=((_工程鍵(plan_key, st.識別子), packed), (key, record)),
                                 理由=("能力成果をHDSへ帰還", ability, "純粋結果再利用" if reused else "能力実行"))
+                        # 同じ有限型・容量検査を通過した不成立成果も原値のまま保持する。
+                        # 工程成立・残差解消・採用結果には供給しない。
+                        record["不成立成果"] = packed
                         return HDS作用結果(HDS作用状態.保留, 成果=((key, record),), 理由=(結果.保留理由,))
                     except Exception as exc:
                         # 契約違反を不適用や成功に縮退させない。
@@ -239,9 +278,45 @@ class 工程供給:
         return tuple(actions)
 
     def _回復作用(self, 状態, plan_key, packet, plan):
-        if not packet["役割"] or int(plan_key.split(":")[-1]) >= self.最大回復:
+        if int(plan_key.split(":")[-1]) >= self.最大回復:
             return None
         データ = dict(状態.成果)
+        from .資料補充 import 資料補充を構成, 資料補充を検査, 資料補充版
+        補充 = 資料補充を構成(plan_key, packet, データ, self.目録)
+        if 補充 is not None:
+            next_key = 計画接頭辞 + str(int(plan_key.split(":")[-1]) + 1)
+            def supplement(s):
+                values = dict(s.成果)
+                資料補充を検査(plan_key, packet, values, self.目録, self.最大回復)
+                再 = 資料補充を構成(plan_key, packet, values, self.目録)
+                if 再 is None or 指紋(再) != 指紋(補充):
+                    raise ValueError("資料補充の原要求・不足・取得元が変化しました")
+                成果, 成立 = [(next_key, 再)], set()
+                for st in plan.工程:
+                    if st.識別子 in 再["資料補充"]["再開工程"]:
+                        continue
+                    if _済(plan_key, st.識別子) in s.成立状態:
+                        成果.append((_工程鍵(next_key, st.識別子), deepcopy(values[_工程鍵(plan_key, st.識別子)])))
+                        成立.add(_済(next_key, st.識別子))
+                    for i in range(len(st.能力候補)):
+                        旧 = _試行鍵(plan_key, st.識別子, i)
+                        if 旧 in values:
+                            成果.append((_試行鍵(next_key, st.識別子, i), deepcopy(values[旧])))
+                return HDS作用結果(HDS作用状態.成立, 追加状態=frozenset(成立), 成果=tuple(成果),
+                                    理由=("同じ原要求の内容不足から未消費本文の取得を再開",))
+            根拠 = 補充["資料補充"]
+            # 補充の再導出・旧チェーン検査・対象外コピーが読む原値を署名へ載せる。
+            読取 = {"運用入力", plan_key, 根拠["不足試行鍵"],
+                    _工程鍵(plan_key, 根拠["意味工程"]), _工程鍵(plan_key, 根拠["取得工程"])}
+            for 名 in データ:
+                if 名.startswith(計画接頭辞) and int(名.split("/", 1)[0].split(":")[-1]) <= int(plan_key.split(":")[-1]):
+                    読取.add(名)
+            return HDS関数作用("運用/資料補充/" + plan_key, supplement,
+                入力状態=("運用:計画構成済",), 読取成果=tuple(sorted(読取)),
+                目的依存=("残差:運用:成果未構成",), 優先度=5, 契約版=資料補充版,
+                作用定義ID="運用/資料補充")
+        if not packet["役割"]:
+            return None
         info = {sid: (goal, 行為) for sid, goal, 行為 in packet["役割"]["工程作用"]}
         rules = {r.識別子: r for r in self.目録.役割作用}
         for step in plan.工程:
@@ -294,6 +369,10 @@ class 工程供給:
             if proof["原文"] != values["運用入力"]["原文"] or proof["回答印"] != 指紋(values["運用応答"]):
                 return False
             current_key, packet = 現行計画(状態)
+            if ("資料補充" in packet or
+                    packet.get("回答種別") == "資料文章回答"):
+                from .資料補充 import 資料補充を検査
+                資料補充を検査(current_key, packet, values, self.目録, self.最大回復)
             if proof["計画鍵"] != current_key or proof["計画印"] != 指紋(packet) or proof["目録"] != self.目録.ハッシュ:
                 return False
             if packet["方式"] == "管理":
@@ -310,6 +389,8 @@ class 工程供給:
             expected_answer = 最終素材を構成(expected_results, packet)
             if 指紋(結果を保存(expected_answer)) != 指紋(values["運用応答"]):
                 return False
+            if packet["回答種別"] == "会話目的束回答":
+                return self._会話目的束を検証(answer, packet, values, current_key)
             if packet["回答種別"] == "数量回答":
                 if not 数量回答を検査(answer):
                     return False
@@ -344,6 +425,8 @@ class 工程供給:
                     前回 = 結果を復元(values["運用入力"]["前回結果"])
                     if 構造 != 前回.データ["構造"] or answer.データ["表示形式"] != 原要求["形式"]:
                         return False
+                elif 原要求["方式"] == "関係検討":
+                    return self._主張検討を検証(answer, packet, values, current_key)
                 else:
                     return False
                 if 構造["要求"]["範囲"] == "全資料" and set(構造["資料群"]) != set(values["運用入力"]["資料"]):
@@ -366,7 +449,7 @@ class 工程供給:
                         return False
                 else:
                     return False
-                if 構造["要求"]["版"] == "HDS一般会話要求-v2":
+                if 構造["要求"]["版"] in ("HDS一般会話要求-v2", "HDS一般会話要求-v3"):
                     return self._会話根拠を検証(構造, packet, values, current_key)
                 if 構造["要求"]["範囲"] == "公開取得":
                     return 構造["取得記録"] is not None
@@ -381,7 +464,109 @@ class 工程供給:
             return False
 
     @staticmethod
-    def _会話根拠を検証(構造, 包, 値, 計画鍵):
+    def _主張検討を検証(回答, 包, 値, 計画鍵):
+        """原IR・当回材料と四実成果を結ぶ。旧方式の終端は変更しない。"""
+        from .関係依頼 import 関係計画を作る, 主張回答を検査
+        from .関係内容 import 関係内容を構成
+        from .値 import 計画を保存
+        try:
+            解釈, 入力 = 包["解釈"], 値["運用入力"]
+            if (包["原文"] != 入力["原文"] or 解釈["方式"] != "関係検討"
+                    or 指紋(解釈) != 指紋(値["運用解釈"])
+                    or not 主張回答を検査(回答, 解釈, 入力)):
+                return False
+            再計画, 再素材, 種別 = 関係計画を作る(解釈, 入力)
+            if (種別 != 包["回答種別"] or 指紋(計画を保存(再計画)) != 指紋(包["計画"])
+                    or 指紋({名: 結果を保存(項) for 名, 項 in 再素材.items()}) != 指紋(包["資料"])):
+                return False
+            実列 = [結果を復元(値[_工程鍵(計画鍵, 工程.識別子)]) for 工程 in 再計画.工程]
+            if len(実列) != 4 or any(not 項.成立 for 項 in 実列):
+                return False
+            読解, 内容, 文章, 照合 = 実列
+            構造 = 回答.データ["構造"]
+            return (指紋(読解.データ) == 指紋(構造)
+                    and 指紋(内容.データ) == 指紋(関係内容を構成(構造))
+                    and 指紋(結果を保存(文章)) == 指紋(回答.データ["文章"])
+                    and 指紋(結果を保存(照合)) == 指紋(結果を保存(回答))
+                    and 読解.参照 == 内容.参照 == 回答.参照)
+        except (ValueError, TypeError, KeyError, AttributeError, RecursionError, OverflowError):
+            return False
+
+    def _会話目的束を検証(self, 回答, 包, 値, 計画鍵):
+        """目的束を実Compiler・原計画・各子実出力・根拠へ束縛する。"""
+        from .一般依頼 import 一般計画を作る
+        from .会話回答束 import 会話束回答を検査
+        from .会話文脈 import 会話入力文脈を読む
+        try:
+            入力 = 値["運用入力"]
+            契約 = 回答.データ["契約包"]
+            文脈引数 = {"所有セッション": 入力["セッションID"],
+                      **会話入力文脈を読む(契約, 入力)}
+            if not 会話束回答を検査(回答, **文脈引数):
+                return False
+            原解釈 = 包["解釈"]
+            if 原解釈["方式"] == "継続":
+                原解釈 = 原解釈["目的"]
+            実解釈 = 値["運用解釈"]
+            if 実解釈["方式"] == "継続":
+                実解釈 = 実解釈["目的"]
+            if (原解釈["原文"] != 入力["原文"] or 包["原文"] != 入力["原文"]
+                    or 指紋(原解釈) != 指紋(実解釈)):
+                return False
+            _会話束HDS対応を検査(原解釈, 契約, **文脈引数)
+            再計画, 再素材, 種別 = 一般計画を作る(原解釈, 入力)
+            from .値 import 計画を保存
+            再保存素材 = {名: 結果を保存(項) for 名, 項 in 再素材.items()}
+            if (種別 != 包["回答種別"] or 指紋(計画を保存(再計画)) != 指紋(包["計画"])
+                    or 指紋(再保存素材) != 指紋(包["資料"])):
+                return False
+            子計画群 = 再素材["一般:子計画"].データ["子計画"]
+            保存子群 = 回答.データ["目的成果"]
+            if not 1 <= len(子計画群) <= 4 or len(保存子群) != len(子計画群):
+                return False
+            if sum(項.能力候補 == ("知識取得",) for 項 in 再計画.工程) > 4:
+                return False
+            for 子計画, 保存子 in zip(子計画群, 保存子群):
+                実保存 = 値[_工程鍵(計画鍵, 子計画["出力"])]
+                if (子計画["目的ID"] != 保存子["目的ID"]
+                        or 指紋(実保存) != 指紋(保存子["子成果"])):
+                    return False
+                実子 = 結果を復元(実保存)
+                子包 = {"計画": 子計画["計画"], "解釈": 子計画["解釈"],
+                       "外部許可": 包["外部許可"],
+                       "資料": {名: 再保存素材[対応] for 名, 対応 in 子計画["素材対応"].items()}}
+                子値 = 値
+                元目的 = 子計画["解釈"].get("前束目的ID")
+                命令目的 = 子計画["解釈"].get("前命令目的ID")
+                if 元目的 is not None and 命令目的 is not None:
+                    return False
+                if 元目的 is not None:
+                    前回 = 結果を復元(入力["前回結果"])
+                    if (文脈引数["前採用包"] is None or not 入力["前回有効"]
+                            or 前回.データ.get("種別") != "会話目的束回答"
+                            or 指紋(前回.データ["契約包"]) != 指紋(文脈引数["前採用包"])):
+                        return False
+                    前子 = [行 for 行 in 前回.データ["目的成果"] if 行["目的ID"] == 元目的]
+                    if len(前子) != 1:
+                        return False
+                    子値 = {**値, "運用入力": {**入力, "前回結果": 前子[0]["子成果"]}}
+                if 命令目的 is not None:
+                    if (文脈引数["前命令包"] is None
+                            or 命令目的 not in 文脈引数["前命令包"]["目的参照"]):
+                        return False
+                    子値 = {**値, "運用入力": {**入力, "前回結果": None, "前回有効": False}}
+                if (not 資料文章を検査(実子)
+                        or 指紋(実子.データ["構造"]["要求"]) != 指紋(子計画["解釈"]["要求"])):
+                    return False
+                追加引数 = {"会話契約": 契約} if 命令目的 is not None else {}
+                if not self._会話根拠を検証(実子.データ["構造"], 子包, 子値, 計画鍵, **追加引数):
+                    return False
+            return 1 <= len(回答.本文) <= 24000
+        except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
+            return False
+
+    @staticmethod
+    def _会話根拠を検証(構造, 包, 値, 計画鍵, *, 会話契約=None):
         """今回の実入力又は有効な採用原本に根拠を束縛する。登録資料へ偽装しない。"""
         from .一般接続 import 取得資料を復元
         入力, 要求 = 値["運用入力"], 構造["要求"]
@@ -424,6 +609,15 @@ class 工程供給:
             return False
         if 束縛["実範囲"] == "提示本文":
             return 名前 == ["提示本文"] and 要求["提示本文"] == 素材["一般:資料:0"].本文 and 構造["取得記録"] is None
+        if 束縛["実範囲"] == "命令提示原文":
+            from .会話文脈 import 命令提示材料を読む
+            元目的 = 包["解釈"].get("前命令目的ID")
+            if (会話契約 is None or 元目的 is None or 名前 != ["提示本文"]
+                    or 構造["取得記録"] is not None or 要求["提示本文"]
+                    or 入力["前回結果"] is not None or 入力["前回有効"]):
+                return False
+            実材料 = 命令提示材料を読む(会話契約, 元目的, 入力)
+            return 実材料 is not None and 原資料["提示本文"] == 結果を保存(実材料)
         if 束縛["実範囲"] == "前回実資料":
             if not 入力["前回有効"] or 入力["前回結果"] is None or not (包["解釈"].get("継承") or 包["解釈"].get("根拠継承")):
                 return False

@@ -1,6 +1,7 @@
 """公開HTTPSから静的な本文を読む。検索・知識の採否・ブラウザ操作とは別責任。"""
 from __future__ import annotations
 
+from copy import copy
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.message import Message
@@ -15,9 +16,11 @@ import re
 import socket
 import ssl
 import time
+from threading import Lock
 from urllib.parse import quote, urljoin, urlsplit, urlunsplit
+from .取得実行制御 import 共有取得制御, 取得資源不足
 
-本文取得版 = "MINIDORA-公開本文取得-v0.1"
+本文取得版 = "MINIDORA-公開本文取得-v0.2"
 
 
 class 本文取得失敗(ValueError):
@@ -70,6 +73,9 @@ class _本文抽出(HTMLParser):
     _非文字 = {"img", "iframe", "object", "embed", "audio", "video"}
     _区切 = {"p", "div", "section", "article", "main", "h1", "h2", "h3", "h4", "li", "ul", "ol", "pre", "blockquote", "br", "hr"}
     _空要素 = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+    _見出し = {"h1", "h2", "h3", "h4", "h5", "h6"}
+    _見出し行内 = {"a", "span", "b", "strong", "em", "i", "u", "s", "small", "abbr",
+                   "code", "kbd", "samp", "var", "sub", "sup", "mark", "dfn", "time", "cite"}
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -81,6 +87,38 @@ class _本文抽出(HTMLParser):
         self._ルビ深さ = 0
         self._注記深さ = 0
         self._零ルビ開始: int | None = None
+        self._見出し候補 = None
+
+    def _見出し開始(self, tag):
+        候補 = self._見出し候補
+        if 候補 is not None:
+            if tag not in self._見出し行内:
+                候補["証明可能"] = False
+            if tag not in self._空要素:
+                候補["積み"].append(tag)
+        elif tag in self._見出し and not self.抑止 and not self._題名内:
+            self._見出し候補 = {"タグ": tag, "開始": len(self.断片), "積み": [tag], "証明可能": True}
+
+    def _見出し終了(self, tag):
+        候補 = self._見出し候補
+        if 候補 is None:
+            return
+        if 候補["積み"][-1] == tag:
+            候補["積み"].pop()
+            if 候補["積み"]:
+                return
+        else:
+            候補["証明可能"] = False
+            if tag != 候補["タグ"]:
+                return
+        if 候補["証明可能"]:
+            原文字 = "".join(self.断片[候補["開始"]:]).strip()
+            if 原文字 and not any(字 in 原文字 for 字 in "\r\n\v\f\x85\u2028\u2029"):
+                # 閉じた原hタグと単一文字行の型だけを、既存ATX節境界へ渡す。
+                # 普通行・未閉鎖・不整合・非文字/抑止域を見出しへ補完しない。
+                見出し = "#" * int(候補["タグ"][1]) + " " + " ".join(原文字.split())
+                self.断片[候補["開始"]:] = ["\n", 見出し, "\n"]
+        self._見出し候補 = None
 
     @staticmethod
     def _零サイズルビ(属性):
@@ -94,6 +132,7 @@ class _本文抽出(HTMLParser):
                 and not any(鍵.strip().lower() in ("font", "all") for 鍵, _ in 宣言))
 
     def handle_starttag(self, tag, attrs):
+        self._見出し開始(tag)
         # 子構造は文字サイズ等を上書きし得る。注記全体を通常の原文字として保全する。
         self._零ルビ開始 = None
         if tag == "ruby":
@@ -142,6 +181,7 @@ class _本文抽出(HTMLParser):
                 del self.抑止[i:]
         elif tag in self._区切:
             self.断片.append("\n")
+        self._見出し終了(tag)
 
     def handle_data(self, 資料):
         if self._題名内:
@@ -185,6 +225,10 @@ def 本文を復号(要求URL: str, 経路: tuple[str, ...], headers: dict[str, 
     if encoding.lower().replace("_", "-") not in (
         "utf-8", "utf-8-sig", "ascii", "us-ascii", "shift-jis", "sjis", "cp932", "euc-jp", "iso-8859-1"):
         raise 本文取得失敗("未対応文字コード")
+    if encoding.lower().replace("_", "-") == "utf-8" and raw.startswith(b"\xef\xbb\xbf"):
+        # 先頭の符号化標識だけを復号器で扱い、本文内部の同字は保持する。
+        # 復号方式と元転送印は取得本文へ記録する。旧保存本文は変換しない。
+        encoding = "utf-8-sig"
     try:
         text = raw.decode(encoding, errors="strict")
     except (LookupError, UnicodeError) as exc:
@@ -215,7 +259,7 @@ class 公開本文取得器:
     _利用者識別 = "MINIDORA/knowledge-retrieval-0.1"
 
     def __init__(self, *, timeout: float = 8.0, 最大バイト数: int = 500_000,
-                 最大転送数: int = 3, 許可ホスト: tuple[str, ...] = ()):
+                 最大転送数: int = 3, 許可ホスト: tuple[str, ...] = (), 取得制御=None):
         if type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 60:
             raise ValueError("timeout範囲不正")
         if type(最大バイト数) is not int or not 1 <= 最大バイト数 <= 2_000_000:
@@ -231,36 +275,73 @@ class 公開本文取得器:
             hosts.append(urlsplit(公開URL("https://" + host)).hostname)
         self.timeout, self.最大バイト数, self.最大転送数 = float(timeout), 最大バイト数, 最大転送数
         self.許可ホスト = tuple(hosts)
+        if 取得制御 is not None and not isinstance(取得制御, 共有取得制御):
+            raise TypeError("取得制御の型不正")
+        self.取得制御 = 取得制御
+
+    def 制御を束縛(self, 制御):
+        if not isinstance(制御, 共有取得制御):
+            raise TypeError("取得制御の型不正")
+        obj = copy(self)
+        obj.取得制御 = 制御
+        return obj
+
+    def _猶予(self, 期限):
+        if 期限 is None:
+            return self.timeout
+        残り = 期限 - time.monotonic()
+        if 残り <= 0:
+            raise 本文取得失敗("HTTP取得時間上限")
+        return self.取得制御.残時間(残り) if self.取得制御 is not None else 残り
+
+    def _要求を構成(self, url):
+        return "GET", {"User-Agent": self._利用者識別, "Accept": self._受入形式,
+                       "Accept-Encoding": "identity", "Connection": "close"}, None
 
     def _一回取得(self, url: str) -> tuple[int, dict[str, str], bytes]:
+        deadline = time.monotonic() + self.timeout if self.取得制御 is not None else None
+        if self.取得制御 is not None:
+            self.取得制御.通信を開始()
         host = urlsplit(url).hostname
         ip = _公開アドレス(host)
         文脈 = ssl.create_default_context()
-        conn = HTTPSConnection(host, 443, timeout=self.timeout, context=文脈)
-        raw_socket = socket.create_connection((ip, 443), timeout=self.timeout)
+        conn = HTTPSConnection(host, 443, timeout=self._猶予(deadline), context=文脈)
+        raw_socket = socket.create_connection((ip, 443), timeout=self._猶予(deadline))
         try:
+            raw_socket.settimeout(self._猶予(deadline))
             tls_socket = 文脈.wrap_socket(raw_socket, server_hostname=host)
             conn.sock = tls_socket
             u = urlsplit(url)
-            conn.request("GET", u.path + ("?" + u.query if u.query else ""), headers={
-                "User-Agent": self._利用者識別,
-                "Accept": self._受入形式,
-                "Accept-Encoding": "identity", "Connection": "close"})
+            method, headers, body = self._要求を構成(url)
+            tls_socket.settimeout(self._猶予(deadline))
+            conn.request(method, u.path + ("?" + u.query if u.query else ""), body=body, headers=headers)
+            tls_socket.settimeout(self._猶予(deadline))
             with conn.getresponse() as response:
+                self._猶予(deadline)
                 headers = {k.lower(): v for k, v in response.getheaders()}
                 if response.status != 200:
                     return response.status, headers, b""
                 length = headers.get("content-length")
                 if length is not None and (not length.isdecimal() or int(length) > self.最大バイト数):
                     raise 本文取得失敗("本文サイズ上限")
+                if (length is not None and self.取得制御 is not None
+                        and int(length) > self.取得制御.残量("総バイト数")):
+                    raise 取得資源不足("総バイト数上限")
                 chunks, size = [], 0
-                deadline = time.monotonic() + self.timeout
+                if deadline is None:
+                    # 制御未指定の従来入口は、既存の読取段階の期限を保つ。
+                    deadline = time.monotonic() + self.timeout
                 while not response.isclosed():
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        raise 本文取得失敗("本文読取時間上限")
-                    tls_socket.settimeout(remaining)
-                    chunk = response.read1(min(65536, self.最大バイト数 + 1 - size))
+                    tls_socket.settimeout(self._猶予(deadline))
+                    count = min(65536, self.最大バイト数 + 1 - size)
+                    if self.取得制御 is not None:
+                        count = min(count, self.取得制御.残量("総バイト数"))
+                        if count <= 0:
+                            raise 取得資源不足("総バイト数上限")
+                    chunk = response.read1(count)
+                    if chunk and self.取得制御 is not None:
+                        self.取得制御.受信を記録(len(chunk))
+                    self._猶予(deadline)
                     if not chunk:
                         break
                     chunks.append(chunk)
@@ -339,16 +420,18 @@ class 公開JSON取得器(公開本文取得器):
     _利用者識別 = "MINIDORA/knowledge-retrieval-0.1 (+https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA)"
 
     def __init__(self, *, 許可ホスト: tuple[str, ...], 許可経路: tuple[str, ...],
-                 timeout: float = 8.0, 最大バイト数: int = 2_000_000, 最大転送数: int = 3):
+                 timeout: float = 8.0, 最大バイト数: int = 2_000_000, 最大転送数: int = 3, 取得制御=None):
         super().__init__(timeout=timeout, 最大バイト数=最大バイト数,
-                         最大転送数=最大転送数, 許可ホスト=許可ホスト)
+                         最大転送数=最大転送数, 許可ホスト=許可ホスト, 取得制御=取得制御)
         if not self.許可ホスト or type(許可経路) is not tuple or not 許可経路:
             raise ValueError("JSONには許可ホストと経路が必要")
         if any(type(path) is not str or not path.startswith("/")
                or urlsplit(path).path != path or re.search(r"[\s\\]", path) for path in 許可経路):
             raise ValueError("JSON許可経路不正")
         self.許可経路 = 許可経路
-        self._待機期限 = 0.0
+        # 束縛した当回コピーも同じ供給器のRetry-Afterを守る。
+        self._待機期限 = [0.0]
+        self._待機ロック = Lock()
 
     def _状態失敗(self, status: int, headers: dict[str, str]) -> None:
         if status == 429 or status == 503 and "retry-after" in headers:
@@ -364,13 +447,19 @@ class 公開JSON取得器(公開本文取得器):
                         待機秒 = max(1.0, (日時 - datetime.now(timezone.utc)).total_seconds())
                 except (ValueError, OverflowError):
                     pass
-            self._待機期限 = max(self._待機期限, time.monotonic() + 待機秒)
+            with self._待機ロック:
+                self._待機期限[0] = max(self._待機期限[0], time.monotonic() + 待機秒)
             raise JSON待機要求(待機秒)
         super()._状態失敗(status, headers)
 
+    def 待機を確認(self):
+        with self._待機ロック:
+            待機 = self._待機期限[0] - time.monotonic()
+        if 待機 > 0:
+            raise JSON待機要求(待機)
+
     def 取得(self, url: str) -> 取得JSON:
-        if time.monotonic() < self._待機期限:
-            raise JSON待機要求(self._待機期限 - time.monotonic())
+        self.待機を確認()
         first, 経路, headers, raw = self._転送を取得(
             url, 同一ホスト限定=True, 許可経路=self.許可経路)
         msg = Message()

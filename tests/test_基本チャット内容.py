@@ -6,6 +6,7 @@ from minidora.HDS運用.意味資料 import 資料意味を選ぶ, 意味資料�
 from minidora.HDS運用.内容構成 import _文章, 資料文章を照合, 資料文章を検査
 from minidora.HDS運用.値 import 結果を保存, 結果を復元
 from minidora.製品版.型 import 能力結果
+from minidora.HDS運用.資料回答 import 資料内容不足, 記載関係を読む
 
 
 def 要求(*, 操作="説明", 主題=(), 比較対象=(), 観点=(), 関係焦点=(), 肯否="未指定", 詳細="標準", 形式="文章"):
@@ -320,16 +321,18 @@ class 会話内容試験(unittest.TestCase):
                      "熱を抑える容器（屋内専用）"):
             本文 = "対象A（読み）は、" + 述部 + "。"
             with self.subTest(述部=述部):
-                成果 = 実行(本文, 要求(主題=("対象A",), 関係焦点=("定義",)))
-                self.assertIn(述部.removesuffix("である"), 成果.本文)
-                定義 = 成果.データ["意味成果"]["記載関係"][0]["関係"]["定義"]
+                構造 = 資料意味を選ぶ({"開発資料": 能力結果(True, 本文)},
+                                    要求(主題=("対象A",), 関係焦点=("定義",)))
+                記載 = 記載関係を読む(構造)[0]
+                定義 = 記載["関係"]["定義"]
+                self.assertIn(述部.removesuffix("である"), 定義["述部"])
                 self.assertEqual(定義["原対象"], "対象A（読み）")
-                対応 = 成果.データ["意味成果"]["記載関係"][0]["対応"]
+                対応 = 記載["対応"]
                 self.assertEqual(本文[対応["開始"]:対応["終了"]], 本文)
                 if "一つ" in 述部 or "一分野" in 述部:
                     self.assertIn("成員関係", 定義)
                 if "屋内専用" in 述部:
-                    self.assertIn("屋内専用", 成果.本文)
+                    self.assertIn("屋内専用", 定義["後置注記"])
         for 述部 in ("青い", "安全", "青い（注記）", "安全（適用対象は不明）"):
             with self.subTest(述部=述部), self.assertRaisesRegex(ValueError, "定義"):
                 実行("対象Aは" + 述部 + "。", 要求(主題=("対象A",), 関係焦点=("定義",)))
@@ -499,6 +502,7 @@ class 会話内容試験(unittest.TestCase):
         self.assertIn("熱の移動を抑える容器", 成果.本文)
         self.assertIn(原行, 成果.本文)
         self.assertIn("定義との依存・適用範囲は未確定", 成果.本文)
+        self.assertNotIn("次の記載が各主張へ適用されるかは未確定", 成果.本文)
         意味 = 成果.データ["意味成果"]
         注記 = 意味["未確定限定"][0]
         self.assertEqual(注記["種別"], "構文診断")
@@ -670,14 +674,16 @@ class 会話内容試験(unittest.TestCase):
                       要求(操作="対照", 比較対象=("方法M", "方法N"), 観点=("処理",)))
 
     def test_詳細の一属性再掲だけでは不足を明示する(self):
-        成果 = 実行("方法Mの検査方式は資料を分類する方式。",
-                    要求(主題=("方法M",), 観点=("検査方式",), 詳細="詳細"))
-        self.assertIn("資料を分類する方式", 成果.本文)
-        self.assertIn("詳しい説明に必要な追加の内容", 成果.本文)
-        self.assertIn("安全に読解できていません", 成果.本文)
-        self.assertTrue(成果.データ["意味成果"]["意味"]["留保"])
-        self.assertNotIn("資料に記載がない", 成果.本文)
-        self.assertTrue(資料文章を検査(成果))
+        with self.assertRaises(資料内容不足) as 捕捉:
+            実行("方法Mの検査方式は資料を分類する方式。",
+                 要求(主題=("方法M",), 観点=("検査方式",), 詳細="詳細"))
+        理由 = str(捕捉.exception)
+        self.assertIn("資料を分類する方式", 理由)
+        self.assertIn("詳しい説明に必要な追加の内容", 理由)
+        self.assertIn("安全に読解できていません", 理由)
+        self.assertEqual(捕捉.exception.診断["不足役割"][0]["種別"], "詳細説明")
+        self.assertTrue(捕捉.exception.診断["実支持"])
+        self.assertNotIn("資料に記載がない", 理由)
 
     def test_定義は同じ明示主体の読解済み属性を補足する(self):
         本文 = "容器Mとは収納用の容器である。容器Mの素材は樹脂です。容器Nの素材は金属です。"
@@ -689,12 +695,15 @@ class 会話内容試験(unittest.TestCase):
         self.assertEqual([項["種別"] for 項 in 成果.データ["意味成果"]["意味"]["命題"]], ["定義", "属性"])
 
     def test_種別だけの説明は識別的内容の不足を明示する(self):
-        成果 = 実行("器具Mは業務用品の一種である。器具Nの用途は運搬です。",
-                    要求(主題=("器具M",), 関係焦点=("定義",)))
-        self.assertIn("業務用品の一種", 成果.本文)
-        self.assertIn("種別・所属関係", 成果.本文)
-        self.assertIn("対象を区別する特徴・仕組み", 成果.本文)
-        self.assertNotIn("運搬", 成果.本文)
+        with self.assertRaises(資料内容不足) as 捕捉:
+            実行("器具Mは業務用品の一種である。器具Nの用途は運搬です。",
+                 要求(主題=("器具M",), 関係焦点=("定義",)))
+        理由 = str(捕捉.exception)
+        self.assertIn("業務用品の一種", 理由)
+        self.assertIn("種別・所属関係", 理由)
+        self.assertIn("対象を区別する特徴・仕組み", 理由)
+        self.assertNotIn("運搬", 理由)
+        self.assertEqual(捕捉.exception.診断["不足役割"][0]["種別"], "識別的内容")
 
     def test_未知条件の留保は定義以外も含む実出力範囲を示す(self):
         成果 = 実行("器具Mとは収納用の容器である。器具Mの素材は樹脂です。器具Nは運転可能です。ただし高温の場合に限ります。",
