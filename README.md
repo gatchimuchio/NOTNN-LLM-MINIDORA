@@ -6,6 +6,44 @@
 
 公開版では内部理論の完全定義・固定参照先・理論から実装への完全対応表は公開しません。公開境界は [PUBLICATION_BOUNDARY.md](PUBLICATION_BOUNDARY.md) を正とします。
 
+## Google ADK／Cloud Run 展示用基本チャット
+
+既存MINIDORAのHDSが問い、必要な根拠、資料の意味、回答の採否を扱い、Google ADK 2.11.0のWorkflow／FunctionNodeから同じ本体へ実行を配送します。根拠が不足する場合は管理者の許可内で検索し、実Web本文を取得します。検索スニペットや外部生成LLMを回答の代行にしません。
+
+2026-10-13、本人認証でCloud Run上の提出用D03実演が成立しました。以下は固定版で行った一回の実演観測であり、一般チャット全体の品質評価ではありません。
+
+| 展示情報 | 実測・現在の状態 |
+|---|---|
+| 実Cloud Run URL | [https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app](https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app)。IAM認証必須 |
+| revision | `minidora-adk-verify-v4-a38b793250c1-80e504` |
+| 配備main／本体コード復元点 | `a38b793250c1dfa96e49af028fae58235324ddab`／`45a383943df8fc58666689ee8e1e8f90de1c26be` |
+| Cloud Build／image digest | `8388d52d-4911-4c98-b632-7d2ed38a1cbc`／`sha256:ff83a7b03ce75d84fb1ffb8411dd1daf5ba7375314fc40c0b59a193910480af0` |
+| 審査アクセス | 本人認証での確認のみ。審査主体の利用許可・到達性は未検査 |
+| 約3分の実演動画 | MP4収録中・完成未確認。YouTube未掲載 |
+| 一般チャット品質Q | 全数未検査・未成立。Cloud実演・提出とは別に評価 |
+
+![MINIDORAの公開構成図](docs/minidora-cloud-architecture.png)
+
+[構成図SVG](docs/minidora-cloud-architecture.svg)／[構成図PNG](docs/minidora-cloud-architecture.png)。図は実装済みの接続と、限定的な実機観測・未確認の状態を示します。
+
+### 今回Cloud上で観測した範囲
+
+| 入力 | 実応答・採否 | 実HTTP所要秒 |
+|---|---|---:|
+| `2+3` | `5`、APPROVE | 9.860 |
+| `3*7` | `21`、APPROVE | 4.641 |
+| 算術後の `詳しく説明して` | SUSPEND。継承する採用目的の意味構造がないとして確認待ち | 0.766 |
+| `藻場とは何か。` | `藻場は海藻が茂る場所です。`、APPROVE | 16.125 |
+| 同じ会話で `引用形式にして` | `> 藻場は海藻が茂る場所です。`、APPROVE | 15.032 |
+
+藻場の質問では、許可引数を指定せず、HDSの要求から検索1回・実本文1件を取得しました。回答は[環境省の「藻場とは」](https://www.env.go.jp/water/heisa/heisa_net/setouchiNet/seto/g1/g1chapter3/mobahigata/mobatowa/index.html)の「藻場とは、海藻が茂る場所のことです。」に対応します。同じ会話の引用形式への追質問は、この原資料を再利用し、追加検索・取得HTTPは0でした。この題材は開発時にも扱っており、初見独立品質評価の合格例には算入しません。
+
+5応答すべてでADK 2.11.0のWorkflow／FunctionNodeを通り、各要求のHDS呼出数は1でした。応答ごとの11項目の技術照合が成立し、独立した監査v2の再計算も一致しました。UI・health・capabilitiesは認証付きHTTP 200、未認証アクセスは403、別Originは403、不正JSONは400を観測しています。
+
+起動と取得方針は [製品版README](製品版/README.md) と [Cloud Run配備案内](deploy/CLOUD_RUN.md) を参照してください。審査アクセスは未検査のため、このURLを誰でも操作できる展示URLとは扱いません。認証を解除して公開する構成にはしていません。
+
+会話状態はメモリ内に限られ、再起動・新revision・インスタンス交換で失われます。PDFのOCRや図表の視覚的意味は未対応です。監査ハッシュの整合を回答の真実性の単独保証とは扱いません。一般品質Q、完成動画・掲載、応募受付は未成立です。下記のGPQA値は別系列・別時点の評価であり、この展示の一般チャット品質を表す値ではありません。
+
 ## 現在地
 
 現行値と履歴系列を分けて扱います。

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-labelledby="title desc">
+  <title id="title">MINIDORA 公開実装の構成</title>
+  <desc id="desc">Cloud Run向けのUI、API、Google ADK、HDS、知識供給、応答と監査の実装済み接続。Google Cloud Agent Searchは候補URLを供給し、公開Web本文を取得する。意味と回答の採否はHDSが担う。本人認証によるCloud Runの限定D03実演を観測。審査主体アクセスと一般品質Q全数は未検査。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#50647d"/>
+    </marker>
+    <style>
+      text { font-family: 'Yu Gothic', 'Meiryo', sans-serif; fill: #183149; }
+      .title { font-size: 44px; font-weight: 700; }
+      .subtitle { font-size: 27px; fill: #516779; }
+      .card-title { font-size: 29px; font-weight: 700; }
+      .line { font-size: 24px; }
+      .small { font-size: 21px; fill: #516779; }
+      .caption { font-size: 22px; fill: #385772; }
+      .wire { fill: none; stroke: #50647d; stroke-width: 4; marker-end: url(#arrow); }
+      .two-way { marker-start: url(#arrow); }
+      .card { fill: #fff; stroke: #bfd0de; stroke-width: 2; }
+      .pill-text { font-size: 24px; font-weight: 700; fill: #216844; }
+    </style>
+  </defs>
+  <rect width="1920" height="1080" fill="#f6f9fc"/>
+  <rect x="0" y="0" width="1920" height="12" fill="#278e9b"/>
+  <text x="60" y="81" class="title">MINIDORA | 公開実装の構成</text>
+  <text x="60" y="127" class="subtitle">非ニューラルLLMの研究実装 — HDSが判断、ADKが配送、外部Webが知識を供給</text>
+  <rect x="1450" y="40" width="410" height="95" rx="17" fill="#e9f8ef" stroke="#67ac91" stroke-width="2"/>
+  <text x="1655" y="78" text-anchor="middle" class="pill-text">Cloud Run 実演：成立（限定）</text>
+  <text x="1655" y="113" text-anchor="middle" class="small">本人認証／審査アクセス未検査</text>
+
+  <rect x="310" y="205" width="1240" height="700" rx="25" fill="#eaf3f9" stroke="#82a6bd" stroke-width="2"/>
+  <text x="345" y="254" class="card-title">Cloud Run 実機で観測した構成</text>
+  <text x="345" y="288" class="small">固定版の単一実演：Web回答・引用形式の追問・算術・保留・拒否・監査</text>
+
+  <rect x="50" y="365" width="210" height="210" rx="20" class="card"/>
+  <text x="155" y="419" text-anchor="middle" class="card-title">利用者</text>
+  <text x="155" y="463" text-anchor="middle" class="line">ブラウザ</text>
+  <text x="155" y="502" text-anchor="middle" class="line">基本チャットUI</text>
+  <text x="155" y="546" text-anchor="middle" class="small">問い・追質問</text>
+
+  <rect x="355" y="365" width="250" height="210" rx="20" class="card"/>
+  <text x="480" y="419" text-anchor="middle" class="card-title">製品API</text>
+  <text x="480" y="463" text-anchor="middle" class="line">会話入力・表示</text>
+  <text x="480" y="502" text-anchor="middle" class="line">auto / off</text>
+  <text x="480" y="546" text-anchor="middle" class="small">取得の実行制御</text>
+
+  <rect x="650" y="365" width="280" height="210" rx="20" class="card"/>
+  <text x="790" y="419" text-anchor="middle" class="card-title">Google ADK</text>
+  <text x="790" y="458" text-anchor="middle" class="small">2.11.0</text>
+  <text x="790" y="499" text-anchor="middle" class="small">Workflow / FunctionNode</text>
+  <text x="790" y="546" text-anchor="middle" class="small">既存本体へ実行配送</text>
+
+  <rect x="985" y="315" width="510" height="275" rx="20" fill="#f1fbf8" stroke="#6aa995" stroke-width="3"/>
+  <text x="1020" y="369" class="card-title">MINIDORA / HDS</text>
+  <text x="1020" y="417" class="line">問い・目的・必要な根拠を扱う</text>
+  <text x="1020" y="458" class="line">取得した原本文の意味を読む</text>
+  <text x="1020" y="499" class="line">内容を構成し、回答の採否を判断</text>
+  <text x="1020" y="551" class="small">外部取得の成功だけで回答を採用しない</text>
+
+  <rect x="355" y="675" width="575" height="160" rx="20" class="card"/>
+  <text x="390" y="724" class="card-title">応答・出典・Trace</text>
+  <text x="390" y="766" class="line">採用／保留／失敗を根拠と対応付ける</text>
+  <text x="390" y="807" class="small">監査の整合は、内容の真実性を保証しない</text>
+
+  <rect x="985" y="675" width="510" height="160" rx="20" class="card"/>
+  <text x="1020" y="724" class="card-title">知識供給</text>
+  <text x="1020" y="766" class="line">候補URL → 実本文の有限取得</text>
+  <text x="1020" y="807" class="small">出典URL・取得時刻・本文印を保持</text>
+
+  <rect x="1620" y="350" width="250" height="205" rx="20" fill="#fffaf0" stroke="#d6bc7b" stroke-width="2"/>
+  <text x="1745" y="396" text-anchor="middle" class="card-title">Google Cloud</text>
+  <text x="1745" y="437" text-anchor="middle" class="line">Agent Search</text>
+  <text x="1745" y="479" text-anchor="middle" class="line">通常検索</text>
+  <text x="1745" y="520" text-anchor="middle" class="small">候補URLを供給</text>
+
+  <rect x="1620" y="675" width="250" height="160" rx="20" class="card"/>
+  <text x="1745" y="724" text-anchor="middle" class="card-title">公開Web</text>
+  <text x="1745" y="766" text-anchor="middle" class="line">HTML / PDF文字</text>
+  <text x="1745" y="807" text-anchor="middle" class="small">今回D03はHTML本文</text>
+
+  <path d="M260 430 H355" class="wire"/>
+  <text x="306" y="415" text-anchor="middle" class="caption">要求</text>
+  <path d="M355 515 H260" class="wire"/>
+  <text x="306" y="548" text-anchor="middle" class="caption">応答</text>
+  <path d="M605 451 H650" class="wire"/>
+  <path d="M930 451 H985" class="wire"/>
+  <path d="M985 561 H960 V625 H642 V675" class="wire"/>
+  <text x="715" y="654" class="caption">HDSの回答・根拠</text>
+  <path d="M480 675 V575" class="wire"/>
+  <text x="502" y="631" class="caption">結果表示</text>
+  <path d="M1240 590 V675" class="wire two-way"/>
+  <text x="1264" y="635" class="caption">必要時に取得</text>
+  <path d="M1495 724 H1570 V452 H1620" class="wire two-way"/>
+  <text x="1594" y="596" text-anchor="middle" class="caption">検索</text>
+  <path d="M1495 790 H1620" class="wire two-way"/>
+  <text x="1560" y="822" text-anchor="middle" class="caption">本文</text>
+  <text x="985" y="867" class="small">検索スニペットを回答根拠にしない。</text>
+  <text x="985" y="894" class="small">意味と採否はHDSに残す。</text>
+
+  <text x="60" y="950" class="line">D03：Web回答＋引用形式の追問（追加検索0）　　一般品質Q：全数未検査　　審査アクセス：未検査</text>
+  <text x="60" y="987" class="small">会話状態：メモリ内 ｜ PDF：OCR・図表の視覚的意味は未対応 ｜ 単一実演を全分野品質へ読み替えない</text>
+  <text x="60" y="1020" class="small">配備main a38b793250c1dfa96e49af028fae58235324ddab ｜ revision minidora-adk-verify-v4-a38b793250c1-80e504</text>
+  <text x="60" y="1053" class="small">本人認証で観測した実URL：https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app</text>
+</svg>
