@@ -5,7 +5,7 @@ import json
 import unittest
 
 from minidora.知識取得 import 知識取得器, 知識取得要求, _記録印
-from minidora.知識取得継続 import 継続束を読む, 継続進展を検査
+from minidora.知識取得継続 import 継続束を読む, 継続進展を検査, 継続不成立を検査
 from minidora.取得実行制御 import 共有取得制御, 公開取得上限
 from minidora.公開本文取得 import 本文を復号
 from minidora.製品版.型 import 参照資料
@@ -203,6 +203,42 @@ class 継続試験(unittest.TestCase):
         self.assertEqual(len(本文.回数), 2)
         with self.assertRaises(ValueError):
             継続進展を検査(前, 前, 要求)
+
+    def test_不成立の候補原順序と実重複だけを認める(self):
+        _, _, _, 取得, 要求, 前 = 準備(["試料甲の方式は断熱収納。"] * 3)
+        次 = 取得.継続(要求, 前, 外部読取許可=True)
+        self.assertTrue(継続不成立を検査(前, 次, 要求))
+        for 改変 in ("逆順", "未取得を重複扱い"):
+            with self.subTest(改変=改変):
+                d = deepcopy(次.データ)
+                始 = len(前.データ["試行"])
+                if 改変 == "逆順":
+                    d["試行"][始:] = list(reversed(d["試行"][始:]))
+                    d["継続束"]["試行済みURL"][1:] = list(reversed(d["継続束"]["試行済みURL"][1:]))
+                else:
+                    d["試行"][始]["作用"] = "重複URL"
+                    d["継続束"]["試行済みURL"].remove(d["試行"][始]["URL"])
+                    d["本文取得数"] -= 1
+                d["記録SHA256"] = _記録印({k: v for k, v in d.items() if k != "記録SHA256"})
+                with self.assertRaisesRegex(ValueError, "原候補順序・実重複"):
+                    継続不成立を検査(前, replace(次, データ=d), 要求)
+
+    def test_実重複だけの消費は本文取得ゼロで不成立を保持する(self):
+        class 重複検索(人工検索):
+            def 検索(self, 語, limit=5):
+                return super().検索(語, limit=1) * 3
+        本文 = 人工本文(["試料甲の方式は断熱収納。"])
+        取得 = 知識取得器(重複検索(), 本文)
+        要求 = 知識取得要求("試料甲", ("試料甲",), 最大資料数=3)
+        前 = 取得.実行(要求, 外部読取許可=True)
+        次 = 取得.継続(要求, 前, 外部読取許可=True)
+        self.assertFalse(次.成立)
+        self.assertEqual(次.本文, "")
+        self.assertEqual((前.データ["本文取得数"], 次.データ["本文取得数"]), (1, 1))
+        self.assertEqual(len(本文.回数), 1)
+        self.assertTrue(継続不成立を検査(前, 次, 要求))
+        with self.assertRaises(ValueError):
+            継続束を読む(次, 要求)
 
     def test_停止判定の故障自由文を保存せず通信せず保留する(self):
         _, 本文, _, 取得, 要求, 前 = 準備()

@@ -23,7 +23,7 @@ class HDS製品ミニドラ:
         if not 基本チャット and 取得上限 is not None:
             raise ValueError("製品の取得上限には基本チャット設定が必要です")
         # 初回の6候補を狭めず、内容不足後の別検索にも6候補を確保する。
-        self._取得上限 = (取得上限 if 取得上限 is not None else 公開取得上限(最大候補数=12)) if 基本チャット else None
+        self._取得上限 = (取得上限 if 取得上限 is not None else 公開取得上限(最大候補数=12, 最大本文取得数=12)) if 基本チャット else None
         if 基本チャット:
             方針 = os.getenv("MINIDORA_RETRIEVAL_POLICY", "auto") if 公開取得方針 is None else 公開取得方針
             if type(方針) is not str or 方針 not in {"auto", "off"}:

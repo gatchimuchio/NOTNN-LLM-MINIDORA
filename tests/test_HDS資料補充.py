@@ -13,6 +13,7 @@ from minidora.HDS運用.一般依頼 import 一般計画を作る, _一般会話
 from minidora.HDS運用.製品 import HDS製品ミニドラ
 from minidora.HDS運用.値 import 結果を復元, 指紋
 from minidora.知識取得 import 知識取得器, _記録印
+from minidora.知識取得継続 import 継続束を読む, 継続不成立を検査
 from minidora.取得実行制御 import 公開取得上限
 from minidora.製品版.型 import 能力結果, 参照資料
 from test_知識取得継続 import 人工検索, 人工本文
@@ -69,7 +70,7 @@ class HDS資料補充試験(unittest.TestCase):
         self.assertEqual(素材["一般:取得設定:0"].データ["最大候補数"], 6)
         self.assertIsNone(HDS製品ミニドラ()._取得上限)
         既定 = HDS製品ミニドラ(基本チャット=True, 公開取得方針="off")._取得上限
-        self.assertEqual((既定.最大検索回数, 既定.最大候補数, 既定.最大本文取得数), (2, 12, 6))
+        self.assertEqual((既定.最大検索回数, 既定.最大候補数, 既定.最大本文取得数), (2, 12, 12))
         明示 = 公開取得上限(最大候補数=6)
         self.assertIs(HDS製品ミニドラ(基本チャット=True, 公開取得方針="off", 取得上限=明示)._取得上限, 明示)
 
@@ -223,6 +224,131 @@ class HDS資料補充試験(unittest.TestCase):
         self.assertEqual(len(検索.回数), 1)
         self.assertEqual(len(本文.回数), 1)
         self.assertEqual(応答.追跡["公開取得資源"]["使用"]["本文取得数"], 1)
+
+    def test_旧候補の実不成立から再検索し原不足と旧成功を保持する(self):
+        検索 = 再探索検索()
+        本文 = 人工本文(["試料甲の方式は断熱収納。"] + ["主題未掲載の資料。"] * 5 +
+                      ["試料甲とは熱の移動を抑える容器である。"])
+        会話 = HDS運用セッション("不成立から再探索", 外部読取許可=True, 手順形成=False,
+                     取得器=知識取得器(検索, 本文),
+                     取得上限=公開取得上限(最大候補数=12, 最大本文取得数=12))
+        応答 = 会話.応答("試料甲とは何ですか", 外部読取許可=True)
+        self.assertTrue(応答.成立, 応答.本文)
+        self.assertIn("熱の移動を抑える容器", 応答.本文)
+        self.assertEqual(検索.回数, ["試料甲 定義", "試料甲 とは"])
+        self.assertEqual(本文.回数, ["https://example.com/" + str(i) for i in range(7)])
+        状態, 値 = 応答.HDS結果.状態, dict(応答.HDS結果.状態.成果)
+        鍵, 包 = 現行計画(状態)
+        self.assertEqual(鍵, "運用計画:2")
+        証明 = 包["資料補充"]
+        失敗鍵 = 証明["取得失敗後再検索"]["不成立試行鍵"]
+        失敗 = 結果を復元(値[失敗鍵]["不成立成果"])
+        元鍵 = 証明["成果復帰"][証明["取得工程"]]
+        元 = 結果を復元(値[元鍵])
+        要求設定 = 元.データ["要求"]
+        from minidora.知識取得接続 import 知識取得モジュール
+        from minidora.製品版.能力契約 import 能力文脈
+        要求_ = 知識取得モジュール._要求(能力文脈("", "", 補助={"合成設定": 要求設定}))
+        self.assertFalse(失敗.成立)
+        self.assertEqual(失敗.本文, "")
+        self.assertEqual(失敗.保留理由, "未消費候補がありません")
+        self.assertEqual((元.データ["本文取得数"], 失敗.データ["本文取得数"]), (1, 6))
+        self.assertTrue(継続不成立を検査(元, 失敗, 要求_))
+        with self.assertRaises(ValueError):
+            継続束を読む(失敗, 要求_)
+        self.assertEqual(値[元鍵], 値[鍵 + "/成果/" + 証明["取得工程"]])
+        self.assertEqual(元.データ["資源制御"]["使用"]["本文取得数"], 1)
+        self.assertEqual(失敗.データ["資源制御"]["使用"]["本文取得数"], 6)
+        self.assertEqual(応答.追跡["公開取得資源"]["使用"]["本文取得数"], 7)
+        self.assertTrue(資料補充を検査(鍵, 包, 値, 会話.目録, 4))
+        self.assertTrue(工程供給(会話.目録).最終検証(状態, None))
+        for 改変 in ("復帰元", "元不足", "失敗状態", "親記録", "消費位置", "旧本文", "検索数", "本文数", "本文真偽値"):
+            with self.subTest(改変=改変):
+                変更 = deepcopy(値)
+                if 改変 == "復帰元":
+                    変更[鍵]["資料補充"]["成果復帰"][証明["取得工程"]] = 鍵 + "/成果/" + 証明["再検索工程"]
+                elif 改変 == "元不足":
+                    変更[証明["不足試行鍵"]]["不成立成果"]["内容"]["データ"]["診断"]["対象"] = ["別主題"]
+                else:
+                    保存 = 変更[失敗鍵]["不成立成果"]
+                    d = 保存["内容"]["データ"]
+                    if 改変 == "失敗状態": d["状態"] = "合格"
+                    elif 改変 == "親記録": d["継続束"]["親記録SHA256"] = "0" * 64
+                    elif 改変 == "消費位置": d["継続束"]["消費位置"] = 5
+                    elif 改変 == "旧本文": d["資料"][0]["題名"] = "原値変更"
+                    elif 改変 == "検索数": d["資源制御"]["使用"]["検索回数"] = 2
+                    elif 改変 == "本文数": d["資源制御"]["使用"]["本文取得数"] = 5
+                    else: d["資源制御"]["使用"]["本文取得数"] = True
+                    d["記録SHA256"] = _記録印({k: v for k, v in d.items() if k != "記録SHA256"})
+                    変更[失敗鍵]["出力印"] = 指紋(保存)
+                変更["運用採用対応"]["計画印"] = 指紋(変更[鍵])
+                with self.assertRaises((ValueError, KeyError)):
+                    資料補充を検査(鍵, 変更[鍵], 変更, 会話.目録, 4)
+                self.assertFalse(工程供給(会話.目録).最終検証(replace(状態, 成果=tuple(変更.items())), None))
+
+    def test_不成立の旧候補を再試行せず第二検索の不足は留保する(self):
+        for 総本文枠, 重複, 期待検索, 期待本文 in ((12, True, 2, 7), (6, False, 1, 6)):
+            with self.subTest(総本文枠=総本文枠):
+                検索 = 再探索検索(重複=重複)
+                本文 = 人工本文(["試料甲の方式は断熱収納。"] + ["主題未掲載の資料。"] * 5 +
+                              ["試料甲とは熱の移動を抑える容器である。"])
+                会話 = HDS運用セッション("消費済み候補", 外部読取許可=True, 手順形成=False,
+                             取得器=知識取得器(検索, 本文),
+                             取得上限=公開取得上限(最大候補数=12, 最大本文取得数=総本文枠))
+                応答 = 会話.応答("試料甲とは何ですか", 外部読取許可=True)
+                self.assertEqual(応答.状態, "SUSPEND", 応答.本文)
+                self.assertEqual(len(検索.回数), 期待検索)
+                self.assertEqual(len(本文.回数), 期待本文)
+                self.assertFalse(会話.状態()["前回有効"])
+                self.assertEqual(本文.回数.count("https://example.com/1"), 1)
+
+    def test_重複候補不成立から再検索しても通信とバイト消費を巻き戻さない(self):
+        class 重複検索(再探索検索):
+            def 検索(self, 語, limit=5):
+                候補 = super().検索(語, limit=limit)
+                return 候補 if 語 == "試料甲 とは" else 候補[:1] * 6
+        class 計数本文(人工本文):
+            def 制御を束縛(self, 制御):
+                self.制御 = 制御
+                return self
+
+            def 取得(self, URL):
+                self.制御.通信を開始()
+                文書 = super().取得(URL)
+                self.制御.受信を記録(文書.転送バイト数)
+                return 文書
+        本文 = 計数本文(["試料甲の方式は断熱収納。"] * 6 +
+                      ["試料甲とは熱の移動を抑える容器である。"])
+        検索 = 重複検索()
+        会話 = HDS運用セッション("重複消費", 外部読取許可=True, 手順形成=False,
+                     取得器=知識取得器(検索, 本文),
+                     取得上限=公開取得上限(最大候補数=12, 最大本文取得数=12))
+        応答 = 会話.応答("試料甲とは何ですか", 外部読取許可=True)
+        self.assertTrue(応答.成立, 応答.本文)
+        self.assertEqual(検索.回数, ["試料甲 定義", "試料甲 とは"])
+        self.assertEqual(本文.回数, ["https://example.com/0", "https://example.com/6"])
+        状態 = 応答.HDS結果.状態
+        値 = dict(状態.成果)
+        鍵, 包 = 現行計画(状態)
+        証明 = 包["資料補充"]
+        失敗鍵 = 証明["取得失敗後再検索"]["不成立試行鍵"]
+        失敗 = 結果を復元(値[失敗鍵]["不成立成果"])
+        使用 = 失敗.データ["資源制御"]["使用"]
+        self.assertEqual((使用["本文取得数"], 使用["HTTP開始数"]), (1, 1))
+        self.assertGreater(使用["総バイト数"], 0)
+        self.assertTrue(資料補充を検査(鍵, 包, 値, 会話.目録, 4))
+        self.assertTrue(工程供給(会話.目録).最終検証(状態, None))
+        for 項目 in ("HTTP開始数", "総バイト数"):
+            with self.subTest(項目=項目):
+                変更 = deepcopy(値)
+                保存 = 変更[失敗鍵]["不成立成果"]
+                d = 保存["内容"]["データ"]
+                d["資源制御"]["使用"][項目] = 0
+                d["記録SHA256"] = _記録印({k: v for k, v in d.items() if k != "記録SHA256"})
+                変更[失敗鍵]["出力印"] = 指紋(保存)
+                with self.assertRaisesRegex(ValueError, "実消費と共有資源"):
+                    資料補充を検査(鍵, 包, 変更, 会話.目録, 4)
+                self.assertFalse(工程供給(会話.目録).最終検証(replace(状態, 成果=tuple(変更.items())), None))
 
     def test_定義不足の診断を元要求と原作用成果から再導出する(self):
         構造 = 資料意味を選ぶ({"人工資料": 能力結果(True, "試料甲の方式は断熱収納。")},

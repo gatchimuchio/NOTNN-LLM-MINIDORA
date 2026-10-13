@@ -292,8 +292,20 @@ class 工程供給:
                 if 再 is None or 指紋(再) != 指紋(補充):
                     raise ValueError("資料補充の原要求・不足・取得元が変化しました")
                 成果, 成立 = [(next_key, 再)], set()
-                for st in plan.工程:
+                for st in 計画を復元(再["計画"]).工程:
                     if st.識別子 in 再["資料補充"]["再開工程"]:
+                        continue
+                    復帰元 = 再["資料補充"].get("成果復帰", {}).get(st.識別子)
+                    if 復帰元 is not None:
+                        if not 結果を復元(values[復帰元]).成立:
+                            raise ValueError("取得成果の復帰元は実成功に限定します")
+                        成果.append((_工程鍵(next_key, st.識別子), deepcopy(values[復帰元])))
+                        成立.add(_済(next_key, st.識別子))
+                        元接頭辞 = 復帰元.split("/成果/", 1)[0]
+                        for i in range(len(st.能力候補)):
+                            元試行 = _試行鍵(元接頭辞, st.識別子, i)
+                            if 元試行 in values:
+                                成果.append((_試行鍵(next_key, st.識別子, i), deepcopy(values[元試行])))
                         continue
                     if _済(plan_key, st.識別子) in s.成立状態:
                         成果.append((_工程鍵(next_key, st.識別子), deepcopy(values[_工程鍵(plan_key, st.識別子)])))
@@ -303,13 +315,17 @@ class 工程供給:
                         if 旧 in values:
                             成果.append((_試行鍵(next_key, st.識別子, i), deepcopy(values[旧])))
                 return HDS作用結果(HDS作用状態.成立, 追加状態=frozenset(成立), 成果=tuple(成果),
-                                    理由=(("同じ原要求の内容不足から公開資料を追加検索"
+                                    理由=(("旧候補の実不成立と原不足を保持して公開資料を追加検索"
+                                          if "取得失敗後再検索" in 再["資料補充"] else
+                                          "同じ原要求の内容不足から公開資料を追加検索"
                                           if "再検索工程" in 再["資料補充"] else
                                           "同じ原要求の内容不足から未消費本文の取得を再開"),))
             根拠 = 補充["資料補充"]
             # 補充の再導出・旧チェーン検査・対象外コピーが読む原値を署名へ載せる。
+            復帰 = 根拠.get("取得失敗後再検索")
             読取 = {"運用入力", plan_key, 根拠["不足試行鍵"],
-                    _工程鍵(plan_key, 根拠["意味工程"]), _工程鍵(plan_key, 根拠["取得工程"])}
+                    復帰["意味成果鍵"] if 復帰 else _工程鍵(plan_key, 根拠["意味工程"]),
+                    根拠["成果復帰"][根拠["取得工程"]] if 復帰 else _工程鍵(plan_key, 根拠["取得工程"])}
             for 名 in データ:
                 if 名.startswith(計画接頭辞) and int(名.split("/", 1)[0].split(":")[-1]) <= int(plan_key.split(":")[-1]):
                     読取.add(名)

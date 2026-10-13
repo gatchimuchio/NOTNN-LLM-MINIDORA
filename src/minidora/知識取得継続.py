@@ -10,14 +10,19 @@ from .知識取得 import (知識取得版, 知識継続版, 知識取得要求,
 
 
 def 継続束を読む(成果, 要求=None):
-    if (not isinstance(成果, 能力結果) or not 成果.成立 or 成果.保留理由
+    return _継続記録を読む(成果, 要求, 不成立=False)
+
+
+def _継続記録を読む(成果, 要求, *, 不成立):
+    if (not isinstance(成果, 能力結果) or type(成果.成立) is not bool or 成果.成立 is 不成立
+            or (成果.保留理由 != "未消費候補がありません" if 不成立 else bool(成果.保留理由))
             or type(成果.データ) is not dict):
-        raise ValueError("継続元は取得成功成果に限定します")
+        raise ValueError("継続元は取得成功成果に限定します" if not 不成立 else "検証できる候補消費不成立に限定します")
     d = 成果.データ
     必須 = {"版", "状態", "意味的事実検証", "要求", "不足語", "資料", "抜粋",
             "試行", "本文取得数", "資料数", "記録SHA256", "継続束"}
     if (not 必須 <= set(d) or set(d) - 必須 - {"資源制御", "検索来歴"}
-            or d["版"] != 知識取得版 or d["状態"] != "合格"
+            or d["版"] != 知識取得版 or d["状態"] != ("保留" if 不成立 else "合格")
             or d["意味的事実検証"] != "未実施" or d["不足語"]
             or _記録印({k: v for k, v in d.items() if k != "記録SHA256"}) != d["記録SHA256"]):
         raise ValueError("取得継続元の欄・印が不一致です")
@@ -105,7 +110,7 @@ def 継続束を読む(成果, 要求=None):
         if p["一致語"] != hits:
             raise ValueError("継続抜粋の一致語不正")
         covered.update(hits)
-    if (covered != set(要求.必要語) or 成果.本文 != "\n\n".join(p["本文"] for p in d["抜粋"])
+    if (covered != set(要求.必要語) or 成果.本文 != ("" if 不成立 else "\n\n".join(p["本文"] for p in d["抜粋"]))
             or sum(len(p["本文"]) for p in d["抜粋"]) > 要求.最大抜粋文字数
             or 成果.根拠 != tuple(refs)):
         raise ValueError("継続原本文・必要語・累積抜粋上限不一致")
@@ -130,4 +135,33 @@ def 継続進展を検査(前, 次, 要求):
             or any(次.データ[k][:len(前.データ[k])] != 前.データ[k] for k in ("資料", "抜粋", "試行"))
             or any(x.get("作用") == "検索" for x in 次.データ["試行"][len(前.データ["試行"]):])):
         raise ValueError("取得継続に新規原本文の進展・原値保持がありません")
+    return True
+
+
+def 継続不成立を検査(前, 次, 要求):
+    """旧本文は保持したまま候補を消費し終えた実不成立だけを検証する。"""
+    旧 = 継続束を読む(前, 要求)
+    新 = _継続記録を読む(次, 要求, 不成立=True)
+    追加試行 = 次.データ["試行"][len(前.データ["試行"]):]
+    新URL = 新["試行済みURL"][len(旧["試行済みURL"]):]
+    if (新["親記録SHA256"] != 前.データ["記録SHA256"]
+            or any(旧[k] != 新[k] for k in ("版", "要求SHA256", "候補", "検索済み語"))
+            or not 旧["消費位置"] < 新["消費位置"] == len(新["候補"])
+            or 新["試行済みURL"][:len(旧["試行済みURL"])] != 旧["試行済みURL"]
+            or 次.データ["本文取得数"] - 前.データ["本文取得数"] != len(新URL)
+            or 次.参照 != 前.参照 or 次.根拠 != 前.根拠
+            or 次.データ.get("検索来歴") != 前.データ.get("検索来歴")
+            or any(次.データ[k] != 前.データ[k] for k in ("資料", "抜粋", "資料数"))
+            or 次.データ["試行"][:len(前.データ["試行"])] != 前.データ["試行"]
+            or len(追加試行) != 新["消費位置"] - 旧["消費位置"]
+            or any(x.get("作用") not in ("重複URL", "重複資料", "本文非採用", "本文取得失敗") for x in 追加試行)
+            or [x.get("URL") for x in 追加試行 if x.get("作用") != "重複URL"] != 新URL):
+        raise ValueError("継続不成立の候補消費・旧本文・原値が不一致")
+    消費済み = set(旧["試行済みURL"]) | {x["最終URL"] for x in 前.データ["資料"]}
+    for 候補, 試行 in zip(旧["候補"][旧["消費位置"]:新["消費位置"]], 追加試行):
+        URL = 候補["URL"]
+        if (試行.get("URL") != URL
+                or (試行["作用"] == "重複URL") != (URL in 消費済み)):
+            raise ValueError("継続不成立の原候補順序・実重複が不一致")
+        消費済み.add(URL)
     return True
