@@ -176,5 +176,6 @@ def GoogleCloud知識取得器(プロジェクトID, アプリID, 認証器, *, 
 
     検索 = GoogleCloud検索供給器(プロジェクトID, アプリID, 認証器,
                               送信予算=送信予算, 許可ホスト=許可ホスト, timeout=timeout, 公開条件必須=公開条件必須)
-    本文 = 公開本文取得器(timeout=timeout, 最大バイト数=2_000_000, 許可ホスト=許可ホスト)
+    from ..公開本文取得 import 公開PDF本文取得器
+    本文 = 公開PDF本文取得器(timeout=timeout, 最大バイト数=2_000_000, 許可ホスト=許可ホスト)
     return 知識取得器(検索, 本文)

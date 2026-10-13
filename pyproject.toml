@@ -33,7 +33,7 @@ classifiers = [
 dependencies = ["SudachiPy==0.6.11", "SudachiDict-core==20260723"]
 
 [project.optional-dependencies]
-cloud = ["google-adk==2.11.0", "google-auth==2.61.0"]
+cloud = ["google-adk==2.11.0", "google-auth==2.61.0", "pypdf==6.20.1"]
 
 [project.urls]
 Repository = "https://github.com/gatchimuchio/NOTNN-LLM-MINIDORA"

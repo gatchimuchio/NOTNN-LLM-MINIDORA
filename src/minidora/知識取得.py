@@ -100,6 +100,26 @@ def _本文検証(doc: 取得本文, requested: str) -> None:
         raise ValueError("本文サイズ不正")
     if type(doc.除外要素) is not tuple or any(type(x) is not str for x in doc.除外要素):
         raise ValueError("除外記録不正")
+    if type(doc.抽出頁範囲) is not tuple:
+        raise ValueError("抽出頁記録不正")
+    if doc.内容種別 == "application/pdf":
+        from .公開PDF抽出 import PDF抽出版, 最大頁数, 最大本文文字数
+        if doc.文字コード != PDF抽出版 or not 1 <= len(doc.抽出頁範囲) <= 最大頁数 or len(doc.本文) > 最大本文文字数:
+            raise ValueError("PDF抽出記録不正")
+        end = 0
+        for number, row in enumerate(doc.抽出頁範囲, 1):
+            if (type(row) is not tuple or len(row) != 3 or any(type(x) is not int for x in row)
+                    or row[0] != number or row[1] != end or not end < row[2] <= len(doc.本文)):
+                raise ValueError("PDF抽出頁対応不正")
+            end = row[2]
+            if number < len(doc.抽出頁範囲):
+                if doc.本文[end:end + 1] != "\n":
+                    raise ValueError("PDF抽出頁区切り不正")
+                end += 1
+        if end != len(doc.本文):
+            raise ValueError("PDF抽出頁対応不正")
+    elif doc.抽出頁範囲:
+        raise ValueError("非PDFの抽出頁記録")
 
 
 def _抜粋(doc: 取得本文, terms: tuple[str, ...], remaining: int) -> tuple[list[dict], set[str]]:

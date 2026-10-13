@@ -207,6 +207,7 @@ class 取得本文:
     本文SHA256: str
     経路: tuple[str, ...]
     除外要素: tuple[str, ...] = ()
+    抽出頁範囲: tuple[tuple[int, int, int], ...] = ()
 
 
 def 本文を復号(要求URL: str, 経路: tuple[str, ...], headers: dict[str, str], raw: bytes) -> 取得本文:
@@ -393,6 +394,35 @@ class 公開本文取得器:
     def 取得(self, url: str) -> 取得本文:
         first, 経路, headers, 資料 = self._転送を取得(url)
         return 本文を復号(first, 経路, headers, 資料)
+
+
+class 公開PDF本文取得器(公開本文取得器):
+    """公開本文の安全取得を共有し、固定依存でPDF文字と頁対応を追加する。"""
+
+    _受入形式 = 公開本文取得器._受入形式 + ", application/pdf"
+
+    def 取得(self, url: str) -> 取得本文:
+        first, 経路, headers, raw = self._転送を取得(url)
+        msg = Message()
+        msg["content-type"] = headers.get("content-type", "application/octet-stream")
+        if msg.get_content_type() != "application/pdf":
+            return 本文を復号(first, 経路, headers, raw)
+        if headers.get("content-encoding", "identity").lower() not in ("", "identity"):
+            raise 本文取得失敗("圧縮応答は未対応")
+        from .公開PDF抽出 import PDF文字を抽出, PDF抽出版
+        秒 = min(8.0, self.timeout)
+        if self.取得制御 is not None:
+            秒 = self.取得制御.残時間(秒)
+        try:
+            text, pages = PDF文字を抽出(raw, 秒上限=秒)
+        except Exception as exc:
+            raise 本文取得失敗("PDF文字抽出不成立") from exc
+        if self.取得制御 is not None:
+            self.取得制御.確認()
+        return 取得本文(first, 経路[-1], "", text, datetime.now(timezone.utc).isoformat(),
+                        "application/pdf", PDF抽出版, len(raw), sha256(raw).hexdigest(),
+                        sha256(text.encode("utf-8")).hexdigest(), 経路,
+                        ("PDF文字以外は未解釈",), pages)
 
 
 @dataclass(frozen=True, slots=True)
