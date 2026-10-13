@@ -2,7 +2,7 @@
 
 既存製品のUIとAPIからGoogle ADK 2.11.0の`Workflow/FunctionNode`を通り、同じHDS製品入口を呼ぶ。回答・意味判断・状態保持は既存MINIDORAが担当する。Geminiや外部LLMによる回答生成・フォールバックは使わない。ADK依存の`google-genai`はライブラリ構成上の依存であり、モデル呼出しの証拠ではない。
 
-この文書は再現手順である。Cloud実機動作の成立範囲は、実URLの配備記録・実応答・出典・ADKと監査の対応で判断する。以下の提出用D03実演は成立したが、`tools/CloudRun受入.py`の全項目、再起動受入、審査主体の到達性を一括で合格したとは扱わない。ローカル成功だけでは実機成立にならない。
+この文書は再現手順である。Cloud実機動作の成立範囲は、実URLの配備記録・実応答・出典・ADKと監査の対応で判断する。提出用D03実演と審査用Basicのみの実HTTPS検査は成立したが、`tools/CloudRun受入.py`の全項目、再起動受入、直接ブラウザの資格入力から回答表示までを一括で合格したとは扱わない。ローカル成功だけでは実機成立にならない。
 
 新Cloud Run基本チャットの起動は、`製品版/Google起動構成.py`で固定したGoogle Cloud通常Search・ADC・GCS送信予算を、既存HDSの取得器へ注入する。設定不足・不正・Cloud依存不足は配信前に停止する。構成時には認証・DNS・Search・保存通信を行わず、管理者の`off`でも固定設定検査は省略しない。基本チャットなしの旧Cloud入口とローカル既定のWikipedia取得器は維持する。Google起動接続の局所検査は実Cloud受入とは別である。ADC接続器は`google-auth==2.61.0`を直接固定し、Cloud Runの明示SA又は明示した`authorized_user`ファイルだけを扱う。認証のHTTP開始・受信本文も当回の共有取得制御へ計上し、検索接続前に認証を済ませる。SDKの背景通信を残さないため、固定版の内部API `_set_blocking_regional_access_boundary_lookup()` に依存して境界照会を当回内で実行する。SDK更新時にはこの依存を再確認する。トークン成功応答はBearer型と有限な1〜86,400秒の有効時間を受け付ける。未知ADC・metadataのmTLS/Agent Identity経路は対応外として停止し、公開URLの私有IP拒否は維持する。同期DNSとSDK内の待機を含む厳密な実行時間上限と、再起動をまたぐ総費用制限の保証は未成立である。Google実機の固定構成からSearch・実本文・HDS回答へ至る経路は以下のD03で一回観測したが、一般Web全分野の品質受入とは区別する。
 
@@ -10,18 +10,30 @@
 
 予算保存先はprivate・uniform accessの専用bucketとし、Buildのsource/log保存と分離する。runtimeの権限は固定objectへのget/create/deleteだけに限定する。初期内容は設定の`保存内容(0)`で構成し、管理者が`ifGenerationMatch=0`による初回作成だけを行う。runtimeは欠損を自動初期化せず、破損・設定不一致・期限・上限で停止する。配備、再実行、日付変更でカウンタをresetせず、清掃/lifecycleの削除対象からも期間中は除外する。運用者による有効な過去値への書戻しを単一CASだけで検出する保証はない。
 
-この予約は検索送信数の上限であり、GCS操作・認証・起動・補助HTTP・ログ・保存・転送を含む総請求額の上限ではない。配備候補はBuildを600秒、Runを1CPU/2Gi・要求単位CPU・起動CPU増強なし・min0/max1/concurrency1・要求300秒とし、実観測で照合する。既存クレジット内の有限な実行計画では、最初の小さい配備/検索単位から実SKU・費用・クレジット適用を確認する。保存費用は期限拒否だけでは止まらず、soft-deleteの保持期間を含めた期限前の対象清掃が必要である。Google通常Searchの資源と公開サイト範囲の管理者構成は、実検索・本文取得・HDS内容品質・新Cloud Run受入とは分けて検査する。通常Search資源と予算の初期保存は管理者経路で構成済みで、本人認証を使った開発時の検索・本文取得は確認した。今回の新Cloudでは、固定実行構成から通常Search・本文取得・HDS回答を本人認証のD03で観測した。一般品質Qの全数評価と審査主体の到達性は未検査である。累積予約の実更新値、実SKU・費用・クレジット適用、総費用の保証はこの実演結果だけから認定しない。管理者経路や局所試験を実機受入へ読み替えない。
+この予約は検索送信数の上限であり、GCS操作・認証・起動・補助HTTP・ログ・保存・転送を含む総請求額の上限ではない。配備候補はBuildを600秒、Runを1CPU/2Gi・要求単位CPU・起動CPU増強なし・min0/max1/concurrency1・要求300秒とし、実観測で照合する。既存クレジット内の有限な実行計画では、最初の小さい配備/検索単位から実SKU・費用・クレジット適用を確認する。保存費用は期限拒否だけでは止まらず、soft-deleteの保持期間を含めた期限前の対象清掃が必要である。Google通常Searchの資源と公開サイト範囲の管理者構成は、実検索・本文取得・HDS内容品質・新Cloud Run受入とは分けて検査する。通常Search資源と予算の初期保存は管理者経路で構成済みで、本人認証を使った開発時の検索・本文取得は確認した。今回の新Cloudでは、固定実行構成から通常Search・本文取得・HDS回答を本人認証のD03で観測した。一般品質Qの全数評価は未成立。審査用Basicだけの実HTTPS応答は後述の範囲で確認し、通常ブラウザの資格入力から回答表示までは未確認である。累積予約の実更新値、実SKU・費用・クレジット適用、総費用の保証はこの実演結果だけから認定しない。管理者経路や局所試験を実機受入へ読み替えない。
 
 検索外送の前には、検索語・必要語に含まれる既知のメール・電話・秘密値形式、人名候補、当回と過去会話で明示された保護値を検査する。停止時は認証・予算予約・Searchを始めない。原入力とHDSの意味処理は保持し、製品応答・参照・監査に安全な公開表現を別途作る。監査はv2で封印し、Cloud入口は旧v1監査の提供を拒否する。未知形式の個人情報を完全に判定する保証はなく、局所検査を一般会話品質・実Cloudの受入へ読み替えない。
 
-## 今回のCloud実測（2026-10-13、限定D03）
+## 現在の審査用Cloud実測（2026-10-13、限定D04）
 
-- 実URL：[https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app](https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app)。IAM認証必須、本人認証で確認。審査主体の利用許可・到達性は未検査。
+- 実URL：[https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app](https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app)。本人承認後の審査公開構成で、Googleログインは不要、HTTP Basic認証は必須。
+- revision：`minidora-adk-verify-judge-d2397cc3fc08-7234f7`、配備main：`d2397cc3fc08330c9be59eb76211299c65f8e0ee`。HDS本体復元点は旧実演と同じ`45a383943df8fc58666689ee8e1e8f90de1c26be`。HTTP認証境界を追加し、HDS判断・ADK配送・検索処理を維持した。
+- Cloud Build：`49ceef54-1446-46bf-bc92-cd44254c2eef`、image digest：`sha256:951be8ea0978ff8d08bf14de7fdf8e68ee5c433faade600468b0cd255e8b217d`。1CPU／2Gi、要求300秒、min0／max1／concurrency1を保持。
+- 新Basic入口はまず本人OIDC＋Basicで3実応答を確認。その後、対象サービスの`allUsers`へ`roles/run.invoker`一付与だけを追加し、既存IAMとサービス構成を維持した。project・検索資源・予算bucketの公開や他IAM変更は行っていない。
+- 公開後は本人OIDCを取得・使用せず、BasicだけでHTTPS検査19件を実行。`8*9`→72（6.078秒）、藻場の実本文回答（14.453秒）、同一会話の引用形式（15.562秒）がAPPROVE。検索1回・本文1件、追質問の追加検索・取得HTTPは0。
+- 各応答のADK単一HDS呼出と11項目の技術照合、独立v2監査・Trace対応が成立。UI・静的ファイル・health・capabilitiesの取得を確認し、無資格6入口と誤資格healthは401、別Originは403、不正JSONは400。
+- [公開動画](https://youtu.be/q7hF26QBabI)は180秒。旧a38 revisionの本人認証付き実画面と旧図を収録したもので、現在のBasic入口の画面ではない。現在の[構成図](../docs/minidora-cloud-architecture.svg)は新認証境界に更新した。
+
+Basic資格は審査員向け非公開欄で提供し、公開物へ保存しない。旧動画と新Basic非公開IAM時のUI確認は本人認証の中継を使用。公開後は操作環境の直接Basic到達が制限され、中継UI1試行もチャット要求を開始しないまま未成立で終了した。通常ブラウザの資格入力からUI実応答まで、全受入CLI・再起動受入、一般品質Q全数、応募受付は、この有限HTTPS検査だけでは成立としない。既使用題材の実演を初見品質評価へ算入しない。
+
+## 旧a38のCloud実測（2026-10-13、限定D03）
+
+- 実URL：[https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app](https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app)。この旧revisionでの実測時はIAM認証必須、本人認証で確認。審査主体の利用許可・到達性はこの実測の対象外。
 - revision：`minidora-adk-verify-v4-a38b793250c1-80e504`。配備main：`a38b793250c1dfa96e49af028fae58235324ddab`、本体コード復元点：`45a383943df8fc58666689ee8e1e8f90de1c26be`。
 - 実構成：1CPU／2Gi、要求300秒、min0／max1／concurrency1。Cloud Build image digest：`sha256:ff83a7b03ce75d84fb1ffb8411dd1daf5ba7375314fc40c0b59a193910480af0`。
 - 藻場の自然質問は検索1回・実本文1件から回答へ到達。同じ会話の「引用形式にして」は追加検索・取得HTTPが0で成立。`2+3`と`3*7`は5と21、算術後の「詳しく説明して」はSUSPEND。
 - 5応答の各11項目の技術照合が成立。ADK 2.11.0 Workflow／FunctionNode、要求ごとのHDS呼出1、独立v2監査と応答・Traceの対応を確認。
-- 認証付きUI／health／capabilitiesはHTTP 200、未認証403、別Origin403、不正JSON400。単一実演の範囲であり、一般品質Q全数、再起動受入、審査主体アクセス、動画掲載、応募受付の合格を含まない。
+- 認証付きUI／health／capabilitiesはHTTP 200、未認証403、別Origin403、不正JSON400。単一実演の範囲であり、一般品質Q全数、再起動受入、審査主体アクセス、動画掲載、応募受付をこの旧実測だけで認定しない。
 
 実入力・応答・出典と所要時間は [README](../README.md) を参照。実演題材は開発時にも扱ったもので、初見独立品質評価には算入しない。
 
@@ -32,7 +44,7 @@
 - 初回配備・受入はCloud Run IAM本人認証を必須にし、アプリもHTTP Basicと`MINIDORA_CLOUD_HOSTS`・`MINIDORA_CLOUD_ORIGINS`を検査する。審査公開は後述の本人承認後の手動modeだけで扱う。Origin・Host検査自体は本人認証ではない。ワイルドカードCORSを使わない。
 - 許可Hostは実測した`*.run.app`ホスト、許可Originはその`https://`生成元。初回は`bootstrap.invalid`を設定して実URLの要求を拒否し、サービスURLを取得してから更新する。Cloud Runの既定TCP起動検査を使う。
 - 基本チャットの管理者方針は`MINIDORA_RETRIEVAL_POLICY=auto|off`。`--基本チャット`を明示した場合の未設定は`auto`で、公開取得の必要性は既存HDSが判断する。通常HDSの従来の外部読取設定は維持する。基本チャットのAPIでは`external_read`省略は管理者方針に従い、`false`は今回だけ取得禁止、`true`も管理者の`off`を越えない。UIは自動検索の説明と任意の「この質問では外部検索しない」を表示し、CLIでは`--検索しない`で同じ禁止を指定できる。禁止は次の質問へ継承しない。`/api/capabilities`の`公開取得方針`は基本チャットで`auto`又は`off`、通常入口で`null`を返す。ADKはこれらを同じHDSへ配送する。
-- ローカル既定の取得器はWikipediaの日本語・英語記事で、新Cloud基本チャットは固定Google構成を要求する。現構成の候補・本文の許可範囲は`www.mext.go.jp`、`www.mhlw.go.jp`、`www.env.go.jp`、`www.stat.go.jp`の4完全ホスト名であり、全Web又は全`go.jp`を許可しない。非Wikipediaの実本文を使う限定的なCloud基本チャット実演は本人認証で成立した。一般品質Qの全数評価・審査主体アクセスは未検査。設定値の変更だけを一般Web検索の成立として扱わない。公開URL・DNS・転送先・容量・時間を検査し、記事は資料として扱う。既取得の採用済み原資料は同じ会話の追質問に利用できる。API本文上限256,000バイト、チャット入口のレート制限、セッション数の既存上限を維持する。Cloud Run同時実行数1を設定する。
+- ローカル既定の取得器はWikipediaの日本語・英語記事で、新Cloud基本チャットは固定Google構成を要求する。現構成の候補・本文の許可範囲は`www.mext.go.jp`、`www.mhlw.go.jp`、`www.env.go.jp`、`www.stat.go.jp`の4完全ホスト名であり、全Web又は全`go.jp`を許可しない。非Wikipediaの実本文を使う限定的なCloud基本チャット実演は本人認証で成立した。一般品質Q全数は未成立。審査用Basicのみの実HTTPS検査は前記の限定範囲で成立。設定値の変更だけを一般Web検索の成立として扱わない。公開URL・DNS・転送先・容量・時間を検査し、記事は資料として扱う。既取得の採用済み原資料は同じ会話の追質問に利用できる。API本文上限256,000バイト、チャット入口のレート制限、セッション数の既存上限を維持する。Cloud Run同時実行数1を設定する。
 - HTTPエラーを送信した後は書込側をhalf-closeし、未読入力を64KiBずつ、総量32MiB・絶対期限2秒まで破棄して接続を終了する。受付上限とは別の拒否処理であり、本文をJSONやHDSへ渡さない。未読本文を残した即時closeによる実機502を修正するための処理で、期限超過や切断までエラー応答配送を保証しない。根拠は[RFC 9112の接続終了](https://www.rfc-editor.org/rfc/rfc9112.html#section-9.6)と[Cloud RunのHTTP/1上限](https://docs.cloud.google.com/run/quotas)。
 - `min=0`、`max=1`、`min-instances=0`、`max-instances=1`、CPU 1、新MVP候補のメモリ2Gi、要求上限300秒、受入クライアントのソケット待機上限360秒。配備後の実観測も2Gi・300秒と照合する。旧実機の開始境界はCPU 1・メモリ1Gi・要求上限60秒として別に保全する。2Giは新候補の資源設定であり、Cloudで実測した必要量としては扱わない。変更には理由と費用影響を記録する。
 - 会話と追跡台帳はメモリ内だけで、停止・再起動・新revision・インスタンス交換で失われる。永続化、再起動をまたぐ会話継続、複数インスタンス間同期は未成立。Cloud Loggingは実行証拠であり、会話の復元用台帳ではない。
@@ -87,7 +99,7 @@ Cloud起動時はusernameとpassword SHA256の両方が必須で、片側だけ�
 
 審査公開modeは本人が具体的な実URLと認証方式を承認した後の手動工程である。同じサービスに`allUsers`の`roles/run.invoker`一付与だけを加え、IAM検査自体は有効に保つ。project・検索・予算bucketを公開せず、Basic認証は解除しない。`tools/CloudRun配備設定.py`の`--審査公開`はこの状態の検査用で、IAM変更を実行しない。作業者判断でworkflowへ公開フラグを追加して承認を迂回しない。
 
-公開後の配備記録も`認証必須: true`を保ち、`利用者認証: HTTP Basic`・`審査公開: true`・`CloudIAM本人認証必須: false`を記録する。`tools/CloudRun受入.py --basic-credentials-file`へ権限制限されたusername/password JSONを渡し、Googleログインを持たないブラウザでもHTTPS challenge→資格入力→UI・実応答まで確認する。URLや資格の準備だけでは審査員到達性の成立としない。この公開modeの実機受入は、前記D03本人認証の実測とは別に記録する。
+今回の公開後実検査でも、下記の配備記録を照合した。公開後の配備記録も`認証必須: true`を保ち、`利用者認証: HTTP Basic`・`審査公開: true`・`CloudIAM本人認証必須: false`を記録する。`tools/CloudRun受入.py --basic-credentials-file`へ権限制限されたusername/password JSONを渡し、Googleログインを持たないブラウザでもHTTPS challenge→資格入力→UI・実応答まで確認する。URLや資格の準備だけでは審査員到達性の成立としない。この公開modeの実機受入は、前記D03本人認証の実測とは別に記録する。
 
 ## 3. IAMとWIF
 
@@ -102,7 +114,7 @@ Cloud起動時はusernameとpassword SHA256の両方が必須で、片側だけ�
 | 配備SA | Cloud Buildの作成・取得、選択bucketの送信、選択repositoryの読取、対象サービスの配備・IAM変更・検査・ログ読取 |
 | 配備SAのSA利用 | 明示した実行SAとビルドSAに対する`roles/iam.serviceAccountUser`だけ |
 | WIF主体 | 明示した配備SAへの`roles/iam.workloadIdentityUser`だけ。ID token発行権限を必要なSAに限定 |
-| 検証呼出し | 対象サービスの`roles/run.invoker`を配備SAに付与。`allUsers` / `allAuthenticatedUsers`には付与しない |
+| 初期非公開配備の検証呼出し | 対象サービスの`roles/run.invoker`を配備SAに付与。通常workflowでは`allUsers` / `allAuthenticatedUsers`に付与しない。本人承認後の審査公開は前節の手動工程に限る |
 
 新規サービスを作る配備権限はprojectで必要になるため、専用projectまたは必要permissionだけのcustom roleを使う。`roles/run.admin`等の既定roleを使う場合も対象projectに限定し、作成後に対象サービスへの範囲縮小を検討する。監査にはproject・service・予算bucketのIAM読取、custom roleの定義読取、課金状態読取、API一覧読取が必要。実行SA・組織ポリシーの変更権限は配備ワークフローへ付与しない。
 

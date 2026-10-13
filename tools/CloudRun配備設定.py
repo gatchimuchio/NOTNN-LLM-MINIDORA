@@ -44,7 +44,7 @@ def サービスIAMを検査(IAM, *, 審査公開=False):
              if set(行.get("members", [])) & {"allUsers", "allAuthenticatedUsers"}]
     if 審査公開:
         if (len(公開行) != 1 or 公開行[0].get("role") != "roles/run.invoker"
-                or set(公開行[0].get("members", [])) != {"allUsers"}
+                or (set(公開行[0].get("members", [])) & {"allUsers", "allAuthenticatedUsers"}) != {"allUsers"}
                 or 公開行[0].get("condition")):
             raise ValueError("承認後の公開IAMはallUsersのrun.invoker一付与に限定します")
     elif 公開行:

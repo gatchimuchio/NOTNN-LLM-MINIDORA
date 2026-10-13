@@ -27,7 +27,9 @@
 
 - 旧候補の実不成立からの有限追加検索（2026-10-13、受入前）の復元点: `45a383943df8fc58666689ee8e1e8f90de1c26be`。実不成立・旧本文・原不足・資源消費を保持し、候補原順序と実重複を照合。関連58件PASSと追加補強3件PASS、最終影響3件PASSを確認。MVP本文総数を2検索×各6本文の12へ有限再評価。初見品質受入と新MVPのCloud Run実機受入は未成立。
 
-- 最新のCloud実演状態（2026-10-13、限定D03）：main `a38b793250c1dfa96e49af028fae58235324ddab`、本体復元点 `45a383943df8fc58666689ee8e1e8f90de1c26be`。本人認証の[実URL](https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app)、revision `minidora-adk-verify-v4-a38b793250c1-80e504`でWeb本文に対応する回答・引用形式の追質問・算術入力変更・保留・拒否を一回観測。5応答の各11技術項目と独立v2監査が成立。審査主体アクセス、一般品質Q全数、完成動画・掲載、応募受付は未成立。GPQA性能正本は更新しない。過去の節目の「未受入」は当時の状態として保持する。
+- 旧a38のCloud実演状態（2026-10-13、限定D03の記録）：main `a38b793250c1dfa96e49af028fae58235324ddab`、本体復元点 `45a383943df8fc58666689ee8e1e8f90de1c26be`。本人認証の[実URL](https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app)、revision `minidora-adk-verify-v4-a38b793250c1-80e504`でWeb本文に対応する回答・引用形式の追質問・算術入力変更・保留・拒否を一回観測。5応答の各11技術項目と独立v2監査が成立。審査主体アクセス、一般品質Q全数、完成動画・掲載、応募受付は未成立。GPQA性能正本は更新しない。過去の節目の「未受入」は当時の状態として保持する。
+
+- 現在の審査用Cloud入口（2026-10-13、限定D04）：main `d2397cc3fc08330c9be59eb76211299c65f8e0ee`、revision `minidora-adk-verify-judge-d2397cc3fc08-7234f7`、[実URL](https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app)。HDS本体復元点は`45a383943df8fc58666689ee8e1e8f90de1c26be`のままHTTP認証境界を追加。本人承認に基づく対象サービスのallUsers invoker一付与後、Basicのみ・本人OIDC取得使用0でHTTPS検査19件、実応答3件、各11技術照合と独立v2監査を確認。180秒の[YouTube動画](https://youtu.be/q7hF26QBabI)は旧a38の本人認証付き実画面・図を収録して公開した。直接ブラウザの資格入力から回答表示、一般品質Q全数、応募受付は、この限定受入だけでは成立としない。GPQA性能正本は未更新。
 
 最後のファイル名は既存リンク互換のため保持する。
 内部理論の定義は公開しない。

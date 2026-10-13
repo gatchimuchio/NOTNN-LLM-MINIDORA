@@ -10,23 +10,35 @@
 
 既存MINIDORAのHDSが問い、必要な根拠、資料の意味、回答の採否を扱い、Google ADK 2.11.0のWorkflow／FunctionNodeから同じ本体へ実行を配送します。根拠が不足する場合は管理者の許可内で検索し、実Web本文を取得します。検索スニペットや外部生成LLMを回答の代行にしません。
 
-2026-10-13、本人認証でCloud Run上の提出用D03実演が成立しました。以下は固定版で行った一回の実演観測であり、一般チャット全体の品質評価ではありません。
+2026-10-13、本人認証でのD03実演に続き、本人承認済みの審査用Basic認証入口で実HTTPS応答を確認しました。以下は固定版の限定的な実機観測であり、一般チャット全体の品質評価ではありません。
 
 | 展示情報 | 実測・現在の状態 |
 |---|---|
-| 実Cloud Run URL | [https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app](https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app)。IAM認証必須 |
-| revision | `minidora-adk-verify-v4-a38b793250c1-80e504` |
-| 配備main／本体コード復元点 | `a38b793250c1dfa96e49af028fae58235324ddab`／`45a383943df8fc58666689ee8e1e8f90de1c26be` |
-| Cloud Build／image digest | `8388d52d-4911-4c98-b632-7d2ed38a1cbc`／`sha256:ff83a7b03ce75d84fb1ffb8411dd1daf5ba7375314fc40c0b59a193910480af0` |
-| 審査アクセス | 本人認証での確認のみ。審査主体の利用許可・到達性は未検査 |
-| 約3分の実演動画 | 180秒MP4完成。指定チャンネルへ非公開下書きとしてアップロード済み、公開前 |
+| 実Cloud Run URL | [https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app](https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app)。HTTP Basic認証必須、Googleログイン不要 |
+| 現在のrevision | `minidora-adk-verify-judge-d2397cc3fc08-7234f7` |
+| 配備main／HDS本体コード復元点 | `d2397cc3fc08330c9be59eb76211299c65f8e0ee`／`45a383943df8fc58666689ee8e1e8f90de1c26be` |
+| Cloud Build／image digest | `49ceef54-1446-46bf-bc92-cd44254c2eef`／`sha256:951be8ea0978ff8d08bf14de7fdf8e68ee5c433faade600468b0cd255e8b217d` |
+| 審査アクセス | Basicだけを使うHTTPS検査19件・実応答3件を確認。通常ブラウザでの資格入力から回答表示までは未確認 |
+| 約3分の実演動画 | [YouTube公開動画](https://youtu.be/q7hF26QBabI)。180秒、旧a38 revisionの本人認証付き実演を収録 |
 | 一般チャット品質Q | 全数未検査・未成立。Cloud実演・提出とは別に評価 |
 
 ![MINIDORAの公開構成図](docs/minidora-cloud-architecture.png)
 
-[構成図SVG](docs/minidora-cloud-architecture.svg)／[構成図PNG](docs/minidora-cloud-architecture.png)。図は実装済みの接続と、限定的な実機観測・未確認の状態を示します。
+[構成図SVG](docs/minidora-cloud-architecture.svg)／[構成図PNG](docs/minidora-cloud-architecture.png)。現在の図はd2397の審査用Basic認証境界を示します。動画内の図と実画面は、先に収録した旧a38の本人認証付き構成です。HDS本体・ADK配送・検索処理は同じで、d2397ではHTTP認証境界を追加しています。
 
-### 今回Cloud上で観測した範囲
+### 審査用d2397で観測した範囲
+
+本人承認後、対象サービスに`allUsers`の`roles/run.invoker`だけを追加し、既存の本人権限とサービス構成を維持しました。アプリの全入口でBasic認証を要求し、Host/Origin・入力・頻度・監査の境界を維持しています。Googleの本人OIDCを取得・使用しないHTTPS検査19件で、UI・静的ファイル・health・capabilities、以下の3応答とTraceの取得を確認しました。
+
+| 入力 | 実応答・採否 | 実HTTP所要秒 |
+|---|---|---:|
+| `8*9` | `72`、APPROVE | 6.078 |
+| `藻場とは何か。` | `藻場は海藻が茂る場所です。`、APPROVE | 14.453 |
+| 同じ会話で `引用形式にして` | `> 藻場は海藻が茂る場所です。`、APPROVE | 15.562 |
+
+Web質問では検索1回・実本文1件を使い、追質問では同じ原本文を再利用して追加検索・取得HTTPが0でした。各応答でADK 2.11.0のWorkflow／FunctionNode、HDS呼出1、応答・Trace・独立v2監査の11項目が一致しました。無資格の6入口と誤資格のhealthは401、別Originは403、不正JSONは400でした。これは有限の実機検査であり、全受入CLIや一般品質Qを代替しません。
+
+### 旧a38 D03で観測した範囲
 
 | 入力 | 実応答・採否 | 実HTTP所要秒 |
 |---|---|---:|
@@ -38,13 +50,13 @@
 
 藻場の質問では、許可引数を指定せず、HDSの要求から検索1回・実本文1件を取得しました。回答は[環境省の「藻場とは」](https://www.env.go.jp/water/heisa/heisa_net/setouchiNet/seto/g1/g1chapter3/mobahigata/mobatowa/index.html)の「藻場とは、海藻が茂る場所のことです。」に対応します。同じ会話の引用形式への追質問は、この原資料を再利用し、追加検索・取得HTTPは0でした。この題材は開発時にも扱っており、初見独立品質評価の合格例には算入しません。
 
-5応答すべてでADK 2.11.0のWorkflow／FunctionNodeを通り、各要求のHDS呼出数は1でした。応答ごとの11項目の技術照合が成立し、独立した監査v2の再計算も一致しました。UI・health・capabilitiesは認証付きHTTP 200、未認証アクセスは403、別Originは403、不正JSONは400を観測しています。
+旧a38のrevision `minidora-adk-verify-v4-a38b793250c1-80e504`、main `a38b793250c1dfa96e49af028fae58235324ddab`で、5応答すべてがADK 2.11.0のWorkflow／FunctionNodeを通り、各要求のHDS呼出数は1でした。応答ごとの11項目の技術照合が成立し、独立した監査v2の再計算も一致しました。UI・health・capabilitiesは認証付きHTTP 200、未認証アクセスは403、別Originは403、不正JSONは400を観測しています。
 
-起動と取得方針は [製品版README](製品版/README.md) と [Cloud Run配備案内](deploy/CLOUD_RUN.md) を参照してください。審査アクセスは未検査のため、このURLを誰でも操作できる展示URLとは扱いません。認証を解除して公開する構成にはしていません。
+起動と取得方針は [製品版README](製品版/README.md) と [Cloud Run配備案内](deploy/CLOUD_RUN.md) を参照してください。審査員向けの操作手順は、上記HTTPS URLを開き、非公開欄で提供するusername/passwordを入力した後、「藻場とは何か。」、同じ会話で「引用形式にして」を送り、出典とTraceを確認するものです。資格を公開README、URL、画像、動画へ記載しません。取得許可は毎回指定する必要はなく、管理者の`auto`方針内でHDSが必要性を判断します。
 
-審査用の新しいHTTP入口は、全画面・API・healthでBasic認証を要求します。初回配備・受入はCloud IAMの本人認証も維持し、アプリ資格とGoogleの短期認証を分けます。審査員向けにCloud IAMの呼出許可を公開する操作は、本人承認後の手動工程です。Basic認証・Host/Origin・入力上限は公開後も維持します。非公開既定のworkflowへ公開フラグを追加して承認を迂回しません。実機の審査到達性は、ログインしていないブラウザで資格入力から実応答まで確認して判断します。設定と手動審査公開modeは[Cloud Run配備案内](deploy/CLOUD_RUN.md#審査用basic認証と手動公開mode)を参照してください。
+初回の新Basic入口はCloud IAMの本人認証も維持して受け入れ、その後、本人承認の手動操作で審査公開に切り替えました。旧a38の動画と新Basicの非公開IAM時のUI確認は、本人認証の中継を使いました。公開後の操作環境では直接Basic到達が制限され、中継UIの1試行も接続確認中のまま、チャット要求を開始せず終了しました。通常ブラウザの認証ダイアログからUI実応答までの受入は未確認で、前記のHTTPS検査と区別します。通常の配備workflowは非公開IAMを前提とし、公開済みサービスへの無断再配備を拒否します。設定と手動審査公開modeは[Cloud Run配備案内](deploy/CLOUD_RUN.md#審査用basic認証と手動公開mode)を参照してください。
 
-会話状態はメモリ内に限られ、再起動・新revision・インスタンス交換で失われます。PDFのOCRや図表の視覚的意味は未対応です。監査ハッシュの整合を回答の真実性の単独保証とは扱いません。3分の実画面動画MP4は完成し、指定チャンネルに非公開の下書きとしてアップロード済みです。動画の公開、審査アクセス、一般品質Q、応募受付は未成立です。下記のGPQA値は別系列・別時点の評価であり、この展示の一般チャット品質を表す値ではありません。
+会話状態はメモリ内に限られ、再起動・新revision・インスタンス交換で失われます。PDFのOCRや図表の視覚的意味は未対応です。監査ハッシュの整合を回答の真実性の単独保証とは扱いません。180秒の[公開動画](https://youtu.be/q7hF26QBabI)は旧a38の実ブラウザ画像を時系列で編集した間欠収録です。連続録画ではなく、収録時の通信エラー1回と再送後の成功を含めています。一般品質Qは未成立です。応募受付は別の提出操作で確認します（[Zennプロジェクトページ](https://zenn.dev/hackathons/google-cloud-japan-ai-hackathon-vol5/projects/4d372c1f56834c)）。下記のGPQA値は別系列・別時点の評価であり、この展示の一般チャット品質を表す値ではありません。
 
 ## 現在地
 

@@ -115,6 +115,40 @@ class CloudRun配備設定試験(unittest.TestCase):
         サービス["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "MINIDORA_HTTP_BASIC_PASSWORD", "value": "invalid"})
         with self.assertRaises(ValueError): self.記録(サービス)
 
+    def test_承認後は同roleの既存本人を保持したまま公開IAMを検査する(self):
+        for members in (["allUsers", "user:judge-fixture@example.invalid"],
+                        ["user:judge-fixture@example.invalid", "allUsers"]):
+            with self.subTest(members=members):
+                IAM = {"bindings": [{IAM役割鍵: "roles/run.invoker", "members": members},
+                                    {IAM役割鍵: "roles/run.viewer", "members": ["user:viewer-fixture@example.invalid"]}]}
+                原IAM = deepcopy(IAM)
+                記録 = self.記録(IAM=IAM, 審査公開=True)
+                self.assertTrue(記録["審査公開"])
+                self.assertFalse(記録["CloudIAM本人認証必須"])
+                self.assertEqual(記録["利用者認証"], "HTTP Basic")
+                self.assertTrue(記録["認証必須"])
+                self.assertEqual(IAM, 原IAM)
+                with self.assertRaises(ValueError): self.記録(IAM=IAM)
+                self.assertEqual(IAM, 原IAM)
+
+    def test_本人併合で余分な公開主体とroleと条件を受け入れない(self):
+        本人 = "user:judge-fixture@example.invalid"
+        公開 = {IAM役割鍵: "roles/run.invoker", "members": ["allUsers", 本人]}
+        不正群 = (
+            {"bindings": [{IAM役割鍵: "roles/run.invoker", "members": [本人]}]},
+            {"bindings": [{IAM役割鍵: "roles/run.invoker", "members": ["allUsers", "allAuthenticatedUsers", 本人]}]},
+            {"bindings": [{IAM役割鍵: "roles/owner", "members": ["allUsers", 本人]}]},
+            {"bindings": [{**公開, "condition": {"expression": "true"}}]},
+            {"bindings": [公開, {IAM役割鍵: "roles/run.invoker", "members": ["allUsers"]}]},
+            {"bindings": [公開, {IAM役割鍵: "roles/run.viewer", "members": ["allAuthenticatedUsers"]}]},
+            {"bindings": [{IAM役割鍵: "roles/run.invoker", "members": ["allUsers", "serviceAccount:" + self.SA]}]},
+        )
+        for 番号, IAM in enumerate(不正群):
+            with self.subTest(番号=番号):
+                原IAM = deepcopy(IAM)
+                with self.assertRaises(ValueError): self.記録(IAM=IAM, 審査公開=True)
+                self.assertEqual(IAM, 原IAM)
+
 
 if __name__ == "__main__":
     unittest.main()

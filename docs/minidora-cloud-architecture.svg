@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-labelledby="title desc">
   <title id="title">MINIDORA 公開実装の構成</title>
-  <desc id="desc">Cloud Run向けのUI、API、Google ADK、HDS、知識供給、応答と監査の実装済み接続。Google Cloud Agent Searchは候補URLを供給し、公開Web本文を取得する。意味と回答の採否はHDSが担う。本人認証によるCloud Runの限定D03実演を観測。審査主体アクセスと一般品質Q全数は未検査。</desc>
+  <desc id="desc">Cloud Run向けのUI、API、Google ADK、HDS、知識供給、応答と監査の実装済み接続。Google Cloud Agent Searchは候補URLを供給し、公開Web本文を取得する。意味と回答の採否はHDSが担う。本人承認済みのallUsers invokerを通過した後、アプリの全入口でHTTP Basic認証を要求する。Basicのみの限定HTTPS実応答を観測。動画は旧a38の本人認証付き実演。直接ブラウザ受入と一般品質Q全数は別確認。</desc>
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M0 0 L10 5 L0 10 Z" fill="#50647d"/>
@@ -25,12 +25,12 @@
   <text x="60" y="81" class="title">MINIDORA | 公開実装の構成</text>
   <text x="60" y="127" class="subtitle">非ニューラルLLMの研究実装 — HDSが判断、ADKが配送、外部Webが知識を供給</text>
   <rect x="1450" y="40" width="410" height="95" rx="17" fill="#e9f8ef" stroke="#67ac91" stroke-width="2"/>
-  <text x="1655" y="78" text-anchor="middle" class="pill-text">Cloud Run 実演：成立（限定）</text>
-  <text x="1655" y="113" text-anchor="middle" class="small">本人認証／審査アクセス未検査</text>
+  <text x="1655" y="78" text-anchor="middle" class="pill-text">Cloud Run 実応答：成立（限定）</text>
+  <text x="1655" y="113" text-anchor="middle" class="small">Googleログイン不要・Basic必須</text>
 
   <rect x="310" y="205" width="1240" height="700" rx="25" fill="#eaf3f9" stroke="#82a6bd" stroke-width="2"/>
-  <text x="345" y="254" class="card-title">Cloud Run 実機で観測した構成</text>
-  <text x="345" y="288" class="small">固定版の単一実演：Web回答・引用形式の追問・算術・保留・拒否・監査</text>
+  <text x="345" y="254" class="card-title">Cloud Run 審査用構成（d2397）</text>
+  <text x="345" y="288" class="small">承認済み Cloud IAM：allUsers invoker → 全入口のアプリBasic認証</text>
 
   <rect x="50" y="365" width="210" height="210" rx="20" class="card"/>
   <text x="155" y="419" text-anchor="middle" class="card-title">利用者</text>
@@ -40,9 +40,9 @@
 
   <rect x="355" y="365" width="250" height="210" rx="20" class="card"/>
   <text x="480" y="419" text-anchor="middle" class="card-title">製品API</text>
-  <text x="480" y="463" text-anchor="middle" class="line">会話入力・表示</text>
+  <text x="480" y="463" text-anchor="middle" class="line">全入口でBasic認証</text>
   <text x="480" y="502" text-anchor="middle" class="line">auto / off</text>
-  <text x="480" y="546" text-anchor="middle" class="small">取得の実行制御</text>
+  <text x="480" y="546" text-anchor="middle" class="small">Host/Origin・入力制御</text>
 
   <rect x="650" y="365" width="280" height="210" rx="20" class="card"/>
   <text x="790" y="419" text-anchor="middle" class="card-title">Google ADK</text>
@@ -76,7 +76,7 @@
   <rect x="1620" y="675" width="250" height="160" rx="20" class="card"/>
   <text x="1745" y="724" text-anchor="middle" class="card-title">公開Web</text>
   <text x="1745" y="766" text-anchor="middle" class="line">HTML / PDF文字</text>
-  <text x="1745" y="807" text-anchor="middle" class="small">今回D03はHTML本文</text>
+  <text x="1745" y="807" text-anchor="middle" class="small">今回の実測はHTML本文</text>
 
   <path d="M260 430 H355" class="wire"/>
   <text x="306" y="415" text-anchor="middle" class="caption">要求</text>
@@ -97,8 +97,8 @@
   <text x="985" y="867" class="small">検索スニペットを回答根拠にしない。</text>
   <text x="985" y="894" class="small">意味と採否はHDSに残す。</text>
 
-  <text x="60" y="950" class="line">D03：Web回答＋引用形式の追問（追加検索0）　　一般品質Q：全数未検査　　審査アクセス：未検査</text>
-  <text x="60" y="987" class="small">会話状態：メモリ内 ｜ PDF：OCR・図表の視覚的意味は未対応 ｜ 単一実演を全分野品質へ読み替えない</text>
-  <text x="60" y="1020" class="small">配備main a38b793250c1dfa96e49af028fae58235324ddab ｜ revision minidora-adk-verify-v4-a38b793250c1-80e504</text>
-  <text x="60" y="1053" class="small">本人認証で観測した実URL：https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app</text>
+  <text x="60" y="950" class="line">審査入口：Basicのみ実HTTPS成立 ｜ 動画：旧a38実演 ｜ 一般品質Q：全数未成立</text>
+  <text x="60" y="987" class="small">会話状態：メモリ内 ｜ PDF：OCR・図表未対応 ｜ 直接ブラウザ受入は別確認 ｜ 全分野品質へ読み替えない</text>
+  <text x="60" y="1020" class="small">配備main d2397cc3fc08330c9be59eb76211299c65f8e0ee ｜ revision minidora-adk-verify-judge-d2397cc3fc08-7234f7</text>
+  <text x="60" y="1053" class="small">審査用HTTPS（Basic必須）：https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app</text>
 </svg>
