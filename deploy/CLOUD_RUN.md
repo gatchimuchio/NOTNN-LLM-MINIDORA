@@ -29,7 +29,7 @@
 
 - `deploy/Dockerfile`はPython 3.13、ハッシュ付き固定依存、非rootユーザー、単一Pythonプロセスで既存UIを配布する。
 - 起動は`python -m minidora.製品版 --HDS --ADK --基本チャット --CloudRun --serve`。`PORT`で`0.0.0.0`へバインドする。従来の基本チャット指定なしの入口も維持する。
-- Cloud Run IAM認証を必須にし、アプリは`MINIDORA_CLOUD_HOSTS`と`MINIDORA_CLOUD_ORIGINS`を別途検査する。Origin・Host検査自体は本人認証ではない。ワイルドカードCORSを使わない。
+- 初回配備・受入はCloud Run IAM本人認証を必須にし、アプリもHTTP Basicと`MINIDORA_CLOUD_HOSTS`・`MINIDORA_CLOUD_ORIGINS`を検査する。審査公開は後述の本人承認後の手動modeだけで扱う。Origin・Host検査自体は本人認証ではない。ワイルドカードCORSを使わない。
 - 許可Hostは実測した`*.run.app`ホスト、許可Originはその`https://`生成元。初回は`bootstrap.invalid`を設定して実URLの要求を拒否し、サービスURLを取得してから更新する。Cloud Runの既定TCP起動検査を使う。
 - 基本チャットの管理者方針は`MINIDORA_RETRIEVAL_POLICY=auto|off`。`--基本チャット`を明示した場合の未設定は`auto`で、公開取得の必要性は既存HDSが判断する。通常HDSの従来の外部読取設定は維持する。基本チャットのAPIでは`external_read`省略は管理者方針に従い、`false`は今回だけ取得禁止、`true`も管理者の`off`を越えない。UIは自動検索の説明と任意の「この質問では外部検索しない」を表示し、CLIでは`--検索しない`で同じ禁止を指定できる。禁止は次の質問へ継承しない。`/api/capabilities`の`公開取得方針`は基本チャットで`auto`又は`off`、通常入口で`null`を返す。ADKはこれらを同じHDSへ配送する。
 - ローカル既定の取得器はWikipediaの日本語・英語記事で、新Cloud基本チャットは固定Google構成を要求する。現構成の候補・本文の許可範囲は`www.mext.go.jp`、`www.mhlw.go.jp`、`www.env.go.jp`、`www.stat.go.jp`の4完全ホスト名であり、全Web又は全`go.jp`を許可しない。非Wikipediaの実本文を使う限定的なCloud基本チャット実演は本人認証で成立した。一般品質Qの全数評価・審査主体アクセスは未検査。設定値の変更だけを一般Web検索の成立として扱わない。公開URL・DNS・転送先・容量・時間を検査し、記事は資料として扱う。既取得の採用済み原資料は同じ会話の追質問に利用できる。API本文上限256,000バイト、チャット入口のレート制限、セッション数の既存上限を維持する。Cloud Run同時実行数1を設定する。
@@ -57,6 +57,10 @@ Google Cloudの本人が許可したプロジェクトを実際に確認し、�
 | `GCP_BUILD_SERVICE_ACCOUNT` | 専用ビルドSAのemail |
 | `GCP_DEPLOY_SERVICE_ACCOUNT` | 専用配備・検査SAのemail |
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/.../locations/global/workloadIdentityPools/.../providers/...` |
+| `MINIDORA_HTTP_BASIC_USERNAME` | 審査用username。ASCII英数字・`.`・`_`・`-`の1〜64文字 |
+| `MINIDORA_HTTP_BASIC_PASSWORD_SHA256` | 32byte以上の暗号学的乱数から作るpasswordのSHA256、小文字16進64文字 |
+
+実passwordは公開variablesやコードへ保存せず、受入用のGitHub repository secret `MINIDORA_HTTP_BASIC_PASSWORD` にだけ設定する。workflowは検査stepの秘密環境から読み、URL-safeな43〜128文字と固定SHA256との一致を確認する。受入用のusername/password JSONを`RUNNER_TEMP`へ0600・新規作成限定で置き、`--basic-credentials-file`で受入CLIへ渡す。秘密ファイルはCloud Buildの送信対象・証跡artifactの対象に含めない。コンテナにはusernameとSHA256の二環境値だけを渡す。未設定・不正・不一致ならCloud認証・配備前に停止する。
 
 実行・ビルド・配備SAは分離する。旧入口の実行SAはAPI権限なしを維持する。新基本チャットは通常Searchの`discoveryengine.servingConfigs.search`とquota projectの`serviceusage.services.use`だけをprojectの期限付きcustom roleで認め、固定予算objectのget/create/deleteだけを別bucketの条件付きcustom roleで認める。組織・folderからの継承権限も設定者が確認する。ワークフローはprojectと対象サービスへの直接付与、公開IAM、課金、固定予算bucketの条件付き付与、custom roleの実権限、API、repository形式を検査し、異常時は停止する。
 
@@ -74,6 +78,16 @@ Google Cloudの本人が許可したプロジェクトを実際に確認し、�
 | `MINIDORA_GOOGLE_BUDGET_LIMIT` | 1〜1,000の正規整数表記 |
 
 これらとHost/Originを構造化envファイルで配備へ渡す。初回配備、実URLへの更新、受入用の再起動で固定設定を保持し、実env・予算設定SHAと要求した値を照合する。固定値は`deploy/Google取得固定設定.json`に置く。本人が確定した`minidora-507702 / asia-northeast1`と実行SAの一致を配備前に検査し、カンマを含む公開ホスト設定も[envファイル](https://docs.cloud.google.com/run/docs/configuring/services/environment-variables)でそのまま渡す。`tools/CloudRun配備設定.py`は初回・交換後それぞれの実describe、IAM、Ready世代、起動引数、資源、env、予算設定SHAを照合する。予算の初期化・resetは行わない。
+
+### 審査用Basic認証と手動公開mode
+
+Cloud起動時はusernameとpassword SHA256の両方が必須で、片側だけ・空欄・不正値はlisten前に拒否する。全画面・静的ファイル・API・health・未対応HTTP方法をHDS実行前に認証し、資格なし・不正資格は401とBasic challengeを返す。healthの未認証例外は設けず、Cloud Runの起動確認にはTCP probeを使う。Host/Origin・本文256,000byte・既存入力と頻度の制限を維持する。ローカルで二項目とも未設定の場合の従来入口は維持する。
+
+初回配備と実機受入はCloud IAMを非公開のまま維持する。`X-Serverless-Authorization: Bearer`に本人の短期OIDCを、`Authorization: Basic`にアプリ資格を渡す。資格・ヘッダー・tokenをログや証跡へ保存しない。通常workflowは公開IAMを拒否するため、公開済みサービスへ無断再配備しない。
+
+審査公開modeは本人が具体的な実URLと認証方式を承認した後の手動工程である。同じサービスに`allUsers`の`roles/run.invoker`一付与だけを加え、IAM検査自体は有効に保つ。project・検索・予算bucketを公開せず、Basic認証は解除しない。`tools/CloudRun配備設定.py`の`--審査公開`はこの状態の検査用で、IAM変更を実行しない。作業者判断でworkflowへ公開フラグを追加して承認を迂回しない。
+
+公開後の配備記録も`認証必須: true`を保ち、`利用者認証: HTTP Basic`・`審査公開: true`・`CloudIAM本人認証必須: false`を記録する。`tools/CloudRun受入.py --basic-credentials-file`へ権限制限されたusername/password JSONを渡し、Googleログインを持たないブラウザでもHTTPS challenge→資格入力→UI・実応答まで確認する。URLや資格の準備だけでは審査員到達性の成立としない。この公開modeの実機受入は、前記D03本人認証の実測とは別に記録する。
 
 ## 3. IAMとWIF
 
@@ -140,7 +154,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Cloud Run実URL取得失敗' }
 $env:MINIDORA_ID_TOKEN = (& gcloud auth print-identity-token)
 if ($LASTEXITCODE -ne 0) { throw '本人ID token取得失敗' }
 try {
-  python tools/CloudRun受入.py --環境 CloudRun --URL $cloudUrl --配備記録 .venv/cloud-evidence/deployment.json --出力 .venv/cloud-evidence/cloud.json
+  python tools/CloudRun受入.py --環境 CloudRun --URL $cloudUrl --配備記録 .venv/cloud-evidence/deployment.json --basic-credentials-file .venv/cloud-evidence/private/basic-credentials.json --出力 .venv/cloud-evidence/cloud.json
 } finally { Remove-Item Env:MINIDORA_ID_TOKEN }
 ```
 

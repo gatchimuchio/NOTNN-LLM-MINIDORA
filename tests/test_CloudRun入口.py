@@ -1,17 +1,20 @@
 """Cloud Run用HTTP境界と既存ローカル限定入口を実通信で検査する。"""
 from collections import deque
+import base64
+import hashlib
 from http.client import HTTPConnection, HTTPResponse
 from http.server import ThreadingHTTPServer
 import json
 import os
 import socket
+import secrets
 from threading import Lock, Thread
 from time import monotonic
 import unittest
 from unittest.mock import patch
 
 from minidora.HDS運用.製品 import HDS製品ミニドラ
-from minidora.製品版.api import APIHandler, CloudRun許可値
+from minidora.製品版.api import APIHandler, CloudRun許可値, HTTPBasic許可値
 
 
 class CloudRun入口試験(unittest.TestCase):
@@ -21,6 +24,10 @@ class CloudRun入口試験(unittest.TestCase):
         self.サーバ = ThreadingHTTPServer(("127.0.0.1", 0), APIHandler)
         self.サーバ.app = HDS製品ミニドラ()
         self.サーバ.CloudRun境界 = True
+        パスワード = secrets.token_urlsafe(32)
+        self.認証 = "Basic " + base64.b64encode(("judge:" + パスワード).encode()).decode()
+        self.サーバ.HTTPBasic許可値 = HTTPBasic許可値({"MINIDORA_HTTP_BASIC_USERNAME": "judge",
+            "MINIDORA_HTTP_BASIC_PASSWORD_SHA256": hashlib.sha256(パスワード.encode()).hexdigest()}, 必須=True)
         self.サーバ.許可ホスト = frozenset({"minidora.example.test"})
         self.サーバ.許可生成元 = frozenset({"https://minidora.example.test"})
         self.サーバ.受付ロック, self.サーバ.受付時刻 = Lock(), deque()
@@ -35,7 +42,7 @@ class CloudRun入口試験(unittest.TestCase):
 
     def HTTPを呼ぶ(self, 方法="GET", 道="/health", 内容=None, **追加ヘッダ):
         接続 = HTTPConnection("127.0.0.1", self.サーバ.server_port, timeout=60)
-        ヘッダ = {"Host": "minidora.example.test", **追加ヘッダ}
+        ヘッダ = {"Host": "minidora.example.test", "Authorization": self.認証, **追加ヘッダ}
         if 内容 is not None:
             内容 = json.dumps(内容).encode("utf-8")
             ヘッダ.setdefault("Content-Type", "application/json")
@@ -81,6 +88,7 @@ class CloudRun入口試験(unittest.TestCase):
         with patch.object(self.サーバ.app, "応答") as 実行:
             with socket.create_connection(("127.0.0.1", self.サーバ.server_port), timeout=5) as 接続:
                 ヘッダ = ("POST /api/chat HTTP/1.1\r\nHost: minidora.example.test\r\n"
+                         "Authorization: " + self.認証 + "\r\n"
                          "Content-Type: application/json\r\nContent-Length: "
                          + str(len(本文)) + "\r\n\r\n").encode("ascii")
                 接続.sendall(ヘッダ + 本文[:1])

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-import json, os, re, mimetypes, socket
+import base64, binascii, hashlib, hmac, json, os, re, mimetypes, socket
 from collections import deque
 from threading import Lock
 from time import monotonic
@@ -10,8 +10,20 @@ from .製品チャット import 製品ミニドラ
 
 API版 = "MINIDORA-PRODUCT-API-v1"
 
+def HTTPBasic許可値(設定=None, *, 必須=False):
+    """Cloudの審査入口は固定usernameと強いpasswordのSHA256で認証する。"""
+    設定 = os.environ if 設定 is None else 設定
+    名前 = 設定.get("MINIDORA_HTTP_BASIC_USERNAME")
+    ハッシュ = 設定.get("MINIDORA_HTTP_BASIC_PASSWORD_SHA256")
+    if 名前 is None and ハッシュ is None and not 必須:
+        return None
+    if (type(名前) is not str or not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", 名前)
+            or type(ハッシュ) is not str or not re.fullmatch(r"[a-f0-9]{64}", ハッシュ)):
+        raise ValueError("HTTP Basicのusernameとpassword SHA256を両方明示してください")
+    return 名前.encode("ascii"), ハッシュ
+
 def CloudRun許可値():
-    """配備で実測した外部Host/Originのみ許可する。利用者認証はCloud Run IAMの責任。"""
+    """配備で実測した外部Host/Originのみ許可する。"""
     ホスト = frozenset(x.strip() for x in os.getenv("MINIDORA_CLOUD_HOSTS", "").split(",") if x.strip())
     生成元 = frozenset(x.strip() for x in os.getenv("MINIDORA_CLOUD_ORIGINS", "").split(",") if x.strip())
     if not ホスト or not 生成元:
@@ -30,6 +42,8 @@ def _json(handler: BaseHTTPRequestHandler, status: int, body: dict):
     handler.send_header("Content-Type","application/json; charset=utf-8")
     handler.send_header("Content-Length",str(len(raw)))
     handler.send_header("Cache-Control","no-store")
+    if status == 401:
+        handler.send_header("WWW-Authenticate", 'Basic realm="MINIDORA Judge", charset="UTF-8"')
     if status >= 400:
         # 未読の不正POST本体を、次のHTTP要求として扱わせない。
         handler.close_connection = True
@@ -48,6 +62,31 @@ class APIHandler(BaseHTTPRequestHandler):
     def setup(self):
         super().setup()
         self.connection.settimeout(15)
+
+    def parse_request(self):
+        if not super().parse_request():
+            return False
+        # 未対応の方法も含め、画面・API・healthの全要求で製品処理より先に認証する。
+        return self._入口許可() and self._利用者認証()
+
+    def _利用者認証(self):
+        許可値 = getattr(self.server, "HTTPBasic許可値", None)
+        if 許可値 is None and not getattr(self.server, "CloudRun境界", False):
+            return True
+        ヘッダ = self.headers.get_all("Authorization", [])
+        if 許可値 is not None and len(ヘッダ) == 1 and len(ヘッダ[0]) <= 1024:
+            部分 = ヘッダ[0].split(" ")
+            if len(部分) == 2 and 部分[0].casefold() == "basic":
+                try:
+                    名前, パスワード = base64.b64decode(部分[1], validate=True).decode("utf-8").split(":", 1)
+                    名前一致 = hmac.compare_digest(名前.encode("utf-8"), 許可値[0])
+                    ハッシュ一致 = hmac.compare_digest(hashlib.sha256(パスワード.encode("utf-8")).hexdigest(), 許可値[1])
+                    if 名前一致 & ハッシュ一致 & bool(パスワード):
+                        return True
+                except (ValueError, UnicodeError, binascii.Error):
+                    pass
+        _json(self, 401, {"error": "authentication_required"})
+        return False
 
     @property
     def app(self) -> 製品ミニドラ:
@@ -76,7 +115,7 @@ class APIHandler(BaseHTTPRequestHandler):
             pass
 
     def _入口許可(self):
-        """HTTPのHost/Origin境界。Cloud Runの利用者認証はプラットフォーム側で強制する。"""
+        """認証と独立した既存のHost/Origin境界。"""
         if getattr(self.server, "CloudRun境界", False):
             ホスト群 = self.headers.get_all("Host", [])
             生成元群 = self.headers.get_all("Origin", [])
@@ -178,10 +217,12 @@ def serve(app: 製品ミニドラ, host: str = "0.0.0.0", port: int | None = Non
     if type(CloudRun境界) is not bool or (CloudRun境界 and 同一生成元限定):
         raise ValueError("Cloud Run境界とローカル限定は別の配備です")
     許可値 = CloudRun許可値() if CloudRun境界 else None
+    認証値 = HTTPBasic許可値(必須=CloudRun境界)
     p = int(port or os.getenv("PORT","8080"))
     server = ThreadingHTTPServer((host,p), APIHandler); server.app = app  # type: ignore[attr-defined]
     server.同一生成元限定 = 同一生成元限定
     server.CloudRun境界 = CloudRun境界
+    server.HTTPBasic許可値 = 認証値
     if 許可値 is not None:
         server.許可ホスト, server.許可生成元 = 許可値
         server.受付ロック, server.受付時刻 = Lock(), deque()

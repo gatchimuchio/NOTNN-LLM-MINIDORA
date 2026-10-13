@@ -1,8 +1,10 @@
 """人工describeで、別revision・環境欠落・権限拡大の誤受入を検査する。"""
 from copy import deepcopy
+import hashlib
 import json
 from pathlib import Path
 import unittest
+import secrets
 
 from tools.CloudRun配備設定 import 固定を検査, 実行環境, 限定IAMを検査, 配備記録
 
@@ -15,6 +17,8 @@ class CloudRun配備設定試験(unittest.TestCase):
     def setUp(self):
         self.設定 = json.loads((Path(__file__).resolve().parents[1] / "deploy/Google取得固定設定.json").read_text(encoding="utf-8"))
         self.SA = self.設定["MINIDORA_GOOGLE_RUNTIME_SERVICE_ACCOUNT"]
+        self.審査認証 = {"MINIDORA_HTTP_BASIC_USERNAME": "judge",
+                       "MINIDORA_HTTP_BASIC_PASSWORD_SHA256": hashlib.sha256(secrets.token_bytes(32)).hexdigest()}
         self.SHA = "a" * 40
         self.イメージ = "asia-northeast1-docker.pkg.dev/minidora-507702/minidora/minidora@sha256:" + "b" * 64
         self.サービス = {
@@ -31,16 +35,17 @@ class CloudRun配備設定試験(unittest.TestCase):
                                 "containers": [{"image": self.イメージ, "command": ["python"],
                                     "args": ["-m", "minidora.製品版", "--HDS", "--ADK", "--基本チャット", "--CloudRun", "--serve"],
                                     "resources": {"limits": {"cpu": "1", "memory": "2Gi"}},
-                                    "env": [{"name": 鍵, "value": 値} for 鍵, 値 in 実行環境(self.設定, "https://minidora-fixture.run.app").items()]}]}}}}
+                                    "env": [{"name": 鍵, "value": 値} for 鍵, 値 in 実行環境(self.設定, "https://minidora-fixture.run.app", 審査認証=self.審査認証).items()]}]}}}}
 
-    def 記録(self, サービス=None, IAM=None, 交換前=None):
+    def 記録(self, サービス=None, IAM=None, 交換前=None, *, 審査公開=False):
         return 配備記録(self.サービス if サービス is None else サービス, {} if IAM is None else IAM, self.設定,
                         名前="minidora-fixture", リージョン="asia-northeast1", 実装SHA=self.SHA,
-                        イメージ=self.イメージ, 実行SA=self.SA, 交換前=交換前)
+                        イメージ=self.イメージ, 実行SA=self.SA, 交換前=交換前,
+                        審査認証=self.審査認証, 審査公開=審査公開)
 
     def test_固定対象とカンマを含む構造化設定を維持する(self):
         固定を検査(self.設定, "minidora-507702", "asia-northeast1", self.SA)
-        env = json.loads(json.dumps(実行環境(self.設定)))
+        env = json.loads(json.dumps(実行環境(self.設定, 審査認証=self.審査認証)))
         self.assertEqual(env["MINIDORA_GOOGLE_PUBLIC_HOSTS"], self.設定["MINIDORA_GOOGLE_PUBLIC_HOSTS"])
         self.assertTrue(self.記録()["固定環境照合"])
         for project, region in (("other-project", "asia-northeast1"), ("minidora-507702", "us-central1")):
@@ -88,6 +93,27 @@ class CloudRun配備設定試験(unittest.TestCase):
         with self.assertRaises(ValueError): 限定IAMを検査(self.設定, project, {}, 別予算, 検索役割, 予算役割)
         予算役割["includedPermissions"].append("storage.objects.list")
         with self.assertRaises(ValueError): 限定IAMを検査(self.設定, project, {}, 保存権限, 検索役割, 予算役割)
+
+    def test_承認後の公開はBasic環境とallUsers_invoker一付与だけを許可する(self):
+        IAM = {"bindings": [{IAM役割鍵: "roles/run.invoker", "members": ["allUsers"]}]}
+        self.assertTrue(self.記録(IAM=IAM, 審査公開=True)["審査公開"])
+        for policy in ({}, {"bindings": [{IAM役割鍵: "roles/owner", "members": ["allUsers"]}]},
+                       {"bindings": [{IAM役割鍵: "roles/run.invoker", "members": ["allAuthenticatedUsers"]}]},
+                       {"bindings": [{IAM役割鍵: "roles/run.invoker", "members": ["allUsers"], "condition": {"expression": "true"}}]}):
+            with self.assertRaises(ValueError): self.記録(IAM=policy, 審査公開=True)
+        サービス = deepcopy(self.サービス)
+        サービス["spec"]["template"]["spec"]["containers"][0]["env"] = [
+            行 for 行 in サービス["spec"]["template"]["spec"]["containers"][0]["env"]
+            if 行["name"] != "MINIDORA_HTTP_BASIC_PASSWORD_SHA256"]
+        with self.assertRaises(ValueError): self.記録(サービス, IAM=IAM, 審査公開=True)
+
+    def test_IAM検査無効化と平文password追加を拒否する(self):
+        サービス = deepcopy(self.サービス)
+        サービス["metadata"]["annotations"]["run.googleapis.com/invoker-iam-disabled"] = "true"
+        with self.assertRaises(ValueError): self.記録(サービス)
+        サービス = deepcopy(self.サービス)
+        サービス["spec"]["template"]["spec"]["containers"][0]["env"].append({"name": "MINIDORA_HTTP_BASIC_PASSWORD", "value": "invalid"})
+        with self.assertRaises(ValueError): self.記録(サービス)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,7 @@
 name: MINIDORA Cloud Run 実機配備・受入
+# 本workflowはHTTP Basicを必須にし、Cloud IAMの非公開既定を維持する。
+# 審査公開は本人承認後にサービスのallUsers run.invokerだけを手動変更し、再受入する。
+# 公開済みサービスを本workflowで無断変更しない。限定IAM検査で停止する。
 
 on:
   workflow_dispatch:
@@ -31,6 +34,8 @@ jobs:
       GCP_BUILD_SERVICE_ACCOUNT: ${{ vars.GCP_BUILD_SERVICE_ACCOUNT }}
       GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      MINIDORA_HTTP_BASIC_USERNAME: ${{ vars.MINIDORA_HTTP_BASIC_USERNAME }}
+      MINIDORA_HTTP_BASIC_PASSWORD_SHA256: ${{ vars.MINIDORA_HTTP_BASIC_PASSWORD_SHA256 }}
       PYTHONUTF8: '1'
       PYTHONPATH: src
     steps:
@@ -42,11 +47,13 @@ jobs:
         with:
           python-version: '3.13'
       - name: 明示設定を検査
+        env:
+          MINIDORA_HTTP_BASIC_PASSWORD: ${{ secrets.MINIDORA_HTTP_BASIC_PASSWORD }}
         run: |
           python - <<'PY'
-          import json, os, re
+          import hashlib, hmac, json, os, re
           from pathlib import Path
-          from tools.CloudRun配備設定 import 固定を検査, 実行環境
+          from tools.CloudRun配備設定 import 固定を検査, 実行環境, 審査認証を検査
           patterns = {
             'GCP_PROJECT_ID': r'[a-z][a-z0-9-]{4,28}[a-z0-9]',
             'GCP_REGION': r'[a-z]+(?:-[a-z]+)+[0-9]',
@@ -68,8 +75,22 @@ jobs:
           fixed = json.loads(Path('deploy/Google取得固定設定.json').read_text(encoding='utf-8'))
           budget = 固定を検査(fixed, project, os.environ['GCP_REGION'], accounts[0])
           budget.期間を確認()
+          basic = 審査認証を検査({name: os.environ.get(name, '') for name in (
+            'MINIDORA_HTTP_BASIC_USERNAME', 'MINIDORA_HTTP_BASIC_PASSWORD_SHA256')})
+          password = os.environ.get('MINIDORA_HTTP_BASIC_PASSWORD', '')
+          if (not re.fullmatch(r'[A-Za-z0-9_-]{43,128}', password)
+              or not hmac.compare_digest(hashlib.sha256(password.encode('utf-8')).hexdigest(),
+                  basic['MINIDORA_HTTP_BASIC_PASSWORD_SHA256'])):
+            raise SystemExit('審査用password Secretが未設定・不正又は固定SHA256と不一致')
+          private_path = Path(os.environ['RUNNER_TEMP'], 'minidora-basic-credentials.json')
+          with os.fdopen(os.open(private_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600),
+                         'w', encoding='utf-8') as private_output:
+            json.dump({'username': basic['MINIDORA_HTTP_BASIC_USERNAME'], 'password': password},
+                      private_output, ensure_ascii=False)
+          Path(os.environ['RUNNER_TEMP'], 'minidora-basic-env.json').write_text(
+            json.dumps(basic, ensure_ascii=False), encoding='utf-8')
           Path(os.environ['RUNNER_TEMP'], 'minidora-runtime-env.json').write_text(
-            json.dumps(実行環境(fixed), ensure_ascii=False), encoding='utf-8')
+            json.dumps(実行環境(fixed, 審査認証=basic), ensure_ascii=False), encoding='utf-8')
           PY
       - id: auth
         uses: google-github-actions/auth@v3
@@ -177,8 +198,9 @@ jobs:
           from pathlib import Path
           from tools.CloudRun配備設定 import 実行環境
           fixed = json.loads(Path('deploy/Google取得固定設定.json').read_text(encoding='utf-8'))
+          basic = json.loads(Path(os.environ['RUNNER_TEMP'], 'minidora-basic-env.json').read_text(encoding='utf-8'))
           Path(os.environ['RUNNER_TEMP'], 'minidora-runtime-env.json').write_text(
-            json.dumps(実行環境(fixed, os.environ['CLOUD_RUN_URL']), ensure_ascii=False), encoding='utf-8')
+            json.dumps(実行環境(fixed, os.environ['CLOUD_RUN_URL'], 審査認証=basic), ensure_ascii=False), encoding='utf-8')
           PY
           gcloud run services update "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
             --env-vars-file="$RUNNER_TEMP/minidora-runtime-env.json" --quiet
@@ -193,6 +215,7 @@ jobs:
           gcloud run services describe "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$RUNNER_TEMP/service.json"
           gcloud run services get-iam-policy "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$RUNNER_TEMP/service-iam.json"
           python tools/CloudRun配備設定.py --サービス記録 "$RUNNER_TEMP/service.json" --IAM記録 "$RUNNER_TEMP/service-iam.json" \
+            --審査認証設定 "$RUNNER_TEMP/minidora-basic-env.json" \
             --名前 "$CLOUD_RUN_SERVICE" --リージョン "$GCP_REGION" --実装SHA "$GITHUB_SHA" \
             --イメージ "$CLOUD_RUN_IMAGE" --実行SA "$GCP_RUNTIME_SERVICE_ACCOUNT" --出力 cloud-evidence/deployment.json
       - id: invocation
@@ -207,7 +230,7 @@ jobs:
       - name: Cloud Run実URLで受入
         env:
           MINIDORA_ID_TOKEN: ${{ steps.invocation.outputs.id_token }}
-        run: python tools/CloudRun受入.py --環境 CloudRun --URL "$CLOUD_RUN_URL" --配備記録 cloud-evidence/deployment.json --出力 cloud-evidence/acceptance.json
+        run: python tools/CloudRun受入.py --環境 CloudRun --URL "$CLOUD_RUN_URL" --配備記録 cloud-evidence/deployment.json --basic-credentials-file "$RUNNER_TEMP/minidora-basic-credentials.json" --出力 cloud-evidence/acceptance.json
       - name: 新revisionへ交換し旧会話の状態境界を準備
         if: inputs.restart_acceptance
         run: |
@@ -218,6 +241,7 @@ jobs:
           gcloud run services describe "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$RUNNER_TEMP/restarted-service.json"
           gcloud run services get-iam-policy "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$RUNNER_TEMP/restarted-service-iam.json"
           python tools/CloudRun配備設定.py --サービス記録 "$RUNNER_TEMP/restarted-service.json" --IAM記録 "$RUNNER_TEMP/restarted-service-iam.json" \
+            --審査認証設定 "$RUNNER_TEMP/minidora-basic-env.json" \
             --名前 "$CLOUD_RUN_SERVICE" --リージョン "$GCP_REGION" --実装SHA "$GITHUB_SHA" \
             --イメージ "$CLOUD_RUN_IMAGE" --実行SA "$GCP_RUNTIME_SERVICE_ACCOUNT" \
             --交換前 cloud-evidence/deployment.json --出力 cloud-evidence/restarted-deployment.json
@@ -235,7 +259,7 @@ jobs:
         if: inputs.restart_acceptance
         env:
           MINIDORA_ID_TOKEN: ${{ steps.restarted_invocation.outputs.id_token }}
-        run: python tools/CloudRun受入.py --環境 CloudRun --URL "$CLOUD_RUN_URL" --配備記録 cloud-evidence/restarted-deployment.json --再起動前 cloud-evidence/acceptance.json --出力 cloud-evidence/restarted-acceptance.json
+        run: python tools/CloudRun受入.py --環境 CloudRun --URL "$CLOUD_RUN_URL" --配備記録 cloud-evidence/restarted-deployment.json --basic-credentials-file "$RUNNER_TEMP/minidora-basic-credentials.json" --再起動前 cloud-evidence/acceptance.json --出力 cloud-evidence/restarted-acceptance.json
       - name: 対象revisionのCloud Logging証拠を取得
         if: always() && steps.deploy.outcome == 'success'
         run: |

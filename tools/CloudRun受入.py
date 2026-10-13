@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from base64 import b64encode
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
@@ -16,6 +17,7 @@ from uuid import uuid4
 
 
 監査仕様版 = "MINIDORA-PRODUCT-GOVERNANCE-v1"
+安全監査仕様版 = "MINIDORA-PRODUCT-GOVERNANCE-v2"
 
 
 class 転送禁止(HTTPRedirectHandler):
@@ -29,22 +31,81 @@ def ハッシュ(値):
 
 
 def 監査を検証(記録):
-    """公開済み製品v1監査の交換契約からイベントとルートを独立に再計算する。"""
-    前 = "0" * 64
-    for 番号, 行 in enumerate(記録["イベント"], 1):
-        if 行["番号"] != 番号 or 行["前ハッシュ"] != 前:
+    """製品v1/v2の明示された交換契約から独立に再計算し、元記録は変換しない。"""
+    try:
+        版 = 記録["仕様版"]
+        if (版 not in (監査仕様版, 安全監査仕様版)
+                or not isinstance(記録["イベント"], list) or not 記録["イベント"]):
             return False
-        材料 = {"spec": 監査仕様版, "追跡": 記録["追跡ID"], "n": 番号,
-                "stage": 行["段階"], "モジュール": 行["モジュール"], "version": 行["版"],
-                "input": 行["入力"], "output": 行["出力"], "証拠": 行["根拠"], "prev": 前}
-        if ハッシュ(材料) != 行["ハッシュ"]:
-            return False
-        前 = 行["ハッシュ"]
-    材料 = {"spec": 監査仕様版, "追跡": 記録["追跡ID"], "session": 記録["セッションID"],
-            "started": 記録["開始時刻"], "input": 記録["入力文"], "経路": 記録["経路"],
-            "response": 記録["最終応答"], "status": 記録["状態"],
-            "prev_response": 記録["前応答ハッシュ"], "last_event": 前}
-    return ハッシュ(材料) == 記録["ルートハッシュ"]
+        前 = "0" * 64
+        for 番号, 行 in enumerate(記録["イベント"], 1):
+            if type(行["番号"]) is not int or 行["番号"] != 番号 or 行["前ハッシュ"] != 前:
+                return False
+            材料 = {"spec": 版, "追跡": 記録["追跡ID"], "n": 番号,
+                    "stage": 行["段階"], "モジュール": 行["モジュール"], "version": 行["版"],
+                    "input": 行["入力"], "output": 行["出力"], "証拠": 行["根拠"], "prev": 前}
+            if ハッシュ(材料) != 行["ハッシュ"]:
+                return False
+            前 = 行["ハッシュ"]
+        材料 = {"spec": 版, "追跡": 記録["追跡ID"], "session": 記録["セッションID"],
+                "started": 記録["開始時刻"], "input": 記録["入力文"], "経路": 記録["経路"],
+                "response": 記録["最終応答"], "status": 記録["状態"],
+                "prev_response": 記録["前応答ハッシュ"], "last_event": 前}
+        return ハッシュ(材料) == 記録["ルートハッシュ"]
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def 基本認証を読む(場所):
+    """私有JSONのusername/passwordを読む。資格・符号化値は報告へ保存しない。"""
+    try:
+        値 = json.loads(Path(場所).read_text(encoding="utf-8"))
+        名前, パスワード = 値["username"], 値["password"]
+        if (type(名前) is not str or not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", 名前)
+                or type(パスワード) is not str or not パスワード):
+            raise ValueError
+        ヘッダ = "Basic " + b64encode((名前 + ":" + パスワード).encode("utf-8")).decode("ascii")
+        if len(ヘッダ) > 1024:
+            raise ValueError
+        return ヘッダ, パスワード
+    except (OSError, ValueError, TypeError, KeyError, UnicodeError):
+        raise ValueError("Basic資格ファイルは有効なusername/passwordを持つ私有JSONが必要") from None
+
+
+def 身元tokenを読む(場所=None):
+    try:
+        値 = Path(場所).read_text(encoding="utf-8").strip() if 場所 else os.environ.get("MINIDORA_ID_TOKEN", "")
+    except (OSError, UnicodeError):
+        raise ValueError("OIDC tokenファイルを読めません") from None
+    if 値 and not re.fullmatch(r"[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", 値):
+        raise ValueError("短期OIDC ID tokenを指定")
+    return 値
+
+
+def 認証ヘッダ(基本認証, 身元token, *, 認証=True, Basic状態="normal"):
+    if not 認証:
+        return {}
+    ヘッダ = {}
+    if 基本認証:
+        if Basic状態 == "normal":
+            ヘッダ["Authorization"] = 基本認証
+        elif Basic状態 == "wrong":
+            # NULを含むusernameは実設定の許可範囲外。正規資格を再利用しない。
+            ヘッダ["Authorization"] = "Basic " + b64encode(b"\x00:invalid").decode("ascii")
+        elif Basic状態 != "omit":
+            raise ValueError("Basic検査状態が不正")
+        if 身元token:
+            ヘッダ["X-Serverless-Authorization"] = "Bearer " + 身元token
+    elif 身元token:
+        ヘッダ["Authorization"] = "Bearer " + 身元token
+    return ヘッダ
+
+
+def 秘密を伏せる(文, 秘密):
+    for 値 in 秘密:
+        if 値:
+            文 = 文.replace(値, "[認証資格非表示]")
+    return 文
 
 
 def ADK通過か(応答):
@@ -60,7 +121,7 @@ def 条件を要求(条件, 理由):
         raise ValueError(理由)
 
 
-def 配備を読む(場所, URL):
+def 配備を読む(場所, URL, *, 基本認証=False):
     値 = json.loads(Path(場所).read_text(encoding="utf-8"))
     必須 = {"サービス", "リージョン", "リビジョン", "URL", "実装SHA", "認証必須"}
     if not 必須 <= 値.keys() or any(not 値[鍵] for 鍵 in 必須):
@@ -69,6 +130,12 @@ def 配備を読む(場所, URL):
         raise ValueError("配備記録と検査URL又は認証構成が不一致")
     if not re.fullmatch(r"[a-f0-9]{40}", 値["実装SHA"]):
         raise ValueError("配備記録の実装SHAが不正")
+    認証欄 = {"利用者認証", "審査公開", "CloudIAM本人認証必須"}
+    if 認証欄 & 値.keys():
+        if (not 認証欄 <= 値.keys() or 値["利用者認証"] != "HTTP Basic" or not 基本認証
+                or type(値["審査公開"]) is not bool or type(値["CloudIAM本人認証必須"]) is not bool
+                or 値["CloudIAM本人認証必須"] is not (not 値["審査公開"])):
+            raise ValueError("配備記録のBasic/IAM認証境界が不一致")
     return 値
 
 
@@ -79,6 +146,8 @@ def main():
     解析器.add_argument("--配備記録", help="実gcloud describeとIAM検査から作ったJSON")
     解析器.add_argument("--再起動前", help="異なるrevisionに配備する前の本受入JSON")
     解析器.add_argument("--出力", required=True)
+    解析器.add_argument("--basic-credentials-file", type=Path, help="私有username/password JSON。資格は出力しない")
+    解析器.add_argument("--token-file", type=Path, help="私有の短期OIDC token。省略時はMINIDORA_ID_TOKENを使用")
     引数 = 解析器.parse_args()
     URL = 引数.URL.rstrip("/")
     解析 = urlsplit(URL)
@@ -90,25 +159,31 @@ def main():
                 or not 解析.hostname.endswith(".run.app")
                 or any(not re.fullmatch(r"(?!-)[a-z0-9-]{1,63}(?<!-)", 部分) for 部分 in 解析.hostname.split("."))):
             解析器.error("CloudRun実測は実在するhttps://*.run.app生成元を指定")
-        if not 引数.配備記録 or not os.environ.get("MINIDORA_ID_TOKEN"):
-            解析器.error("CloudRun実測には配備記録と環境変数MINIDORA_ID_TOKENが必要")
-        if not re.fullmatch(r"[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", os.environ["MINIDORA_ID_TOKEN"]):
-            解析器.error("MINIDORA_ID_TOKENは短期OIDC ID tokenを指定")
+        if not 引数.配備記録:
+            解析器.error("CloudRun実測には配備記録が必要")
     elif 解析.scheme != "http" or 解析.hostname not in {"127.0.0.1", "localhost"}:
         解析器.error("local検査はhttp://127.0.0.1又はlocalhostに限定")
     try:
-        配備 = 配備を読む(引数.配備記録, URL) if クラウド else None
+        基本認証, パスワード = 基本認証を読む(引数.basic_credentials_file) if 引数.basic_credentials_file else ("", "")
+        配備 = 配備を読む(引数.配備記録, URL, 基本認証=bool(基本認証)) if クラウド else None
+        IAM必須 = クラウド and 配備.get("CloudIAM本人認証必須", True)
+        身元token = 身元tokenを読む(引数.token_file) if IAM必須 else ""
+        if IAM必須 and not 身元token:
+            raise ValueError("非公開CloudRun実測には短期OIDC ID tokenが必要")
+        if クラウド and not IAM必須 and not 基本認証:
+            raise ValueError("審査公開CloudRun実測にはBasic資格ファイルが必要")
     except (OSError, ValueError, TypeError) as 例外:
         解析器.error(str(例外))
     記録 = {"版": "MINIDORA-CloudRun受入-v1", "環境": 引数.環境, "URL": URL,
             "開始UTC": datetime.now(timezone.utc).isoformat(), "配備": 配備,
             "検査": [], "永続化": "未実装。インスタンス交換で会話・追跡を失う。"}
+    記録["認証方式"] = ("HTTP Basic+Cloud Run IAM" if 基本認証 and IAM必須 else
+                          "HTTP Basic" if 基本認証 else "Cloud Run IAM" if IAM必須 else "local")
+    秘密 = tuple(値 for 値 in (パスワード, 基本認証, 基本認証.removeprefix("Basic "), 身元token) if 値)
     開く = build_opener(転送禁止()) if クラウド else build_opener(ProxyHandler({}), 転送禁止())
 
-    def HTTP(経路, 内容=None, *, 生=None, 認証=True, 生成元=None):
-        ヘッダ = {}
-        if 認証 and クラウド:
-            ヘッダ["Authorization"] = "Bearer " + os.environ["MINIDORA_ID_TOKEN"]
+    def HTTP(経路, 内容=None, *, 生=None, 認証=True, 生成元=None, Basic状態="normal"):
+        ヘッダ = 認証ヘッダ(基本認証, 身元token, 認証=認証, Basic状態=Basic状態)
         if 生成元 is not None:
             ヘッダ["Origin"] = 生成元
         本体 = json.dumps(内容, ensure_ascii=False).encode("utf-8") if 内容 is not None else 生
@@ -123,7 +198,11 @@ def main():
         if len(実体) > 1_000_000:
             raise ValueError("受信上限超過")
         本文 = 実体.decode("utf-8")
-        return 状態, json.loads(本文) if "application/json" in 型 else 本文
+        本体 = json.loads(本文) if "application/json" in 型 else 本文
+        表示 = json.dumps(本体, ensure_ascii=False) if isinstance(本体, (dict, list)) else str(本体)
+        if any(値 in 表示 for 値 in 秘密):
+            raise ValueError("応答に認証資格が含まれたため保存禁止")
+        return 状態, 本体
 
     def 検査(名前, 処理):
         try:
@@ -131,7 +210,7 @@ def main():
             記録["検査"].append({"項目": 名前, "成立": bool(成立), "観測": 観測})
         except (URLError, TimeoutError, OSError, ValueError, TypeError, KeyError, AttributeError) as 例外:
             記録["検査"].append({"項目": 名前, "成立": False,
-                                   "観測": {"失敗": type(例外).__name__, "理由": str(例外)}})
+                                   "観測": {"失敗": type(例外).__name__, "理由": 秘密を伏せる(str(例外), 秘密)}})
 
     def GET検査(経路, 判定):
         状態, 本体 = HTTP(経路)
@@ -157,6 +236,7 @@ def main():
         条件を要求(追跡状態 == 200 and 追跡["valid"] is True, "追跡取得又はサーバ側監査検証が不成立")
         監査 = 追跡["追跡"]
         条件を要求(監査を検証(監査), "独立ハッシュ再計算が不一致")
+        条件を要求(監査["追跡ID"] == 応答["追跡_id"], "追跡と応答のIDが不一致")
         条件を要求(監査["セッションID"] == ID and 監査["入力文"] == 入力, "追跡の入力又は会話IDが不一致")
         条件を要求(監査["ルートハッシュ"] == 応答["追跡_hash"], "追跡と応答のハッシュが不一致")
         条件を要求(監査["最終応答"] == 応答["response"] and 監査["状態"] == 応答["status"], "追跡と応答の内容が不一致")
@@ -201,6 +281,18 @@ def main():
         検査("未認証アクセス拒否", 未認証)
     else:
         記録["クラウド限定検査"] = "IAM未認証拒否・配備・再起動は未実施"
+    if 基本認証:
+        def Basic拒否(状態名):
+            観測 = []
+            経路群 = ("/", "/health", "/api/capabilities",
+                      "/api/trace/" + 記録["再起動検査用"].get("追跡ID", "0" * 32), "/api/chat")
+            for 経路 in 経路群:
+                状態, _ = HTTP(経路, {"message": "2+3"} if 経路 == "/api/chat" else None,
+                               生成元=URL, Basic状態=状態名)
+                観測.append({"経路": 経路, "HTTP": 状態})
+            return all(行["HTTP"] == 401 for 行 in 観測), 観測
+        検査("Basic未指定拒否", lambda: Basic拒否("omit"))
+        検査("Basic誤資格拒否", lambda: Basic拒否("wrong"))
     if 引数.再起動前:
         def 再起動検査():
             前回 = json.loads(Path(引数.再起動前).read_text(encoding="utf-8"))

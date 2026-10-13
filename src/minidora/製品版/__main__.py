@@ -11,7 +11,7 @@ def main() -> int:
     p.add_argument("--serve", action="store_true")
     p.add_argument("--HDS", action="store_true", help="HDS単一主体の全体運用を利用")
     p.add_argument("--ADK", action="store_true", help="ADK 2.xの実行境界から既存HDSを駆動")
-    p.add_argument("--CloudRun", action="store_true", help="IAM保護されたCloud Run用のHTTP入口")
+    p.add_argument("--CloudRun", action="store_true", help="HTTP Basicで保護するCloud Run用のHTTP入口")
     p.add_argument("--基本チャット", action="store_true", help="管理者の方針に従いHDSが必要な公開資料を自動取得")
     p.add_argument("--汎用", action="store_true", help="目的・複数資料・確認継続の会話入口を利用")
     p.add_argument("--外部読取", action="store_true", help="汎用入口で要求された公開資料取得を許可")
