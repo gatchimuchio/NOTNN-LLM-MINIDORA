@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from copy import copy, deepcopy
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from hashlib import sha256
 import json
@@ -120,6 +120,28 @@ def _本文検証(doc: 取得本文, requested: str) -> None:
             raise ValueError("PDF抽出頁対応不正")
     elif doc.抽出頁範囲:
         raise ValueError("非PDFの抽出頁記録")
+
+
+def _本文記録を復元(metadata: dict, text: str) -> 取得本文:
+    """JSON交換形から取得本文を復元。旧非PDF記録だけ頁欄の省略を許す。"""
+    if type(metadata) is not dict:
+        raise ValueError("本文記録の型不正")
+    raw = {f.name: text if f.name == "本文" else metadata[f.name]
+           for f in fields(取得本文) if f.name != "抽出頁範囲"}
+    for name in ("経路", "除外要素"):
+        if type(raw[name]) not in (tuple, list):
+            raise ValueError("本文記録の列型不正")
+        raw[name] = tuple(raw[name])
+    if "抽出頁範囲" not in metadata and raw["内容種別"] == "application/pdf":
+        raise ValueError("PDF抽出頁記録なし")
+    pages = metadata.get("抽出頁範囲", ())
+    if (type(pages) not in (tuple, list)
+            or any(type(row) not in (tuple, list) or len(row) != 3 for row in pages)):
+        raise ValueError("抽出頁記録不正")
+    raw["抽出頁範囲"] = tuple(tuple(row) for row in pages)
+    doc = 取得本文(**raw)
+    _本文検証(doc, doc.要求URL)
+    return doc
 
 
 def _抜粋(doc: 取得本文, terms: tuple[str, ...], remaining: int) -> tuple[list[dict], set[str]]:

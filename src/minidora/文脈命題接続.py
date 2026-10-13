@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import fields
 from hashlib import sha256
 from .文脈命題 import 文脈命題版, 文脈資料を読む, 文脈判定
 from .能力合成 import 登録能力, _結果辞書, _参照結合, _符号化
@@ -52,8 +51,7 @@ def 文脈報告整合(value):
 
 def 取得本文を資料化(value):
     """取得記録と全文参照の対応を照合。検索抜粋を完全な資料と見なさない。"""
-    from .知識取得 import 知識取得版, 知識取得要求, _本文検証, _照合語
-    from .公開本文取得 import 取得本文
+    from .知識取得 import 知識取得版, 知識取得要求, _本文記録を復元, _照合語
     _結果辞書(value)
     if not value.成立 or value.保留理由: raise ValueError('未成立の外部取得')
     d = dict(value.データ)
@@ -85,9 +83,7 @@ def 取得本文を資料化(value):
     parsed = []; names = []
     for key, ref in refs.items():
         meta = metadata[key]
-        raw = {f.name: ref.本文 if f.name == '本文' else meta[f.name] for f in fields(取得本文)}
-        for column in ('経路', '除外要素'): raw[column] = tuple(raw[column])
-        doc = 取得本文(**raw); _本文検証(doc, doc.要求URL)
+        doc = _本文記録を復元(meta, ref.本文)
         取得本文の意味境界を検査(doc)
         identity = 'web:' + sha256((doc.最終URL + '\n' + doc.本文SHA256).encode()).hexdigest()[:24]
         if (ref.URL != doc.最終URL or key != identity or ref.出典 != '公開HTTPS本文'

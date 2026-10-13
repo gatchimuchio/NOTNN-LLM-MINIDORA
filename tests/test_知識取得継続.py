@@ -1,6 +1,7 @@
 """人工通信で同じ候補列の有限継続を検査する。知識性能には数えない。"""
 from copy import deepcopy
 from dataclasses import replace
+import json
 import unittest
 
 from minidora.知識取得 import 知識取得器, 知識取得要求, _記録印
@@ -9,6 +10,9 @@ from minidora.取得実行制御 import 共有取得制御, 公開取得上限
 from minidora.公開本文取得 import 本文を復号
 from minidora.製品版.型 import 参照資料
 from minidora.文脈命題接続 import 取得本文を資料化
+from minidora.能力合成 import _結果辞書
+from minidora.応答構成 import 能力結果を復元
+from minidora.HDS運用.一般接続 import 取得資料を復元
 
 
 基点 = "https://example.com/"
@@ -53,6 +57,73 @@ def 準備(本文群=None, 上限=None):
 
 
 class 継続試験(unittest.TestCase):
+    def test_JSON交換後のHTMLが継続と両資料経路へ渡る(self):
+        _, _, _, 取得, 要求, 前 = 準備()
+        交換 = 能力結果を復元(json.loads(json.dumps(_結果辞書(前), ensure_ascii=False)))
+        self.assertEqual(交換.データ["資料"][0]["抽出頁範囲"], [])
+        元記録 = deepcopy(交換.データ)
+        self.assertEqual(継続束を読む(交換), 前.データ["継続束"])
+        self.assertEqual(取得本文を資料化(交換)[0][0].本文, 前.参照[0].本文)
+        self.assertEqual(next(iter(取得資料を復元(交換).values())).本文, 前.参照[0].本文)
+        次 = 取得.継続(要求, 交換, 外部読取許可=True)
+        self.assertTrue(次.成立, 次.保留理由)
+        self.assertTrue(継続進展を検査(交換, 次, 要求))
+        self.assertEqual(交換.データ, 元記録)
+
+    def test_旧HTMLの頁欄省略を元記録変更なしに読める(self):
+        _, _, _, _, _, 前 = 準備()
+        d = json.loads(json.dumps(前.データ, ensure_ascii=False))
+        del d["資料"][0]["抽出頁範囲"]
+        d["記録SHA256"] = _記録印({k: v for k, v in d.items() if k != "記録SHA256"})
+        旧 = replace(前, データ=d)
+        元記録 = deepcopy(d)
+        継続束を読む(旧)
+        取得本文を資料化(旧)
+        取得資料を復元(旧)
+        self.assertEqual(旧.データ, 元記録)
+        self.assertNotIn("抽出頁範囲", 旧.データ["資料"][0])
+
+    def test_JSON交換したPDFの頁対応を復元する(self):
+        from minidora.公開PDF抽出 import PDF抽出版
+        class 頁本文(人工本文):
+            def 取得(self, URL):
+                doc = super().取得(URL)
+                return replace(doc, 内容種別="application/pdf", 文字コード=PDF抽出版,
+                               抽出頁範囲=((1, 0, len(doc.本文)),))
+        要求 = 知識取得要求("試料甲", ("試料甲",), 最大資料数=1)
+        前 = 知識取得器(人工検索(1), 頁本文()).実行(要求, 外部読取許可=True)
+        self.assertTrue(前.成立, 前.保留理由)
+        交換 = 能力結果を復元(json.loads(json.dumps(_結果辞書(前), ensure_ascii=False)))
+        self.assertEqual(交換.データ["資料"][0]["抽出頁範囲"], [[1, 0, len(前.参照[0].本文)]])
+        継続束を読む(交換)
+        self.assertEqual(取得本文を資料化(交換)[0][0].本文, 前.参照[0].本文)
+        未解釈 = deepcopy(交換.データ)
+        未解釈["資料"][0]["除外要素"] = ["PDF文字以外は未解釈"]
+        未解釈["記録SHA256"] = _記録印({k: v for k, v in 未解釈.items() if k != "記録SHA256"})
+        for 資料化 in (取得本文を資料化, 取得資料を復元):
+            with self.subTest(資料化=資料化), self.assertRaisesRegex(ValueError, "取得意味欠落"):
+                資料化(replace(交換, データ=未解釈))
+        for 頁 in (None, "123", [[True, 0, len(前.参照[0].本文)]], [[1, 1, len(前.参照[0].本文)]], [[1, 0, 1]]):
+            with self.subTest(頁=頁):
+                d = deepcopy(交換.データ)
+                d["資料"][0]["抽出頁範囲"] = 頁
+                d["記録SHA256"] = _記録印({k: v for k, v in d.items() if k != "記録SHA256"})
+                with self.assertRaises(ValueError):
+                    継続束を読む(replace(交換, データ=d))
+        d = deepcopy(交換.データ)
+        del d["資料"][0]["抽出頁範囲"]
+        d["記録SHA256"] = _記録印({k: v for k, v in d.items() if k != "記録SHA256"})
+        with self.assertRaises(ValueError):
+            継続束を読む(replace(交換, データ=d))
+
+    def test_頁の復元で未解釈要素を採用可能にしない(self):
+        _, _, _, _, _, 前 = 準備()
+        d = json.loads(json.dumps(前.データ, ensure_ascii=False))
+        d["資料"][0]["除外要素"] = ["PDF文字以外は未解釈"]
+        d["記録SHA256"] = _記録印({k: v for k, v in d.items() if k != "記録SHA256"})
+        with self.assertRaisesRegex(ValueError, "取得意味欠落"):
+            取得本文を資料化(replace(前, データ=d))
+
     def test_同じ検索の次本文だけを追加し候補を再計上しない(self):
         検索, 本文, 制御, 取得, 要求, 前 = 準備()
         self.assertEqual(前.データ["継続束"]["消費位置"], 1)

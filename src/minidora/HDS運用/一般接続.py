@@ -48,6 +48,10 @@ def 取得資料を復元(成果, *, 記録から復元=False):
         行 = 対応[参照.識別子]
         if 行["本文SHA256"] != sha256(参照.本文.encode()).hexdigest() or 行["最終URL"] != 参照.URL:
             raise ValueError("取得本文の改変を検出")
+        if 行.get("内容種別") == "application/pdf":
+            from ..知識取得 import _本文記録を復元
+            from ..取得意味境界 import 取得本文の意味境界を検査
+            取得本文の意味境界を検査(_本文記録を復元(行, 参照.本文))
         資料[参照.識別子] = 能力結果(True, 参照.本文, 参照=(参照,))
     return 資料
 

@@ -1,12 +1,12 @@
 """原取得成果と未消費候補の対応を読む。意味充足・検索必要性は判断しない。"""
 from copy import deepcopy
-from dataclasses import asdict, fields
+from dataclasses import asdict
 import re
 
-from .公開本文取得 import 公開URL, 取得本文
+from .公開本文取得 import 公開URL
 from .製品版.型 import 能力結果
 from .知識取得 import (知識取得版, 知識継続版, 知識取得要求,
-                    _記録印, _本文検証, _照合語)
+                    _記録印, _本文記録を復元, _照合語)
 
 
 def 継続束を読む(成果, 要求=None):
@@ -85,11 +85,7 @@ def 継続束を読む(成果, 要求=None):
     本文印, 最終先 = set(), set()
     for key, ref in refs.items():
         m = metadata[key]
-        raw = {f.name: ref.本文 if f.name == "本文" else m[f.name] for f in fields(取得本文)}
-        for 名 in ("経路", "除外要素"):
-            raw[名] = tuple(raw[名])
-        doc = 取得本文(**raw)
-        _本文検証(doc, doc.要求URL)
+        doc = _本文記録を復元(m, ref.本文)
         identity = "web:" + _記録印文字(doc.最終URL + "\n" + doc.本文SHA256)[:24]
         if (key != identity or ref.URL != doc.最終URL or ref.出典 != "公開HTTPS本文"
                 or ref.公開時刻 is not None or m["公開時刻"] is not None
