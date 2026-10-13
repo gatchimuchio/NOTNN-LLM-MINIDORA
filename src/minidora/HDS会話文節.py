@@ -193,7 +193,8 @@ def _資料変更節(列, 本文, 実行字, 頭):
             範囲 = (列[前[0]].始, 列[前[-1]].終)
             if 種 == "取消":
                 # 限定句も原選択句の一部。限定の意味を消した対象名へ潰さない。
-                if not all(_NP字(列[位置]) or 列[位置].表層 in {"だけ", "のみ"} for 位置 in 前): break
+                if not all(_NP字(列[位置], 列[位置 + 1] if 位置 + 1 in 前 else None)
+                           or 列[位置].表層 in {"だけ", "のみ"} for 位置 in 前): break
                 明示 = (列[前[-1]].辞書形 if 列[前[-1]].引用
                       and 本文[範囲[0]:列[前[-1]].始] == "条件ID" else None)
                 取消 = {"操作範囲": [列[始].始, 列[終 - 1].終], "選択範囲": list(範囲),
@@ -276,7 +277,8 @@ def _取得付属を読む(列, 本文, 実行字, 頭):
                 if 主題範囲 is not None or 取得動詞数:
                     break
                 NP終 = 位置
-                while NP終 < 主頭[0] and (_NP字(列[NP終]) or 列[NP終].表層.isspace()):
+                while NP終 < 主頭[0] and (_NP字(列[NP終], 列[NP終 + 1] if NP終 + 1 < 主頭[0] else None)
+                                       or 列[NP終].表層.isspace()):
                     if not 列[NP終].引用 and NP終 not in 実行字:
                         break
                     NP終 += 1
@@ -318,7 +320,9 @@ def _取得付属を読む(列, 本文, 実行字, 頭):
             群 = _名詞群(列, 左, 格位置, 本文, False)
             対象時点 = any(列[位置].辞書形 in {"今", "いま", "現在"} and 位置 + 1 < 格位置
                         and 列[位置 + 1].表層 == "の" for 位置 in range(左, 格位置))
-            if 列[格位置].表層 in {"は", "が"} and 群 and not 対象時点 and all(_NP字(項) for 項 in 列[左:格位置]):
+            if (列[格位置].表層 in {"は", "が"} and 群 and not 対象時点
+                    and all(_NP字(列[位置], 列[位置 + 1] if 位置 + 1 < 格位置 else None)
+                            for 位置 in range(左, 格位置))):
                 問い.append({"頭": (主頭[0], 主頭[1], "疑問:説明"), "左": 左, "右": 右,
                             "主題": 群, "焦点": [], "方向": "未指定", "理由": None,
                             "消費": set(range(左, 取得始)) | set(range(主頭[0], _補助末(列, 主頭[1])))})
@@ -350,7 +354,7 @@ def _構造名詞群(列, 始, 終, 本文, 複数=False):
         if any(not 項.引用 and (項.詳細 == "数詞" or 項.辞書形 in {"全て", "すべて", "全部", "だけ", "のみ", "ない", "ぬ", "ず"}) for 項 in 字):
             return []
         for 番号, 項 in enumerate(字):
-            if _NP字(項):
+            if _NP字(項, 字[番号 + 1] if 番号 + 1 < len(字) else None):
                 continue
             if 項.品詞 == "動詞" and not 項.未知語 and 番号 + 1 < len(字):
                 次 = 字[番号 + 1]
@@ -714,7 +718,9 @@ def _疑問節(列, 本文, 実行字):
         if 作用 is None:
             continue
         群 = [] if 主体終 is None else _名詞群(列, 主体始, 主体終, 本文, 作用 == "対照")
-        正当NP = 主体終 is not None and all(_NP字(項) or 項.表層.isspace() for 項 in 列[主体始:主体終])
+        正当NP = 主体終 is not None and all(
+            _NP字(列[位置], 列[位置 + 1] if 位置 + 1 < 主体終 else None) or 列[位置].表層.isspace()
+            for 位置 in range(主体始, 主体終))
         未解釈 = None
         if not 群 or not 正当NP or 作用 == "対照" and len(群) < 2:
             未解釈 = "疑問の主題又は比較対象の格が未確定です"
@@ -878,17 +884,23 @@ def _単位数量句(列, 位置):
     return ("出力", 終, 比較)
 
 
-def _NP字(項):
+def _NP字(項, 次=None):
+    # 既知の形状詞一般は、原文で名詞へ直接連接する場合だけNP内部の修飾とする。
+    # 単独、空白越し、助動詞・副詞句・条件節はこの字句判定で名詞へ変えない。
     return (項.引用 or 項.品詞 in {"名詞", "連体詞", "接頭辞", "接尾辞"}
             or 項.品詞 == "代名詞" and 項.表層 in _前束語
             or 項.品詞 == "形容詞" and "連体形" in 項.活用形
+            or (項.品詞 == "形状詞" and 項.詳細 == "一般" and not 項.未知語
+                and 項.活用形 == "*" and 次 is not None and 項.終 == 次.始
+                and 次.品詞 == "名詞")
             or 項.品詞 == "助詞" and 項.表層 in {"の", "と", "や"}
             or 項.表層 in {"及び", "および"})
 
 
 def _NP前(列, 位置, 消費):
     始 = 位置
-    while 始 and 始 - 1 not in 消費 and (_NP字(列[始 - 1]) or 列[始 - 1].表層.isspace()):
+    while 始 and 始 - 1 not in 消費 and (
+            _NP字(列[始 - 1], 列[始] if 始 < 位置 else None) or 列[始 - 1].表層.isspace()):
         始 -= 1
     # 「引用」という名詞の連体句は引用を動作へ昇格せず名詞句として保つ。
     if 始 >= 3 and 列[始 - 1].辞書形 in {"いう", "言う"} and 列[始 - 2].表層 == "と" and 列[始 - 3].引用:
@@ -1060,7 +1072,8 @@ def _訂正句(列, 実行字, 本文):
         始 = _NP前(列, 位置, set())
         旧 = _名詞群(列, 始, 位置, 本文, False)
         新始, 新終 = 位置 + 3, 位置 + 3
-        while 新終 < len(列) and (新終 in 実行字 or 列[新終].引用) and _NP字(列[新終]):
+        while (新終 < len(列) and (新終 in 実行字 or 列[新終].引用)
+               and _NP字(列[新終], 列[新終 + 1] if 新終 + 1 < len(列) else None)):
             新終 += 1
         新 = _名詞群(列, 新始, 新終, 本文, False)
         if not 旧 or not 新:
