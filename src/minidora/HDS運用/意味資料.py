@@ -79,18 +79,35 @@ def 資料を区分(本文, *, 会話本文=False):
 
 
 def _会話原本を区分(本文):
-    """原本を直さず、孤立閉じの診断だけを会話資料へ同伴する。採否は行わない。"""
+    """原本を直さず、局所構文診断を会話資料へ同伴する。採否は行わない。"""
     try:
         return {"節": 資料を区分(本文, 会話本文=True)}
     except ValueError as 不整合:
-        if str(不整合) != "資料の引用境界が不整合です":
+        if str(不整合) not in ("資料の引用境界が不整合です", "未対応制御文字を削除せず保留"):
             raise
         厳密理由 = str(不整合)
+
+    if any((unicodedata.category(字) in ("Cf", "Cs", "Zl", "Zp") and 字 not in ("\u2061", "\u200b")) or
+           unicodedata.category(字) == "Cc" and 字 not in '\t\n\r' for 字 in 本文):
+        raise ValueError("未対応制御文字を削除せず保留")
 
     開閉 = {"「": "」", "『": "』", "（": ")", "(": ")"}
     引用, 囲い, 位置, 診断 = [], None, 0, []
     節群, 階層, 現階層, 開始 = [], [], [], 0
     for 行 in 本文.splitlines(keepends=True):
+        if "\u200b" in 行:
+            # 語中の不可視文字は条件・主題照合を分断するため局所留保にしない。
+            # 完結した角括弧行の末尾又は単独行だけを原位置付き診断へ渡す。
+            if (引用 or 囲い is not None or not re.fullmatch(
+                    r"[ \t]*(?:【[^【】\u200b\r\n]{1,80}】)?\u200b+[ \t]*\r?\n?", 行)):
+                raise ValueError("語中又は未閉鎖領域の不可視文字を削除せず保留")
+            for 列, 字 in enumerate(行):
+                if 字 == "\u200b":
+                    診断.append({"種別": "不可視文字", "文字位置": 位置 + 列,
+                                 "開始": 位置, "終了": 位置 + len(行), "原文": 行,
+                                 "理由": "原資料に不可視文字U+200Bがあります。表示だけを明示的な文字名に置き換えます。",
+                                 "作用域": "未確定。別記載への不適用を認定しない。",
+                                 "必要資料": "この行の定義への依存・適用範囲を確認できる原資料が必要です。"})
         枠 = re.fullmatch(r"[ ]{0,3}(`{3,}|~{3,})[^\r\n]*\r?\n?", 行)
         if 枠 and not 引用:
             if 囲い is None:
@@ -131,7 +148,7 @@ def _会話原本を区分(本文):
     if 引用 or 囲い is not None:
         raise ValueError("閉じていない引用・コード領域を切断せず保留")
     if not 診断:
-        raise ValueError("引用不整合を原本の孤立閉じへ対応できません")
+        raise ValueError("構文不整合を原本の局所診断へ対応できません")
     if len(診断) > 64 or sum(len(項["原文"].encode("utf-8")) for 項 in 診断) > 32768:
         raise ValueError("原文を切断しない引用診断同伴上限")
     if 位置 > 開始 and 本文[開始:位置].strip():
