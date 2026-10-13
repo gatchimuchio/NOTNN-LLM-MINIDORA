@@ -71,7 +71,7 @@ class 原資料数量作用試験(unittest.TestCase):
         self.assertIn("雨天時", 成果.本文)
         self.assertIn("受領しない", 成果.本文)
         self.assertTrue(資料文章を検査(成果))
-        self.assertEqual(成果.データ["意味成果"]["版"], "HDS資料回答内容-v19")
+        self.assertEqual(成果.データ["意味成果"]["版"], "HDS資料回答内容-v21")
         self.assertEqual(成果.データ["意味成果"]["資料作用成果"]["版"], "HDS原資料作用-v10")
         旧 = deepcopy(成果)
         旧.データ["意味成果"]["版"] = "HDS資料回答内容-v6"

@@ -117,7 +117,7 @@ class 原資料時間事象名詞化試験(unittest.TestCase):
                 束 = 構造(本文, 対象, 焦点)
                 with self.assertRaises(資料内容不足) as 捕捉: 回答意味を構成(束)
                 診断 = 捕捉.exception.診断
-                self.assertEqual(診断["意味版"], "HDS資料回答内容-v19")
+                self.assertEqual(診断["意味版"], "HDS資料回答内容-v21")
                 self.assertTrue(診断["読解済み内容"])
                 self.assertIn("名詞化の内側で結んで", 診断["読解済み内容"][0]["本文"])
                 self.assertTrue(診断["実支持"])

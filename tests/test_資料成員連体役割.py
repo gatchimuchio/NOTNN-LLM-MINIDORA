@@ -112,7 +112,7 @@ class 資料成員連体役割試験(unittest.TestCase):
         with patch("minidora.HDS運用.内容構成._文章", side_effect=AssertionError("旧意味再生成")):
             with self.assertRaisesRegex(ValueError, "意味版|失効|版"):
                 資料文章の版を検査(旧)
-        self.assertEqual(資料回答版, "HDS資料回答内容-v19")
+        self.assertEqual(資料回答版, "HDS資料回答内容-v21")
 
 
 if __name__ == "__main__":

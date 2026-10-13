@@ -154,7 +154,7 @@ class 資料主述表現試験(unittest.TestCase):
 
     def test_旧v3は再生成前に拒否し原保存を変えない(self):
         成果 = 表示する("検品班は部材を分類する。")
-        self.assertEqual(成果.データ["意味成果"]["版"], "HDS資料回答内容-v19")
+        self.assertEqual(成果.データ["意味成果"]["版"], "HDS資料回答内容-v21")
         成果.データ["意味成果"]["版"] = "HDS資料回答内容-v3"
         原保存 = deepcopy(結果を保存(成果))
         with patch("minidora.HDS運用.内容構成.資料文章を照合", side_effect=AssertionError("旧v3の再生成")):

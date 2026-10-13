@@ -294,7 +294,7 @@ class 原資料条件作用試験(unittest.TestCase):
         構造 = 構造を作る(本文, 資料版="開発原資料-v9")
         成果 = 資料文章を照合(構造, _文章(構造))
         意味 = 成果.データ["意味成果"]
-        self.assertEqual(意味["版"], "HDS資料回答内容-v19")
+        self.assertEqual(意味["版"], "HDS資料回答内容-v21")
         self.assertEqual(意味["資料作用成果"]["原資料"][0]["原資料版"], "開発原資料-v9")
         適用 = list(意味["資料作用成果"]["適用"].values())[0]
         self.assertTrue(適用["確定"])

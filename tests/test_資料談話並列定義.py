@@ -102,7 +102,7 @@ class 資料談話並列定義試験(unittest.TestCase):
         旧 = deepcopy(成果); 旧.データ["意味成果"]["版"] = "HDS資料回答内容-v15"
         with patch("minidora.HDS運用.内容構成._文章", side_effect=AssertionError("旧v15再生成")):
             with self.assertRaises(ValueError): 資料文章の版を検査(旧)
-        self.assertEqual(資料回答版, "HDS資料回答内容-v19")
+        self.assertEqual(資料回答版, "HDS資料回答内容-v21")
 
 
 if __name__ == "__main__":
