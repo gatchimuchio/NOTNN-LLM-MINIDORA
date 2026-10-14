@@ -4,12 +4,57 @@
 
 **What if making an AI system more capable did not always require retraining or enlarging its model? MINIDORA builds and measures an alternative.**
 
-MINIDORA is not an attempt to make a smaller copy of a neural LLM. It separates **what constitutes a language model**, **what governs decisions**, **where knowledge and computation live**, and **how capabilities can be added**. The core is non-neural and does not use a Transformer; HDS-based execution governance, deterministic computation, retrieval and replaceable capability modules are composed around it.
+MINIDORA is not an attempt to make a smaller copy of a neural LLM. It separates **what constitutes a language model**, **what governs decisions**, **where knowledge and computation live**, and **how capabilities can be added**. The core is non-neural and does not use a Transformer; HDS-governed answer selection, deterministic computation, retrieval and replaceable capability modules are composed around it. **What the system can do, why it returned a given answer, and what conditions reproduce it** are central engineering questions.
 
 > **The bet is not on smaller models. It is on a different way of building capabilities.**
 > This is no longer only an architecture proposal: source code, benchmark records, a live cloud demonstration and inspectable execution traces exist.
 
 [日本語正本](README.md) · [Implementation](src/minidora/) · [Product](製品版/README.en.md) · [Design](設計/README.md) · [Evaluation](評価/README.md) · [Publication scope](PUBLICATION_BOUNDARY.md)
+
+## What MINIDORA Can Do — Scope of Use
+
+**MINIDORA is more than a non-neural model experiment. It is an extensible execution system connecting conversation, documents, computation, evidence retrieval and specialized capabilities.** Modules can be added without retraining the retained core for that addition.
+
+| Application | Implemented function | Scope |
+|---|---|---|
+| **Conversation and text** | Basic dialogue, bounded summarization, extraction, formatting and follow-up requests | Supported patterns and retained conversation context |
+| **Documents and numbers** | Arithmetic, JSON/CSV-based comparisons and aggregation, limited multi-document comparison and corrections | Supported formats and operations, including the optional general-conversation mode |
+| **External evidence** | News, Wikipedia, local search and permitted webpage text, linked to subsequent answers | Provider configuration, permissions and live availability; cloud sources are restricted |
+| **Specialist modules** | Register and select trusted scientific, computational or knowledge modules | Explicit module contracts; unrestricted natural-language routing is not claimed |
+| **Traceable answers** | Inspect capability selection, execution results, grounds, acceptance, suspension and failure | Depth depends on the recorded path |
+
+Interfaces include Python CLI, local HTTP API, HDS-integrated chat, an optional general-conversation mode and a bounded Google ADK / Cloud Run demonstration. See the [product guide](製品版/README.md).
+
+## Answer Governance — Why This Answer?
+
+**Governance in MINIDORA is not a plausible explanation generated after the fact. It is the ability to inspect the execution path: which evidence and capability were used, what the system did, and how the particular answer was selected.**
+
+The ordinary product-chat path records:
+
+~~~text
+Input and current conversation state
+  → Candidate capabilities, selected module and version
+  → Module input, output, grounds and references
+  → Accepted / suspended / failed result, or bounded fallback
+  → Response construction and conversation-state update
+  → Final answer, Trace ID and audit hash
+~~~
+
+In the public Cloud Run demonstration, a question about seaweed beds was answered using actual retrieved webpage text; the response, source and trace were checked. A follow-up formatting request reused the source without another search.
+
+Audit records connect module/version, input/output, grounds and decisions. SHA-256 links events and successive responses. **The aim is to investigate why the answer was produced through the route that actually executed—not to fabricate a narrative about an opaque result.**
+
+The depth of evidence depends on the runtime path. Matching hashes do not independently establish factual truth or guarantee that the answer is correct. See the [product governance contract](製品版/README.md#ガバナンス).
+
+## Determinism — Conditions, Reproduction and Audit
+
+**Determinism does not mean always being correct. It means that with the relevant input, model state, conversation state, reference data, capability versions and execution conditions held fixed, deterministic computation, selection and state transitions can be reproduced.**
+
+The non-neural language-model core uses exact rational (`Fraction`) probability values and fixed tie-breaking for most-likely-symbol selection. Those probabilities describe the model's language distribution; they do not require random sampling to select an answer. A local test checks 100 identical arithmetic inputs for identical responses.
+
+**Deterministic operations make traceability more useful:** differences can be investigated against changes in source material, state, module versions, the selected path or the executed operation.
+
+Live web content may change, retrieval may fail, and sessions may differ. Trace IDs and timestamps are also generated per run. No byte-for-byte identity of external network responses or entire audit logs is implied. Deterministic local processing and environment-dependent behavior are separate.
 
 ## The engineering results that matter
 
