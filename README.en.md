@@ -1,34 +1,45 @@
-# MINIDORA — A Non-Neural Route to LLMs
-### What if scaling neural networks is not the only way to build language-model capabilities?
+# ⚙️ MINIDORA — Rebuilding LLMs Without a Transformer Core
 
-**MINIDORA is a Japanese-first research and implementation project exploring language-model functionality without using neural networks or Transformers as its core.**
+### Beyond the parameter-scaling race: a different engineering route to language-model capabilities.
 
-Instead of reproducing an existing LLM at smaller scale, MINIDORA revisits the machinery: how a request is represented, how a decision is reached, how evidence is retrieved, and how capabilities can be attached without retraining a huge model.
+**What if making an AI system more capable did not always require retraining or enlarging its model? MINIDORA builds and measures an alternative.**
 
-The ambition is deliberately bold: **build a different foundation for language-model systems, then test it against real tasks.** The evidence is deliberately specific: source code, local tests, historical benchmark runs, and a bounded live Cloud Run demonstration—not a claim of general parity with frontier models.
+MINIDORA is not an attempt to make a smaller copy of a neural LLM. It separates **what constitutes a language model**, **what governs decisions**, **where knowledge and computation live**, and **how capabilities can be added**. The core is non-neural and does not use a Transformer; HDS-based execution governance, deterministic computation, retrieval and replaceable capability modules are composed around it.
 
-[日本語正本](README.md) · [Product](製品版/README.en.md) · [Design](設計/README.md) · [Evaluation](評価/README.md) · [Publication policy](PUBLICATION_BOUNDARY.md)
+> **The bet is not on smaller models. It is on a different way of building capabilities.**
+> This is no longer only an architecture proposal: source code, benchmark records, a live cloud demonstration and inspectable execution traces exist.
 
-## Why it is different
+[日本語正本](README.md) · [Implementation](src/minidora/) · [Product](製品版/README.en.md) · [Design](設計/README.md) · [Evaluation](評価/README.md) · [Publication scope](PUBLICATION_BOUNDARY.md)
 
-| Design focus | MINIDORA approach |
-|---|---|
-| **Non-neural core** | Language processing and system capabilities without NN/Transformer as the core implementation |
-| **Capability composition** | Conversation, computation, summarization, extraction, and evidence retrieval outside the core |
-| **Evidence-linked answers** | Actual retrieved source text, provenance, and execution traces rather than snippet-only assertions |
-| **HDS-governed execution** | Separate request interpretation, action selection, approval, and suspension |
-| **Runnable surfaces** | Python application, HTTP API, Google ADK 2.11.0 and a bounded Cloud Run demo |
+## The engineering results that matter
 
-## Current evidence — as of October 13, 2026
+| Demonstration | Recorded outcome | What it shows |
+|---|---|---|
+| **Capability growth without core retraining** | **GPQA Diamond 29/198 OFF → 80/198 ON; +51 net correct, zero regressions** (Sep 9, 2026; same-run LIVE comparison) | Attaching scientific-capability modules increased the system's effective performance without retraining, replacing or enlarging the model core for that addition |
+| **A non-neural integrated core, tested separately** | **40/198 (20.20%)** (Sep 27, 2026; all 198 questions, LIVE retrieval) | A separate core-only measurement, with each problem represented once and no external scientific capability modules |
+| **Not just a benchmark runner** | Google ADK 2.11.0 / Cloud Run returned arithmetic, evidence-backed web answers and follow-up formatting with matching traces (Oct 13, 2026) | Selected non-neural/HDS chat paths were exercised through a real HTTP deployment |
 
-**Keep implementation dates, benchmark dates and deployment revisions separate.**
+**The central result is not simply the score change.** It is the observed **mechanism of capability growth**: keep the model core, attach additional capabilities, and measure improvements in end-to-end task performance. In the bounded scientific-question experiment, capability extension was an *actual performance-producing operation*, not merely an extensibility promise.
 
-- **Canonical benchmark run (Sep 27):** GPQA Diamond **40 / 198 (20.20%)**, all 198 questions with LIVE retrieval. This is the canonical historical measurement for the non-neural core, **not a newly measured score for the Oct 1 integrated implementation or subsequent chatbot changes**.
-- **Historical capability-module experiment:** MINIDORA80 measured **29 / 198** with modules OFF and **80 / 198** with modules ON in a controlled same-run comparison (net +51 correct, zero within-run regressions). This is a different series, not a replacement for the 40/198 canonical-core result.
-- **Working online demo:** Google ADK and Cloud Run returned bounded arithmetic, one sourced explanation from a public webpage, and a follow-up formatting change. HTTP Basic protection, trace agreement, and independently recomputed audit evidence were checked.
-- **Not yet established:** general chatbot quality across unseen tasks, renewed GPQA measurement for the latest code, permanent conversational memory, and a general-availability product claim.
+The historical MINIDORA80 score was **80/198 (40.40%)**. That is in the same roughly 40% numerical band as the **39% GPT-4 baseline reported in the original GPQA paper**. Crucially, the evaluation subset and execution/retrieval conditions are not identical; **this is not a head-to-head win or a claim of overall GPT-4 parity**. Sources: [MINIDORA80 same-run evaluation](評価/GPQA_Diamond_MINIDORA80_Module_E2E_正本_2026-09-09.md) and the [GPQA paper](https://arxiv.org/abs/2311.12022).
 
-The public implementation remains centered on [`src/minidora/`](src/minidora/), with test and evaluation evidence under [`tests/`](tests/) and [`評価/`](評価/). See the [canonical implementation/evaluation distinction](CURRENT_CANONICAL.md).
+## Why the design matters
+
+- **Architecture is not definition.** A dominant Transformer implementation is not automatically the constitutive definition of a language model.
+- **A model is not a decision authority.** HDS governs request interpretation, action selection, acceptance and suspension as a distinct responsibility.
+- **Capability is not synonymous with model weights.** Computation, evidence retrieval and specialist modules can be composed around a retained core.
+- **Claims are tied to execution.** Retrieved page content, trace evidence and explicit failure boundaries matter alongside answer quality.
+- **Measurements are version-specific.** Model-core, capability-augmented, integrated-code and cloud-demo results are not interchangeable.
+
+**MINIDORA is an attempt to reopen the engineering design space for LLMs—not merely to compete on parameter count.**
+
+The current integrated implementation dates from Oct 1, 2026, with later basic-chat additions. **Its full 198-question GPQA performance has not been remeasured**; the Sep 27 result is a prior core measurement, and the Sep 9 MINIDORA80 result is a distinct historical capability-augmented series. General chatbot quality, persistent session memory and broad model parity remain unestablished. [Canonical version boundaries](CURRENT_CANONICAL.md).
+
+**Watch it run:** [3-minute recorded cloud demo](https://youtu.be/q7hF26QBabI).
+
+The Japanese text is the normative source of meaning. Public materials include implementation, interface contracts and local evidence—not complete private theory definitions, fixed private references or full theory-to-code mappings. [Publication policy](PUBLICATION_BOUNDARY.md).
+
+---
 
 ## Live Cloud Run demonstration
 
