@@ -1,113 +1,74 @@
-# NOTNN-LLM-MINIDORA — MINIDORA
+# MINIDORA — A Non-Neural Route to LLMs
+### What if scaling neural networks is not the only way to build language-model capabilities?
 
-> **A Japanese-first non-neural LLM research and implementation project that separates LLM constitutive requirements and capability effects from today's dominant implementation architecture, then reimplements them without neural networks or Transformers as the core.**
+**MINIDORA is a Japanese-first research and implementation project exploring language-model functionality without using neural networks or Transformers as its core.**
 
-[日本語正本](README.md) / [Product](製品版/README.en.md) / [Design](設計/README.md) / [Evaluation](評価/README.md)
+Instead of reproducing an existing LLM at smaller scale, MINIDORA revisits the machinery: how a request is represented, how a decision is reached, how evidence is retrieved, and how capabilities can be attached without retraining a huge model.
 
-The Japanese documents are the normative source of meaning. The public repository does not publish complete internal-theory definitions or full theory-to-implementation mappings.
+The ambition is deliberately bold: **build a different foundation for language-model systems, then test it against real tasks.** The evidence is deliberately specific: source code, local tests, historical benchmark runs, and a bounded live Cloud Run demonstration—not a claim of general parity with frontier models.
 
-## Current status
+[日本語正本](README.md) · [Product](製品版/README.en.md) · [Design](設計/README.md) · [Evaluation](評価/README.md) · [Publication policy](PUBLICATION_BOUNDARY.md)
 
-Current and historical evaluation lines are kept separate.
+## Why it is different
 
-| Evaluation line | Status | GPQA Diamond |
-|---|---|---:|
-| Current MINIDORA integrated core | **Current canon** | **40 / 198 (20.20%)** |
-| MINIDORA30 | Historical save point | 30 / 198 (15.15%) |
-| MINIDORA80 | Historical save point | 80 / 198 (40.40%) |
+| Design focus | MINIDORA approach |
+|---|---|
+| **Non-neural core** | Language processing and system capabilities without NN/Transformer as the core implementation |
+| **Capability composition** | Conversation, computation, summarization, extraction, and evidence retrieval outside the core |
+| **Evidence-linked answers** | Actual retrieved source text, provenance, and execution traces rather than snippet-only assertions |
+| **HDS-governed execution** | Separate request interpretation, action selection, approval, and suspension |
+| **Runnable surfaces** | Python application, HTTP API, Google ADK 2.11.0 and a bounded Cloud Run demo |
 
-The current 2026-09-27 canonical run evaluates all 198 GPQA Diamond questions with newly retrieved `LIVE_ONLY` references through `HDS駆動コア.選択実行`. It measured **40 / 198**, with 36 initial inherited correct answers, 40 final correct answers, zero within-run regressions, full final candidate coverage on 198/198 cases, and exactly one problem bundle formation per case.
+## Current evidence — as of October 13, 2026
 
-Frozen reference data, saved search results, and per-problem replay bundles are not used for current canonical performance evaluation. Score differences across separate runs, including paired runs with independent LIVE retrieval, are not treated as code-only causal effects.
+**Keep implementation dates, benchmark dates and deployment revisions separate.**
 
-MINIDORA80 remains a historical demonstration of the capability-module extension path. Its same-run controlled A/B measured 29 / 198 with modules OFF and 80 / 198 with modules ON, for a +51 correct delta and zero regressions. It is a separate historical line, not the current integrated-core score.
+- **Canonical benchmark run (Sep 27):** GPQA Diamond **40 / 198 (20.20%)**, all 198 questions with LIVE retrieval. This is the canonical historical measurement for the non-neural core, **not a newly measured score for the Oct 1 integrated implementation or subsequent chatbot changes**.
+- **Historical capability-module experiment:** MINIDORA80 measured **29 / 198** with modules OFF and **80 / 198** with modules ON in a controlled same-run comparison (net +51 correct, zero within-run regressions). This is a different series, not a replacement for the 40/198 canonical-core result.
+- **Working online demo:** Google ADK and Cloud Run returned bounded arithmetic, one sourced explanation from a public webpage, and a follow-up formatting change. HTTP Basic protection, trace agreement, and independently recomputed audit evidence were checked.
+- **Not yet established:** general chatbot quality across unseen tasks, renewed GPQA measurement for the latest code, permanent conversational memory, and a general-availability product claim.
 
-Canonical references:
-- [Current canon](CURRENT_CANONICAL.md)
-- [Current MINIDORA integrated core 40/198](評価/GPQA_Diamond_MINIDORA_中核_正本_2026-09-27.md)
-- [Evaluation contract v3](評価/評価契約_v3.md)
-- [Development canon history](開発正本履歴.md)
+The public implementation remains centered on [`src/minidora/`](src/minidora/), with test and evaluation evidence under [`tests/`](tests/) and [`評価/`](評価/). See the [canonical implementation/evaluation distinction](CURRENT_CANONICAL.md).
 
-## Architecture boundary
+## Live Cloud Run demonstration
 
-MINIDORA separates a compact model core from exchangeable capabilities.
+**Video:** [3-minute recorded browser demonstration](https://youtu.be/q7hF26QBabI) (older `a38` revision with authenticated owner access).
 
-```text
-model core
-├─ non-neural language model
-├─ general capabilities
-├─ deterministic computation
-├─ external references
-└─ execution / audit
+**Review endpoint:** [MINIDORA ADK Cloud Run](https://minidora-adk-verify-qp5ojmzmyq-an.a.run.app) (review-only **HTTP Basic authentication**; credentials are not published in this repository).
 
-capability modules
-├─ conversation
-├─ summarization
-├─ extraction
-├─ calculation
-├─ knowledge reference
-└─ additional general or specialist capabilities
-```
+![MINIDORA public Cloud architecture](docs/minidora-cloud-architecture.png)
 
-Adding a capability module is not the same as retraining, fine-tuning, enlarging, or replacing the model core.
+The subsequent review revision, `minidora-adk-verify-judge-d2397cc3fc08-7234f7`, added a Basic-protected entry point. For this revision, 19 direct HTTPS checks without owner OIDC and three actual responses were verified. Among them:
 
-## Run
+| Prompt | Observed outcome |
+|---|---|
+| `8*9` | `72` — approved |
+| `藻場とは何か。` (“What is a seaweed bed?”) | `藻場は海藻が茂る場所です。` — approved with public source text |
+| Same conversation: `引用形式にして` (“Put it in quote format”) | A blockquote of the preceding answer — approved, without an additional search |
+
+These are **finite demonstration observations**, not a comprehensive validation of general response quality. The ordinary browser journey from entering Basic credentials to receiving a full chat response was not independently verified for the newer review revision. Session memory is in-process only and does not survive instance replacement. The old video is an edited sequence rather than an uninterrupted screen recording.
+
+The public diagram represents the Basic-protected review design; the video records the older owner-authenticated revision. Details: [Japanese README](README.md), [Cloud Run deployment notes](deploy/CLOUD_RUN.md), and [Product README](製品版/README.md).
+
+## Run locally
 
 ```bash
 python -m pip install -e .
 python -m minidora.製品版 --HDS --serve
 ```
 
-Product-only entry:
+Alternative product-mode entry: `python -m minidora.製品版 --serve`.
 
-```bash
-python -m minidora.製品版 --serve
-```
-
-HTTP:
-
-```text
-POST /api/chat
-GET  /api/trace/{trace_id}
-GET  /api/capabilities
-GET  /health
-```
-
-## Evaluation boundaries
-
-MINIDORA keeps these separate:
-
-```text
-strict language-model conformance
-!= reasoning mechanism
-!= model-core performance
-!= system performance with capability modules
-!= product maturity
-!= Large classification
-```
-
-Historical work logs and obsolete evaluation payloads are not duplicated in the default tree. Canonical development milestones and restore commits are recorded in [開発正本履歴.md](開発正本履歴.md). The `構文化/` corpus is retained as construction input, not treated as disposable work logs.
-
-## Repository
-
-| Path | Responsibility |
+| Endpoint | Purpose |
 |---|---|
-| [`src/minidora/`](src/minidora/) | current implementation |
-| [`tests/`](tests/) | unit, regression and acceptance tests |
-| [`設計/`](設計/) | public local design / compatibility boundaries |
-| [`評価/`](評価/) | current canonical and acceptance evidence |
-| [`docs/`](docs/) | current supporting documents |
-| [`構文化/`](構文化/) | observation / reconstruction history |
-| [`製品版/`](製品版/) | product documentation |
-| [`artifacts/`](artifacts/) | small fixed artifacts only |
+| `POST /api/chat` | Submit a message |
+| `GET /api/trace/{trace_id}` | Retrieve a bounded execution trace |
+| `GET /api/capabilities` | Inspect declared capabilities |
+| `GET /health` | Health endpoint |
 
-Large benchmark result JSON and frozen reference bundles are kept out of the default tree.
+For basic-chat retrieval settings, ADK/Cloud Run deployment, and mode-specific limitations, see [製品版/README.md](製品版/README.md).
 
-## Japanese-first policy
-
-Japanese is the normative language and internal semantic source of truth. English is an external/publication surface.
-
-## Verification
+## Evaluate and contribute
 
 ```bash
 python tools/リポジトリ整合性監査.py
@@ -118,13 +79,12 @@ python -m compileall -q src tests tools
 python -m unittest discover -s tests -q
 ```
 
-## License
+The language of normative meaning is Japanese. Read [AGENTS.md](AGENTS.md), [CURRENT_CANONICAL.md](CURRENT_CANONICAL.md), and [PUBLICATION_BOUNDARY.md](PUBLICATION_BOUNDARY.md) before changing the implementation or publishing technical details. Internal theory definitions and complete theory-to-implementation mappings are not part of the public scope.
 
-- Source code and implementation: **Apache License 2.0** — [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0)
-- Specifications, design, evaluation and documentation: **CC-BY-4.0** — [LICENSE-CC-BY-4.0](LICENSE-CC-BY-4.0)
-- Scope: [LICENSE](LICENSE)
-- Attribution: [NOTICE](NOTICE)
+## Licenses
 
-## Author
+- **Software, source, tests and tools:** [Apache-2.0](LICENSE-APACHE-2.0)
+- **Specifications, designs, evaluation documents and README:** [CC-BY-4.0](LICENSE-CC-BY-4.0)
+- [Scope](LICENSE) · [Third-party notices and attribution](NOTICE)
 
-**がっちむち♂**
+**MINIDORA — the question is not only how large an LLM must be, but what makes its capabilities possible.**
